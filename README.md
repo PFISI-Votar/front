@@ -1,119 +1,100 @@
-# Shadcn Admin Dashboard
+# VOTAR — Frontend
 
-Admin Dashboard UI crafted with Shadcn and Vite. Built with responsiveness and accessibility in mind.
+Frontend del proyecto **VOTAR** (*Plataforma de Votación Electrónica con Tecnología Blockchain*), desarrollado como Proyecto Final de la carrera de Ingeniería en Sistemas de Información en la UTN FRVM.
 
-![alt text](public/images/shadcn-admin.png)
+Este repositorio contiene el **Panel de Administración** y la base de UI sobre la que se construirán también la Boleta Única Digital (BUD) y el Dashboard Público de resultados.
 
-[![Sponsored by Clerk](https://img.shields.io/badge/Sponsored%20by-Clerk-5b6ee1?logo=clerk)](https://go.clerk.com/GttUAaK)
+## Equipo Five Stack
 
-I've been creating dashboard UIs at work and for my personal projects. I always wanted to make a reusable collection of dashboard UI for future projects; and here it is now. While I've created a few custom components, some of the code is directly adapted from ShadcnUI examples.
+| Integrante | Legajo |
+|---|---|
+| Liendo, Alejo | 15074 |
+| Lucarelli, Bruno | 14988 |
+| Magni, Gastón | 14991 |
+| Mosconi, Ignacio (director) | 15288 |
+| Terreno, Valentino | 15079 |
 
-> This is not a starter project (template) though. I'll probably make one in the future.
+**Cátedra:** Proyecto Final ISI — Ing. Christian Villafañe, Ing. Matías Cassani
 
-## Features
+## Descripción
 
-- Light/dark mode
-- Responsive
-- Accessible
-- With built-in Sidebar component
-- Global search command
-- 10+ pages
-- Extra custom components
-- RTL support
+VOTAR es una plataforma **open source** para digitalizar procesos electorales de pequeña y mediana escala (centros de estudiantes, consejos directivos, empresas, cooperativas, sindicatos, organismos públicos), garantizando:
 
-<details>
-<summary>Customized Components (click to expand)</summary>
+- Seguridad criptográfica
+- Transparencia e inmutabilidad mediante blockchain
+- Verificabilidad extremo a extremo (E2E)
+- Anonimato del votante (desvinculación criptográfica identidad → voto)
 
-This project uses Shadcn UI components, but some have been slightly modified for better RTL (Right-to-Left) support and other improvements. These customized components differ from the original Shadcn UI versions.
+**Caso piloto:** elecciones del Centro de Estudiantes (CEUTI) — UTN FRVM.
 
-If you want to update components using the Shadcn CLI (e.g., `npx shadcn@latest add <component>`), it's generally safe for non-customized components. For the listed customized ones, you may need to manually merge changes to preserve the project's modifications and avoid overwriting RTL support or other updates.
+## Arquitectura del ecosistema
 
-> If you don't require RTL support, you can safely update the 'RTL Updated Components' via the Shadcn CLI, as these changes are primarily for RTL compatibility. The 'Modified Components' may have other customizations to consider.
+| Contenedor | Repositorio | Tecnología |
+|---|---|---|
+| Panel de Administración / BUD / Dashboard | `votar.front` (este repo) | React 19, Vite, TypeScript, Tailwind CSS 4, shadcn/ui |
+| API Backend | [votar.back](https://github.com/PFISI-Votar/back) | NestJS 11, TypeORM, PostgreSQL 16 |
+| Smart contracts | [blockchain](https://github.com/PFISI-Votar/blockchain) | Solidity, Ethereum Sepolia |
 
-### Modified Components
+La documentación completa del proyecto (alcance, reglas de negocio, diagramas, lineamientos) se encuentra en la carpeta `Contexto/` del workspace académico.
 
-- scroll-area
-- sonner
-- separator
+## Stack tecnológico (frontend)
 
-### RTL Updated Components
+- **UI:** [shadcn/ui](https://ui.shadcn.com) (Tailwind CSS + Radix UI)
+- **Build:** [Vite](https://vitejs.dev/)
+- **Routing:** [TanStack Router](https://tanstack.com/router/latest)
+- **Estado / datos:** [TanStack Query](https://tanstack.com/query/latest), [Zustand](https://zustand.docs.pmnd.rs/)
+- **Formularios:** React Hook Form + Zod
+- **HTTP:** Axios
+- **Autenticación:** SSO institucional OAuth 2.0 / OIDC (integración pendiente con el backend)
+- **Blockchain (cliente):** Ethers.js + Web Crypto API (billetera efímera)
 
-- alert-dialog
-- calendar
-- command
-- dialog
-- dropdown-menu
-- select
-- table
-- sheet
-- sidebar
-- switch
+## Requisitos previos
 
-**Notes:**
+- Node.js 20+
+- npm (incluido con Node.js)
+- Backend `votar.back` en ejecución (para integración con la API)
 
-- **Modified Components**: These have general updates, potentially including RTL adjustments.
-- **RTL Updated Components**: These have specific changes for RTL language support (e.g., layout, positioning).
-- For implementation details, check the source files in `src/components/ui/`.
-- All other Shadcn UI components in the project are standard and can be safely updated via the CLI.
-
-</details>
-
-## Tech Stack
-
-**UI:** [ShadcnUI](https://ui.shadcn.com) (TailwindCSS + RadixUI)
-
-**Build Tool:** [Vite](https://vitejs.dev/)
-
-**Routing:** [TanStack Router](https://tanstack.com/router/latest)
-
-**Type Checking:** [TypeScript](https://www.typescriptlang.org/)
-
-**Linting/Formatting:** [ESLint](https://eslint.org/) & [Prettier](https://prettier.io/)
-
-**Icons:** [Lucide Icons](https://lucide.dev/icons/), [Tabler Icons](https://tabler.io/icons) (Brand icons only)
-
-**Auth (partial):** [Clerk](https://go.clerk.com/GttUAaK)
-
-## Run Locally
-
-Clone the project
+## Instalación y ejecución
 
 ```bash
-  git clone https://github.com/satnaing/shadcn-admin.git
+git clone https://github.com/PFISI-Votar/front.git
+cd votar.front
+npm install
+cp .env.example .env
+npm run dev
 ```
 
-Go to the project directory
+Variables de entorno disponibles:
 
-```bash
-  cd shadcn-admin
-```
+| Variable | Descripción | Valor por defecto |
+|---|---|---|
+| `VITE_API_URL` | URL base del backend NestJS | `http://localhost:3000` |
 
-Install dependencies
+## Scripts disponibles
 
-```bash
-  pnpm install
-```
+| Comando | Descripción |
+|---|---|
+| `npm run dev` | Servidor de desarrollo |
+| `npm run build` | Build de producción |
+| `npm run preview` | Vista previa del build |
+| `npm run lint` | ESLint |
+| `npm run test` | Tests con Vitest (browser) |
+| `npm run format` | Formateo con Prettier |
 
-Start the server
+## Roles y módulos previstos
 
-```bash
-  pnpm run dev
-```
+- **Autoridad Electoral:** configuración de comicios, gestión de padrón, publicación de Merkle Root, reportes
+- **Votante:** emisión de sufragio vía BUD con firma criptográfica y recibo E2E
+- **Auditor / Observador:** consulta del Dashboard Público de escrutinio en tiempo real
 
-## Sponsoring this project ❤️
+## Reglas de negocio clave
 
-If you find this project helpful or use this in your own work, consider [sponsoring me](https://github.com/sponsors/satnaing) to support development and maintenance. You can [buy me a coffee](https://buymeacoffee.com/satnaing) as well. Don’t worry, every penny helps. Thank you! 🙏
+- Solo votantes empadronados pueden sufragar (validación vía Merkle Proof)
+- Voto múltiple permitido; solo el **último** voto cuenta (`LAST_VOTE_WINS`)
+- El voto no tiene relación persistente con la identidad del votante (Ley 25.326)
+- La clave privada de la billetera efímera **nunca se persiste** en el cliente ni en el servidor
+- Escrutinio público disponible en tiempo real sin autenticación
 
-For questions or sponsorship inquiries, feel free to reach out at [satnaingdev@gmail.com](mailto:satnaingdev@gmail.com).
+## Licencia
 
-### Current Sponsor
-
-- [Clerk](https://go.clerk.com/GttUAaK) - authentication and user management for the modern web
-
-## Author
-
-Crafted with 🤍 by [@satnaing](https://github.com/satnaing)
-
-## License
-
-Licensed under the [MIT License](https://choosealicense.com/licenses/mit/)
+Proyecto académico open source — UTN FRVM, 2026.
