@@ -21,8 +21,8 @@
     "erasableSyntaxOnly": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*", "./components/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "components"]
 }

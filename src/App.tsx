@@ -1,11 +1,14 @@
-import { Button } from "@/components/ui/button"
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import CrearEleccion from '@/pages/eleccion/CrearEleccion';
 
 function App() {
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center">
-      <Button>Click me</Button>
-    </div>
-  )
+    <BrowserRouter>
+      <Routes>
+        <Route path="/elecciones/crear" element={<CrearEleccion />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
