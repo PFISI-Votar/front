@@ -17,8 +17,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  clampLocalTime,
   combineLocalDateTime,
   HOUR_OPTIONS,
+  isHourOptionDisabled,
+  isMinuteOptionDisabled,
   MINUTE_OPTIONS,
   parseDateTimeValue,
   startOfDay,
@@ -48,24 +51,42 @@ export const DateTimePicker = React.forwardRef<HTMLDivElement, DateTimePickerPro
   ) => {
   const { date, hours, minutes } = parseDateTimeValue(value)
 
-  const emitChange = (
-    nextDate: Date | undefined,
-    nextHours: string,
-    nextMinutes: string
-  ) => {
-    if (!nextDate) {
-      onChange('')
+  const emitChange = React.useCallback(
+    (
+      nextDate: Date | undefined,
+      nextHours: string,
+      nextMinutes: string
+    ) => {
+      if (!nextDate) {
+        onChange('')
+        return
+      }
+
+      const clamped = clampLocalTime(nextDate, nextHours, nextMinutes, minDate)
+
+      onChange(
+        combineLocalDateTime(
+          nextDate,
+          Number(clamped.hours),
+          Number(clamped.minutes)
+        )
+      )
+    },
+    [minDate, onChange]
+  )
+
+  React.useEffect(() => {
+    if (!date || !minDate || !value) {
       return
     }
 
-    onChange(
-      combineLocalDateTime(
-        nextDate,
-        Number(nextHours),
-        Number(nextMinutes)
-      )
-    )
-  }
+    const clamped = clampLocalTime(date, hours, minutes, minDate)
+    if (clamped.hours === hours && clamped.minutes === minutes) {
+      return
+    }
+
+    emitChange(date, clamped.hours, clamped.minutes)
+  }, [date, emitChange, hours, minutes, minDate, value])
 
   const handleDateSelect = (selectedDate: Date | undefined) => {
     if (!selectedDate) {
@@ -169,7 +190,12 @@ export const DateTimePicker = React.forwardRef<HTMLDivElement, DateTimePickerPro
             </SelectTrigger>
             <SelectContent className='max-h-56'>
               {HOUR_OPTIONS.map((hour) => (
-                <SelectItem key={hour} value={hour} className='font-mono'>
+                <SelectItem
+                  key={hour}
+                  value={hour}
+                  disabled={isHourOptionDisabled(hour, date, minDate)}
+                  className='font-mono'
+                >
                   {hour}
                 </SelectItem>
               ))}
@@ -196,7 +222,12 @@ export const DateTimePicker = React.forwardRef<HTMLDivElement, DateTimePickerPro
             </SelectTrigger>
             <SelectContent className='max-h-56'>
               {MINUTE_OPTIONS.map((minute) => (
-                <SelectItem key={minute} value={minute} className='font-mono'>
+                <SelectItem
+                  key={minute}
+                  value={minute}
+                  disabled={isMinuteOptionDisabled(minute, hours, date, minDate)}
+                  className='font-mono'
+                >
                   {minute}
                 </SelectItem>
               ))}

@@ -91,6 +91,7 @@ export const CreateComicioForm = ({ onCreated }: CreateComicioFormProps) => {
                     value={field.value}
                     onChange={field.onChange}
                     onBlur={field.onBlur}
+                    minDate={new Date()}
                   />
                 </FormControl>
                 <FormMessage />

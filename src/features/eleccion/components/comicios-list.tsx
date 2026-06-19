@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { formatDateTimeForDisplay } from '@/lib/datetime'
 import { listarElecciones } from '../api/eleccion-api'
 import type { EleccionEstado } from '../data/schema'
 
@@ -74,7 +75,7 @@ export const ComiciosList = () => {
                 <CardTitle className='text-lg'>{comicio.nombre}</CardTitle>
                 <CardDescription>
                   ID {comicio.idEleccion} · Apertura{' '}
-                  {new Date(comicio.fechaInicio).toLocaleString('es-AR')}
+                  {formatDateTimeForDisplay(comicio.fechaInicio)}
                 </CardDescription>
               </div>
               <Badge variant={estadoVariant(comicio.estado)}>{comicio.estado}</Badge>

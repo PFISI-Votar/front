@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { isUtcIsoDateTime } from '@/lib/datetime'
 
 export type TipoCampoCandidato =
   | 'texto'
@@ -82,17 +83,34 @@ export const createCandidatoSchema = z.object({
   datosAdicionales: z.record(z.string(), z.unknown()),
 })
 
+const utcIsoDateTimeSchema = z
+  .string()
+  .min(1, 'Fecha requerida')
+  .refine(isUtcIsoDateTime, {
+    message: 'Fecha y hora inválidas',
+  })
+
 export const createComicioSchema = z
   .object({
     nombre: z.string().min(1, 'El nombre es obligatorio'),
     descripcion: z.string().optional(),
-    fechaInicio: z.string().min(1, 'Fecha de inicio requerida'),
-    fechaFin: z.string().min(1, 'Fecha de cierre requerida'),
+    fechaInicio: utcIsoDateTimeSchema,
+    fechaFin: utcIsoDateTimeSchema,
   })
   .superRefine((data, ctx) => {
+    const ahora = new Date()
     const inicio = new Date(data.fechaInicio)
     const fin = new Date(data.fechaFin)
-    if (fin <= inicio) {
+
+    if (!Number.isNaN(inicio.getTime()) && inicio <= ahora) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'La fecha de apertura debe ser posterior al momento actual',
+        path: ['fechaInicio'],
+      })
+    }
+
+    if (!Number.isNaN(inicio.getTime()) && !Number.isNaN(fin.getTime()) && fin <= inicio) {
       ctx.addIssue({
         code: 'custom',
         message: 'La fecha de cierre debe ser posterior a la de inicio',
