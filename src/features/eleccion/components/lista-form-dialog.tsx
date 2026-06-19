@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
@@ -17,31 +18,54 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { createListaSchema, type CreateListaInput } from '../data/schema'
+import { createListaSchema, type CreateListaInput, type Lista } from '../data/schema'
+
+const EMPTY_VALUES: CreateListaInput = {
+  nombre: '',
+  sigla: '',
+  color: '#2563eb',
+}
 
 type ListaFormDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (values: CreateListaInput) => Promise<void>
+  lista?: Lista | null
+}
+
+const toFormValues = (lista?: Lista | null): CreateListaInput => {
+  if (!lista) {
+    return EMPTY_VALUES
+  }
+  return {
+    nombre: lista.nombre,
+    sigla: lista.sigla,
+    color: lista.color ?? '#2563eb',
+  }
 }
 
 export const ListaFormDialog = ({
   open,
   onOpenChange,
   onSubmit,
+  lista,
 }: ListaFormDialogProps) => {
+  const isEditMode = lista != null
+
   const form = useForm<CreateListaInput>({
     resolver: zodResolver(createListaSchema),
-    defaultValues: {
-      nombre: '',
-      sigla: '',
-      color: '#2563eb',
-    },
+    defaultValues: EMPTY_VALUES,
   })
+
+  useEffect(() => {
+    if (open) {
+      form.reset(toFormValues(lista))
+    }
+  }, [open, lista, form])
 
   const handleSubmit = async (values: CreateListaInput) => {
     await onSubmit(values)
-    form.reset({ nombre: '', sigla: '', color: '#2563eb' })
+    form.reset(EMPTY_VALUES)
     onOpenChange(false)
   }
 
@@ -49,7 +73,9 @@ export const ListaFormDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent aria-describedby={undefined}>
         <DialogHeader>
-          <DialogTitle>Nueva lista electoral</DialogTitle>
+          <DialogTitle>
+            {isEditMode ? 'Editar lista electoral' : 'Nueva lista electoral'}
+          </DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className='space-y-4'>
@@ -94,7 +120,11 @@ export const ListaFormDialog = ({
             />
             <DialogFooter>
               <Button type='submit' disabled={form.formState.isSubmitting}>
-                Crear lista
+                {form.formState.isSubmitting
+                  ? 'Guardando…'
+                  : isEditMode
+                    ? 'Guardar cambios'
+                    : 'Crear lista'}
               </Button>
             </DialogFooter>
           </form>

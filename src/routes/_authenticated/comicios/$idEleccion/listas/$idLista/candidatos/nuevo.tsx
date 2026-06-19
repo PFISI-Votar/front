@@ -1,12 +1,21 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import { crearCandidato } from '@/features/eleccion/api/candidato-api'
 import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/api/configuracion-datos-candidato-api'
 import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
 import { listarListas } from '@/features/eleccion/api/lista-api'
 import { CandidatoForm } from '@/features/eleccion/components/candidato-form'
-import { getApiErrorMessage, getApiFieldErrors } from '@/lib/api-client'
+import {
+  ComicioFrozenGuard,
+  ConflictAlert,
+} from '@/features/eleccion/components/comicio-frozen-guard'
+import {
+  getApiErrorMessage,
+  getApiFieldErrors,
+  isConflictError,
+} from '@/lib/api-client'
 import { ContentSection } from '@/features/settings/components/content-section'
 
 export const Route = createFileRoute(
@@ -21,6 +30,7 @@ function NuevoCandidatoRoute() {
   const { idEleccion, idLista } = Route.useParams()
   const idEleccionNum = Number(idEleccion)
   const idListaNum = Number(idLista)
+  const [conflictMessage, setConflictMessage] = useState<string | null>(null)
 
   const eleccionQuery = useQuery({
     queryKey: ['eleccion', idEleccionNum],
@@ -40,11 +50,13 @@ function NuevoCandidatoRoute() {
   const lista = listasQuery.data?.find((item) => item.idLista === idListaNum)
   const idCategoriaDefault =
     lista?.idCategoriaDefault ?? lista?.candidatos?.[0]?.idCategoria ?? 1
+  const isEditable = eleccionQuery.data?.estado === 'BORRADOR'
 
   const crearCandidatoMutation = useMutation({
     mutationFn: (input: Parameters<typeof crearCandidato>[1]) =>
       crearCandidato(idListaNum, input),
     onSuccess: async () => {
+      setConflictMessage(null)
       toast.success('Candidato registrado')
       await queryClient.invalidateQueries({ queryKey: ['candidatos', idListaNum] })
       await queryClient.invalidateQueries({ queryKey: ['listas', idEleccionNum] })
@@ -58,6 +70,11 @@ function NuevoCandidatoRoute() {
     },
     onError: (error) => {
       if (getApiFieldErrors(error).length > 0) {
+        return
+      }
+      if (isConflictError(error)) {
+        setConflictMessage(getApiErrorMessage(error))
+        toast.error(getApiErrorMessage(error))
         return
       }
       toast.error(getApiErrorMessage(error))
@@ -81,16 +98,18 @@ function NuevoCandidatoRoute() {
         </p>
       </div>
 
-      <div className='flex flex-1 flex-col overflow-hidden'>
+      <div className='flex flex-1 flex-col gap-4 overflow-hidden'>
+        <ConflictAlert message={conflictMessage} />
         <ContentSection
           title='Datos del candidato'
           desc='Complete los datos personales y los campos adicionales definidos para este comicio.'
         >
-          {isLoading ? (
-            <p className='text-muted-foreground text-sm' aria-live='polite'>
-              Cargando formulario…
-            </p>
-          ) : (
+          <ComicioFrozenGuard
+            isLoading={isLoading}
+            isEditable={isEditable}
+            idEleccion={idEleccion}
+            idLista={idLista}
+          >
             <CandidatoForm
               idCategoriaDefault={idCategoriaDefault}
               camposConfig={configQuery.data?.campos ?? []}
@@ -99,7 +118,7 @@ function NuevoCandidatoRoute() {
                 await crearCandidatoMutation.mutateAsync(values)
               }}
             />
-          )}
+          </ComicioFrozenGuard>
         </ContentSection>
       </div>
     </>

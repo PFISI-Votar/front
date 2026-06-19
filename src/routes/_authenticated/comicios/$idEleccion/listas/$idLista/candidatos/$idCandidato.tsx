@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -10,7 +11,15 @@ import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/api/conf
 import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
 import { listarListas } from '@/features/eleccion/api/lista-api'
 import { CandidatoForm } from '@/features/eleccion/components/candidato-form'
-import { getApiErrorMessage, getApiFieldErrors } from '@/lib/api-client'
+import {
+  ComicioFrozenGuard,
+  ConflictAlert,
+} from '@/features/eleccion/components/comicio-frozen-guard'
+import {
+  getApiErrorMessage,
+  getApiFieldErrors,
+  isConflictError,
+} from '@/lib/api-client'
 import { ContentSection } from '@/features/settings/components/content-section'
 
 export const Route = createFileRoute(
@@ -26,6 +35,7 @@ function EditarCandidatoRoute() {
   const idEleccionNum = Number(idEleccion)
   const idListaNum = Number(idLista)
   const idCandidatoNum = Number(idCandidato)
+  const [conflictMessage, setConflictMessage] = useState<string | null>(null)
 
   const eleccionQuery = useQuery({
     queryKey: ['eleccion', idEleccionNum],
@@ -54,11 +64,13 @@ function EditarCandidatoRoute() {
 
   const idCategoriaDefault =
     lista?.idCategoriaDefault ?? candidato?.idCategoria ?? 1
+  const isEditable = eleccionQuery.data?.estado === 'BORRADOR'
 
   const actualizarCandidatoMutation = useMutation({
     mutationFn: (input: Parameters<typeof actualizarCandidato>[1]) =>
       actualizarCandidato(idCandidatoNum, input),
     onSuccess: async () => {
+      setConflictMessage(null)
       toast.success('Candidato actualizado')
       await queryClient.invalidateQueries({ queryKey: ['candidatos', idListaNum] })
       await queryClient.invalidateQueries({ queryKey: ['listas', idEleccionNum] })
@@ -71,19 +83,21 @@ function EditarCandidatoRoute() {
       if (getApiFieldErrors(error).length > 0) {
         return
       }
+      if (isConflictError(error)) {
+        setConflictMessage(getApiErrorMessage(error))
+        toast.error(getApiErrorMessage(error))
+        return
+      }
       toast.error(getApiErrorMessage(error))
     },
   })
 
-  if (candidatosQuery.isLoading || configQuery.isLoading) {
-    return (
-      <p className='text-muted-foreground text-sm' aria-live='polite'>
-        Cargando candidato…
-      </p>
-    )
-  }
+  const isLoading =
+    candidatosQuery.isLoading ||
+    configQuery.isLoading ||
+    eleccionQuery.isLoading
 
-  if (!candidato) {
+  if (!isLoading && !candidato) {
     return (
       <p className='text-destructive text-sm' role='alert'>
         No se encontró el candidato solicitado.
@@ -98,7 +112,9 @@ function EditarCandidatoRoute() {
           Editar candidato
         </h1>
         <p className='text-muted-foreground'>
-          {candidato.nombre} {candidato.apellido}
+          {candidato
+            ? `${candidato.nombre} ${candidato.apellido}`
+            : 'Candidato'}
           {lista ? ` · ${lista.nombre}` : ''}
           {eleccionQuery.data ? ` · ${eleccionQuery.data.nombre}` : ''}
         </p>
@@ -106,27 +122,37 @@ function EditarCandidatoRoute() {
 
       <Separator className='my-4 lg:my-6' />
 
-      <div className='flex flex-1 flex-col overflow-hidden'>
+      <div className='flex flex-1 flex-col gap-4 overflow-hidden'>
+        <ConflictAlert message={conflictMessage} />
         <ContentSection
           title='Ficha del candidato'
           desc='Actualice los datos personales y los campos adicionales del comicio.'
         >
-          <CandidatoForm
-            idCategoriaDefault={idCategoriaDefault}
-            camposConfig={configQuery.data?.campos ?? []}
-            submitLabel='Guardar cambios'
-            defaultValues={{
-              nombre: candidato.nombre,
-              apellido: candidato.apellido,
-              idCategoria: candidato.idCategoria,
-              cargo: candidato.cargo ?? undefined,
-              orden: candidato.orden,
-              datosAdicionales: candidato.datosAdicionales,
-            }}
-            onSubmit={async (values) => {
-              await actualizarCandidatoMutation.mutateAsync(values)
-            }}
-          />
+          <ComicioFrozenGuard
+            isLoading={isLoading}
+            isEditable={isEditable}
+            idEleccion={idEleccion}
+            idLista={idLista}
+          >
+            {candidato && (
+              <CandidatoForm
+                idCategoriaDefault={idCategoriaDefault}
+                camposConfig={configQuery.data?.campos ?? []}
+                submitLabel='Guardar cambios'
+                defaultValues={{
+                  nombre: candidato.nombre,
+                  apellido: candidato.apellido,
+                  idCategoria: candidato.idCategoria,
+                  cargo: candidato.cargo ?? undefined,
+                  orden: candidato.orden,
+                  datosAdicionales: candidato.datosAdicionales,
+                }}
+                onSubmit={async (values) => {
+                  await actualizarCandidatoMutation.mutateAsync(values)
+                }}
+              />
+            )}
+          </ComicioFrozenGuard>
         </ContentSection>
       </div>
     </>

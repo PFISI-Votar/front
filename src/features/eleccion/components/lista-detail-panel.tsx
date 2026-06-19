@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, UserPen } from 'lucide-react'
+import { AlertCircle, Pencil, Plus, Trash2, UserPen } from 'lucide-react'
 import { toast } from 'sonner'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -14,11 +16,13 @@ import {
 import { Separator } from '@/components/ui/separator'
 import {
   getApiErrorMessage,
+  isConflictError,
 } from '@/lib/api-client'
 import { eliminarCandidato, listarCandidatos } from '../api/candidato-api'
 import { obtenerConfiguracionDatosCandidato } from '../api/configuracion-datos-candidato-api'
 import { obtenerEleccion } from '../api/eleccion-api'
-import { eliminarLista, listarListas } from '../api/lista-api'
+import { actualizarLista, eliminarLista, listarListas } from '../api/lista-api'
+import { ListaFormDialog } from './lista-form-dialog'
 import { buildResumenDatosAdicionales } from '../utils/format-datos-adicionales'
 
 type ListaDetailPanelProps = {
@@ -32,6 +36,8 @@ export const ListaDetailPanel = ({
 }: ListaDetailPanelProps) => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const [conflictMessage, setConflictMessage] = useState<string | null>(null)
+  const [listaDialogOpen, setListaDialogOpen] = useState(false)
 
   const eleccionQuery = useQuery({
     queryKey: ['eleccion', idEleccion],
@@ -61,6 +67,27 @@ export const ListaDetailPanel = ({
     await queryClient.invalidateQueries({ queryKey: ['listas', idEleccion] })
   }
 
+  const handleApiError = (error: unknown) => {
+    if (isConflictError(error)) {
+      const message = getApiErrorMessage(error)
+      setConflictMessage(message)
+      toast.error(message)
+      return
+    }
+    toast.error(getApiErrorMessage(error))
+  }
+
+  const actualizarListaMutation = useMutation({
+    mutationFn: (input: Parameters<typeof actualizarLista>[1]) =>
+      actualizarLista(idLista, input),
+    onSuccess: async () => {
+      setConflictMessage(null)
+      toast.success('Lista actualizada')
+      await invalidateLista()
+    },
+    onError: handleApiError,
+  })
+
   const eliminarCandidatoMutation = useMutation({
     mutationFn: eliminarCandidato,
     onSuccess: async () => {
@@ -70,7 +97,7 @@ export const ListaDetailPanel = ({
         queryKey: ['config-datos-candidato', idEleccion],
       })
     },
-    onError: (error) => toast.error(getApiErrorMessage(error)),
+    onError: handleApiError,
   })
 
   const eliminarListaMutation = useMutation({
@@ -83,7 +110,7 @@ export const ListaDetailPanel = ({
         params: { idEleccion: String(idEleccion) },
       })
     },
-    onError: (error) => toast.error(getApiErrorMessage(error)),
+    onError: handleApiError,
   })
 
   if (listasQuery.isLoading || candidatosQuery.isLoading || configQuery.isLoading) {
@@ -152,6 +179,14 @@ export const ListaDetailPanel = ({
         </div>
       </div>
 
+      {conflictMessage && (
+        <Alert variant='destructive'>
+          <AlertCircle className='size-4' />
+          <AlertTitle>Operación denegada (409 Conflict)</AlertTitle>
+          <AlertDescription>{conflictMessage}</AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className='text-lg'>Datos de la lista</CardTitle>
@@ -209,6 +244,15 @@ export const ListaDetailPanel = ({
           </p>
         </div>
         <div className='flex flex-wrap gap-2'>
+          <Button
+            variant='outline'
+            disabled={!isEditable}
+            onClick={() => setListaDialogOpen(true)}
+            aria-label={`Editar lista ${lista.nombre}`}
+          >
+            <Pencil className='me-2 size-4' />
+            Editar lista
+          </Button>
           <Button asChild disabled={!isEditable}>
             <Link
               to='/comicios/$idEleccion/listas/$idLista/candidatos/nuevo'
@@ -323,6 +367,14 @@ export const ListaDetailPanel = ({
           candidatos.
         </p>
       )}
+      <ListaFormDialog
+        open={listaDialogOpen}
+        onOpenChange={setListaDialogOpen}
+        lista={lista}
+        onSubmit={async (values) => {
+          await actualizarListaMutation.mutateAsync(values)
+        }}
+      />
     </div>
   )
 }
