@@ -1,5 +1,4 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { Separator } from '@/components/ui/separator'
 import { CreateComicioForm } from '@/features/eleccion'
 import { ContentSection } from '@/features/settings/components/content-section'
 
