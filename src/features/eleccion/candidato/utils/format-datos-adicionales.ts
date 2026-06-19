@@ -1,4 +1,4 @@
-import type { CampoCandidatoDefinicion } from '../data/schema'
+import type { CampoCandidatoDefinicion } from '@/features/eleccion/candidato/data/schema'
 
 export const formatValorCampo = (
   valor: unknown,

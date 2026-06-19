@@ -3,7 +3,7 @@ import type {
   CampoCandidatoDefinicion,
   ConfiguracionDatosCandidatoResponse,
   GuardarConfiguracionInput,
-} from '../data/schema'
+} from '@/features/eleccion/candidato/data/schema'
 
 export const obtenerConfiguracionDatosCandidato = async (
   idEleccion: number,

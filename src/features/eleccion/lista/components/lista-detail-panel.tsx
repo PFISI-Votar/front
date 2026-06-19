@@ -18,12 +18,12 @@ import {
   getApiErrorMessage,
   isConflictError,
 } from '@/lib/api-client'
-import { eliminarCandidato, listarCandidatos } from '../api/candidato-api'
-import { obtenerConfiguracionDatosCandidato } from '../api/configuracion-datos-candidato-api'
-import { obtenerEleccion } from '../api/eleccion-api'
-import { actualizarLista, eliminarLista, listarListas } from '../api/lista-api'
-import { ListaFormDialog } from './lista-form-dialog'
-import { buildResumenDatosAdicionales } from '../utils/format-datos-adicionales'
+import { eliminarCandidato, listarCandidatos } from '@/features/eleccion/candidato/api/candidato-api'
+import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
+import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
+import { actualizarLista, eliminarLista, listarListas } from '@/features/eleccion/lista/api/lista-api'
+import { ListaFormDialog } from '@/features/eleccion/lista/components/lista-form-dialog'
+import { buildResumenDatosAdicionales } from '@/features/eleccion/candidato/utils/format-datos-adicionales'
 
 type ListaDetailPanelProps = {
   idEleccion: number

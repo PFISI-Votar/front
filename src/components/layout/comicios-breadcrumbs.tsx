@@ -9,9 +9,9 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
-import { listarCandidatos } from '@/features/eleccion/api/candidato-api'
+import { listarCandidatos } from '@/features/eleccion/candidato/api/candidato-api'
 import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
-import { listarListas } from '@/features/eleccion/api/lista-api'
+import { listarListas } from '@/features/eleccion/lista/api/lista-api'
 
 type BreadcrumbEntry = {
   label: string

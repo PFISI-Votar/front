@@ -1,5 +1,5 @@
 import { apiClient } from '@/lib/api-client'
-import type { CreateComicioInput, Eleccion } from '../data/schema'
+import type { CreateComicioInput, Eleccion } from '@/features/eleccion/data/schema'
 
 export const crearEleccion = async (input: CreateComicioInput): Promise<Eleccion> => {
   const { data } = await apiClient.post<Eleccion>('/elecciones', input)

@@ -14,8 +14,8 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { DateTimePicker } from '@/components/datetime-picker'
 import { getApiErrorMessage } from '@/lib/api-client'
-import { crearEleccion } from '../api/eleccion-api'
-import { createComicioSchema, type CreateComicioInput } from '../data/schema'
+import { crearEleccion } from '@/features/eleccion/api/eleccion-api'
+import { createComicioSchema, type CreateComicioInput } from '@/features/eleccion/data/schema'
 
 type CreateComicioFormProps = {
   onCreated: (idEleccion: number) => void

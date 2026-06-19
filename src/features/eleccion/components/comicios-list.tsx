@@ -11,8 +11,8 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { formatDateTimeForDisplay } from '@/lib/datetime'
-import { listarElecciones } from '../api/eleccion-api'
-import type { EleccionEstado } from '../data/schema'
+import { listarElecciones } from '@/features/eleccion/api/eleccion-api'
+import type { EleccionEstado } from '@/features/eleccion/data/schema'
 
 const estadoVariant = (estado: EleccionEstado) => {
   if (estado === 'BORRADOR') return 'secondary' as const

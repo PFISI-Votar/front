@@ -10,7 +10,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import type { CampoCandidatoDefinicion } from '../data/schema'
+import type { CampoCandidatoDefinicion } from '@/features/eleccion/candidato/data/schema'
 
 type CandidatoCamposDinamicosProps<T extends FieldValues> = {
   control: Control<T>

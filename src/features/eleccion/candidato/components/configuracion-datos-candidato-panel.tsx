@@ -40,13 +40,13 @@ import { cn } from '@/lib/utils'
 import {
   guardarConfiguracionDatosCandidato,
   obtenerConfiguracionDatosCandidato,
-} from '../api/configuracion-datos-candidato-api'
+} from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import {
   guardarConfiguracionSchema,
   type GuardarConfiguracionInput,
   type TipoCampoCandidato,
-} from '../data/schema'
-import { slugifyEtiquetaToClave } from '../utils/slugify-etiqueta-clave'
+} from '@/features/eleccion/candidato/data/schema'
+import { slugifyEtiquetaToClave } from '@/features/eleccion/candidato/utils/slugify-etiqueta-clave'
 
 const TIPOS_CAMPO: { value: TipoCampoCandidato; label: string }[] = [
   { value: 'texto', label: 'Texto' },

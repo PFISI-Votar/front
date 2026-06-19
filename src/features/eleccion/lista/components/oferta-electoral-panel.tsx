@@ -19,13 +19,14 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { Separator } from '@/components/ui/separator'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { cn } from '@/lib/utils'
 import {
   getApiErrorMessage,
   isConflictError,
 } from '@/lib/api-client'
-import { obtenerEleccion } from '../api/eleccion-api'
-import { obtenerConfiguracionDatosCandidato } from '../api/configuracion-datos-candidato-api'
+import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
+import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import {
   actualizarLista,
   crearLista,
@@ -33,11 +34,11 @@ import {
   listarListas,
   oficializarEleccion,
   obtenerMapeoListas,
-} from '../api/lista-api'
-import type { Lista } from '../data/schema'
-import { ListaFormDialog } from './lista-form-dialog'
-import { ConfiguracionDatosCandidatoPanel } from './configuracion-datos-candidato-panel'
-import { buildResumenDatosAdicionales } from '../utils/format-datos-adicionales'
+} from '@/features/eleccion/lista/api/lista-api'
+import type { Lista } from '@/features/eleccion/lista/data/schema'
+import { ListaFormDialog } from '@/features/eleccion/lista/components/lista-form-dialog'
+import { ConfiguracionDatosCandidatoPanel } from '@/features/eleccion/candidato/components/configuracion-datos-candidato-panel'
+import { buildResumenDatosAdicionales } from '@/features/eleccion/candidato/utils/format-datos-adicionales'
 
 type OfertaElectoralPanelProps = {
   idEleccion: number
@@ -48,6 +49,7 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
   const [conflictMessage, setConflictMessage] = useState<string | null>(null)
   const [listaDialogOpen, setListaDialogOpen] = useState(false)
   const [editingLista, setEditingLista] = useState<Lista | null>(null)
+  const [oficializarDialogOpen, setOficializarDialogOpen] = useState(false)
 
   const eleccionQuery = useQuery({
     queryKey: ['eleccion', idEleccion],
@@ -128,6 +130,7 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
   const oficializarMutation = useMutation({
     mutationFn: () => oficializarEleccion(idEleccion),
     onSuccess: async (data) => {
+      setOficializarDialogOpen(false)
       toast.success('Comicio oficializado')
       await invalidateOferta()
       await queryClient.invalidateQueries({ queryKey: ['listas-mapeo', idEleccion] })
@@ -137,6 +140,10 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
     },
     onError: handleApiError,
   })
+
+  const handleConfirmOficializar = () => {
+    oficializarMutation.mutate()
+  }
 
   return (
     <div className='flex flex-col gap-6'>
@@ -194,8 +201,9 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
         </Button>
         <Button
           variant='outline'
-          onClick={() => oficializarMutation.mutate()}
+          onClick={() => setOficializarDialogOpen(true)}
           disabled={!isEditable || oficializarMutation.isPending}
+          aria-haspopup='dialog'
         >
           Oficializar comicio
         </Button>
@@ -397,6 +405,33 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
           }
           await crearListaMutation.mutateAsync(values)
         }}
+      />
+
+      <ConfirmDialog
+        open={oficializarDialogOpen}
+        onOpenChange={setOficializarDialogOpen}
+        title='¿Oficializar el comicio?'
+        desc={
+          <>
+            Esta operación es <strong>irreversible</strong>. Una vez oficializado,
+            no podrás crear, editar ni eliminar listas ni candidatos. Se generará
+            el mapeo de identificadores de lista (<code>list_id</code>) para la
+            integración Web3.
+            {(listasQuery.data?.length ?? 0) > 0 && (
+              <>
+                {' '}
+                Se oficializarán{' '}
+                <strong>{listasQuery.data?.length} lista(s)</strong> con la oferta
+                actual.
+              </>
+            )}
+          </>
+        }
+        cancelBtnText='Cancelar'
+        confirmText='Sí, oficializar comicio'
+        destructive
+        isLoading={oficializarMutation.isPending}
+        handleConfirm={handleConfirmOficializar}
       />
     </div>
   )

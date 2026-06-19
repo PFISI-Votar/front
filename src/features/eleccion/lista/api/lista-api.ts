@@ -4,7 +4,7 @@ import type {
   Lista,
   ListaMapeoItem,
   OficializarResponse,
-} from '../data/schema'
+} from '@/features/eleccion/lista/data/schema'
 
 export const listarListas = async (idEleccion: number): Promise<Lista[]> => {
   const { data } = await apiClient.get<Lista[]>(`/elecciones/${idEleccion}/listas`)

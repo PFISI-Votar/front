@@ -6,15 +6,15 @@ import { Separator } from '@/components/ui/separator'
 import {
   actualizarCandidato,
   listarCandidatos,
-} from '@/features/eleccion/api/candidato-api'
-import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/api/configuracion-datos-candidato-api'
+} from '@/features/eleccion/candidato/api/candidato-api'
+import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
-import { listarListas } from '@/features/eleccion/api/lista-api'
-import { CandidatoForm } from '@/features/eleccion/components/candidato-form'
+import { listarListas } from '@/features/eleccion/lista/api/lista-api'
+import { CandidatoForm } from '@/features/eleccion/candidato/components/candidato-form'
 import {
   ComicioFrozenGuard,
   ConflictAlert,
-} from '@/features/eleccion/components/comicio-frozen-guard'
+} from '@/features/eleccion/shared/components/comicio-frozen-guard'
 import {
   getApiErrorMessage,
   getApiFieldErrors,

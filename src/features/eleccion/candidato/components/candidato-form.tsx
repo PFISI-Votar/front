@@ -14,12 +14,12 @@ import { getApiFieldErrors } from '@/lib/api-client'
 import {
   CandidatoCamposDinamicos,
   mapApiFieldErrorsToForm,
-} from './candidato-campos-dinamicos'
+} from '@/features/eleccion/candidato/components/candidato-campos-dinamicos'
 import {
   createCandidatoSchema,
   type CampoCandidatoDefinicion,
   type CreateCandidatoInput,
-} from '../data/schema'
+} from '@/features/eleccion/candidato/data/schema'
 
 type CandidatoFormProps = {
   idCategoriaDefault: number

@@ -1,5 +1,5 @@
 import { apiClient } from '@/lib/api-client'
-import type { Candidato, CreateCandidatoInput } from '../data/schema'
+import type { Candidato, CreateCandidatoInput } from '@/features/eleccion/candidato/data/schema'
 
 export const listarCandidatos = async (idLista: number): Promise<Candidato[]> => {
   const { data } = await apiClient.get<Candidato[]>(`/listas/${idLista}/candidatos`)

@@ -18,7 +18,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { createListaSchema, type CreateListaInput, type Lista } from '../data/schema'
+import { createListaSchema, type CreateListaInput, type Lista } from '@/features/eleccion/lista/data/schema'
 
 const EMPTY_VALUES: CreateListaInput = {
   nombre: '',
