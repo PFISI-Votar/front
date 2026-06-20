@@ -34,6 +34,11 @@ export type ApiFieldError = {
   message: string
 }
 
+export type ApiStructuredFieldError = {
+  field: string
+  message: string
+}
+
 export const getApiFieldErrors = (error: unknown): ApiFieldError[] => {
   if (!(error instanceof AxiosError)) {
     return []
@@ -43,4 +48,24 @@ export const getApiFieldErrors = (error: unknown): ApiFieldError[] => {
     return []
   }
   return data.errors
+}
+
+export const getApiStructuredFieldErrors = (
+  error: unknown,
+): ApiStructuredFieldError[] => {
+  if (!(error instanceof AxiosError)) {
+    return []
+  }
+  const data = error.response?.data as {
+    errors?: Array<{ field?: string; message?: string }>
+  } | undefined
+  if (!Array.isArray(data?.errors)) {
+    return []
+  }
+  return data.errors
+    .filter((item) => item.field && item.message)
+    .map((item) => ({
+      field: item.field as string,
+      message: item.message as string,
+    }))
 }

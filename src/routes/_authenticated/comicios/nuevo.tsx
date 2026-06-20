@@ -23,15 +23,15 @@ function NuevoComicioPage() {
           Nuevo comicio
         </h1>
         <p className='text-muted-foreground'>
-          Cree un comicio en estado BORRADOR para gestionar listas y candidatos
-          antes de la oficialización.
+          Configure el comicio en estado BORRADOR: datos generales, modalidad de
+          votación, roles de candidato y métodos de acceso para votantes.
         </p>
       </div>
 
       <div className='flex flex-1 flex-col overflow-hidden'>
         <ContentSection
-          title='Datos del comicio'
-          desc='Complete la información básica y las fechas de apertura y cierre.'
+          title='Configuración inicial'
+          desc='Complete todos los campos obligatorios. El comicio se guardará en borrador sin impactar la blockchain.'
         >
           <CreateComicioForm onCreated={handleCreated} />
         </ContentSection>

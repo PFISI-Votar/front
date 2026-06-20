@@ -1,5 +1,12 @@
 import { z } from 'zod'
 import { isUtcIsoDateTime } from '@/lib/datetime'
+import { metodosAutenticacionSchema } from '@/features/eleccion/configuracion-comicio/data/schema'
+import {
+  rolesCandidatoSchema,
+  tipoVotacionSchema,
+  type TipoVotacion,
+} from '@/features/eleccion/lista/data/schema'
+import type { MetodoAutenticacion } from '@/features/eleccion/configuracion-comicio/data/constants'
 
 export type EleccionEstado =
   | 'BORRADOR'
@@ -8,6 +15,13 @@ export type EleccionEstado =
   | 'CERRADA'
   | 'ESCRUTADA'
 
+export type RolCandidato = {
+  idCategoria: number
+  nombre: string
+  maximoPostulantes: number
+  orden: number
+}
+
 export type Eleccion = {
   idEleccion: number
   nombre: string
@@ -15,6 +29,9 @@ export type Eleccion = {
   fechaInicio: string
   fechaFin: string
   estado: EleccionEstado
+  tipoVotacion: TipoVotacion
+  roles: RolCandidato[]
+  metodosAutenticacion: MetodoAutenticacion[]
 }
 
 const utcIsoDateTimeSchema = z
@@ -30,6 +47,9 @@ export const createComicioSchema = z
     descripcion: z.string().optional(),
     fechaInicio: utcIsoDateTimeSchema,
     fechaFin: utcIsoDateTimeSchema,
+    tipoVotacion: tipoVotacionSchema,
+    roles: rolesCandidatoSchema,
+    metodosAutenticacion: metodosAutenticacionSchema,
   })
   .superRefine((data, ctx) => {
     const ahora = new Date()
@@ -44,7 +64,11 @@ export const createComicioSchema = z
       })
     }
 
-    if (!Number.isNaN(inicio.getTime()) && !Number.isNaN(fin.getTime()) && fin <= inicio) {
+    if (
+      !Number.isNaN(inicio.getTime()) &&
+      !Number.isNaN(fin.getTime()) &&
+      fin <= inicio
+    ) {
       ctx.addIssue({
         code: 'custom',
         message: 'La fecha de cierre debe ser posterior a la de inicio',
