@@ -44,6 +44,23 @@ describe('createComicioSchema', () => {
     }
   })
 
+  it('rechaza cierre en el pasado', () => {
+    const input = buildValidInput()
+    input.fechaInicio = new Date(Date.now() + 172800000).toISOString()
+    input.fechaFin = new Date(Date.now() - 86400000).toISOString()
+
+    const result = createComicioSchema.safeParse(input)
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      const fechaFinIssue = result.error.issues.find(
+        (issue) =>
+          issue.path[0] === 'fechaFin' &&
+          issue.message.includes('posterior al momento actual'),
+      )
+      expect(fechaFinIssue).toBeDefined()
+    }
+  })
+
   it('UAT-04: rechaza roles vacíos', () => {
     const input = buildValidInput()
     input.roles = []

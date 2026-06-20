@@ -64,6 +64,14 @@ export const createComicioSchema = z
       })
     }
 
+    if (!Number.isNaN(fin.getTime()) && fin <= ahora) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'La fecha de cierre debe ser posterior al momento actual',
+        path: ['fechaFin'],
+      })
+    }
+
     if (
       !Number.isNaN(inicio.getTime()) &&
       !Number.isNaN(fin.getTime()) &&
