@@ -7,31 +7,30 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ConfigDrawer } from '@/components/config-drawer'
-import { Header } from '@/components/layout/header'
-import { Main } from '@/components/layout/main'
+import {
+  AppHeaderActions,
+  useAppLayoutConfig,
+} from '@/components/layout/app-layout'
 import { TopNav } from '@/components/layout/top-nav'
-import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
-import { ThemeSwitch } from '@/components/theme-switch'
 import { Analytics } from './components/analytics'
 import { Overview } from './components/overview'
 import { RecentSales } from './components/recent-sales'
 
 export function Dashboard() {
+  useAppLayoutConfig({
+    fixed: false,
+    headerLeading: <TopNav links={topNav} className='me-auto' />,
+    headerTrailing: (
+      <>
+        <Search />
+        <AppHeaderActions />
+      </>
+    ),
+  })
+
   return (
     <>
-      {/* ===== Top Heading ===== */}
-      <Header>
-        <TopNav links={topNav} className='me-auto' />
-        <Search />
-        <ThemeSwitch />
-        <ConfigDrawer />
-        <ProfileDropdown />
-      </Header>
-
-      {/* ===== Main ===== */}
-      <Main>
         <div className='mb-2 flex items-center justify-between space-y-2'>
           <h1 className='text-2xl font-bold tracking-tight'>Dashboard</h1>
           <div className='flex items-center space-x-2'>
@@ -185,7 +184,6 @@ export function Dashboard() {
             <Analytics />
           </TabsContent>
         </Tabs>
-      </Main>
     </>
   )
 }

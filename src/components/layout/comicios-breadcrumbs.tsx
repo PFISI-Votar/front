@@ -1,24 +1,11 @@
-import { Fragment } from 'react'
-import { Link, useParams, useRouterState } from '@tanstack/react-router'
+import { useParams, useRouterState } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb'
 import { listarCandidatos } from '@/features/eleccion/candidato/api/candidato-api'
 import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
 import { listarListas } from '@/features/eleccion/lista/api/lista-api'
+import { type BreadcrumbEntry } from '@/components/layout/breadcrumb-nav'
 
-type BreadcrumbEntry = {
-  label: string
-  href?: string
-}
-
-export const ComiciosBreadcrumbs = () => {
+export const useComiciosBreadcrumbEntries = (): BreadcrumbEntry[] => {
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const params = useParams({ strict: false })
 
@@ -27,6 +14,7 @@ export const ComiciosBreadcrumbs = () => {
   const idCandidato = params.idCandidato ? Number(params.idCandidato) : undefined
 
   const isNuevoComicio = pathname.endsWith('/comicios/nuevo')
+  const isEditarComicio = pathname.endsWith('/editar')
   const isOferta = pathname.includes('/oferta')
   const isListaDetail =
     idLista != null && !pathname.includes('/candidatos')
@@ -76,68 +64,59 @@ export const ComiciosBreadcrumbs = () => {
 
   if (isNuevoComicio) {
     entries.push({ label: 'Nuevo comicio' })
-  } else if (idEleccion != null) {
-    entries.push({
-      label: eleccionLabel,
-      href: `/comicios/${idEleccion}/oferta`,
-    })
+    return entries
+  }
 
-    if (isOferta) {
-      entries.push({ label: 'Oferta electoral' })
-    } else if (idLista != null) {
-      entries.push({
+  if (idEleccion == null) {
+    return entries
+  }
+
+  entries.push({
+    label: eleccionLabel,
+    href: `/comicios/${idEleccion}/oferta`,
+  })
+
+  if (isEditarComicio) {
+    entries.push({ label: 'Editar comicio' })
+    return entries
+  }
+
+  if (isOferta) {
+    entries.push({ label: 'Oferta electoral' })
+    return entries
+  }
+
+  if (idLista == null) {
+    return entries
+  }
+
+  entries.push({
+    label: listaLabel,
+    href: isListaDetail
+      ? undefined
+      : `/comicios/${idEleccion}/listas/${idLista}`,
+  })
+
+  if (isCandidatoNuevo) {
+    if (!isListaDetail) {
+      entries[entries.length - 1] = {
         label: listaLabel,
-        href: isListaDetail
-          ? undefined
-          : `/comicios/${idEleccion}/listas/${idLista}`,
-      })
-
-      if (isCandidatoNuevo) {
-        if (!isListaDetail) {
-          entries[entries.length - 1] = {
-            label: listaLabel,
-            href: `/comicios/${idEleccion}/listas/${idLista}`,
-          }
-        }
-        entries.push({ label: 'Nuevo candidato' })
-      } else if (isCandidatoEdit) {
-        if (!isListaDetail) {
-          entries[entries.length - 1] = {
-            label: listaLabel,
-            href: `/comicios/${idEleccion}/listas/${idLista}`,
-          }
-        }
-        entries.push({ label: candidatoLabel })
+        href: `/comicios/${idEleccion}/listas/${idLista}`,
       }
     }
+    entries.push({ label: 'Nuevo candidato' })
+    return entries
   }
 
-  if (entries.length <= 1 && !isNuevoComicio) {
-    return null
+  if (isCandidatoEdit) {
+    if (!isListaDetail) {
+      entries[entries.length - 1] = {
+        label: listaLabel,
+        href: `/comicios/${idEleccion}/listas/${idLista}`,
+      }
+    }
+    entries.push({ label: candidatoLabel })
   }
 
-  return (
-    <Breadcrumb>
-      <BreadcrumbList>
-        {entries.map((entry, index) => {
-          const isLast = index === entries.length - 1
-
-          return (
-            <Fragment key={`${entry.label}-${index}`}>
-              {index > 0 && <BreadcrumbSeparator />}
-              <BreadcrumbItem>
-                {isLast || !entry.href ? (
-                  <BreadcrumbPage>{entry.label}</BreadcrumbPage>
-                ) : (
-                  <BreadcrumbLink asChild>
-                    <Link to={entry.href}>{entry.label}</Link>
-                  </BreadcrumbLink>
-                )}
-              </BreadcrumbItem>
-            </Fragment>
-          )
-        })}
-      </BreadcrumbList>
-    </Breadcrumb>
-  )
+  return entries
 }

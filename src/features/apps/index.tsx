@@ -11,12 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
-import { ConfigDrawer } from '@/components/config-drawer'
-import { Header } from '@/components/layout/header'
-import { Main } from '@/components/layout/main'
-import { ProfileDropdown } from '@/components/profile-dropdown'
-import { Search } from '@/components/search'
-import { ThemeSwitch } from '@/components/theme-switch'
+import { useAppLayoutConfig } from '@/components/layout/app-layout'
 import { apps } from './data/apps'
 
 const route = getRouteApi('/_authenticated/apps/')
@@ -81,18 +76,10 @@ export function Apps() {
     navigate({ search: (prev) => ({ ...prev, sort }) })
   }
 
+  useAppLayoutConfig({ mainFixed: true })
+
   return (
     <>
-      {/* ===== Top Heading ===== */}
-      <Header>
-        <Search className='me-auto' />
-        <ThemeSwitch />
-        <ConfigDrawer />
-        <ProfileDropdown />
-      </Header>
-
-      {/* ===== Content ===== */}
-      <Main fixed>
         <div>
           <h1 className='text-2xl font-bold tracking-tight'>
             App Integrations
@@ -171,7 +158,6 @@ export function Apps() {
             </li>
           ))}
         </ul>
-      </Main>
     </>
   )
 }
