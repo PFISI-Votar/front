@@ -321,7 +321,9 @@ export const ListaDetailPanel = ({
                       {candidato.nombre} {candidato.apellido}
                     </CardTitle>
                     <CardDescription>
-                      {candidato.cargo ? `${candidato.cargo} · ` : ''}
+                      {candidato.categoriaNombre
+                        ? `${candidato.categoriaNombre} · `
+                        : ''}
                       {buildResumenDatosAdicionales(
                         candidato.datosAdicionales,
                         camposConfig,

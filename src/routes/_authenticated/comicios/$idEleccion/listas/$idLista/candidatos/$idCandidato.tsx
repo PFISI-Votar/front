@@ -62,8 +62,7 @@ function EditarCandidatoRoute() {
     (item) => item.idCandidato === idCandidatoNum
   )
 
-  const idCategoriaDefault =
-    lista?.idCategoriaDefault ?? candidato?.idCategoria ?? 1
+  const roles = eleccionQuery.data?.roles ?? lista?.roles ?? []
   const isEditable = eleccionQuery.data?.estado === 'BORRADOR'
 
   const actualizarCandidatoMutation = useMutation({
@@ -136,14 +135,13 @@ function EditarCandidatoRoute() {
           >
             {candidato && (
               <CandidatoForm
-                idCategoriaDefault={idCategoriaDefault}
+                roles={roles}
                 camposConfig={configQuery.data?.campos ?? []}
                 submitLabel='Guardar cambios'
                 defaultValues={{
                   nombre: candidato.nombre,
                   apellido: candidato.apellido,
                   idCategoria: candidato.idCategoria,
-                  cargo: candidato.cargo ?? undefined,
                   orden: candidato.orden,
                   datosAdicionales: candidato.datosAdicionales,
                 }}

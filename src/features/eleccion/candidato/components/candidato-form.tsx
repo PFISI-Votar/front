@@ -10,19 +10,22 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { getApiFieldErrors } from '@/lib/api-client'
+import { getApiErrorMessage, getApiFieldErrors } from '@/lib/api-client'
 import {
   CandidatoCamposDinamicos,
   mapApiFieldErrorsToForm,
 } from '@/features/eleccion/candidato/components/candidato-campos-dinamicos'
+import { CandidatoRolField } from '@/features/eleccion/candidato/components/candidato-rol-field'
 import {
   createCandidatoSchema,
   type CampoCandidatoDefinicion,
   type CreateCandidatoInput,
 } from '@/features/eleccion/candidato/data/schema'
+import type { RolCandidato } from '@/features/eleccion/data/schema'
+import { toast } from 'sonner'
 
 type CandidatoFormProps = {
-  idCategoriaDefault: number
+  roles: RolCandidato[]
   camposConfig: CampoCandidatoDefinicion[]
   defaultValues?: CreateCandidatoInput
   submitLabel: string
@@ -50,21 +53,21 @@ const buildDefaultDatosAdicionales = (
 }
 
 const buildDefaultValues = (
-  idCategoriaDefault: number,
+  roles: RolCandidato[],
   camposConfig: CampoCandidatoDefinicion[],
   values?: CreateCandidatoInput,
 ): CreateCandidatoInput =>
   values ?? {
     nombre: '',
     apellido: '',
-    idCategoria: idCategoriaDefault,
-    cargo: '',
+    idCategoria:
+      roles.length === 1 ? roles[0].idCategoria : 0,
     orden: 1,
     datosAdicionales: buildDefaultDatosAdicionales(camposConfig),
   }
 
 export const CandidatoForm = ({
-  idCategoriaDefault,
+  roles,
   camposConfig,
   defaultValues,
   submitLabel,
@@ -73,7 +76,7 @@ export const CandidatoForm = ({
   const form = useForm<CreateCandidatoInput>({
     resolver: zodResolver(createCandidatoSchema),
     defaultValues: {
-      ...buildDefaultValues(idCategoriaDefault, camposConfig, defaultValues),
+      ...buildDefaultValues(roles, camposConfig, defaultValues),
       datosAdicionales: buildDefaultDatosAdicionales(
         camposConfig,
         defaultValues?.datosAdicionales,
@@ -82,6 +85,10 @@ export const CandidatoForm = ({
   })
 
   const handleSubmit = async (values: CreateCandidatoInput) => {
+    if (roles.length === 0) {
+      toast.error('No hay roles configurados para este comicio')
+      return
+    }
     try {
       await onSubmit(values)
     } catch (error) {
@@ -90,9 +97,11 @@ export const CandidatoForm = ({
         mapApiFieldErrorsToForm(fieldErrors, form.setError)
         return
       }
-      throw error
+      toast.error(getApiErrorMessage(error))
     }
   }
+
+  const hasRoles = roles.length > 0
 
   return (
     <Form {...form}>
@@ -101,6 +110,11 @@ export const CandidatoForm = ({
         className='flex flex-col gap-8'
         aria-label='Formulario de candidato'
       >
+        <CandidatoRolField
+          control={form.control}
+          roles={roles}
+          setValue={form.setValue}
+        />
         <div className='grid gap-4 sm:grid-cols-2'>
           <FormField
             control={form.control}
@@ -129,21 +143,8 @@ export const CandidatoForm = ({
             )}
           />
         </div>
-        <FormField
-          control={form.control}
-          name='cargo'
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Cargo (opcional)</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
         <CandidatoCamposDinamicos control={form.control} campos={camposConfig} />
-        <Button type='submit' disabled={form.formState.isSubmitting}>
+        <Button type='submit' disabled={form.formState.isSubmitting || !hasRoles}>
           {form.formState.isSubmitting ? 'Guardando…' : submitLabel}
         </Button>
       </form>

@@ -48,8 +48,7 @@ function NuevoCandidatoRoute() {
   })
 
   const lista = listasQuery.data?.find((item) => item.idLista === idListaNum)
-  const idCategoriaDefault =
-    lista?.idCategoriaDefault ?? lista?.candidatos?.[0]?.idCategoria ?? 1
+  const roles = eleccionQuery.data?.roles ?? lista?.roles ?? []
   const isEditable = eleccionQuery.data?.estado === 'BORRADOR'
 
   const crearCandidatoMutation = useMutation({
@@ -111,7 +110,7 @@ function NuevoCandidatoRoute() {
             idLista={idLista}
           >
             <CandidatoForm
-              idCategoriaDefault={idCategoriaDefault}
+              roles={roles}
               camposConfig={configQuery.data?.campos ?? []}
               submitLabel='Registrar candidato'
               onSubmit={async (values) => {

@@ -331,7 +331,9 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
                                 {candidato.nombre} {candidato.apellido}
                               </p>
                               <p className='text-muted-foreground text-sm'>
-                                {candidato.cargo ? `${candidato.cargo} · ` : ''}
+                                {candidato.categoriaNombre
+                                  ? `${candidato.categoriaNombre} · `
+                                  : ''}
                                 {buildResumenDatosAdicionales(
                                   candidato.datosAdicionales,
                                   camposConfig,

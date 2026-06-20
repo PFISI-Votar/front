@@ -138,7 +138,7 @@ export const ConfiguracionDatosCandidatoPanel = ({
         <CardTitle>Datos solicitados a candidatos</CardTitle>
         <CardDescription>
           {isOpen
-            ? 'Defina los campos adicionales que se pedirán al registrar cada candidato. Los datos personales (nombre, apellido, cargo) son fijos.'
+            ? 'Defina los campos adicionales que se pedirán al registrar cada candidato. Los datos personales (nombre, apellido y rol) son fijos.'
             : resumenCampos}
         </CardDescription>
       </div>

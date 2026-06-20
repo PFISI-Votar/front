@@ -66,8 +66,7 @@ export const guardarConfiguracionSchema = z.object({
 export const createCandidatoSchema = z.object({
   nombre: z.string().min(1, 'El nombre es obligatorio').max(100),
   apellido: z.string().min(1, 'El apellido es obligatorio').max(100),
-  idCategoria: z.number().int().min(1, 'Seleccione una categoría'),
-  cargo: z.string().max(100).optional(),
+  idCategoria: z.number().int().min(1, 'Seleccione un rol de candidato'),
   orden: z.number().int().min(1).optional(),
   datosAdicionales: z.record(z.string(), z.unknown()),
 })
@@ -79,9 +78,9 @@ export type Candidato = {
   idCandidato: number
   idLista: number
   idCategoria: number
+  categoriaNombre?: string
   nombre: string
   apellido: string
-  cargo: string | null
   orden: number
   fotoUrl: string | null
   datosAdicionales: Record<string, unknown>
