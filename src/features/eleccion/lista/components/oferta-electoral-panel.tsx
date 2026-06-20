@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { AlertCircle, ArrowRight, ChevronDown, Lock, Pencil, Plus, Trash2, UserPen } from 'lucide-react'
@@ -25,7 +25,7 @@ import {
   getApiErrorMessage,
   isConflictError,
 } from '@/lib/api-client'
-import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
+import { eliminarEleccion, obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
 import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import {
   actualizarLista,
@@ -45,11 +45,13 @@ type OfertaElectoralPanelProps = {
 }
 
 export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) => {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [conflictMessage, setConflictMessage] = useState<string | null>(null)
   const [listaDialogOpen, setListaDialogOpen] = useState(false)
   const [editingLista, setEditingLista] = useState<Lista | null>(null)
   const [oficializarDialogOpen, setOficializarDialogOpen] = useState(false)
+  const [eliminarDialogOpen, setEliminarDialogOpen] = useState(false)
 
   const eleccionQuery = useQuery({
     queryKey: ['eleccion', idEleccion],
@@ -145,6 +147,21 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
     oficializarMutation.mutate()
   }
 
+  const eliminarComicioMutation = useMutation({
+    mutationFn: () => eliminarEleccion(idEleccion),
+    onSuccess: async () => {
+      setEliminarDialogOpen(false)
+      toast.success('Comicio eliminado')
+      await queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+      navigate({ to: '/comicios' })
+    },
+    onError: handleApiError,
+  })
+
+  const handleConfirmEliminarComicio = () => {
+    eliminarComicioMutation.mutate()
+  }
+
   return (
     <div className='flex flex-col gap-6'>
       <div className='flex flex-wrap items-center justify-between gap-3'>
@@ -163,6 +180,30 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
           </Badge>
         )}
       </div>
+
+      {isEditable && (
+        <div className='flex flex-wrap gap-2'>
+          <Button asChild variant='outline'>
+            <Link
+              to='/comicios/$idEleccion/editar'
+              params={{ idEleccion: String(idEleccion) }}
+              aria-label='Editar datos del comicio'
+            >
+              <Pencil className='me-2 size-4' />
+              Editar comicio
+            </Link>
+          </Button>
+          <Button
+            variant='outline'
+            onClick={() => setEliminarDialogOpen(true)}
+            aria-haspopup='dialog'
+            aria-label='Eliminar comicio'
+          >
+            <Trash2 className='me-2 size-4 text-destructive' />
+            Eliminar comicio
+          </Button>
+        </div>
+      )}
 
       {!isEditable && (
         <Alert>
@@ -434,6 +475,24 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
         destructive
         isLoading={oficializarMutation.isPending}
         handleConfirm={handleConfirmOficializar}
+      />
+
+      <ConfirmDialog
+        open={eliminarDialogOpen}
+        onOpenChange={setEliminarDialogOpen}
+        title='¿Eliminar el comicio?'
+        desc={
+          <>
+            Esta acción es <strong>irreversible</strong>. Se eliminarán todas las
+            listas, candidatos y configuraciones asociadas al comicio{' '}
+            <strong>{eleccionQuery.data?.nombre}</strong>.
+          </>
+        }
+        cancelBtnText='Cancelar'
+        confirmText='Sí, eliminar comicio'
+        destructive
+        isLoading={eliminarComicioMutation.isPending}
+        handleConfirm={handleConfirmEliminarComicio}
       />
     </div>
   )

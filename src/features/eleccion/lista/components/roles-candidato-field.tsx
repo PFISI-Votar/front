@@ -1,5 +1,5 @@
 import { Plus, Trash2 } from 'lucide-react'
-import { useFieldArray, type Control } from 'react-hook-form'
+import { useFieldArray, useWatch, type Control } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
 import {
   FormControl,
@@ -19,6 +19,31 @@ const buildRolVacio = (): RolCandidatoInput => ({
 
 type RolesCandidatoFieldProps = {
   control: Control<CreateComicioInput>
+}
+
+const RolIdCategoriaHiddenField = ({
+  control,
+  index,
+}: {
+  control: Control<CreateComicioInput>
+  index: number
+}) => {
+  const idCategoria = useWatch({
+    control,
+    name: `roles.${index}.idCategoria`,
+  })
+
+  if (!idCategoria) {
+    return null
+  }
+
+  return (
+    <FormField
+      control={control}
+      name={`roles.${index}.idCategoria`}
+      render={({ field }) => <input type='hidden' {...field} value={field.value} />}
+    />
+  )
 }
 
 export const RolesCandidatoField = ({ control }: RolesCandidatoFieldProps) => {
@@ -59,6 +84,7 @@ export const RolesCandidatoField = ({ control }: RolesCandidatoFieldProps) => {
             key={field.id}
             className='grid gap-4 rounded-lg border p-4 lg:grid-cols-[1fr_160px_auto]'
           >
+            <RolIdCategoriaHiddenField control={control} index={index} />
             <FormField
               control={control}
               name={`roles.${index}.nombre`}

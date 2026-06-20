@@ -80,17 +80,30 @@ export const ComiciosList = () => {
               </div>
               <Badge variant={estadoVariant(comicio.estado)}>{comicio.estado}</Badge>
             </CardHeader>
-            <CardContent>
+            <CardContent className='flex flex-wrap gap-2'>
               <Button asChild variant='outline' size='sm'>
                 <Link
                   to='/comicios/$idEleccion/oferta'
                   params={{ idEleccion: String(comicio.idEleccion) }}
-                  aria-label={`Ver comicios`}
+                  aria-label={`Ver oferta de ${comicio.nombre}`}
                 >
-                  Ver comicios
+                  Ver oferta
                   <ArrowRight className='ms-2 size-4' />
                 </Link>
               </Button>
+              {comicio.estado === 'BORRADOR' && (
+                <>
+                  <Button asChild variant='outline' size='sm'>
+                    <Link
+                      to='/comicios/$idEleccion/editar'
+                      params={{ idEleccion: String(comicio.idEleccion) }}
+                      aria-label={`Editar ${comicio.nombre}`}
+                    >
+                      Editar
+                    </Link>
+                  </Button>
+                </>
+              )}
             </CardContent>
           </Card>
         </li>

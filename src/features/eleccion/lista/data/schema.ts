@@ -19,6 +19,7 @@ export const tipoVotacionSchema = z.enum([
 ])
 
 export const rolCandidatoSchema = z.object({
+  idCategoria: z.number().int().min(1).optional(),
   nombre: z.string().min(1, 'El nombre del rol es obligatorio').max(255),
   maximoPostulantes: z
     .number()
