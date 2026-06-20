@@ -19,16 +19,17 @@ import type { RolCandidato } from '@/features/eleccion/data/schema'
 
 type CandidatoRolFieldProps = {
   control: Control<CreateCandidatoInput>
-  roles: RolCandidato[]
+  rolesDisponibles: RolCandidato[]
   setValue: (name: 'idCategoria', value: number) => void
 }
 
 export const CandidatoRolField = ({
   control,
-  roles,
+  rolesDisponibles,
   setValue,
 }: CandidatoRolFieldProps) => {
-  const singleRole = roles.length === 1 ? roles[0] : null
+  const singleRole =
+    rolesDisponibles.length === 1 ? rolesDisponibles[0] : null
 
   useEffect(() => {
     if (singleRole) {
@@ -36,10 +37,11 @@ export const CandidatoRolField = ({
     }
   }, [singleRole, setValue])
 
-  if (roles.length === 0) {
+  if (rolesDisponibles.length === 0) {
     return (
       <p className='text-destructive text-sm' role='alert'>
-        Este comicio no tiene roles de candidato configurados.
+        Todos los roles de este comicio ya alcanzaron su cupo máximo en esta
+        lista.
       </p>
     )
   }
@@ -75,7 +77,7 @@ export const CandidatoRolField = ({
               </SelectTrigger>
             </FormControl>
             <SelectContent>
-              {roles.map((rol) => (
+              {rolesDisponibles.map((rol) => (
                 <SelectItem key={rol.idCategoria} value={String(rol.idCategoria)}>
                   {rol.nombre} (máx. {rol.maximoPostulantes})
                 </SelectItem>

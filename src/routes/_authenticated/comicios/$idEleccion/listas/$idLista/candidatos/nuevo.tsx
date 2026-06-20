@@ -11,11 +11,7 @@ import {
   ComicioFrozenGuard,
   ConflictAlert,
 } from '@/features/eleccion/shared/components/comicio-frozen-guard'
-import {
-  getApiErrorMessage,
-  getApiFieldErrors,
-  isConflictError,
-} from '@/lib/api-client'
+import { getApiErrorMessage, isConflictError } from '@/lib/api-client'
 import { ContentSection } from '@/features/settings/components/content-section'
 
 export const Route = createFileRoute(
@@ -68,15 +64,9 @@ function NuevoCandidatoRoute() {
       })
     },
     onError: (error) => {
-      if (getApiFieldErrors(error).length > 0) {
-        return
-      }
       if (isConflictError(error)) {
         setConflictMessage(getApiErrorMessage(error))
-        toast.error(getApiErrorMessage(error))
-        return
       }
-      toast.error(getApiErrorMessage(error))
     },
   })
 
@@ -111,6 +101,7 @@ function NuevoCandidatoRoute() {
           >
             <CandidatoForm
               roles={roles}
+              candidatosEnLista={lista?.candidatos ?? []}
               camposConfig={configQuery.data?.campos ?? []}
               submitLabel='Registrar candidato'
               onSubmit={async (values) => {

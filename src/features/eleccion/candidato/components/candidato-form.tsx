@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,13 +20,17 @@ import { CandidatoRolField } from '@/features/eleccion/candidato/components/cand
 import {
   createCandidatoSchema,
   type CampoCandidatoDefinicion,
+  type Candidato,
   type CreateCandidatoInput,
 } from '@/features/eleccion/candidato/data/schema'
+import { getRolesDisponibles } from '@/features/eleccion/candidato/utils/roles-disponibles'
 import type { RolCandidato } from '@/features/eleccion/data/schema'
 import { toast } from 'sonner'
 
 type CandidatoFormProps = {
   roles: RolCandidato[]
+  candidatosEnLista: Pick<Candidato, 'idCategoria' | 'idCandidato'>[]
+  excludeCandidatoId?: number
   camposConfig: CampoCandidatoDefinicion[]
   defaultValues?: CreateCandidatoInput
   submitLabel: string
@@ -53,7 +58,7 @@ const buildDefaultDatosAdicionales = (
 }
 
 const buildDefaultValues = (
-  roles: RolCandidato[],
+  rolesDisponibles: RolCandidato[],
   camposConfig: CampoCandidatoDefinicion[],
   values?: CreateCandidatoInput,
 ): CreateCandidatoInput =>
@@ -61,22 +66,33 @@ const buildDefaultValues = (
     nombre: '',
     apellido: '',
     idCategoria:
-      roles.length === 1 ? roles[0].idCategoria : 0,
+      rolesDisponibles.length === 1 ? rolesDisponibles[0].idCategoria : 0,
     orden: 1,
     datosAdicionales: buildDefaultDatosAdicionales(camposConfig),
   }
 
 export const CandidatoForm = ({
   roles,
+  candidatosEnLista,
+  excludeCandidatoId,
   camposConfig,
   defaultValues,
   submitLabel,
   onSubmit,
 }: CandidatoFormProps) => {
+  const rolesDisponibles = useMemo(
+    () =>
+      getRolesDisponibles(roles, candidatosEnLista, {
+        excludeCandidatoId,
+        includeCategoriaId: defaultValues?.idCategoria,
+      }),
+    [roles, candidatosEnLista, excludeCandidatoId, defaultValues?.idCategoria],
+  )
+
   const form = useForm<CreateCandidatoInput>({
     resolver: zodResolver(createCandidatoSchema),
     defaultValues: {
-      ...buildDefaultValues(roles, camposConfig, defaultValues),
+      ...buildDefaultValues(rolesDisponibles, camposConfig, defaultValues),
       datosAdicionales: buildDefaultDatosAdicionales(
         camposConfig,
         defaultValues?.datosAdicionales,
@@ -87,6 +103,12 @@ export const CandidatoForm = ({
   const handleSubmit = async (values: CreateCandidatoInput) => {
     if (roles.length === 0) {
       toast.error('No hay roles configurados para este comicio')
+      return
+    }
+    if (rolesDisponibles.length === 0) {
+      toast.error(
+        'Todos los roles ya alcanzaron su cupo máximo en esta lista',
+      )
       return
     }
     try {
@@ -101,7 +123,7 @@ export const CandidatoForm = ({
     }
   }
 
-  const hasRoles = roles.length > 0
+  const canSubmit = roles.length > 0 && rolesDisponibles.length > 0
 
   return (
     <Form {...form}>
@@ -110,11 +132,17 @@ export const CandidatoForm = ({
         className='flex flex-col gap-8'
         aria-label='Formulario de candidato'
       >
-        <CandidatoRolField
-          control={form.control}
-          roles={roles}
-          setValue={form.setValue}
-        />
+        {roles.length === 0 ? (
+          <p className='text-destructive text-sm' role='alert'>
+            Este comicio no tiene roles de candidato configurados.
+          </p>
+        ) : (
+          <CandidatoRolField
+            control={form.control}
+            rolesDisponibles={rolesDisponibles}
+            setValue={form.setValue}
+          />
+        )}
         <div className='grid gap-4 sm:grid-cols-2'>
           <FormField
             control={form.control}
@@ -144,7 +172,7 @@ export const CandidatoForm = ({
           />
         </div>
         <CandidatoCamposDinamicos control={form.control} campos={camposConfig} />
-        <Button type='submit' disabled={form.formState.isSubmitting || !hasRoles}>
+        <Button type='submit' disabled={form.formState.isSubmitting || !canSubmit}>
           {form.formState.isSubmitting ? 'Guardando…' : submitLabel}
         </Button>
       </form>
