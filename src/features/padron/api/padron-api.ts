@@ -7,6 +7,22 @@ export interface PadronResumen {
   hashPadron: string
   estado: string
   fechaGeneracion: string
+  totalProcesados: number
+  totalOmitidos: number
+}
+
+export interface NovedadPadron {
+  linea: number
+  tipo: string
+  motivo: string
+}
+
+export interface ReporteNovedades {
+  idEleccion: number
+  totalProcesados: number
+  totalImportados: number
+  totalOmitidos: number
+  novedades: NovedadPadron[]
 }
 
 export interface PadronVotante {
@@ -28,6 +44,16 @@ export const obtenerPadronResumen = async (
 ): Promise<PadronResumen> => {
   const { data } = await apiClient.get<PadronResumen>(
     `/elecciones/${idEleccion}/padron`,
+  )
+  return data
+}
+
+/** Reporte de novedades persistido de la importación (para re-descarga). */
+export const obtenerReporteNovedades = async (
+  idEleccion: number,
+): Promise<ReporteNovedades> => {
+  const { data } = await apiClient.get<ReporteNovedades>(
+    `/elecciones/${idEleccion}/padron/novedades`,
   )
   return data
 }

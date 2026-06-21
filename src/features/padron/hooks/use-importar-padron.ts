@@ -1,12 +1,21 @@
 import { useMutation } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
 
+export interface NovedadPadron {
+  linea: number
+  tipo: string
+  motivo: string
+}
+
 export interface ImportarPadronResponse {
-  idPadron: number
+  idPadron: number | null
   idEleccion: number
+  totalProcesados: number
   totalImportados: number
-  estado: string
-  fechaGeneracion: string
+  totalOmitidos: number
+  novedades: NovedadPadron[]
+  estado: string | null
+  fechaGeneracion: string | null
 }
 
 interface ImportarPadronVariables {

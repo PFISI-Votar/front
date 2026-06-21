@@ -6,7 +6,9 @@ import { isAxiosError } from 'axios'
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronDown,
   FileCheck2,
+  FileDown,
   Loader2,
   UploadCloud,
   Upload,
@@ -15,6 +17,11 @@ import {
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
 import {
   Form,
   FormControl,
@@ -31,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { descargarReporteNovedades } from '../lib/descargar-reporte'
 import { useElecciones } from '../hooks/use-elecciones'
 import {
   useImportarPadron,
@@ -71,8 +79,8 @@ function extraerMensajeError(error: unknown): string {
 interface PadronUploadFormProps {
   /** Si se provee, el comicio queda fijo y se oculta el selector. */
   idEleccionFijo?: number
-  /** Se invoca tras una importación exitosa (p. ej. cerrar modal e invalidar queries). */
-  onImported?: () => void
+  /** Se invoca tras una importación exitosa con el resultado (totales + novedades). */
+  onImported?: (resultado: ImportarPadronResponse) => void
 }
 
 export function PadronUploadForm({
@@ -101,11 +109,15 @@ export function PadronUploadForm({
     importarPadron.mutate(values, {
       onSuccess: (data) => {
         setResultado(data)
+        const detalleOmitidos =
+          data.totalOmitidos > 0
+            ? ` (${data.totalOmitidos} omitidas).`
+            : '.'
         toast.success(
-          `Se importaron ${data.totalImportados} identidades correctamente.`
+          `Se importaron ${data.totalImportados} identidades${detalleOmitidos}`
         )
         form.reset({ idEleccion: idEleccionFijo })
-        onImported?.()
+        onImported?.(data)
       },
       onError: (error) => {
         const mensaje = extraerMensajeError(error)
@@ -119,7 +131,8 @@ export function PadronUploadForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className='grid gap-4'>
+      {!resultado && (
+        <form onSubmit={form.handleSubmit(onSubmit)} className='grid gap-4'>
         {!comicioFijo && (
           <FormField
             control={form.control}
@@ -253,10 +266,11 @@ export function PadronUploadForm({
           {isLoading ? <Loader2 className='animate-spin' /> : <Upload />}
           Importar padrón
         </Button>
-      </form>
+        </form>
+      )}
 
       {mensajeError && (
-        <div className='mt-6 flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4'>
+        <div className='mt-2 flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4'>
           <AlertCircle className='mt-0.5 h-5 w-5 shrink-0 text-destructive' />
           <div>
             <p className='font-medium text-destructive'>
@@ -268,17 +282,59 @@ export function PadronUploadForm({
       )}
 
       {resultado && (
-        <div className='mt-6 flex items-center gap-3 rounded-lg border border-green-500/30 bg-green-500/10 p-4'>
-          <CheckCircle2 className='h-6 w-6 text-green-600' />
-          <div>
-            <p className='font-medium text-green-700 dark:text-green-400'>
-              {resultado.totalImportados} identidades importadas
-            </p>
-            <p className='text-sm text-muted-foreground'>
-              Padrón #{resultado.idPadron} · Elección #{resultado.idEleccion} ·
-              Estado {resultado.estado}
-            </p>
+        <div className='space-y-3'>
+          <div className='flex items-center gap-3 rounded-lg border border-green-500/30 bg-green-500/10 p-4'>
+            <CheckCircle2 className='h-6 w-6 shrink-0 text-green-600' />
+            <div>
+              <p className='font-medium text-green-700 dark:text-green-400'>
+                {resultado.totalImportados} importados ·{' '}
+                {resultado.totalOmitidos} omitidos de{' '}
+                {resultado.totalProcesados} procesados
+              </p>
+              <p className='text-sm text-muted-foreground'>
+                {resultado.idPadron
+                  ? `Padrón #${resultado.idPadron} · Elección #${resultado.idEleccion} · Estado ${resultado.estado}`
+                  : `Elección #${resultado.idEleccion} · No se generó padrón (sin identidades válidas)`}
+              </p>
+            </div>
           </div>
+
+          {resultado.novedades.length > 0 && (
+            <Collapsible className='rounded-lg border border-amber-500/30 bg-amber-500/5'>
+              <div className='flex items-center justify-between gap-3 p-3'>
+                <CollapsibleTrigger asChild>
+                  <button
+                    type='button'
+                    className='group flex items-center gap-2 text-sm font-medium text-amber-700 dark:text-amber-400'
+                  >
+                    <ChevronDown className='h-4 w-4 transition-transform group-data-[state=open]:rotate-180' />
+                    Ver detalle de novedades ({resultado.novedades.length})
+                  </button>
+                </CollapsibleTrigger>
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  onClick={() => descargarReporteNovedades(resultado)}
+                >
+                  <FileDown className='h-4 w-4' />
+                  Descargar reporte (.log)
+                </Button>
+              </div>
+              <CollapsibleContent>
+                <ul className='max-h-48 space-y-1 overflow-auto border-t border-amber-500/20 px-3 py-2 text-sm text-muted-foreground'>
+                  {resultado.novedades.map((novedad) => (
+                    <li
+                      key={novedad.linea}
+                      className='border-b border-border/40 py-1 last:border-b-0'
+                    >
+                      {novedad.motivo}
+                    </li>
+                  ))}
+                </ul>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
         </div>
       )}
     </Form>

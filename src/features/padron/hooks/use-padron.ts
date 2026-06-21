@@ -7,6 +7,9 @@ import {
 
 const PAGE_SIZE = 50
 
+/** Tamaños de página disponibles para la tabla de hashes (máx. 200 en backend). */
+export const PADRON_PAGE_SIZES = [25, 50, 100, 200] as const
+
 /**
  * Resumen del padrón de un comicio. Un 404 (sin padrón cargado) no se
  * reintenta: la vista lo trata como estado vacío.
@@ -26,11 +29,12 @@ export function usePadronResumen(idEleccion: number) {
 export function usePadronVotantes(
   idEleccion: number,
   page: number,
+  limit: number,
   enabled: boolean,
 ) {
   return useQuery({
-    queryKey: ['padron-votantes', idEleccion, page],
-    queryFn: () => listarPadronVotantes(idEleccion, page, PAGE_SIZE),
+    queryKey: ['padron-votantes', idEleccion, page, limit],
+    queryFn: () => listarPadronVotantes(idEleccion, page, limit),
     enabled,
     placeholderData: keepPreviousData,
   })

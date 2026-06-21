@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import {
   ArrowLeft,
   ChevronDown,
+  FileDown,
   FileSpreadsheet,
   ListChecks,
   Trash2,
@@ -35,6 +36,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -47,10 +55,12 @@ import {
 import { cn } from '@/lib/utils'
 import { formatDateTimeForDisplay } from '@/lib/datetime'
 import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
-import { eliminarPadron } from '../api/padron-api'
+import { eliminarPadron, obtenerReporteNovedades } from '../api/padron-api'
+import { descargarReporteNovedades } from '../lib/descargar-reporte'
 import { PadronUploadForm } from './padron-upload-form'
+import type { ImportarPadronResponse } from '../hooks/use-importar-padron'
 import {
-  PADRON_PAGE_SIZE,
+  PADRON_PAGE_SIZES,
   usePadronResumen,
   usePadronVotantes,
 } from '../hooks/use-padron'
@@ -69,6 +79,12 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
   const [tablaAbierta, setTablaAbierta] = useState(false)
   const [eliminarAbierto, setEliminarAbierto] = useState(false)
   const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState(50)
+  // Una importación con novedades mantiene el diálogo abierto para que el
+  // usuario lea/descargue el reporte; la invalidación se difiere al cierre
+  // para no desmontar el diálogo (al crearse el padrón, dejaría de cumplirse
+  // `puedeCargar` y el Dialog desaparecería con las novedades sin leer).
+  const [invalidarAlCerrar, setInvalidarAlCerrar] = useState(false)
 
   const invalidarPadron = () => {
     queryClient.invalidateQueries({ queryKey: ['padron-resumen', idEleccion] })
@@ -76,6 +92,12 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
     queryClient.invalidateQueries({ queryKey: ['eleccion', idEleccion] })
     queryClient.invalidateQueries({ queryKey: ['elecciones'] })
   }
+
+  const descargarReporteMutation = useMutation({
+    mutationFn: () => obtenerReporteNovedades(idEleccion),
+    onSuccess: (reporte) => descargarReporteNovedades(reporte),
+    onError: (error) => toast.error(getApiErrorMessage(error)),
+  })
 
   const eliminarMutation = useMutation({
     mutationFn: () => eliminarPadron(idEleccion),
@@ -94,19 +116,37 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
     queryFn: () => obtenerEleccion(idEleccion),
   })
   const resumenQuery = usePadronResumen(idEleccion)
-  const votantesQuery = usePadronVotantes(idEleccion, page, tablaAbierta)
+  const votantesQuery = usePadronVotantes(idEleccion, page, limit, tablaAbierta)
 
   const esBorrador = eleccionQuery.data?.estado === 'BORRADOR'
   const sinPadron = resumenQuery.isError && esError404(resumenQuery.error)
   const puedeCargar = esBorrador && sinPadron
 
-  const onImported = () => {
+  const onImported = (resultado: ImportarPadronResponse) => {
+    if (resultado.totalOmitidos > 0) {
+      // Mantener el diálogo abierto con el reporte de novedades visible.
+      setInvalidarAlCerrar(true)
+      return
+    }
     setModalAbierto(false)
     invalidarPadron()
   }
 
+  const onModalOpenChange = (open: boolean) => {
+    setModalAbierto(open)
+    if (!open && invalidarAlCerrar) {
+      setInvalidarAlCerrar(false)
+      invalidarPadron()
+    }
+  }
+
+  const onCambiarLimit = (nuevoLimit: number) => {
+    setLimit(nuevoLimit)
+    setPage(1)
+  }
+
   const totalPaginas = votantesQuery.data
-    ? Math.max(1, Math.ceil(votantesQuery.data.total / PADRON_PAGE_SIZE))
+    ? Math.max(1, Math.ceil(votantesQuery.data.total / limit))
     : 1
 
   return (
@@ -136,7 +176,7 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
         </div>
 
         {puedeCargar && (
-          <Dialog open={modalAbierto} onOpenChange={setModalAbierto}>
+          <Dialog open={modalAbierto} onOpenChange={onModalOpenChange}>
             <DialogTrigger asChild>
               <Button>
                 <Upload className='size-4' />
@@ -239,6 +279,28 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
                   {resumenQuery.data.hashPadron}
                 </p>
               </div>
+              {resumenQuery.data.totalOmitidos > 0 && (
+                <div className='flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 sm:col-span-2'>
+                  <p className='text-sm'>
+                    <span className='font-medium text-amber-700 dark:text-amber-400'>
+                      {resumenQuery.data.totalOmitidos.toLocaleString('es-AR')}{' '}
+                      registros omitidos
+                    </span>{' '}
+                    de{' '}
+                    {resumenQuery.data.totalProcesados.toLocaleString('es-AR')}{' '}
+                    procesados durante la importación.
+                  </p>
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    disabled={descargarReporteMutation.isPending}
+                    onClick={() => descargarReporteMutation.mutate()}
+                  >
+                    <FileDown className='size-4' />
+                    Descargar reporte de novedades
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -302,11 +364,35 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
                     </TableBody>
                   </Table>
 
-                  <div className='mt-4 flex items-center justify-between'>
-                    <p className='text-muted-foreground text-sm'>
-                      Página {votantesQuery.data.page} de {totalPaginas} ·{' '}
-                      {votantesQuery.data.total.toLocaleString('es-AR')} hojas
-                    </p>
+                  <div className='mt-4 flex flex-wrap items-center justify-between gap-3'>
+                    <div className='flex items-center gap-3'>
+                      <p className='text-muted-foreground text-sm'>
+                        Página {votantesQuery.data.page} de {totalPaginas} ·{' '}
+                        {votantesQuery.data.total.toLocaleString('es-AR')} hojas
+                      </p>
+                      <div className='flex items-center gap-2'>
+                        <span className='text-muted-foreground text-sm'>
+                          Filas por página
+                        </span>
+                        <Select
+                          value={limit.toString()}
+                          onValueChange={(value) =>
+                            onCambiarLimit(Number(value))
+                          }
+                        >
+                          <SelectTrigger size='sm' className='w-20'>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {PADRON_PAGE_SIZES.map((size) => (
+                              <SelectItem key={size} value={size.toString()}>
+                                {size}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
                     <div className='flex gap-2'>
                       <Button
                         variant='outline'
