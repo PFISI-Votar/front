@@ -18,6 +18,7 @@ export type EleccionEstado =
 export type RolCandidato = {
   idCategoria: number
   nombre: string
+  minimoPostulantes: number
   maximoPostulantes: number
   orden: number
 }

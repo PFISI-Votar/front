@@ -23,7 +23,9 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { cn } from '@/lib/utils'
 import {
   getApiErrorMessage,
+  getApiRulesViolations,
   isConflictError,
+  isValidationError,
 } from '@/lib/api-client'
 import { eliminarEleccion, obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
 import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
@@ -36,6 +38,7 @@ import {
   obtenerMapeoListas,
 } from '@/features/eleccion/lista/api/lista-api'
 import type { Lista } from '@/features/eleccion/lista/data/schema'
+import type { ApiRulesViolation } from '@/lib/api-client'
 import { ListaFormDialog } from '@/features/eleccion/lista/components/lista-form-dialog'
 import { ConfiguracionDatosCandidatoPanel } from '@/features/eleccion/candidato/components/configuracion-datos-candidato-panel'
 import { buildResumenDatosAdicionales } from '@/features/eleccion/candidato/utils/format-datos-adicionales'
@@ -48,6 +51,9 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [conflictMessage, setConflictMessage] = useState<string | null>(null)
+  const [oficializacionViolations, setOficializacionViolations] = useState<
+    ApiRulesViolation[]
+  >([])
   const [listaDialogOpen, setListaDialogOpen] = useState(false)
   const [editingLista, setEditingLista] = useState<Lista | null>(null)
   const [oficializarDialogOpen, setOficializarDialogOpen] = useState(false)
@@ -133,6 +139,7 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
     mutationFn: () => oficializarEleccion(idEleccion),
     onSuccess: async (data) => {
       setOficializarDialogOpen(false)
+      setOficializacionViolations([])
       toast.success('Comicio oficializado')
       await invalidateOferta()
       await queryClient.invalidateQueries({ queryKey: ['listas-mapeo', idEleccion] })
@@ -140,10 +147,21 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
         `Mapeo generado: ${data.mapeo.map((m) => `${m.sigla}→list_id ${m.listId}`).join(', ')}`,
       )
     },
-    onError: handleApiError,
+    onError: (error) => {
+      if (isValidationError(error)) {
+        const violations = getApiRulesViolations(error)
+        if (violations.length > 0) {
+          setOficializacionViolations(violations)
+          toast.error(getApiErrorMessage(error))
+          return
+        }
+      }
+      handleApiError(error)
+    },
   })
 
   const handleConfirmOficializar = () => {
+    setOficializacionViolations([])
     oficializarMutation.mutate()
   }
 
@@ -220,6 +238,22 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
           <AlertCircle className='size-4' />
           <AlertTitle>Operación denegada (409 Conflict)</AlertTitle>
           <AlertDescription>{conflictMessage}</AlertDescription>
+        </Alert>
+      )}
+
+      {oficializacionViolations.length > 0 && (
+        <Alert variant='destructive'>
+          <AlertCircle className='size-4' />
+          <AlertTitle>No se puede oficializar el comicio</AlertTitle>
+          <AlertDescription>
+            <ul className='mt-2 list-disc space-y-1 ps-4'>
+              {oficializacionViolations.map((violation) => (
+                <li key={`${violation.idLista}-${violation.idCategoria}`}>
+                  {violation.message}
+                </li>
+              ))}
+            </ul>
+          </AlertDescription>
         </Alert>
       )}
 

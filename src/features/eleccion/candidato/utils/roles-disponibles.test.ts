@@ -3,8 +3,8 @@ import { getRolesDisponibles } from '@/features/eleccion/candidato/utils/roles-d
 import type { RolCandidato } from '@/features/eleccion/data/schema'
 
 const roles: RolCandidato[] = [
-  { idCategoria: 1, nombre: 'Presidente', maximoPostulantes: 1, orden: 1 },
-  { idCategoria: 2, nombre: 'Vicepresidente', maximoPostulantes: 2, orden: 2 },
+  { idCategoria: 1, nombre: 'Presidente', minimoPostulantes: 0, maximoPostulantes: 1, orden: 1 },
+  { idCategoria: 2, nombre: 'Vicepresidente', minimoPostulantes: 0, maximoPostulantes: 2, orden: 2 },
 ]
 
 describe('getRolesDisponibles', () => {

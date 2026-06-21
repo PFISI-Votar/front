@@ -10,7 +10,7 @@ const buildValidInput = () => ({
   fechaInicio: new Date(Date.now() + 86400000).toISOString(),
   fechaFin: new Date(Date.now() + 172800000).toISOString(),
   tipoVotacion: TIPOS_VOTACION.POR_LISTA,
-  roles: [{ nombre: 'Presidente', maximoPostulantes: 1 }],
+  roles: [{ nombre: 'Presidente', minimoPostulantes: 0, maximoPostulantes: 1 }],
   metodosAutenticacion: [METODOS_AUTENTICACION.SSO_INSTITUCIONAL],
 })
 
