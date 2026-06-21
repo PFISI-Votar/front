@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, Vote } from 'lucide-react'
+import { ArrowRight, FileSpreadsheet, Vote } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -89,6 +89,16 @@ export const ComiciosList = () => {
                 >
                   Ver oferta
                   <ArrowRight className='ms-2 size-4' />
+                </Link>
+              </Button>
+              <Button asChild variant='outline' size='sm'>
+                <Link
+                  to='/comicios/$idEleccion/padron'
+                  params={{ idEleccion: String(comicio.idEleccion) }}
+                  aria-label={`Ver padrón de ${comicio.nombre}`}
+                >
+                  <FileSpreadsheet className='me-2 size-4' />
+                  Ver padrón
                 </Link>
               </Button>
               {comicio.estado === 'BORRADOR' && (
