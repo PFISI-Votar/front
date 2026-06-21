@@ -148,6 +148,7 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
       )
     },
     onError: (error) => {
+      setOficializarDialogOpen(false)
       if (isValidationError(error)) {
         const violations = getApiRulesViolations(error)
         if (violations.length > 0) {
