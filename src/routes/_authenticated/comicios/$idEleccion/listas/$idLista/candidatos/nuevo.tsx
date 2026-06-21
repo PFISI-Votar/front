@@ -1,0 +1,116 @@
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { toast } from 'sonner'
+import { crearCandidato } from '@/features/eleccion/candidato/api/candidato-api'
+import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
+import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
+import { listarListas } from '@/features/eleccion/lista/api/lista-api'
+import { CandidatoForm } from '@/features/eleccion/candidato/components/candidato-form'
+import {
+  ComicioFrozenGuard,
+  ConflictAlert,
+} from '@/features/eleccion/shared/components/comicio-frozen-guard'
+import { getApiErrorMessage, isConflictError } from '@/lib/api-client'
+import { ContentSection } from '@/features/settings/components/content-section'
+
+export const Route = createFileRoute(
+  '/_authenticated/comicios/$idEleccion/listas/$idLista/candidatos/nuevo'
+)({
+  component: NuevoCandidatoRoute,
+})
+
+function NuevoCandidatoRoute() {
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const { idEleccion, idLista } = Route.useParams()
+  const idEleccionNum = Number(idEleccion)
+  const idListaNum = Number(idLista)
+  const [conflictMessage, setConflictMessage] = useState<string | null>(null)
+
+  const eleccionQuery = useQuery({
+    queryKey: ['eleccion', idEleccionNum],
+    queryFn: () => obtenerEleccion(idEleccionNum),
+  })
+
+  const listasQuery = useQuery({
+    queryKey: ['listas', idEleccionNum],
+    queryFn: () => listarListas(idEleccionNum),
+  })
+
+  const configQuery = useQuery({
+    queryKey: ['config-datos-candidato', idEleccionNum],
+    queryFn: () => obtenerConfiguracionDatosCandidato(idEleccionNum),
+  })
+
+  const lista = listasQuery.data?.find((item) => item.idLista === idListaNum)
+  const roles = eleccionQuery.data?.roles ?? lista?.roles ?? []
+  const isEditable = eleccionQuery.data?.estado === 'BORRADOR'
+
+  const crearCandidatoMutation = useMutation({
+    mutationFn: (input: Parameters<typeof crearCandidato>[1]) =>
+      crearCandidato(idListaNum, input),
+    onSuccess: async () => {
+      setConflictMessage(null)
+      toast.success('Candidato registrado')
+      await queryClient.invalidateQueries({ queryKey: ['candidatos', idListaNum] })
+      await queryClient.invalidateQueries({ queryKey: ['listas', idEleccionNum] })
+      await queryClient.invalidateQueries({
+        queryKey: ['config-datos-candidato', idEleccionNum],
+      })
+      navigate({
+        to: '/comicios/$idEleccion/listas/$idLista',
+        params: { idEleccion, idLista },
+      })
+    },
+    onError: (error) => {
+      if (isConflictError(error)) {
+        setConflictMessage(getApiErrorMessage(error))
+      }
+    },
+  })
+
+  const isLoading =
+    listasQuery.isLoading || configQuery.isLoading || eleccionQuery.isLoading
+
+  return (
+    <>
+      <div className='flex flex-col gap-0.5'>
+        <h1 className='text-2xl font-bold tracking-tight md:text-3xl'>
+          Registrar candidato
+        </h1>
+        <p className='text-muted-foreground'>
+          {lista
+            ? `Lista ${lista.nombre} (${lista.sigla})`
+            : `Lista #${idLista}`}
+          {eleccionQuery.data ? ` · ${eleccionQuery.data.nombre}` : ''}
+        </p>
+      </div>
+
+      <div className='flex flex-1 flex-col gap-4 overflow-hidden'>
+        <ConflictAlert message={conflictMessage} />
+        <ContentSection
+          title='Datos del candidato'
+          desc='Complete los datos personales y los campos adicionales definidos para este comicio.'
+        >
+          <ComicioFrozenGuard
+            isLoading={isLoading}
+            isEditable={isEditable}
+            idEleccion={idEleccion}
+            idLista={idLista}
+          >
+            <CandidatoForm
+              roles={roles}
+              candidatosEnLista={lista?.candidatos ?? []}
+              camposConfig={configQuery.data?.campos ?? []}
+              submitLabel='Registrar candidato'
+              onSubmit={async (values) => {
+                await crearCandidatoMutation.mutateAsync(values)
+              }}
+            />
+          </ComicioFrozenGuard>
+        </ContentSection>
+      </div>
+    </>
+  )
+}
