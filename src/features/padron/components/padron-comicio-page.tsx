@@ -58,7 +58,6 @@ import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
 import { eliminarPadron, obtenerReporteNovedades } from '../api/padron-api'
 import { descargarReporteNovedades } from '../lib/descargar-reporte'
 import { PadronUploadForm } from './padron-upload-form'
-import type { ImportarPadronResponse } from '../hooks/use-importar-padron'
 import {
   PADRON_PAGE_SIZES,
   usePadronResumen,
@@ -80,12 +79,6 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
   const [eliminarAbierto, setEliminarAbierto] = useState(false)
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(50)
-  // Una importación con novedades mantiene el diálogo abierto para que el
-  // usuario lea/descargue el reporte; la invalidación se difiere al cierre
-  // para no desmontar el diálogo (al crearse el padrón, dejaría de cumplirse
-  // `puedeCargar` y el Dialog desaparecería con las novedades sin leer).
-  const [invalidarAlCerrar, setInvalidarAlCerrar] = useState(false)
-
   const invalidarPadron = () => {
     queryClient.invalidateQueries({ queryKey: ['padron-resumen', idEleccion] })
     queryClient.invalidateQueries({ queryKey: ['padron-votantes', idEleccion] })
@@ -121,24 +114,6 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
   const esBorrador = eleccionQuery.data?.estado === 'BORRADOR'
   const sinPadron = resumenQuery.isError && esError404(resumenQuery.error)
   const puedeCargar = esBorrador && sinPadron
-
-  const onImported = (resultado: ImportarPadronResponse) => {
-    if (resultado.totalOmitidos > 0) {
-      // Mantener el diálogo abierto con el reporte de novedades visible.
-      setInvalidarAlCerrar(true)
-      return
-    }
-    setModalAbierto(false)
-    invalidarPadron()
-  }
-
-  const onModalOpenChange = (open: boolean) => {
-    setModalAbierto(open)
-    if (!open && invalidarAlCerrar) {
-      setInvalidarAlCerrar(false)
-      invalidarPadron()
-    }
-  }
 
   const onCambiarLimit = (nuevoLimit: number) => {
     setLimit(nuevoLimit)
@@ -176,7 +151,7 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
         </div>
 
         {puedeCargar && (
-          <Dialog open={modalAbierto} onOpenChange={onModalOpenChange}>
+          <Dialog open={modalAbierto} onOpenChange={setModalAbierto}>
             <DialogTrigger asChild>
               <Button>
                 <Upload className='size-4' />
@@ -191,10 +166,7 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
                   persiste el dato en texto plano.
                 </DialogDescription>
               </DialogHeader>
-              <PadronUploadForm
-                idEleccionFijo={idEleccion}
-                onImported={onImported}
-              />
+              <PadronUploadForm idEleccionFijo={idEleccion} />
             </DialogContent>
           </Dialog>
         )}
