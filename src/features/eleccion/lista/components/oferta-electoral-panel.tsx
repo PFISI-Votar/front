@@ -39,6 +39,8 @@ import type { Lista } from '@/features/eleccion/lista/data/schema'
 import { ListaFormDialog } from '@/features/eleccion/lista/components/lista-form-dialog'
 import { ConfiguracionDatosCandidatoPanel } from '@/features/eleccion/candidato/components/configuracion-datos-candidato-panel'
 import { buildResumenDatosAdicionales } from '@/features/eleccion/candidato/utils/format-datos-adicionales'
+import { CategoriasPanel } from '../../categoria/components/categoria-panel'
+
 
 type OfertaElectoralPanelProps = {
   idEleccion: number
@@ -222,6 +224,11 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
           <AlertDescription>{conflictMessage}</AlertDescription>
         </Alert>
       )}
+
+      <CategoriasPanel
+        idEleccion={idEleccion}
+        isEditable={isEditable}
+      />
 
       <ConfiguracionDatosCandidatoPanel
         idEleccion={idEleccion}
