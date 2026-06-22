@@ -66,6 +66,18 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+/** Descarga un CSV de ejemplo con la estructura correcta del padrón. */
+function descargarCsvEjemplo(): void {
+  const contenido = 'dni,email\n00000000,mail@prueba.com\n'
+  const blob = new Blob([contenido], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const enlace = document.createElement('a')
+  enlace.href = url
+  enlace.download = 'padron-ejemplo.csv'
+  enlace.click()
+  URL.revokeObjectURL(url)
+}
+
 /** Extrae el mensaje de error del backend NestJS ({ message, error, statusCode }). */
 function extraerMensajeError(error: unknown): string {
   if (isAxiosError(error)) {
@@ -262,10 +274,21 @@ export function PadronUploadForm({
           )}
         />
 
-        <Button type='submit' disabled={isLoading} className='w-fit'>
-          {isLoading ? <Loader2 className='animate-spin' /> : <Upload />}
-          Importar padrón
-        </Button>
+        <div className='flex items-center justify-between gap-3'>
+          <Button type='submit' disabled={isLoading} className='w-fit'>
+            {isLoading ? <Loader2 className='animate-spin' /> : <Upload />}
+            Importar padrón
+          </Button>
+          <Button
+            type='button'
+            variant='outline'
+            className='w-fit'
+            onClick={descargarCsvEjemplo}
+          >
+            <FileDown />
+            Descargar CSV ejemplo
+          </Button>
+        </div>
         </form>
       )}
 
