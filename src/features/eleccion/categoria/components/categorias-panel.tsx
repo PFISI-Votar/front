@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type KeyboardEvent } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
@@ -63,6 +63,34 @@ type CategoriaFormProps = {
   onCancel: () => void
 }
 
+const blockInvalidNumberKeys = (
+  event: KeyboardEvent<HTMLInputElement>,
+): void => {
+  if (['-', '+', 'e', 'E', '.', ','].includes(event.key)) {
+    event.preventDefault()
+  }
+}
+
+const parseBoundedInteger = (
+  rawValue: string,
+  minimum: number,
+): number | null => {
+  if (rawValue === '') {
+    return null
+  }
+  const parsed = Number.parseInt(rawValue, 10)
+  if (Number.isNaN(parsed) || parsed < minimum) {
+    return null
+  }
+  return parsed
+}
+
+const CategoriaFormMessage = () => (
+  <div className='min-h-5'>
+    <FormMessage />
+  </div>
+)
+
 const CategoriaForm = ({
   defaultValues,
   submitLabel,
@@ -79,7 +107,7 @@ const CategoriaForm = ({
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className='grid gap-4 rounded-lg border p-4 lg:grid-cols-2'
+        className='grid items-start gap-4 rounded-lg border p-4 lg:grid-cols-2'
         aria-label='Formulario de categoría electoral'
       >
         <FormField
@@ -91,7 +119,7 @@ const CategoriaForm = ({
               <FormControl>
                 <Input placeholder='Presidente' className='h-10' {...field} />
               </FormControl>
-              <FormMessage />
+              <CategoriaFormMessage />
             </FormItem>
           )}
         />
@@ -108,7 +136,7 @@ const CategoriaForm = ({
                   {...field}
                 />
               </FormControl>
-              <FormMessage />
+              <CategoriaFormMessage />
             </FormItem>
           )}
         />
@@ -122,17 +150,24 @@ const CategoriaForm = ({
                 <Input
                   type='number'
                   min={0}
+                  step={1}
+                  inputMode='numeric'
                   className='h-10'
                   value={field.value}
-                  onChange={(event) =>
-                    field.onChange(Number(event.target.value))
-                  }
+                  onKeyDown={blockInvalidNumberKeys}
+                  onChange={(event) => {
+                    const parsed = parseBoundedInteger(event.target.value, 0)
+                    if (parsed === null) {
+                      return
+                    }
+                    field.onChange(parsed)
+                  }}
                   onBlur={field.onBlur}
                   name={field.name}
                   ref={field.ref}
                 />
               </FormControl>
-              <FormMessage />
+              <CategoriaFormMessage />
             </FormItem>
           )}
         />
@@ -146,17 +181,24 @@ const CategoriaForm = ({
                 <Input
                   type='number'
                   min={1}
+                  step={1}
+                  inputMode='numeric'
                   className='h-10'
                   value={field.value}
-                  onChange={(event) =>
-                    field.onChange(Number(event.target.value))
-                  }
+                  onKeyDown={blockInvalidNumberKeys}
+                  onChange={(event) => {
+                    const parsed = parseBoundedInteger(event.target.value, 1)
+                    if (parsed === null) {
+                      return
+                    }
+                    field.onChange(parsed)
+                  }}
                   onBlur={field.onBlur}
                   name={field.name}
                   ref={field.ref}
                 />
               </FormControl>
-              <FormMessage />
+              <CategoriaFormMessage />
             </FormItem>
           )}
         />
