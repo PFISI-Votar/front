@@ -14,6 +14,7 @@ import type { RolCandidatoInput } from '@/features/eleccion/lista/data/schema'
 
 const buildRolVacio = (): RolCandidatoInput => ({
   nombre: '',
+  minimoPostulantes: 0,
   maximoPostulantes: 1,
 })
 
@@ -82,7 +83,7 @@ export const RolesCandidatoField = ({ control }: RolesCandidatoFieldProps) => {
         {fields.map((field, index) => (
           <div
             key={field.id}
-            className='grid gap-4 rounded-lg border p-4 lg:grid-cols-[1fr_160px_auto]'
+            className='grid gap-4 rounded-lg border p-4 lg:grid-cols-[1fr_140px_140px_auto]'
           >
             <RolIdCategoriaHiddenField control={control} index={index} />
             <FormField
@@ -96,6 +97,31 @@ export const RolesCandidatoField = ({ control }: RolesCandidatoFieldProps) => {
                       placeholder='Presidente'
                       className='h-10'
                       {...nombreField}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name={`roles.${index}.minimoPostulantes`}
+              render={({ field: minField }) => (
+                <FormItem>
+                  <FormLabel>Mín. postulantes</FormLabel>
+                  <FormControl>
+                    <Input
+                      type='number'
+                      min={0}
+                      className='h-10'
+                      value={minField.value}
+                      onChange={(event) =>
+                        minField.onChange(Number(event.target.value))
+                      }
+                      onBlur={minField.onBlur}
+                      name={minField.name}
+                      ref={minField.ref}
+                      aria-label={`Mínimo de postulantes para rol ${index + 1}`}
                     />
                   </FormControl>
                   <FormMessage />

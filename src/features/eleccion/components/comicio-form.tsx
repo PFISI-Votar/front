@@ -35,7 +35,7 @@ type ComicioFormProps = {
   onSubmit: (values: CreateComicioInput) => Promise<void>
 }
 
-const defaultRol = { nombre: '', maximoPostulantes: 1 }
+const defaultRol = { nombre: '', minimoPostulantes: 0, maximoPostulantes: 1 }
 
 const mapApiErrorsToForm = (
   errors: { field: string; message: string }[],
@@ -67,6 +67,7 @@ const buildFormDefaults = (
       roles: eleccion.roles.map((rol) => ({
         idCategoria: rol.idCategoria,
         nombre: rol.nombre,
+        minimoPostulantes: rol.minimoPostulantes ?? 0,
         maximoPostulantes: rol.maximoPostulantes,
       })),
       metodosAutenticacion: eleccion.metodosAutenticacion,

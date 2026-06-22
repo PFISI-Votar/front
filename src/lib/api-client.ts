@@ -39,6 +39,18 @@ export type ApiStructuredFieldError = {
   message: string
 }
 
+export type ApiRulesViolation = {
+  idLista: number
+  nombreLista: string
+  siglaLista: string
+  idCategoria: number
+  nombreCategoria: string
+  minimoRequerido: number
+  cantidadActual: number
+  faltantes: number
+  message: string
+}
+
 export const getApiFieldErrors = (error: unknown): ApiFieldError[] => {
   if (!(error instanceof AxiosError)) {
     return []
@@ -68,4 +80,15 @@ export const getApiStructuredFieldErrors = (
       field: item.field as string,
       message: item.message as string,
     }))
+}
+
+export const getApiRulesViolations = (error: unknown): ApiRulesViolation[] => {
+  if (!(error instanceof AxiosError)) {
+    return []
+  }
+  const data = error.response?.data as { violations?: ApiRulesViolation[] } | undefined
+  if (!Array.isArray(data?.violations)) {
+    return []
+  }
+  return data.violations
 }
