@@ -2,7 +2,6 @@ import { z } from 'zod'
 import { isUtcIsoDateTime } from '@/lib/datetime'
 import { metodosAutenticacionSchema } from '@/features/eleccion/configuracion-comicio/data/schema'
 import {
-  rolesCandidatoSchema,
   tipoVotacionSchema,
   type TipoVotacion,
 } from '@/features/eleccion/lista/data/schema'
@@ -49,7 +48,6 @@ export const createComicioSchema = z
     fechaInicio: utcIsoDateTimeSchema,
     fechaFin: utcIsoDateTimeSchema,
     tipoVotacion: tipoVotacionSchema,
-    roles: rolesCandidatoSchema,
     metodosAutenticacion: metodosAutenticacionSchema,
   })
   .superRefine((data, ctx) => {

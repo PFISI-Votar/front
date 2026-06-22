@@ -40,6 +40,7 @@ import {
 import type { Lista } from '@/features/eleccion/lista/data/schema'
 import type { ApiRulesViolation } from '@/lib/api-client'
 import { ListaFormDialog } from '@/features/eleccion/lista/components/lista-form-dialog'
+import { CategoriasPanel } from '@/features/eleccion/categoria/components/categorias-panel'
 import { ConfiguracionDatosCandidatoPanel } from '@/features/eleccion/candidato/components/configuracion-datos-candidato-panel'
 import { buildResumenDatosAdicionales } from '@/features/eleccion/candidato/utils/format-datos-adicionales'
 
@@ -54,6 +55,9 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
   const [oficializacionViolations, setOficializacionViolations] = useState<
     ApiRulesViolation[]
   >([])
+  const [oficializacionBlockMessage, setOficializacionBlockMessage] = useState<
+    string | null
+  >(null)
   const [listaDialogOpen, setListaDialogOpen] = useState(false)
   const [editingLista, setEditingLista] = useState<Lista | null>(null)
   const [oficializarDialogOpen, setOficializarDialogOpen] = useState(false)
@@ -140,6 +144,7 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
     onSuccess: async (data) => {
       setOficializarDialogOpen(false)
       setOficializacionViolations([])
+      setOficializacionBlockMessage(null)
       toast.success('Comicio oficializado')
       await invalidateOferta()
       await queryClient.invalidateQueries({ queryKey: ['listas-mapeo', idEleccion] })
@@ -153,9 +158,15 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
         const violations = getApiRulesViolations(error)
         if (violations.length > 0) {
           setOficializacionViolations(violations)
+          setOficializacionBlockMessage(null)
           toast.error(getApiErrorMessage(error))
           return
         }
+        const message = getApiErrorMessage(error)
+        setOficializacionBlockMessage(message)
+        setOficializacionViolations([])
+        toast.error(message)
+        return
       }
       handleApiError(error)
     },
@@ -163,6 +174,7 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
 
   const handleConfirmOficializar = () => {
     setOficializacionViolations([])
+    setOficializacionBlockMessage(null)
     oficializarMutation.mutate()
   }
 
@@ -242,6 +254,14 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
         </Alert>
       )}
 
+      {oficializacionBlockMessage && (
+        <Alert variant='destructive'>
+          <AlertCircle className='size-4' />
+          <AlertTitle>No se puede oficializar el comicio</AlertTitle>
+          <AlertDescription>{oficializacionBlockMessage}</AlertDescription>
+        </Alert>
+      )}
+
       {oficializacionViolations.length > 0 && (
         <Alert variant='destructive'>
           <AlertCircle className='size-4' />
@@ -262,6 +282,8 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
         idEleccion={idEleccion}
         isEditable={isEditable}
       />
+
+      <CategoriasPanel idEleccion={idEleccion} isEditable={isEditable} />
 
       <div className='flex flex-wrap gap-2'>
         <Button

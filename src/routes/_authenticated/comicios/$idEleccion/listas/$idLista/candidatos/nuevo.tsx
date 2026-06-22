@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { crearCandidato } from '@/features/eleccion/candidato/api/candidato-api'
 import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
+import { listarCategorias } from '@/features/eleccion/categoria/api/categoria-api'
+import { mapCategoriaToElectoral } from '@/features/eleccion/categoria/data/schema'
 import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
 import { listarListas } from '@/features/eleccion/lista/api/lista-api'
 import { CandidatoForm } from '@/features/eleccion/candidato/components/candidato-form'
@@ -43,8 +45,13 @@ function NuevoCandidatoRoute() {
     queryFn: () => obtenerConfiguracionDatosCandidato(idEleccionNum),
   })
 
+  const categoriasQuery = useQuery({
+    queryKey: ['categorias', idEleccionNum],
+    queryFn: () => listarCategorias(idEleccionNum),
+  })
+
   const lista = listasQuery.data?.find((item) => item.idLista === idListaNum)
-  const roles = eleccionQuery.data?.roles ?? lista?.roles ?? []
+  const categorias = (categoriasQuery.data ?? []).map(mapCategoriaToElectoral)
   const isEditable = eleccionQuery.data?.estado === 'BORRADOR'
 
   const crearCandidatoMutation = useMutation({
@@ -71,7 +78,10 @@ function NuevoCandidatoRoute() {
   })
 
   const isLoading =
-    listasQuery.isLoading || configQuery.isLoading || eleccionQuery.isLoading
+    listasQuery.isLoading ||
+    configQuery.isLoading ||
+    eleccionQuery.isLoading ||
+    categoriasQuery.isLoading
 
   return (
     <>
@@ -100,7 +110,7 @@ function NuevoCandidatoRoute() {
             idLista={idLista}
           >
             <CandidatoForm
-              roles={roles}
+              categorias={categorias}
               candidatosEnLista={lista?.candidatos ?? []}
               camposConfig={configQuery.data?.campos ?? []}
               submitLabel='Registrar candidato'

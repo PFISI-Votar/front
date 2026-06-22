@@ -26,7 +26,6 @@ import {
 } from '@/features/eleccion/data/schema'
 import { MetodosAutenticacionField } from '@/features/eleccion/configuracion-comicio/components/metodos-autenticacion-field'
 import { TIPOS_VOTACION } from '@/features/eleccion/lista/data/schema'
-import { RolesCandidatoField } from '@/features/eleccion/lista/components/roles-candidato-field'
 
 type ComicioFormProps = {
   mode: 'create' | 'edit'
@@ -34,8 +33,6 @@ type ComicioFormProps = {
   submitLabel: string
   onSubmit: (values: CreateComicioInput) => Promise<void>
 }
-
-const defaultRol = { nombre: '', minimoPostulantes: 0, maximoPostulantes: 1 }
 
 const mapApiErrorsToForm = (
   errors: { field: string; message: string }[],
@@ -45,7 +42,6 @@ const mapApiErrorsToForm = (
     if (
       error.field === 'fechaInicio' ||
       error.field === 'fechaFin' ||
-      error.field === 'roles' ||
       error.field === 'metodosAutenticacion'
     ) {
       setError(error.field, { message: error.message })
@@ -64,12 +60,6 @@ const buildFormDefaults = (
       fechaInicio: eleccion.fechaInicio,
       fechaFin: eleccion.fechaFin,
       tipoVotacion: eleccion.tipoVotacion,
-      roles: eleccion.roles.map((rol) => ({
-        idCategoria: rol.idCategoria,
-        nombre: rol.nombre,
-        minimoPostulantes: rol.minimoPostulantes ?? 0,
-        maximoPostulantes: rol.maximoPostulantes,
-      })),
       metodosAutenticacion: eleccion.metodosAutenticacion,
     }
   }
@@ -79,7 +69,6 @@ const buildFormDefaults = (
     fechaInicio: '',
     fechaFin: '',
     tipoVotacion: TIPOS_VOTACION.POR_LISTA,
-    roles: [{ ...defaultRol }],
     metodosAutenticacion: [],
   }
 }
@@ -207,7 +196,12 @@ export const ComicioForm = ({
             Modalidad electoral
           </h2>
           <CreateComicioTipoVotacionField control={form.control} />
-          <RolesCandidatoField control={form.control} />
+          {mode === 'create' && (
+            <p className='text-muted-foreground text-sm'>
+              Las categorías electorales (cargos a cubrir) se configuran en la
+              oferta electoral después de crear el comicio.
+            </p>
+          )}
         </section>
 
         <section className='space-y-6' aria-labelledby='comicio-auth-heading'>

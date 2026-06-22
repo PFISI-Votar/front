@@ -76,7 +76,7 @@ function EditarComicioPage() {
       <div className='flex flex-1 flex-col overflow-hidden'>
         <ContentSection
           title='Configuración del comicio'
-          desc='Modifique los datos generales, la modalidad electoral, los roles y los métodos de acceso.'
+          desc='Modifique los datos generales, la modalidad electoral y los métodos de acceso. Las categorías se gestionan en la oferta electoral.'
         >
           <ComicioForm
             mode='edit'
