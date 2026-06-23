@@ -11,30 +11,31 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { getApiErrorMessage, getApiFieldErrors } from '@/lib/api-client'
+import { getApiErrorMessage, getApiFieldErrors, isConflictError } from '@/lib/api-client'
 import {
   CandidatoCamposDinamicos,
   mapApiFieldErrorsToForm,
 } from '@/features/eleccion/candidato/components/candidato-campos-dinamicos'
-import { CandidatoRolField } from '@/features/eleccion/candidato/components/candidato-rol-field'
+import { CandidatoCategoriaField } from '@/features/eleccion/candidato/components/candidato-categoria-field'
 import {
   createCandidatoSchema,
   type CampoCandidatoDefinicion,
   type Candidato,
   type CreateCandidatoInput,
 } from '@/features/eleccion/candidato/data/schema'
-import { getRolesDisponibles } from '@/features/eleccion/candidato/utils/roles-disponibles'
-import type { RolCandidato } from '@/features/eleccion/data/schema'
+import { getCategoriasDisponibles } from '@/features/eleccion/candidato/utils/categorias-disponibles'
+import type { CategoriaElectoral } from '@/features/eleccion/categoria/data/schema'
 import { toast } from 'sonner'
 
 type CandidatoFormProps = {
-  roles: RolCandidato[]
+  categorias: CategoriaElectoral[]
   candidatosEnLista: Pick<Candidato, 'idCategoria' | 'idCandidato'>[]
   excludeCandidatoId?: number
   camposConfig: CampoCandidatoDefinicion[]
   defaultValues?: CreateCandidatoInput
   submitLabel: string
   onSubmit: (values: CreateCandidatoInput) => Promise<void>
+  onConflictError?: (message: string) => void
 }
 
 const buildDefaultDatosAdicionales = (
@@ -58,41 +59,46 @@ const buildDefaultDatosAdicionales = (
 }
 
 const buildDefaultValues = (
-  rolesDisponibles: RolCandidato[],
+  categoriasDisponibles: CategoriaElectoral[],
   camposConfig: CampoCandidatoDefinicion[],
   values?: CreateCandidatoInput,
 ): CreateCandidatoInput =>
   values ?? {
     nombre: '',
     apellido: '',
-    idCategoria:
-      rolesDisponibles.length === 1 ? rolesDisponibles[0].idCategoria : 0,
+    idCategoria: categoriasDisponibles[0]?.idCategoria ?? 0,
     orden: 1,
     datosAdicionales: buildDefaultDatosAdicionales(camposConfig),
   }
 
 export const CandidatoForm = ({
-  roles,
+  categorias,
   candidatosEnLista,
   excludeCandidatoId,
   camposConfig,
   defaultValues,
   submitLabel,
   onSubmit,
+  onConflictError,
 }: CandidatoFormProps) => {
-  const rolesDisponibles = useMemo(
+  const categoriasDisponibles = useMemo(
     () =>
-      getRolesDisponibles(roles, candidatosEnLista, {
+      getCategoriasDisponibles(categorias, candidatosEnLista, {
         excludeCandidatoId,
         includeCategoriaId: defaultValues?.idCategoria,
       }),
-    [roles, candidatosEnLista, excludeCandidatoId, defaultValues?.idCategoria],
+    [
+      categorias,
+      candidatosEnLista,
+      excludeCandidatoId,
+      defaultValues?.idCategoria,
+    ],
   )
 
   const form = useForm<CreateCandidatoInput>({
     resolver: zodResolver(createCandidatoSchema),
     defaultValues: {
-      ...buildDefaultValues(rolesDisponibles, camposConfig, defaultValues),
+      ...buildDefaultValues(categoriasDisponibles, camposConfig, defaultValues),
       datosAdicionales: buildDefaultDatosAdicionales(
         camposConfig,
         defaultValues?.datosAdicionales,
@@ -101,19 +107,27 @@ export const CandidatoForm = ({
   })
 
   const handleSubmit = async (values: CreateCandidatoInput) => {
-    if (roles.length === 0) {
-      toast.error('No hay roles configurados para este comicio')
+    if (categorias.length === 0) {
+      toast.error('No hay categorías configuradas para este comicio')
       return
     }
-    if (rolesDisponibles.length === 0) {
+    if (!values.idCategoria) {
+      toast.error('Seleccione la categoría electoral del candidato')
+      return
+    }
+    if (categoriasDisponibles.length === 0) {
       toast.error(
-        'Todos los roles ya alcanzaron su cupo máximo en esta lista',
+        'Todas las categorías ya alcanzaron su cupo máximo en esta lista',
       )
       return
     }
     try {
       await onSubmit(values)
     } catch (error) {
+      if (isConflictError(error)) {
+        onConflictError?.(getApiErrorMessage(error))
+        return
+      }
       const fieldErrors = getApiFieldErrors(error)
       if (fieldErrors.length > 0) {
         mapApiFieldErrorsToForm(fieldErrors, form.setError)
@@ -123,7 +137,10 @@ export const CandidatoForm = ({
     }
   }
 
-  const canSubmit = roles.length > 0 && rolesDisponibles.length > 0
+  const canSubmit =
+    categorias.length > 0 &&
+    categoriasDisponibles.length > 0 &&
+    Boolean(form.watch('idCategoria'))
 
   return (
     <Form {...form}>
@@ -132,15 +149,15 @@ export const CandidatoForm = ({
         className='flex flex-col gap-8'
         aria-label='Formulario de candidato'
       >
-        {roles.length === 0 ? (
+        {categorias.length === 0 ? (
           <p className='text-destructive text-sm' role='alert'>
-            Este comicio no tiene roles de candidato configurados.
+            Este comicio no tiene categorías electorales. Configúrelas en la
+            oferta electoral antes de registrar candidatos.
           </p>
         ) : (
-          <CandidatoRolField
+          <CandidatoCategoriaField
             control={form.control}
-            rolesDisponibles={rolesDisponibles}
-            setValue={form.setValue}
+            categoriasDisponibles={categoriasDisponibles}
           />
         )}
         <div className='grid gap-4 sm:grid-cols-2'>

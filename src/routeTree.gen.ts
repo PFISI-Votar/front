@@ -42,8 +42,6 @@ import { Route as AuthenticatedComiciosIdEleccionOfertaRouteImport } from './rou
 import { Route as AuthenticatedComiciosIdEleccionEditarRouteImport } from './routes/_authenticated/comicios/$idEleccion/editar'
 import { Route as AuthenticatedComiciosIdEleccionPadronPreviewRouteImport } from './routes/_authenticated/comicios/$idEleccion/padron_.preview'
 import { Route as AuthenticatedComiciosIdEleccionListasIdListaIndexRouteImport } from './routes/_authenticated/comicios/$idEleccion/listas/$idLista/index'
-import { Route as AuthenticatedComiciosIdEleccionListasIdListaCandidatosNuevoRouteImport } from './routes/_authenticated/comicios/$idEleccion/listas/$idLista/candidatos/nuevo'
-import { Route as AuthenticatedComiciosIdEleccionListasIdListaCandidatosIdCandidatoRouteImport } from './routes/_authenticated/comicios/$idEleccion/listas/$idLista/candidatos/$idCandidato'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -225,22 +223,6 @@ const AuthenticatedComiciosIdEleccionListasIdListaIndexRoute =
     path: '/$idEleccion/listas/$idLista/',
     getParentRoute: () => AuthenticatedComiciosRouteRoute,
   } as any)
-const AuthenticatedComiciosIdEleccionListasIdListaCandidatosNuevoRoute =
-  AuthenticatedComiciosIdEleccionListasIdListaCandidatosNuevoRouteImport.update(
-    {
-      id: '/$idEleccion/listas/$idLista/candidatos/nuevo',
-      path: '/$idEleccion/listas/$idLista/candidatos/nuevo',
-      getParentRoute: () => AuthenticatedComiciosRouteRoute,
-    } as any,
-  )
-const AuthenticatedComiciosIdEleccionListasIdListaCandidatosIdCandidatoRoute =
-  AuthenticatedComiciosIdEleccionListasIdListaCandidatosIdCandidatoRouteImport.update(
-    {
-      id: '/$idEleccion/listas/$idLista/candidatos/$idCandidato',
-      path: '/$idEleccion/listas/$idLista/candidatos/$idCandidato',
-      getParentRoute: () => AuthenticatedComiciosRouteRoute,
-    } as any,
-  )
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -275,8 +257,6 @@ export interface FileRoutesByFullPath {
   '/comicios/$idEleccion/padron': typeof AuthenticatedComiciosIdEleccionPadronRoute
   '/comicios/$idEleccion/padron/preview': typeof AuthenticatedComiciosIdEleccionPadronPreviewRoute
   '/comicios/$idEleccion/listas/$idLista/': typeof AuthenticatedComiciosIdEleccionListasIdListaIndexRoute
-  '/comicios/$idEleccion/listas/$idLista/candidatos/$idCandidato': typeof AuthenticatedComiciosIdEleccionListasIdListaCandidatosIdCandidatoRoute
-  '/comicios/$idEleccion/listas/$idLista/candidatos/nuevo': typeof AuthenticatedComiciosIdEleccionListasIdListaCandidatosNuevoRoute
 }
 export interface FileRoutesByTo {
   '/forgot-password': typeof authForgotPasswordRoute
@@ -309,8 +289,6 @@ export interface FileRoutesByTo {
   '/comicios/$idEleccion/padron': typeof AuthenticatedComiciosIdEleccionPadronRoute
   '/comicios/$idEleccion/padron/preview': typeof AuthenticatedComiciosIdEleccionPadronPreviewRoute
   '/comicios/$idEleccion/listas/$idLista': typeof AuthenticatedComiciosIdEleccionListasIdListaIndexRoute
-  '/comicios/$idEleccion/listas/$idLista/candidatos/$idCandidato': typeof AuthenticatedComiciosIdEleccionListasIdListaCandidatosIdCandidatoRoute
-  '/comicios/$idEleccion/listas/$idLista/candidatos/nuevo': typeof AuthenticatedComiciosIdEleccionListasIdListaCandidatosNuevoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -347,8 +325,6 @@ export interface FileRoutesById {
   '/_authenticated/comicios/$idEleccion/padron': typeof AuthenticatedComiciosIdEleccionPadronRoute
   '/_authenticated/comicios/$idEleccion/padron_/preview': typeof AuthenticatedComiciosIdEleccionPadronPreviewRoute
   '/_authenticated/comicios/$idEleccion/listas/$idLista/': typeof AuthenticatedComiciosIdEleccionListasIdListaIndexRoute
-  '/_authenticated/comicios/$idEleccion/listas/$idLista/candidatos/$idCandidato': typeof AuthenticatedComiciosIdEleccionListasIdListaCandidatosIdCandidatoRoute
-  '/_authenticated/comicios/$idEleccion/listas/$idLista/candidatos/nuevo': typeof AuthenticatedComiciosIdEleccionListasIdListaCandidatosNuevoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -385,8 +361,6 @@ export interface FileRouteTypes {
     | '/comicios/$idEleccion/padron'
     | '/comicios/$idEleccion/padron/preview'
     | '/comicios/$idEleccion/listas/$idLista/'
-    | '/comicios/$idEleccion/listas/$idLista/candidatos/$idCandidato'
-    | '/comicios/$idEleccion/listas/$idLista/candidatos/nuevo'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/forgot-password'
@@ -419,8 +393,6 @@ export interface FileRouteTypes {
     | '/comicios/$idEleccion/padron'
     | '/comicios/$idEleccion/padron/preview'
     | '/comicios/$idEleccion/listas/$idLista'
-    | '/comicios/$idEleccion/listas/$idLista/candidatos/$idCandidato'
-    | '/comicios/$idEleccion/listas/$idLista/candidatos/nuevo'
   id:
     | '__root__'
     | '/_authenticated'
@@ -456,8 +428,6 @@ export interface FileRouteTypes {
     | '/_authenticated/comicios/$idEleccion/padron'
     | '/_authenticated/comicios/$idEleccion/padron_/preview'
     | '/_authenticated/comicios/$idEleccion/listas/$idLista/'
-    | '/_authenticated/comicios/$idEleccion/listas/$idLista/candidatos/$idCandidato'
-    | '/_authenticated/comicios/$idEleccion/listas/$idLista/candidatos/nuevo'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -708,20 +678,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedComiciosIdEleccionListasIdListaIndexRouteImport
       parentRoute: typeof AuthenticatedComiciosRouteRoute
     }
-    '/_authenticated/comicios/$idEleccion/listas/$idLista/candidatos/nuevo': {
-      id: '/_authenticated/comicios/$idEleccion/listas/$idLista/candidatos/nuevo'
-      path: '/$idEleccion/listas/$idLista/candidatos/nuevo'
-      fullPath: '/comicios/$idEleccion/listas/$idLista/candidatos/nuevo'
-      preLoaderRoute: typeof AuthenticatedComiciosIdEleccionListasIdListaCandidatosNuevoRouteImport
-      parentRoute: typeof AuthenticatedComiciosRouteRoute
-    }
-    '/_authenticated/comicios/$idEleccion/listas/$idLista/candidatos/$idCandidato': {
-      id: '/_authenticated/comicios/$idEleccion/listas/$idLista/candidatos/$idCandidato'
-      path: '/$idEleccion/listas/$idLista/candidatos/$idCandidato'
-      fullPath: '/comicios/$idEleccion/listas/$idLista/candidatos/$idCandidato'
-      preLoaderRoute: typeof AuthenticatedComiciosIdEleccionListasIdListaCandidatosIdCandidatoRouteImport
-      parentRoute: typeof AuthenticatedComiciosRouteRoute
-    }
   }
 }
 
@@ -733,8 +689,6 @@ interface AuthenticatedComiciosRouteRouteChildren {
   AuthenticatedComiciosIdEleccionPadronRoute: typeof AuthenticatedComiciosIdEleccionPadronRoute
   AuthenticatedComiciosIdEleccionPadronPreviewRoute: typeof AuthenticatedComiciosIdEleccionPadronPreviewRoute
   AuthenticatedComiciosIdEleccionListasIdListaIndexRoute: typeof AuthenticatedComiciosIdEleccionListasIdListaIndexRoute
-  AuthenticatedComiciosIdEleccionListasIdListaCandidatosIdCandidatoRoute: typeof AuthenticatedComiciosIdEleccionListasIdListaCandidatosIdCandidatoRoute
-  AuthenticatedComiciosIdEleccionListasIdListaCandidatosNuevoRoute: typeof AuthenticatedComiciosIdEleccionListasIdListaCandidatosNuevoRoute
 }
 
 const AuthenticatedComiciosRouteRouteChildren: AuthenticatedComiciosRouteRouteChildren =
@@ -751,10 +705,6 @@ const AuthenticatedComiciosRouteRouteChildren: AuthenticatedComiciosRouteRouteCh
       AuthenticatedComiciosIdEleccionPadronPreviewRoute,
     AuthenticatedComiciosIdEleccionListasIdListaIndexRoute:
       AuthenticatedComiciosIdEleccionListasIdListaIndexRoute,
-    AuthenticatedComiciosIdEleccionListasIdListaCandidatosIdCandidatoRoute:
-      AuthenticatedComiciosIdEleccionListasIdListaCandidatosIdCandidatoRoute,
-    AuthenticatedComiciosIdEleccionListasIdListaCandidatosNuevoRoute:
-      AuthenticatedComiciosIdEleccionListasIdListaCandidatosNuevoRoute,
   }
 
 const AuthenticatedComiciosRouteRouteWithChildren =

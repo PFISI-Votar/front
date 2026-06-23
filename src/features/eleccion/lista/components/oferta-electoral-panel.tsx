@@ -4,6 +4,7 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import {
   AlertCircle,
   ArrowRight,
+  BadgeCheck,
   ChevronDown,
   Lock,
   Pencil,
@@ -43,8 +44,11 @@ import {
   obtenerEleccion,
 } from '@/features/eleccion/api/eleccion-api'
 import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
+import { CandidatoFormDialog } from '@/features/eleccion/candidato/components/candidato-form-dialog'
 import { ConfiguracionDatosCandidatoPanel } from '@/features/eleccion/candidato/components/configuracion-datos-candidato-panel'
+import type { Candidato } from '@/features/eleccion/candidato/data/schema'
 import { buildResumenDatosAdicionales } from '@/features/eleccion/candidato/utils/format-datos-adicionales'
+import { CategoriasPanel } from '@/features/eleccion/categoria/components/categorias-panel'
 import {
   actualizarLista,
   crearLista,
@@ -55,6 +59,11 @@ import {
 } from '@/features/eleccion/lista/api/lista-api'
 import { ListaFormDialog } from '@/features/eleccion/lista/components/lista-form-dialog'
 import type { Lista } from '@/features/eleccion/lista/data/schema'
+
+type CandidatoDialogState = {
+  lista: Lista
+  candidato: Candidato | null
+}
 
 type OfertaElectoralPanelProps = {
   idEleccion: number
@@ -69,8 +78,13 @@ export const OfertaElectoralPanel = ({
   const [oficializacionViolations, setOficializacionViolations] = useState<
     ApiRulesViolation[]
   >([])
+  const [oficializacionBlockMessage, setOficializacionBlockMessage] = useState<
+    string | null
+  >(null)
   const [listaDialogOpen, setListaDialogOpen] = useState(false)
   const [editingLista, setEditingLista] = useState<Lista | null>(null)
+  const [candidatoDialog, setCandidatoDialog] =
+    useState<CandidatoDialogState | null>(null)
   const [oficializarDialogOpen, setOficializarDialogOpen] = useState(false)
   const [eliminarDialogOpen, setEliminarDialogOpen] = useState(false)
 
@@ -155,6 +169,7 @@ export const OfertaElectoralPanel = ({
     onSuccess: async (data) => {
       setOficializarDialogOpen(false)
       setOficializacionViolations([])
+      setOficializacionBlockMessage(null)
       toast.success('Comicio oficializado')
       await invalidateOferta()
       await queryClient.invalidateQueries({
@@ -170,9 +185,15 @@ export const OfertaElectoralPanel = ({
         const violations = getApiRulesViolations(error)
         if (violations.length > 0) {
           setOficializacionViolations(violations)
+          setOficializacionBlockMessage(null)
           toast.error(getApiErrorMessage(error))
           return
         }
+        const message = getApiErrorMessage(error)
+        setOficializacionBlockMessage(message)
+        setOficializacionViolations([])
+        toast.error(message)
+        return
       }
       handleApiError(error)
     },
@@ -180,6 +201,7 @@ export const OfertaElectoralPanel = ({
 
   const handleConfirmOficializar = () => {
     setOficializacionViolations([])
+    setOficializacionBlockMessage(null)
     oficializarMutation.mutate()
   }
 
@@ -210,7 +232,7 @@ export const OfertaElectoralPanel = ({
             {eleccionQuery.data ? ` — ${eleccionQuery.data.nombre}` : ''}
           </p>
         </div>
-        <div className='flex flex-wrap items-center gap-2'>
+        <div className='flex flex-wrap items-center gap-3'>
           {eleccionQuery.data && (
             <Badge variant={isEditable ? 'secondary' : 'default'}>
               {eleccionQuery.data.estado}
@@ -227,6 +249,17 @@ export const OfertaElectoralPanel = ({
               Abrir BUD
             </Link>
           </Button>
+          {isEditable && (
+            <Button
+              onClick={() => setOficializarDialogOpen(true)}
+              disabled={oficializarMutation.isPending}
+              aria-haspopup='dialog'
+              aria-label='Oficializar comicio'
+            >
+              <BadgeCheck className='me-2 size-4' />
+              Oficializar comicio
+            </Button>
+          )}
         </div>
       </div>
 
@@ -273,6 +306,14 @@ export const OfertaElectoralPanel = ({
         </Alert>
       )}
 
+      {oficializacionBlockMessage && (
+        <Alert variant='destructive'>
+          <AlertCircle className='size-4' />
+          <AlertTitle>No se puede oficializar el comicio</AlertTitle>
+          <AlertDescription>{oficializacionBlockMessage}</AlertDescription>
+        </Alert>
+      )}
+
       {oficializacionViolations.length > 0 && (
         <Alert variant='destructive'>
           <AlertCircle className='size-4' />
@@ -294,27 +335,22 @@ export const OfertaElectoralPanel = ({
         isEditable={isEditable}
       />
 
-      <div className='flex flex-wrap gap-2'>
-        <Button
-          onClick={() => {
-            setEditingLista(null)
-            setListaDialogOpen(true)
-          }}
-          disabled={!isEditable}
-          aria-label='Crear nueva lista electoral'
-        >
-          <Plus className='me-2 size-4' />
-          Nueva lista
-        </Button>
-        <Button
-          variant='outline'
-          onClick={() => setOficializarDialogOpen(true)}
-          disabled={!isEditable || oficializarMutation.isPending}
-          aria-haspopup='dialog'
-        >
-          Oficializar comicio
-        </Button>
-      </div>
+      <CategoriasPanel idEleccion={idEleccion} isEditable={isEditable} />
+
+      {isEditable && (
+        <div>
+          <Button
+            onClick={() => {
+              setEditingLista(null)
+              setListaDialogOpen(true)
+            }}
+            aria-label='Crear nueva lista electoral'
+          >
+            <Plus className='me-2 size-4' />
+            Nueva lista
+          </Button>
+        </div>
+      )}
 
       {listasQuery.isLoading && (
         <p className='text-sm text-muted-foreground'>Cargando listas…</p>
@@ -378,29 +414,31 @@ export const OfertaElectoralPanel = ({
                         <ArrowRight className='ms-2 size-4' />
                       </Link>
                     </Button>
-                    <Button
-                      size='sm'
-                      variant='ghost'
-                      disabled={!isEditable}
-                      onClick={() => {
-                        setEditingLista(lista)
-                        setListaDialogOpen(true)
-                      }}
-                      aria-label={`Editar lista ${lista.nombre}`}
-                    >
-                      <Pencil className='size-4' />
-                    </Button>
-                    <Button
-                      size='sm'
-                      variant='ghost'
-                      disabled={!isEditable}
-                      onClick={() =>
-                        eliminarListaMutation.mutate(lista.idLista)
-                      }
-                      aria-label={`Eliminar lista ${lista.nombre}`}
-                    >
-                      <Trash2 className='size-4 text-destructive' />
-                    </Button>
+                    {isEditable && (
+                      <>
+                        <Button
+                          size='sm'
+                          variant='ghost'
+                          onClick={() => {
+                            setEditingLista(lista)
+                            setListaDialogOpen(true)
+                          }}
+                          aria-label={`Editar lista ${lista.nombre}`}
+                        >
+                          <Pencil className='size-4' />
+                        </Button>
+                        <Button
+                          size='sm'
+                          variant='ghost'
+                          onClick={() =>
+                            eliminarListaMutation.mutate(lista.idLista)
+                          }
+                          aria-label={`Eliminar lista ${lista.nombre}`}
+                        >
+                          <Trash2 className='size-4 text-destructive' />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </CardHeader>
                 <CollapsibleContent>
@@ -413,21 +451,16 @@ export const OfertaElectoralPanel = ({
                         </p>
                         {isEditable && (
                           <Button
-                            asChild
                             size='sm'
                             variant='outline'
                             className='w-fit'
+                            onClick={() =>
+                              setCandidatoDialog({ lista, candidato: null })
+                            }
+                            aria-label={`Registrar candidato en ${lista.nombre}`}
                           >
-                            <Link
-                              to='/comicios/$idEleccion/listas/$idLista/candidatos/nuevo'
-                              params={{
-                                idEleccion: String(idEleccion),
-                                idLista: String(lista.idLista),
-                              }}
-                            >
-                              <Plus className='me-2 size-4' />
-                              Registrar candidato
-                            </Link>
+                            <Plus className='me-2 size-4' />
+                            Registrar candidato
                           </Button>
                         )}
                       </div>
@@ -456,18 +489,15 @@ export const OfertaElectoralPanel = ({
                               </p>
                             </div>
                             {isEditable && (
-                              <Button asChild size='sm' variant='ghost'>
-                                <Link
-                                  to='/comicios/$idEleccion/listas/$idLista/candidatos/$idCandidato'
-                                  params={{
-                                    idEleccion: String(idEleccion),
-                                    idLista: String(lista.idLista),
-                                    idCandidato: String(candidato.idCandidato),
-                                  }}
-                                  aria-label={`Editar ${candidato.nombre} ${candidato.apellido}`}
-                                >
-                                  <UserPen className='size-4' />
-                                </Link>
+                              <Button
+                                size='sm'
+                                variant='ghost'
+                                onClick={() =>
+                                  setCandidatoDialog({ lista, candidato })
+                                }
+                                aria-label={`Editar ${candidato.nombre} ${candidato.apellido}`}
+                              >
+                                <UserPen className='size-4' />
                               </Button>
                             )}
                           </li>
@@ -525,6 +555,23 @@ export const OfertaElectoralPanel = ({
           await crearListaMutation.mutateAsync(values)
         }}
       />
+
+      {candidatoDialog && (
+        <CandidatoFormDialog
+          open={candidatoDialog != null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setCandidatoDialog(null)
+            }
+          }}
+          idEleccion={idEleccion}
+          idLista={candidatoDialog.lista.idLista}
+          listaNombre={candidatoDialog.lista.nombre}
+          listaSigla={candidatoDialog.lista.sigla}
+          candidatosEnLista={candidatoDialog.lista.candidatos ?? []}
+          candidato={candidatoDialog.candidato}
+        />
+      )}
 
       <ConfirmDialog
         open={oficializarDialogOpen}
