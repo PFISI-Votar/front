@@ -18,6 +18,14 @@ export type CategoriaElectoral = {
   orden: number
 }
 
+export type CategoriaNombreContext = {
+  categorias: Pick<Categoria, 'idCategoria' | 'nombre'>[]
+  excludeIdCategoria?: number
+}
+
+const normalizeCategoriaNombre = (nombre: string): string =>
+  nombre.trim().toLocaleLowerCase()
+
 export const categoriaFormSchema = z
   .object({
     nombre: z
@@ -44,6 +52,26 @@ export const categoriaFormSchema = z
         code: 'custom',
         message: 'El mínimo no puede ser mayor al máximo',
         path: ['minimoPostulantes'],
+      })
+    }
+  })
+
+export const createCategoriaFormSchema = ({
+  categorias,
+  excludeIdCategoria,
+}: CategoriaNombreContext) =>
+  categoriaFormSchema.superRefine((data, ctx) => {
+    const nombreNormalizado = normalizeCategoriaNombre(data.nombre)
+    const categoriaDuplicada = categorias.find(
+      (categoria) =>
+        categoria.idCategoria !== excludeIdCategoria &&
+        normalizeCategoriaNombre(categoria.nombre) === nombreNormalizado,
+    )
+    if (categoriaDuplicada) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `Ya existe una categoría con el nombre "${categoriaDuplicada.nombre}" en este comicio.`,
+        path: ['nombre'],
       })
     }
   })

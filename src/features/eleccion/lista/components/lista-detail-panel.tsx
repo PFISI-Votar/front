@@ -19,10 +19,12 @@ import {
   isConflictError,
 } from '@/lib/api-client'
 import { eliminarCandidato, listarCandidatos } from '@/features/eleccion/candidato/api/candidato-api'
+import type { Candidato } from '@/features/eleccion/candidato/data/schema'
 import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
 import { actualizarLista, eliminarLista, listarListas } from '@/features/eleccion/lista/api/lista-api'
 import { ListaFormDialog } from '@/features/eleccion/lista/components/lista-form-dialog'
+import { CandidatoFormDialog } from '@/features/eleccion/candidato/components/candidato-form-dialog'
 import { buildResumenDatosAdicionales } from '@/features/eleccion/candidato/utils/format-datos-adicionales'
 
 type ListaDetailPanelProps = {
@@ -38,6 +40,8 @@ export const ListaDetailPanel = ({
   const queryClient = useQueryClient()
   const [conflictMessage, setConflictMessage] = useState<string | null>(null)
   const [listaDialogOpen, setListaDialogOpen] = useState(false)
+  const [candidatoDialogOpen, setCandidatoDialogOpen] = useState(false)
+  const [editingCandidato, setEditingCandidato] = useState<Candidato | null>(null)
 
   const eleccionQuery = useQuery({
     queryKey: ['eleccion', idEleccion],
@@ -243,45 +247,44 @@ export const ListaDetailPanel = ({
             Integrantes registrados en esta lista electoral.
           </p>
         </div>
-        <div className='flex flex-wrap gap-2'>
-          <Button
-            variant='outline'
-            disabled={!isEditable}
-            onClick={() => setListaDialogOpen(true)}
-            aria-label={`Editar lista ${lista.nombre}`}
-          >
-            <Pencil className='me-2 size-4' />
-            Editar lista
-          </Button>
-          <Button asChild disabled={!isEditable}>
-            <Link
-              to='/comicios/$idEleccion/listas/$idLista/candidatos/nuevo'
-              params={{
-                idEleccion: String(idEleccion),
-                idLista: String(idLista),
+        {isEditable && (
+          <div className='flex flex-wrap gap-2'>
+            <Button
+              variant='outline'
+              onClick={() => setListaDialogOpen(true)}
+              aria-label={`Editar lista ${lista.nombre}`}
+            >
+              <Pencil className='me-2 size-4' />
+              Editar lista
+            </Button>
+            <Button
+              onClick={() => {
+                setEditingCandidato(null)
+                setCandidatoDialogOpen(true)
               }}
+              aria-label={`Registrar candidato en ${lista.nombre}`}
             >
               <Plus className='me-2 size-4' />
               Registrar candidato
-            </Link>
-          </Button>
-          <Button
-            variant='outline'
-            disabled={!isEditable || eliminarListaMutation.isPending}
-            onClick={() => {
-              if (
-                window.confirm(
-                  `¿Eliminar la lista ${lista.nombre}? Esta acción no se puede deshacer.`
-                )
-              ) {
-                eliminarListaMutation.mutate(idLista)
-              }
-            }}
-          >
-            <Trash2 className='me-2 size-4 text-destructive' />
-            Eliminar lista
-          </Button>
-        </div>
+            </Button>
+            <Button
+              variant='outline'
+              disabled={eliminarListaMutation.isPending}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `¿Eliminar la lista ${lista.nombre}? Esta acción no se puede deshacer.`
+                  )
+                ) {
+                  eliminarListaMutation.mutate(idLista)
+                }
+              }}
+            >
+              <Trash2 className='me-2 size-4 text-destructive' />
+              Eliminar lista
+            </Button>
+          </div>
+        )}
       </div>
 
       <Separator />
@@ -296,18 +299,18 @@ export const ListaDetailPanel = ({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild disabled={!isEditable}>
-              <Link
-                to='/comicios/$idEleccion/listas/$idLista/candidatos/nuevo'
-                params={{
-                  idEleccion: String(idEleccion),
-                  idLista: String(idLista),
+            {isEditable && (
+              <Button
+                onClick={() => {
+                  setEditingCandidato(null)
+                  setCandidatoDialogOpen(true)
                 }}
+                aria-label={`Registrar candidato en ${lista.nombre}`}
               >
                 <Plus className='me-2 size-4' />
                 Registrar candidato
-              </Link>
-            </Button>
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -330,32 +333,31 @@ export const ListaDetailPanel = ({
                       )}
                     </CardDescription>
                   </div>
-                  <div className='flex gap-2'>
-                    <Button asChild size='sm' variant='outline' disabled={!isEditable}>
-                      <Link
-                        to='/comicios/$idEleccion/listas/$idLista/candidatos/$idCandidato'
-                        params={{
-                          idEleccion: String(idEleccion),
-                          idLista: String(idLista),
-                          idCandidato: String(candidato.idCandidato),
+                  {isEditable && (
+                    <div className='flex gap-2'>
+                      <Button
+                        size='sm'
+                        variant='outline'
+                        onClick={() => {
+                          setEditingCandidato(candidato)
+                          setCandidatoDialogOpen(true)
                         }}
                         aria-label={`Editar ${candidato.nombre} ${candidato.apellido}`}
                       >
                         <UserPen className='size-4' />
-                      </Link>
-                    </Button>
-                    <Button
-                      size='sm'
-                      variant='ghost'
-                      disabled={!isEditable}
-                      onClick={() =>
-                        eliminarCandidatoMutation.mutate(candidato.idCandidato)
-                      }
-                      aria-label={`Eliminar ${candidato.nombre} ${candidato.apellido}`}
-                    >
-                      <Trash2 className='size-4 text-destructive' />
-                    </Button>
-                  </div>
+                      </Button>
+                      <Button
+                        size='sm'
+                        variant='ghost'
+                        onClick={() =>
+                          eliminarCandidatoMutation.mutate(candidato.idCandidato)
+                        }
+                        aria-label={`Eliminar ${candidato.nombre} ${candidato.apellido}`}
+                      >
+                        <Trash2 className='size-4 text-destructive' />
+                      </Button>
+                    </div>
+                  )}
                 </CardHeader>
               </Card>
             </li>
@@ -376,6 +378,21 @@ export const ListaDetailPanel = ({
         onSubmit={async (values) => {
           await actualizarListaMutation.mutateAsync(values)
         }}
+      />
+      <CandidatoFormDialog
+        open={candidatoDialogOpen}
+        onOpenChange={(open) => {
+          setCandidatoDialogOpen(open)
+          if (!open) {
+            setEditingCandidato(null)
+          }
+        }}
+        idEleccion={idEleccion}
+        idLista={idLista}
+        listaNombre={lista.nombre}
+        listaSigla={lista.sigla}
+        candidatosEnLista={candidatos}
+        candidato={editingCandidato}
       />
     </div>
   )

@@ -11,7 +11,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { getApiErrorMessage, getApiFieldErrors } from '@/lib/api-client'
+import { getApiErrorMessage, getApiFieldErrors, isConflictError } from '@/lib/api-client'
 import {
   CandidatoCamposDinamicos,
   mapApiFieldErrorsToForm,
@@ -35,6 +35,7 @@ type CandidatoFormProps = {
   defaultValues?: CreateCandidatoInput
   submitLabel: string
   onSubmit: (values: CreateCandidatoInput) => Promise<void>
+  onConflictError?: (message: string) => void
 }
 
 const buildDefaultDatosAdicionales = (
@@ -78,6 +79,7 @@ export const CandidatoForm = ({
   defaultValues,
   submitLabel,
   onSubmit,
+  onConflictError,
 }: CandidatoFormProps) => {
   const categoriasDisponibles = useMemo(
     () =>
@@ -122,6 +124,10 @@ export const CandidatoForm = ({
     try {
       await onSubmit(values)
     } catch (error) {
+      if (isConflictError(error)) {
+        onConflictError?.(getApiErrorMessage(error))
+        return
+      }
       const fieldErrors = getApiFieldErrors(error)
       if (fieldErrors.length > 0) {
         mapApiFieldErrorsToForm(fieldErrors, form.setError)
