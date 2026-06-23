@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/features/voto/api/voto-api', () => ({
   createDemoVotanteToken: () => 'c'.repeat(64),
+  getVotanteTokenStorageKey: (idEleccion: number) =>
+    `votar:votante-token:${idEleccion}`,
   getVotanteToken: () => null,
   obtenerBoletaDigital: mocks.obtenerBoletaDigital,
   confirmarVoto: mocks.confirmarVoto,
@@ -44,7 +46,8 @@ const boleta: BoletaDigital = {
           agrupacionPolitica: 'Lista Azul',
           numeroLista: 1,
           colorLista: '#0ea5e9',
-          fotoUrl: null,
+          fotoUrl:
+            'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3Crect width="1" height="1" fill="%230ea5e9"/%3E%3C/svg%3E',
         },
         {
           idCandidato: 102,
@@ -143,6 +146,25 @@ describe('BoletaUnicaDigitalPage', () => {
     expect(mocks.confirmarVoto).not.toHaveBeenCalled()
   })
 
+  it('expone información obligatoria y nombres accesibles en cada tarjeta de candidato', async () => {
+    mocks.obtenerBoletaDigital.mockResolvedValue(boleta)
+    const screen = await renderBud()
+
+    await expect.element(screen.getByText('Lista 1').first()).toBeInTheDocument()
+    await expect.element(screen.getByText('Ana López')).toBeInTheDocument()
+    await expect.element(screen.getByText('Lista Azul').first()).toBeInTheDocument()
+    await expect
+      .element(screen.getByRole('img', { name: /Foto de Ana López/i }))
+      .toBeInTheDocument()
+    await expect
+      .element(
+        screen.getByRole('radio', {
+          name: /Ana López, Lista Azul, lista 1/i,
+        })
+      )
+      .toBeInTheDocument()
+  })
+
   it('permite seleccionar por teclado y confirma recién en el diálogo final', async () => {
     mocks.obtenerBoletaDigital.mockResolvedValue(boleta)
     mocks.confirmarVoto.mockResolvedValue({
@@ -184,5 +206,39 @@ describe('BoletaUnicaDigitalPage', () => {
     await expect
       .element(screen.getByText(/Voto confirmado/i))
       .toBeInTheDocument()
+  })
+
+  it('mantiene la boleta legible en layouts responsive y usa scroll eficiente con muchas opciones', async () => {
+    const candidatos = Array.from({ length: 21 }, (_, index) => ({
+      idCandidato: 300 + index,
+      idCategoria: 1,
+      idLista: 20 + index,
+      listId: 20 + index,
+      nombre: `Candidato ${index + 1}`,
+      apellido: 'Demo',
+      nombreCompleto: `Candidato ${index + 1} Demo`,
+      agrupacionPolitica: `Lista ${index + 1}`,
+      numeroLista: index + 1,
+      colorLista: '#2563eb',
+      fotoUrl: null,
+    }))
+    mocks.obtenerBoletaDigital.mockResolvedValue({
+      ...boleta,
+      categorias: [
+        {
+          ...boleta.categorias[0],
+          candidatos,
+        },
+      ],
+    })
+
+    const screen = await renderBud()
+
+    await expect
+      .element(screen.getByText('Candidato 21 Demo'))
+      .toBeInTheDocument()
+    expect(document.querySelector('[data-slot="scroll-area"]')).not.toBeNull()
+    expect(document.querySelector('.sm\\:max-w-3xl')).not.toBeNull()
+    expect(document.querySelector('.lg\\:max-w-5xl')).not.toBeNull()
   })
 })

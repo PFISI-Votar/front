@@ -112,10 +112,14 @@ describe('BudVotingWizard', () => {
     const screen = await renderWizard()
 
     await expect
-      .element(screen.getByRole('group', { name: /Agrupación Lista Azul/i }))
+      .element(
+        screen.getByRole('group', { name: /Agrupación Lista Azul/i }).first()
+      )
       .toBeInTheDocument()
     await expect
-      .element(screen.getByRole('group', { name: /Agrupación Lista Celeste/i }))
+      .element(
+        screen.getByRole('group', { name: /Agrupación Lista Celeste/i }).first()
+      )
       .toBeInTheDocument()
   })
 
@@ -151,14 +155,16 @@ describe('BudVotingWizard', () => {
   it('en voto mixto no muestra candidatos por rol al confirmar voto especial', async () => {
     const screen = await renderWizard(TIPOS_VOTACION.MIXTO)
 
-    await userEvent.click(screen.getByRole('button', { name: /Lista Azul/i }))
+    await userEvent.click(
+      screen.getByRole('button', { name: /^LA Lista Azul Lista LA/i })
+    )
     await userEvent.click(
       screen.getByRole('button', { name: /Votar en blanco/i })
     )
 
     await expect
       .element(screen.getByText('Candidatos por rol'))
-      .toBeInTheDocument()
+      .not.toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
 
@@ -172,7 +178,9 @@ describe('BudVotingWizard', () => {
   it('en voto mixto autoselecciona un candidato por rol al elegir lista', async () => {
     const screen = await renderWizard(TIPOS_VOTACION.MIXTO)
 
-    await userEvent.click(screen.getByRole('button', { name: /Lista Azul/i }))
+    await userEvent.click(
+      screen.getByRole('button', { name: /^LA Lista Azul Lista LA/i })
+    )
     await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
 
     await expect.element(screen.getByText('Ana Lopez')).toBeInTheDocument()
