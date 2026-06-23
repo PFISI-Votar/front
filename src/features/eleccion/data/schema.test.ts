@@ -10,7 +10,6 @@ const buildValidInput = () => ({
   fechaInicio: new Date(Date.now() + 86400000).toISOString(),
   fechaFin: new Date(Date.now() + 172800000).toISOString(),
   tipoVotacion: TIPOS_VOTACION.POR_LISTA,
-  roles: [{ nombre: 'Presidente', minimoPostulantes: 0, maximoPostulantes: 1 }],
   metodosAutenticacion: [METODOS_AUTENTICACION.SSO_INSTITUCIONAL],
 })
 
@@ -59,14 +58,6 @@ describe('createComicioSchema', () => {
       )
       expect(fechaFinIssue).toBeDefined()
     }
-  })
-
-  it('UAT-04: rechaza roles vacíos', () => {
-    const input = buildValidInput()
-    input.roles = []
-
-    const result = createComicioSchema.safeParse(input)
-    expect(result.success).toBe(false)
   })
 
   it('UAT-04: rechaza sin métodos de autenticación', () => {

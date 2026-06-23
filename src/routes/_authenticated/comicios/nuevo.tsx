@@ -23,8 +23,8 @@ function NuevoComicioPage() {
           Nuevo comicio
         </h1>
         <p className='text-muted-foreground'>
-          Configure el comicio en estado BORRADOR: datos generales, modalidad de
-          votación, roles de candidato y métodos de acceso para votantes.
+          Configure el comicio en estado BORRADOR. Luego defina las categorías
+          electorales en la oferta electoral.
         </p>
       </div>
 
