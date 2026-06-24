@@ -10,6 +10,7 @@ import type { CategoriaBoletaDigital } from '@/features/voto/data/schema'
 
 type CategoriaSectionProps = {
   categoria: CategoriaBoletaDigital
+  nombreEleccion: string
   selectedCandidatoId?: number
   step: number
   totalSteps: number
@@ -22,6 +23,7 @@ type CategoriaSectionProps = {
 
 export const CategoriaSection = ({
   categoria,
+  nombreEleccion,
   selectedCandidatoId,
   step,
   totalSteps,
@@ -37,7 +39,11 @@ export const CategoriaSection = ({
     <RadioGroup
       aria-labelledby={titleId}
       value={
-        votoEnBlanco ? '__blank__' : selectedCandidatoId ? String(selectedCandidatoId) : ''
+        votoEnBlanco
+          ? '__blank__'
+          : selectedCandidatoId
+            ? String(selectedCandidatoId)
+            : ''
       }
       onValueChange={(value) => {
         if (value === '__blank__') {
@@ -47,7 +53,7 @@ export const CategoriaSection = ({
         onSelect(categoria.idCategoria, Number(value))
       }}
       disabled={disabled || categoria.candidatos.length === 0}
-      className='grid gap-4'
+      className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'
     >
       {categoria.candidatos.map((candidato) => (
         <CandidatoOptionCard
@@ -71,7 +77,7 @@ export const CategoriaSection = ({
         <div className='flex items-center justify-between gap-4'>
           <div className='space-y-1'>
             <p className='text-xs font-semibold tracking-[0.22em] text-sky-700 uppercase'>
-              Elección nacional 2024
+              {nombreEleccion}
             </p>
             <h2 id={titleId} className='text-3xl leading-tight font-bold'>
               Cargo: {categoria.nombre}

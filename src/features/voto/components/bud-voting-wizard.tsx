@@ -29,6 +29,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   TIPOS_VOTACION,
   type TipoVotacion,
@@ -55,6 +56,7 @@ type Candidate = {
   name: string
   listId: string
   listName: string
+  numeroLista: number
   listInitials: string
   listImageUrl?: string | null
   initials: string
@@ -172,6 +174,7 @@ const mapCandidate = (
   name: candidate.nombreCompleto,
   listId: String(candidate.idLista),
   listName: candidate.agrupacionPolitica,
+  numeroLista: candidate.numeroLista,
   listInitials: getInitials(candidate.agrupacionPolitica),
   listImageUrl: getListImageUrl(candidate),
   initials: getInitials(candidate.nombreCompleto),
@@ -380,16 +383,9 @@ export const BudVotingWizard = ({
             onSelectCandidate={(roleId, candidateId) => {
               setSpecialVote(null)
               setCandidateSelections((current) => {
-                const currentRoleSelections = current[roleId] ?? []
-                const nextRoleSelections = currentRoleSelections.includes(
-                  candidateId
-                )
-                  ? []
-                  : [candidateId]
-
                 return {
                   ...current,
-                  [roleId]: nextRoleSelections,
+                  [roleId]: [candidateId],
                 }
               })
             }}
@@ -1241,6 +1237,72 @@ const CandidateRoleSection = ({
           candidates: roleCandidates,
         },
       ]
+  const groupsContent = (
+    <div className='grid gap-4'>
+      {groupedCandidates.map((group) => (
+        <div
+          key={group.id}
+          role={groupByParty ? 'group' : undefined}
+          aria-label={groupByParty ? `Agrupación ${group.name}` : undefined}
+          className={cn(
+            groupByParty &&
+              'grid gap-3 rounded-2xl border border-[#edf1f4] bg-[#f7fbfd] p-3'
+          )}
+        >
+          {groupByParty && (
+            <div className='flex items-center gap-2 text-sm font-semibold text-slate-700'>
+              <ListLogo
+                list={group}
+                className='size-9 rounded-xl'
+                fallbackClassName='text-xs'
+              />
+              {group.name}
+            </div>
+          )}
+          <div className='grid gap-3 md:grid-cols-3'>
+            {group.candidates.map((candidate) => {
+              const isSelected = selectedCandidateIds.includes(candidate.id)
+              const accessibleName = `${candidate.name}, ${candidate.listName}, lista ${candidate.numeroLista}`
+
+              return (
+                <button
+                  key={candidate.id}
+                  type='button'
+                  aria-pressed={isSelected}
+                  aria-label={accessibleName}
+                  className={cn(
+                    'rounded-2xl border bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/20 focus-visible:outline-none',
+                    isSelected
+                      ? 'border-[#2f6f9f] shadow-md shadow-[#2f6f9f]/10'
+                      : 'border-[#dbe3ea]'
+                  )}
+                  onClick={() => onSelectCandidate(roleId, candidate.id)}
+                >
+                  <div className='flex items-center gap-3'>
+                    <CandidateAvatar candidate={candidate} />
+                    <div>
+                      <p className='font-semibold'>{candidate.name}</p>
+                      <p className='text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase'>
+                        Lista {candidate.numeroLista}
+                      </p>
+                      <p className='text-sm text-slate-500'>
+                        {candidate.listName}
+                      </p>
+                    </div>
+                    {isSelected && (
+                      <span className='ms-auto grid size-7 place-items-center rounded-full bg-[#2f6f9f] text-white'>
+                        <Check className='size-4' />
+                      </span>
+                    )}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
 
   return (
     <section className='grid gap-3'>
@@ -1252,60 +1314,11 @@ const CandidateRoleSection = ({
             : 'Elegí un candidato'}
         </Badge>
       </div>
-      <div className='grid gap-4'>
-        {groupedCandidates.map((group) => (
-          <div
-            key={group.id}
-            role={groupByParty ? 'group' : undefined}
-            aria-label={groupByParty ? `Agrupación ${group.name}` : undefined}
-            className={cn(
-              groupByParty &&
-                'grid gap-3 rounded-2xl border border-[#edf1f4] bg-[#f7fbfd] p-3'
-            )}
-          >
-            {groupByParty && (
-              <div className='flex items-center gap-2 text-sm font-semibold text-slate-700'>
-                <ListLogo
-                  list={group}
-                  className='size-9 rounded-xl'
-                  fallbackClassName='text-xs'
-                />
-                {group.name}
-              </div>
-            )}
-            <div className='grid gap-3 md:grid-cols-3'>
-              {group.candidates.map((candidate) => (
-                <button
-                  key={candidate.id}
-                  type='button'
-                  className={cn(
-                    'rounded-2xl border bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/20 focus-visible:outline-none',
-                    selectedCandidateIds.includes(candidate.id)
-                      ? 'border-[#2f6f9f] shadow-md shadow-[#2f6f9f]/10'
-                      : 'border-[#dbe3ea]'
-                  )}
-                  onClick={() => onSelectCandidate(roleId, candidate.id)}
-                >
-                  <div className='flex items-center gap-3'>
-                    <CandidateAvatar candidate={candidate} />
-                    <div>
-                      <p className='font-semibold'>{candidate.name}</p>
-                      <p className='text-sm text-slate-500'>
-                        {candidate.listName}
-                      </p>
-                    </div>
-                    {selectedCandidateIds.includes(candidate.id) && (
-                      <span className='ms-auto grid size-7 place-items-center rounded-full bg-[#2f6f9f] text-white'>
-                        <Check className='size-4' />
-                      </span>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
+      {roleCandidates.length > 20 ? (
+        <ScrollArea className='max-h-[65vh] pe-3'>{groupsContent}</ScrollArea>
+      ) : (
+        groupsContent
+      )}
     </section>
   )
 }
