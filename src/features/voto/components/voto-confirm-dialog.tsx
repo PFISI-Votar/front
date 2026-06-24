@@ -1,4 +1,5 @@
 import { Loader2 } from 'lucide-react'
+import { resolveMediaUrl } from '@/lib/media-url'
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -9,8 +10,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { getDisplayNameInitials } from '@/lib/utils'
 import type {
   BoletaDigital,
+  CandidatoBoletaDigital,
   SeleccionesPorCategoria,
 } from '@/features/voto/data/schema'
 import { findCandidatoSeleccionado } from '@/features/voto/utils/seleccion-voto'
@@ -24,6 +28,12 @@ type VotoConfirmDialogProps = {
   isPending: boolean
   onConfirm: () => void
 }
+
+const getListImageUrl = (candidato: CandidatoBoletaDigital) =>
+  candidato.imagenListaUrl ??
+  candidato.logoListaUrl ??
+  candidato.fotoListaUrl ??
+  null
 
 export const VotoConfirmDialog = ({
   open,
@@ -62,10 +72,45 @@ export const VotoConfirmDialog = ({
                   key={categoria.idCategoria}
                   className='rounded-md border p-3'
                 >
-                  <span className='font-semibold'>{categoria.nombre}:</span>{' '}
-                  {candidato
-                    ? `${candidato.nombreCompleto} — ${candidato.agrupacionPolitica}, lista ${candidato.numeroLista}`
-                    : 'Sin selección'}
+                  <span className='block font-semibold'>{categoria.nombre}</span>
+                  {candidato ? (
+                    <div className='mt-2 flex items-center gap-3'>
+                      <Avatar className='size-12 rounded-xl border bg-muted'>
+                        {candidato.fotoUrl && (
+                          <AvatarImage
+                            src={resolveMediaUrl(candidato.fotoUrl)}
+                            alt={`Foto de ${candidato.nombreCompleto}`}
+                            className='object-cover'
+                          />
+                        )}
+                        <AvatarFallback className='rounded-xl'>
+                          {getDisplayNameInitials(candidato.nombreCompleto)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <Avatar className='h-12 w-20 rounded-xl border bg-muted'>
+                        {getListImageUrl(candidato) && (
+                          <AvatarImage
+                            src={resolveMediaUrl(getListImageUrl(candidato))}
+                            alt={`Logo de ${candidato.agrupacionPolitica}`}
+                            className='object-cover'
+                          />
+                        )}
+                        <AvatarFallback className='rounded-xl text-xs'>
+                          Lista {candidato.numeroLista}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className='min-w-0'>
+                        <p className='font-medium'>{candidato.nombreCompleto}</p>
+                        <p className='text-muted-foreground'>
+                          {candidato.agrupacionPolitica}, lista {candidato.numeroLista}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <span className='mt-1 block text-muted-foreground'>
+                      Sin selección
+                    </span>
+                  )}
                 </li>
               )
             })}

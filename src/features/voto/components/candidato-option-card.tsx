@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import { CircleOff } from 'lucide-react'
 import { cn, getDisplayNameInitials } from '@/lib/utils'
+import { resolveMediaUrl } from '@/lib/media-url'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card } from '@/components/ui/card'
 import { RadioGroupItem } from '@/components/ui/radio-group'
@@ -40,12 +41,12 @@ export const CandidatoOptionCard = ({
       />
       <label
         htmlFor={optionId}
-        className='flex h-full cursor-pointer items-center gap-4 p-4 pl-5'
+        className='flex h-full min-w-0 cursor-pointer items-center gap-3 p-4 pl-5 sm:gap-4'
       >
-        <Avatar className='size-20 rounded-xl border border-slate-200 bg-slate-100 grayscale'>
+        <Avatar className='size-16 shrink-0 rounded-xl border border-slate-200 bg-slate-100 grayscale sm:size-20'>
           {candidato.fotoUrl && (
             <AvatarImage
-              src={candidato.fotoUrl}
+              src={resolveMediaUrl(candidato.fotoUrl)}
               alt={`Foto de ${candidato.nombreCompleto}`}
               className='object-cover'
             />
@@ -58,20 +59,28 @@ export const CandidatoOptionCard = ({
           </AvatarFallback>
         </Avatar>
 
-        <div className='flex min-w-0 flex-1 flex-col gap-1'>
+        <div className='flex min-w-0 flex-1 flex-col gap-1 overflow-hidden'>
           <p className='text-[0.65rem] font-semibold tracking-[0.18em] text-slate-500 uppercase'>
             Lista {candidato.numeroLista}
           </p>
-          <h3 className='text-xl leading-tight font-bold sm:text-2xl'>
+          <h3 className='line-clamp-2 max-w-full break-words text-lg leading-tight font-bold sm:text-xl'>
             {candidato.nombreCompleto}
           </h3>
-          <div className='flex items-center gap-2 text-sm text-slate-600'>
-            <span
-              className='size-3 rounded-sm border border-white shadow-sm'
-              style={{ backgroundColor: accentColor }}
-              aria-hidden='true'
-            />
-            <span>{candidato.agrupacionPolitica}</span>
+          <div className='flex min-w-0 items-center gap-2 text-sm text-slate-600'>
+            {candidato.logoListaUrl ? (
+              <img
+                src={resolveMediaUrl(candidato.logoListaUrl)}
+                alt={`Logotipo de ${candidato.agrupacionPolitica}`}
+                className='h-8 w-16 shrink-0 rounded-md border border-slate-200 bg-white object-cover'
+              />
+            ) : (
+              <span
+                className='size-3 shrink-0 rounded-sm border border-white shadow-sm'
+                style={{ backgroundColor: accentColor }}
+                aria-hidden='true'
+              />
+            )}
+            <span className='min-w-0 truncate'>{candidato.agrupacionPolitica}</span>
           </div>
         </div>
 
@@ -79,7 +88,7 @@ export const CandidatoOptionCard = ({
           id={optionId}
           value={String(candidato.idCandidato)}
           aria-label={accessibleName}
-          className='size-7 border-2 border-slate-400 data-[state=checked]:border-[var(--candidate-color)] data-[state=checked]:text-[var(--candidate-color)]'
+          className='size-7 shrink-0 border-2 border-slate-400 data-[state=checked]:border-[var(--candidate-color)] data-[state=checked]:text-[var(--candidate-color)]'
           style={
             {
               '--candidate-color': accentColor,

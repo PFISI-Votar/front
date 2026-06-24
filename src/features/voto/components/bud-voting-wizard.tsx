@@ -16,6 +16,7 @@ import {
   UserRoundCheck,
 } from 'lucide-react'
 import budFingerprint from '@/assets/bud-fingerprint.png'
+import { resolveMediaUrl } from '@/lib/media-url'
 import { cn } from '@/lib/utils'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -1286,16 +1287,18 @@ const CandidateRoleSection = ({
                   )}
                   onClick={() => onSelectCandidate(roleId, candidate.id)}
                 >
-                  <div className='flex items-center gap-3'>
-                    <CandidateAvatar candidate={candidate} />
-                    <div>
-                      <p className='font-semibold'>{candidate.name}</p>
-                      <p className='text-sm text-slate-500'>
+                  <div className='flex min-w-0 items-center gap-3'>
+                    <CandidateAvatar candidate={candidate} className='shrink-0' />
+                    <div className='min-w-0 flex-1'>
+                      <p className='line-clamp-2 break-words font-semibold leading-tight'>
+                        {candidate.name}
+                      </p>
+                      <p className='truncate text-sm text-slate-500'>
                         {candidate.listName}
                       </p>
                     </div>
                     {selectedCandidateIds.includes(candidate.id) && (
-                      <span className='ms-auto grid size-7 place-items-center rounded-full bg-[#2f6f9f] text-white'>
+                      <span className='ms-auto grid size-7 shrink-0 place-items-center rounded-full bg-[#2f6f9f] text-white'>
                         <Check className='size-4' />
                       </span>
                     )}
@@ -1343,7 +1346,7 @@ const CandidateAvatar = ({
   >
     {candidate.imageUrl && (
       <AvatarImage
-        src={candidate.imageUrl}
+        src={resolveMediaUrl(candidate.imageUrl)}
         alt={`Foto de ${candidate.name}`}
         className='object-cover'
       />
@@ -1380,7 +1383,7 @@ const ListLogo = ({
     >
       {list.imageUrl && (
         <AvatarImage
-          src={list.imageUrl}
+          src={resolveMediaUrl(list.imageUrl)}
           alt={`Imagen de ${list.name}`}
           className='object-cover'
         />

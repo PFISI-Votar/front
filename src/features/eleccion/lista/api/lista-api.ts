@@ -15,27 +15,61 @@ export const crearLista = async (
   idEleccion: number,
   input: CreateListaInput,
 ): Promise<Lista> => {
+  const { logoFile, ...listaInput } = input
+  delete listaInput.removeLogo
   const payload = {
-    ...input,
-    color: input.color || undefined,
+    ...listaInput,
+    color: listaInput.color || undefined,
   }
-  const { data } = await apiClient.post<Lista>(
+  const { data: lista } = await apiClient.post<Lista>(
     `/elecciones/${idEleccion}/listas`,
     payload,
   )
-  return data
+  if (logoFile) {
+    return subirLogoLista(lista.idLista, logoFile)
+  }
+  return lista
 }
 
 export const actualizarLista = async (
   idLista: number,
   input: Partial<CreateListaInput>,
 ): Promise<Lista> => {
-  const { data } = await apiClient.patch<Lista>(`/listas/${idLista}`, input)
-  return data
+  const { logoFile, removeLogo, ...listaInput } = input
+  const { data: lista } = await apiClient.patch<Lista>(
+    `/listas/${idLista}`,
+    listaInput
+  )
+  if (logoFile) {
+    return subirLogoLista(idLista, logoFile)
+  }
+  if (removeLogo) {
+    return eliminarLogoLista(idLista)
+  }
+  return lista
 }
 
 export const eliminarLista = async (idLista: number): Promise<void> => {
   await apiClient.delete(`/listas/${idLista}`)
+}
+
+export const subirLogoLista = async (
+  idLista: number,
+  file: File,
+): Promise<Lista> => {
+  const formData = new FormData()
+  formData.append('logo', file)
+  const { data } = await apiClient.patch<Lista>(
+    `/listas/${idLista}/logo`,
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  )
+  return data
+}
+
+export const eliminarLogoLista = async (idLista: number): Promise<Lista> => {
+  const { data } = await apiClient.delete<Lista>(`/listas/${idLista}/logo`)
+  return data
 }
 
 export const oficializarEleccion = async (

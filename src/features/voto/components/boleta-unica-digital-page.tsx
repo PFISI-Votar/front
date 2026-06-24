@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import budFingerprint from '@/assets/bud-fingerprint.png'
 import { getApiErrorMessage } from '@/lib/api-client'
+import { resolveMediaUrl } from '@/lib/media-url'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -66,23 +67,29 @@ const getHttpErrorMessage = (error: unknown): string => {
       return getApiErrorMessage(error)
     }
     if (status === 401) {
-      return 'Necesitás iniciar sesión como votante para acceder a esta boleta.'
+      return 'NecesitÃ¡s iniciar sesiÃ³n como votante para acceder a esta boleta.'
     }
     if (status === 403) {
-      return 'No estás habilitado para votar en este comicio o la boleta no está disponible.'
+      return 'No estÃ¡s habilitado para votar en este comicio o la boleta no estÃ¡ disponible.'
     }
     if (status === 404) {
-      return 'No se encontró la boleta digital solicitada.'
+      return 'No se encontrÃ³ la boleta digital solicitada.'
     }
     if (status === 409) {
       return 'El voto ya fue confirmado o hubo un conflicto de idempotencia.'
     }
     if (status === 429) {
-      return 'Demasiados intentos de confirmación. Esperá un minuto y volvé a intentar.'
+      return 'Demasiados intentos de confirmaciÃ³n. EsperÃ¡ un minuto y volvÃ© a intentar.'
     }
   }
-  return 'No pudimos comunicarnos con el servidor. Reintentá sin perder tu selección.'
+  return 'No pudimos comunicarnos con el servidor. ReintentÃ¡ sin perder tu selecciÃ³n.'
 }
+
+const getListImageUrl = (candidato: CandidatoBoletaDigital) =>
+  candidato.imagenListaUrl ??
+  candidato.logoListaUrl ??
+  candidato.fotoListaUrl ??
+  null
 
 export const BoletaUnicaDigitalPage = ({
   idEleccion,
@@ -230,9 +237,9 @@ export const BoletaUnicaDigitalPage = ({
         <main className='grid min-h-svh place-items-center bg-[#fdfcfa] px-6'>
           <Alert variant='destructive' className='max-w-xl'>
             <AlertCircle className='size-4' aria-hidden='true' />
-            <AlertTitle>No se pudo preparar la votación</AlertTitle>
+            <AlertTitle>No se pudo preparar la votaciÃ³n</AlertTitle>
             <AlertDescription>
-              No pudimos obtener la configuración del comicio. Reintentá en unos
+              No pudimos obtener la configuraciÃ³n del comicio. ReintentÃ¡ en unos
               segundos.
             </AlertDescription>
           </Alert>
@@ -301,12 +308,12 @@ export const BoletaUnicaDigitalPage = ({
         <div className='flex items-center justify-between gap-3'>
           <div>
             <p className='text-xs font-semibold tracking-[0.24em] text-sky-700 uppercase'>
-              Boleta Única Digital
+              Boleta Ãÿnica Digital
             </p>
             <h1 className='text-2xl font-bold'>{boleta.nombreEleccion}</h1>
           </div>
           <div className='rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-slate-600 shadow-sm'>
-            {boleta.categorias.length} cargos · {totalCandidatos} candidatos
+            {boleta.categorias.length} cargos Â· {totalCandidatos} candidatos
           </div>
         </div>
 
@@ -342,8 +349,8 @@ export const BoletaUnicaDigitalPage = ({
               Advertencia de Inmutabilidad
             </CardTitle>
             <CardDescription className='text-red-900'>
-              Una vez confirmada, su boleta será encriptada y registrada
-              permanentemente en la red blockchain. Esta acción no podrá ser
+              Una vez confirmada, su boleta serÃ¡ encriptada y registrada
+              permanentemente en la red blockchain. Esta acciÃ³n no podrÃ¡ ser
               modificada.
             </CardDescription>
           </CardHeader>
@@ -354,14 +361,14 @@ export const BoletaUnicaDigitalPage = ({
             <AlertCircle className='size-4' aria-hidden='true' />
             <AlertTitle>Boleta incompleta</AlertTitle>
             <AlertDescription>
-              Hay categorías sin candidatos oficializados.
+              Hay categorÃ­as sin candidatos oficializados.
             </AlertDescription>
           </Alert>
         )}
 
         {!votoEnBlanco && categoriasSinSeleccion.length > 0 && (
           <p className='text-center text-sm text-slate-600' aria-live='polite'>
-            Faltan {categoriasSinSeleccion.length} categoría
+            Faltan {categoriasSinSeleccion.length} categorÃ­a
             {categoriasSinSeleccion.length === 1 ? '' : 's'} por seleccionar.
           </p>
         )}
@@ -453,10 +460,10 @@ const BoletaSuccessScreen = ({
       <div className='space-y-2'>
         <p className='sr-only'>Voto confirmado</p>
         <h1 className='text-2xl font-bold text-sky-900'>
-          Voto Registrado con Éxito
+          Voto Registrado con Ãÿxito
         </h1>
         <p className='text-sm leading-relaxed text-slate-600'>
-          Su participación democrática ha sido cifrada y transmitida de forma
+          Su participaciÃ³n democrÃ¡tica ha sido cifrada y transmitida de forma
           inmutable a la red blockchain electoral.
         </p>
       </div>
@@ -464,7 +471,7 @@ const BoletaSuccessScreen = ({
       <Card className='bg-white/95 text-left shadow-sm'>
         <CardHeader>
           <CardTitle className='text-xs tracking-[0.18em] text-slate-500 uppercase'>
-            Hash de transacción (SHA-256)
+            Hash de transacciÃ³n (SHA-256)
           </CardTitle>
         </CardHeader>
         <CardContent className='grid gap-3'>
@@ -492,7 +499,7 @@ const BoletaSuccessScreen = ({
           <ReceiptRow label='Hora local' value={formatReceiptTime(comprobante.recibidoEn)} />
           <ReceiptRow label='Nodo electoral' value='MX-CENTRAL-04' />
           <p className='pt-2 text-xs font-medium text-sky-800'>
-            ● Blockchain: sincronizado
+            âÿÿ Blockchain: sincronizado
           </p>
         </CardContent>
       </Card>
@@ -500,7 +507,7 @@ const BoletaSuccessScreen = ({
       <Card className='overflow-hidden bg-white/95 text-left shadow-sm'>
         <CardHeader className='bg-slate-100 py-3'>
           <CardTitle className='text-xs tracking-[0.18em] text-slate-500 uppercase'>
-            Resumen de selección
+            Resumen de selecciÃ³n
           </CardTitle>
         </CardHeader>
         <CardContent className='grid gap-3 p-5'>
@@ -512,10 +519,32 @@ const BoletaSuccessScreen = ({
                 key={`${candidato.idCategoria}-${candidato.idCandidato}`}
                 className='flex items-center gap-3'
               >
-                <span
-                  className='size-3 rounded-full'
-                  style={{ backgroundColor: candidato.colorLista ?? accentColor }}
-                />
+                {candidato.fotoUrl ? (
+                  <img
+                    src={resolveMediaUrl(candidato.fotoUrl)}
+                    alt={`Foto de ${candidato.nombreCompleto}`}
+                    className='size-12 rounded-xl border bg-muted object-cover'
+                  />
+                ) : (
+                  <span
+                    className='size-12 rounded-xl border bg-muted'
+                    style={{ backgroundColor: `${candidato.colorLista ?? accentColor}22` }}
+                    aria-hidden='true'
+                  />
+                )}
+                {getListImageUrl(candidato) ? (
+                  <img
+                    src={resolveMediaUrl(getListImageUrl(candidato))}
+                    alt={`Logo de ${candidato.agrupacionPolitica}`}
+                    className='h-12 w-20 rounded-xl border bg-muted object-cover'
+                  />
+                ) : (
+                  <span
+                    className='h-12 w-20 rounded-xl border bg-muted'
+                    style={{ backgroundColor: candidato.colorLista ?? accentColor }}
+                    aria-hidden='true'
+                  />
+                )}
                 <div>
                   <p className='text-xs uppercase text-slate-500'>
                     {candidato.agrupacionPolitica}
@@ -534,7 +563,7 @@ const BoletaSuccessScreen = ({
       </Button>
       <Button variant='outline' className='h-12 rounded-xl font-semibold'>
         <Share2 className='me-2 size-4' />
-        Compartir Hash de Verificación
+        Compartir Hash de VerificaciÃ³n
       </Button>
 
       <p className='text-xs leading-relaxed text-slate-500'>
@@ -573,7 +602,7 @@ const formatReceiptTime = (value: string) =>
 const BoletaIntroSplash = () => (
   <main
     className='grid min-h-svh place-items-center overflow-hidden bg-[#fdfcfa] px-6 text-foreground'
-    aria-label='Cargando Boleta Única Digital'
+    aria-label='Cargando Boleta Ãÿnica Digital'
   >
     <div className='flex flex-col items-center gap-4 text-center'>
       <img
@@ -584,7 +613,7 @@ const BoletaIntroSplash = () => (
       />
       <div className='space-y-1'>
         <p className='text-sm font-medium tracking-[0.24em] text-[#2f6f9f] uppercase'>
-          Preparando la votación...
+          Preparando la votaciÃ³n...
         </p>
       </div>
     </div>
@@ -593,7 +622,7 @@ const BoletaIntroSplash = () => (
 
 const BoletaSkeleton = () => (
   <div className='flex flex-col gap-6' aria-busy='true' aria-live='polite'>
-    <p className='text-sm text-muted-foreground'>Cargando boleta digital…</p>
+    <p className='text-sm text-muted-foreground'>Cargando boleta digitalâÿ¦</p>
     <Skeleton className='h-36 rounded-3xl' />
     <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
       {Array.from({ length: 6 }).map((_, index) => (

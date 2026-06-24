@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { getApiErrorMessage, getApiFieldErrors, isConflictError } from '@/lib/api-client'
+import { resolveMediaUrl } from '@/lib/media-url'
 import {
   CandidatoCamposDinamicos,
   mapApiFieldErrorsToForm,
@@ -25,6 +26,10 @@ import {
 } from '@/features/eleccion/candidato/data/schema'
 import { getCategoriasDisponibles } from '@/features/eleccion/candidato/utils/categorias-disponibles'
 import type { CategoriaElectoral } from '@/features/eleccion/categoria/data/schema'
+import {
+  IMAGE_FILE_REQUIREMENTS,
+  validateElectoralImageFile,
+} from '@/features/eleccion/shared/utils/image-file'
 import { toast } from 'sonner'
 
 type CandidatoFormProps = {
@@ -33,6 +38,7 @@ type CandidatoFormProps = {
   excludeCandidatoId?: number
   camposConfig: CampoCandidatoDefinicion[]
   defaultValues?: CreateCandidatoInput
+  currentFotoUrl?: string | null
   submitLabel: string
   onSubmit: (values: CreateCandidatoInput) => Promise<void>
   onConflictError?: (message: string) => void
@@ -77,10 +83,15 @@ export const CandidatoForm = ({
   excludeCandidatoId,
   camposConfig,
   defaultValues,
+  currentFotoUrl,
   submitLabel,
   onSubmit,
   onConflictError,
 }: CandidatoFormProps) => {
+  const [fotoPreview, setFotoPreview] = useState<string | undefined>(
+    resolveMediaUrl(currentFotoUrl),
+  )
+  const [fotoError, setFotoError] = useState<string | null>(null)
   const categoriasDisponibles = useMemo(
     () =>
       getCategoriasDisponibles(categorias, candidatosEnLista, {
@@ -99,12 +110,62 @@ export const CandidatoForm = ({
     resolver: zodResolver(createCandidatoSchema),
     defaultValues: {
       ...buildDefaultValues(categoriasDisponibles, camposConfig, defaultValues),
+      fotoFile: null,
+      removeFoto: false,
       datosAdicionales: buildDefaultDatosAdicionales(
         camposConfig,
         defaultValues?.datosAdicionales,
       ),
     },
   })
+
+  useEffect(() => {
+    setFotoPreview(resolveMediaUrl(currentFotoUrl))
+    setFotoError(null)
+  }, [currentFotoUrl])
+
+  useEffect(() => {
+    return () => {
+      if (fotoPreview?.startsWith('blob:')) {
+        URL.revokeObjectURL(fotoPreview)
+      }
+    }
+  }, [fotoPreview])
+
+  const handleFotoChange = (file?: File) => {
+    if (fotoPreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(fotoPreview)
+    }
+    if (!file) {
+      form.setValue('fotoFile', null)
+      setFotoPreview(resolveMediaUrl(currentFotoUrl))
+      setFotoError(null)
+      return
+    }
+
+    const validationError = validateElectoralImageFile(file)
+    if (validationError) {
+      form.setValue('fotoFile', null)
+      setFotoPreview(resolveMediaUrl(currentFotoUrl))
+      setFotoError(validationError)
+      return
+    }
+
+    form.setValue('fotoFile', file)
+    form.setValue('removeFoto', false)
+    setFotoPreview(URL.createObjectURL(file))
+    setFotoError(null)
+  }
+
+  const handleRemoveFoto = () => {
+    if (fotoPreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(fotoPreview)
+    }
+    form.setValue('fotoFile', null)
+    form.setValue('removeFoto', Boolean(currentFotoUrl))
+    setFotoPreview(undefined)
+    setFotoError(null)
+  }
 
   const handleSubmit = async (values: CreateCandidatoInput) => {
     if (categorias.length === 0) {
@@ -119,6 +180,9 @@ export const CandidatoForm = ({
       toast.error(
         'Todas las categorías ya alcanzaron su cupo máximo en esta lista',
       )
+      return
+    }
+    if (fotoError) {
       return
     }
     try {
@@ -187,6 +251,43 @@ export const CandidatoForm = ({
               </FormItem>
             )}
           />
+        </div>
+        <div className='grid gap-3 rounded-lg border border-dashed p-3'>
+          <div className='flex items-start justify-between gap-3'>
+            <div>
+              <FormLabel>Fotografía del candidato</FormLabel>
+              <p className='mt-4 text-muted-foreground text-xs'>
+                <span>{IMAGE_FILE_REQUIREMENTS}</span>
+                <span className='block'>Se normaliza a 400x400 px.</span>
+              </p>
+            </div>
+            {fotoPreview && (
+              <Button type='button' variant='ghost' size='sm' onClick={handleRemoveFoto}>
+                Quitar
+              </Button>
+            )}
+          </div>
+          {fotoPreview ? (
+            <img
+              src={fotoPreview}
+              alt='Vista previa de la fotografía del candidato'
+              className='size-32 rounded-xl border bg-muted object-cover'
+            />
+          ) : (
+            <div className='grid size-32 place-items-center rounded-xl border bg-muted text-center text-sm text-muted-foreground'>
+              Sin foto
+            </div>
+          )}
+          <Input
+            type='file'
+            accept='image/png,image/jpeg,.png,.jpg,.jpeg'
+            onChange={(event) => handleFotoChange(event.target.files?.[0])}
+          />
+          {fotoError && (
+            <p className='text-destructive text-sm' role='alert'>
+              {fotoError}
+            </p>
+          )}
         </div>
         <CandidatoCamposDinamicos control={form.control} campos={camposConfig} />
         <Button type='submit' disabled={form.formState.isSubmitting || !canSubmit}>

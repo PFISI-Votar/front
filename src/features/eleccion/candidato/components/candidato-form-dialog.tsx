@@ -145,6 +145,7 @@ export const CandidatoFormDialog = ({
                     }
                   : undefined
               }
+              currentFotoUrl={candidato?.fotoUrl}
               submitLabel={
                 isEditMode ? 'Guardar cambios' : 'Registrar candidato'
               }
