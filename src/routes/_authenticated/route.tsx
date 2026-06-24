@@ -1,32 +1,25 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout'
 import {
-  ELECTION_ADMIN_ROLE,
-  type JwtRole,
-} from '@/features/auth/types/auth.types'
-import {
-  decodeJwtPayload,
-  getPersistedAuth,
-  isTokenExpired,
-  useAuthStore,
-} from '@/stores/auth-store'
+  ensureValidAccessToken,
+  probeAdminAccessDenied,
+} from '@/features/auth/services/auth-session'
+import { ELECTION_ADMIN_ROLE } from '@/features/auth/types/auth.types'
+import { useAuthStore } from '@/stores/auth-store'
 
 export const Route = createFileRoute('/_authenticated')({
-  beforeLoad: ({ location }) => {
-    const { accessToken, user } = getPersistedAuth()
-
-    if (!accessToken || isTokenExpired(accessToken)) {
-      useAuthStore.getState().auth.reset()
+  beforeLoad: async ({ location }) => {
+    const hasValidSession = await ensureValidAccessToken()
+    if (!hasValidSession) {
       throw redirect({
         to: '/sign-in',
         search: { redirect: location.href },
       })
     }
 
-    const tokenRole = decodeJwtPayload(accessToken)?.role as JwtRole | undefined
-    const role = user?.role ?? tokenRole
-
-    if (role !== ELECTION_ADMIN_ROLE) {
+    const user = useAuthStore.getState().auth.user
+    if (!user || user.role !== ELECTION_ADMIN_ROLE) {
+      await probeAdminAccessDenied()
       throw redirect({ to: '/403' })
     }
   },

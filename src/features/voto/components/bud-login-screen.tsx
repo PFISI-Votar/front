@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from 'react'
+import { useState } from 'react'
 import {
   ArrowRight,
   Building2,
@@ -9,7 +9,6 @@ import {
   LockKeyhole,
   ShieldCheck,
 } from 'lucide-react'
-import budFingerprint from '@/assets/bud-fingerprint.png'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -20,8 +19,11 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
+import {
+  LoginField,
+  VotarLoginBackground,
+} from '@/features/auth/sign-in/components/login-screen-shared'
 import {
   METODOS_AUTENTICACION,
   type MetodoAutenticacion,
@@ -30,17 +32,6 @@ import {
   createDemoVotanteToken,
   setVotanteToken,
 } from '@/features/voto/api/voto-api'
-
-const BACKGROUND_FINGERPRINTS = [
-  { top: '8%', left: '12%', width: '7.5rem', opacity: 0.05, rotate: '-18deg' },
-  { top: '12%', left: '82%', width: '8rem', opacity: 0.045, rotate: '21deg' },
-  { top: '30%', left: '28%', width: '7rem', opacity: 0.04, rotate: '8deg' },
-  { top: '38%', left: '72%', width: '8.5rem', opacity: 0.05, rotate: '-26deg' },
-  { top: '58%', left: '14%', width: '8rem', opacity: 0.045, rotate: '24deg' },
-  { top: '64%', left: '88%', width: '7rem', opacity: 0.04, rotate: '-10deg' },
-  { top: '82%', left: '34%', width: '8.75rem', opacity: 0.05, rotate: '-22deg' },
-  { top: '88%', left: '70%', width: '7.5rem', opacity: 0.04, rotate: '16deg' },
-] as const
 
 type BudLoginScreenProps = {
   idEleccion: number
@@ -66,23 +57,7 @@ export const BudLoginScreen = ({
 
   return (
     <main className='relative min-h-svh overflow-hidden bg-[#fdfcfa] text-[#202124]'>
-      <div className='pointer-events-none absolute inset-0' aria-hidden='true'>
-        {BACKGROUND_FINGERPRINTS.map((fingerprint) => (
-          <img
-            key={`${fingerprint.top}-${fingerprint.left}`}
-            src={budFingerprint}
-            alt=''
-            className='absolute select-none'
-            style={{
-              top: fingerprint.top,
-              left: fingerprint.left,
-              width: fingerprint.width,
-              opacity: fingerprint.opacity,
-              transform: `translate(-50%, -50%) rotate(${fingerprint.rotate})`,
-            }}
-          />
-        ))}
-      </div>
+      <VotarLoginBackground />
       <section className='relative mx-auto flex min-h-svh w-full max-w-[32rem] flex-col items-center px-6 py-8 sm:px-8'>
         <p className='text-3xl leading-none font-extrabold tracking-tight text-[#2f6f9f]'>
           VOTAR
@@ -186,26 +161,6 @@ export const BudLoginScreen = ({
     </main>
   )
 }
-
-const LoginField = ({
-  label,
-  htmlFor,
-  children,
-}: {
-  label: string
-  htmlFor: string
-  children: ReactNode
-}) => (
-  <div className='space-y-2'>
-    <Label
-      htmlFor={htmlFor}
-      className='text-sm font-semibold text-[#4b4f56]'
-    >
-      {label}
-    </Label>
-    <div className='relative'>{children}</div>
-  </div>
-)
 
 const GoogleIcon = ({ className }: { className?: string }) => (
   <svg
