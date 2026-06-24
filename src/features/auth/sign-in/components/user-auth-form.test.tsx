@@ -5,13 +5,21 @@ import { UserAuthForm } from './user-auth-form'
 import { ELECTION_ADMIN_ROLE } from '@/features/auth/types/auth.types'
 
 const FORM_MESSAGES = {
-  nickEmpty: 'Ingrese su usuario institucional de Autogestión UTN.',
+  nickEmpty: 'Ingrese su usuario.',
   passwordEmpty: 'Ingrese su contraseña.',
 } as const
 
 const navigate = vi.fn()
 const setSessionMock = vi.fn()
 const loginMock = vi.fn()
+const toastErrorMock = vi.fn()
+
+vi.mock('sonner', () => ({
+  toast: {
+    error: (...args: unknown[]) => toastErrorMock(...args),
+    success: vi.fn(),
+  },
+}))
 
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: () => ({
@@ -23,6 +31,10 @@ vi.mock('@/stores/auth-store', () => ({
 
 vi.mock('@/features/auth/services/auth-api', () => ({
   login: (...args: unknown[]) => loginMock(...args),
+}))
+
+vi.mock('@/features/auth/services/auth-session', () => ({
+  scheduleAccessTokenRefresh: vi.fn(),
 }))
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {
@@ -43,7 +55,6 @@ describe('UserAuthForm', () => {
     beforeEach(async () => {
       vi.clearAllMocks()
       loginMock.mockResolvedValue({
-        accessToken: 'jwt-token',
         user: {
           sub: '14988',
           role: ELECTION_ADMIN_ROLE,
@@ -51,11 +62,11 @@ describe('UserAuthForm', () => {
           name: 'Admin',
         },
       })
-      screen = await render(<UserAuthForm />)
-      nickInput = screen.getByRole('textbox', { name: /Usuario institucional/i })
+      screen = await render(<UserAuthForm variant='panel' />)
+      nickInput = screen.getByRole('textbox', { name: /^Usuario$/i })
       passwordInput = screen.getByLabelText(/^Contraseña$/i)
       signInButton = screen.getByRole('button', {
-        name: /Ingresar al Panel de Gestión/i,
+        name: /Ingresar al panel/i,
       })
     })
 
@@ -90,7 +101,6 @@ describe('UserAuthForm', () => {
       expect(setSessionMock).toHaveBeenCalledOnce()
       expect(setSessionMock).toHaveBeenCalledWith(
         expect.objectContaining({ role: ELECTION_ADMIN_ROLE }),
-        'jwt-token'
       )
 
       await vi.waitFor(() =>
@@ -102,23 +112,17 @@ describe('UserAuthForm', () => {
   it('navigates to redirectTo when provided', async () => {
     vi.clearAllMocks()
     loginMock.mockResolvedValue({
-      accessToken: 'jwt-token',
       user: { sub: '14988', role: ELECTION_ADMIN_ROLE },
     })
 
     const { getByRole, getByLabelText } = await render(
-      <UserAuthForm redirectTo='/comicios' />
+      <UserAuthForm redirectTo='/comicios' variant='panel' />
     )
 
-    await userEvent.fill(
-      getByRole('textbox', { name: /Usuario institucional/i }),
-      '14988'
-    )
-    await userEvent.fill(getByLabelText('Contraseña'), 'secret')
+    await userEvent.fill(getByRole('textbox', { name: /^Usuario$/i }), '14988')
+    await userEvent.fill(getByLabelText(/^Contraseña$/i), 'secret')
 
-    await userEvent.click(
-      getByRole('button', { name: /Ingresar al Panel de Gestión/i })
-    )
+    await userEvent.click(getByRole('button', { name: /Ingresar al panel/i }))
 
     await vi.waitFor(() => expect(setSessionMock).toHaveBeenCalledOnce())
 
@@ -127,6 +131,33 @@ describe('UserAuthForm', () => {
         to: '/comicios',
         replace: true,
       })
+    )
+  })
+
+  it('denies voter without election_admin role and does not navigate', async () => {
+    vi.clearAllMocks()
+    loginMock.mockResolvedValue({
+      user: {
+        sub: '15079',
+        role: 'voter',
+        email: 'voter@test.local',
+        name: 'Voter',
+      },
+    })
+
+    const { getByRole, getByLabelText } = await render(
+      <UserAuthForm variant='panel' />
+    )
+
+    await userEvent.fill(getByRole('textbox', { name: /^Usuario$/i }), '15079')
+    await userEvent.fill(getByLabelText(/^Contraseña$/i), 'secret')
+    await userEvent.click(getByRole('button', { name: /Ingresar al panel/i }))
+
+    await vi.waitFor(() => expect(loginMock).toHaveBeenCalledOnce())
+    expect(setSessionMock).not.toHaveBeenCalled()
+    expect(navigate).not.toHaveBeenCalled()
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      'Acceso denegado. Su cuenta no tiene privilegios de Autoridad Electoral.',
     )
   })
 })
