@@ -7,6 +7,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { AppLayoutProvider } from '@/components/layout/app-layout'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { SkipToMain } from '@/components/skip-to-main'
+import { AuthSessionManager } from '@/features/auth/components/auth-session-manager'
 
 type AuthenticatedLayoutProps = {
   children?: React.ReactNode
@@ -16,6 +17,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
   const defaultOpen = getCookie('sidebar_state') !== 'false'
   return (
     <SearchProvider>
+      <AuthSessionManager />
       <LayoutProvider>
         <SidebarProvider defaultOpen={defaultOpen}>
           <SkipToMain />
