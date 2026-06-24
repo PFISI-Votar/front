@@ -1,8 +1,27 @@
 import { useState } from 'react'
-import { Link, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useNavigate } from '@tanstack/react-router'
+import {
+  AlertCircle,
+  ArrowRight,
+  BadgeCheck,
+  ChevronDown,
+  Lock,
+  Pencil,
+  Plus,
+  Trash2,
+  UserPen,
+  Vote,
+} from 'lucide-react'
 import { toast } from 'sonner'
-import { AlertCircle, ArrowRight, BadgeCheck, ChevronDown, Lock, Pencil, Plus, Trash2, UserPen } from 'lucide-react'
+import {
+  type ApiRulesViolation,
+  getApiErrorMessage,
+  getApiRulesViolations,
+  isConflictError,
+  isValidationError,
+} from '@/lib/api-client'
+import { cn } from '@/lib/utils'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -20,15 +39,16 @@ import {
 } from '@/components/ui/collapsible'
 import { Separator } from '@/components/ui/separator'
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import { cn } from '@/lib/utils'
 import {
-  getApiErrorMessage,
-  getApiRulesViolations,
-  isConflictError,
-  isValidationError,
-} from '@/lib/api-client'
-import { eliminarEleccion, obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
+  eliminarEleccion,
+  obtenerEleccion,
+} from '@/features/eleccion/api/eleccion-api'
 import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
+import { CandidatoFormDialog } from '@/features/eleccion/candidato/components/candidato-form-dialog'
+import { ConfiguracionDatosCandidatoPanel } from '@/features/eleccion/candidato/components/configuracion-datos-candidato-panel'
+import type { Candidato } from '@/features/eleccion/candidato/data/schema'
+import { buildResumenDatosAdicionales } from '@/features/eleccion/candidato/utils/format-datos-adicionales'
+import { CategoriasPanel } from '@/features/eleccion/categoria/components/categorias-panel'
 import {
   actualizarLista,
   crearLista,
@@ -37,25 +57,21 @@ import {
   oficializarEleccion,
   obtenerMapeoListas,
 } from '@/features/eleccion/lista/api/lista-api'
-import type { Candidato } from '@/features/eleccion/candidato/data/schema'
+import { ListaFormDialog } from '@/features/eleccion/lista/components/lista-form-dialog'
 import type { Lista } from '@/features/eleccion/lista/data/schema'
 
 type CandidatoDialogState = {
   lista: Lista
   candidato: Candidato | null
 }
-import type { ApiRulesViolation } from '@/lib/api-client'
-import { ListaFormDialog } from '@/features/eleccion/lista/components/lista-form-dialog'
-import { CandidatoFormDialog } from '@/features/eleccion/candidato/components/candidato-form-dialog'
-import { CategoriasPanel } from '@/features/eleccion/categoria/components/categorias-panel'
-import { ConfiguracionDatosCandidatoPanel } from '@/features/eleccion/candidato/components/configuracion-datos-candidato-panel'
-import { buildResumenDatosAdicionales } from '@/features/eleccion/candidato/utils/format-datos-adicionales'
 
 type OfertaElectoralPanelProps = {
   idEleccion: number
 }
 
-export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) => {
+export const OfertaElectoralPanel = ({
+  idEleccion,
+}: OfertaElectoralPanelProps) => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [conflictMessage, setConflictMessage] = useState<string | null>(null)
@@ -67,9 +83,8 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
   >(null)
   const [listaDialogOpen, setListaDialogOpen] = useState(false)
   const [editingLista, setEditingLista] = useState<Lista | null>(null)
-  const [candidatoDialog, setCandidatoDialog] = useState<CandidatoDialogState | null>(
-    null,
-  )
+  const [candidatoDialog, setCandidatoDialog] =
+    useState<CandidatoDialogState | null>(null)
   const [oficializarDialogOpen, setOficializarDialogOpen] = useState(false)
   const [eliminarDialogOpen, setEliminarDialogOpen] = useState(false)
 
@@ -157,9 +172,11 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
       setOficializacionBlockMessage(null)
       toast.success('Comicio oficializado')
       await invalidateOferta()
-      await queryClient.invalidateQueries({ queryKey: ['listas-mapeo', idEleccion] })
+      await queryClient.invalidateQueries({
+        queryKey: ['listas-mapeo', idEleccion],
+      })
       toast.info(
-        `Mapeo generado: ${data.mapeo.map((m) => `${m.sigla}→list_id ${m.listId}`).join(', ')}`,
+        `Mapeo generado: ${data.mapeo.map((m) => `${m.sigla}→list_id ${m.listId}`).join(', ')}`
       )
     },
     onError: (error) => {
@@ -221,6 +238,17 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
               {eleccionQuery.data.estado}
             </Badge>
           )}
+          <Button asChild variant='outline'>
+            <Link
+              to='/comicios/$idEleccion/votar'
+              params={{ idEleccion: String(idEleccion) }}
+              target='_blank'
+              rel='noopener noreferrer'
+            >
+              <Vote className='me-2 size-4' />
+              Abrir BUD
+            </Link>
+          </Button>
           {isEditable && (
             <Button
               onClick={() => setOficializarDialogOpen(true)}
@@ -264,7 +292,8 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
           <Lock className='size-4' />
           <AlertTitle>Oferta congelada</AlertTitle>
           <AlertDescription>
-            El comicio fue oficializado. El mismo no puede ser modificado ni eliminado.
+            El comicio fue oficializado. El mismo no puede ser modificado ni
+            eliminado.
           </AlertDescription>
         </Alert>
       )}
@@ -324,7 +353,7 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
       )}
 
       {listasQuery.isLoading && (
-        <p className='text-muted-foreground text-sm'>Cargando listas…</p>
+        <p className='text-sm text-muted-foreground'>Cargando listas…</p>
       )}
 
       <div className='grid gap-4'>
@@ -344,8 +373,8 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
                       <CardTitle className='flex flex-wrap items-center gap-2 text-lg'>
                         <ChevronDown
                           className={cn(
-                            'text-muted-foreground size-4 shrink-0 transition-transform duration-200',
-                            'group-data-[state=open]/trigger:rotate-180',
+                            'size-4 shrink-0 text-muted-foreground transition-transform duration-200',
+                            'group-data-[state=open]/trigger:rotate-180'
                           )}
                           aria-hidden='true'
                         />
@@ -357,13 +386,14 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
                           />
                         )}
                         {lista.nombre}{' '}
-                        <span className='text-muted-foreground text-base font-normal'>
+                        <span className='text-base font-normal text-muted-foreground'>
                           ({lista.sigla})
                         </span>
                       </CardTitle>
                       <CardDescription>
                         {candidatos.length} candidato
-                        {candidatos.length === 1 ? '' : 's'} · Estado: {lista.estado}
+                        {candidatos.length === 1 ? '' : 's'} · Estado:{' '}
+                        {lista.estado}
                         {lista.listId != null
                           ? ` · Identificador de lista: ${lista.listId}`
                           : ''}
@@ -400,7 +430,9 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
                         <Button
                           size='sm'
                           variant='ghost'
-                          onClick={() => eliminarListaMutation.mutate(lista.idLista)}
+                          onClick={() =>
+                            eliminarListaMutation.mutate(lista.idLista)
+                          }
                           aria-label={`Eliminar lista ${lista.nombre}`}
                         >
                           <Trash2 className='size-4 text-destructive' />
@@ -414,7 +446,7 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
                   <CardContent className='pt-4'>
                     {candidatos.length === 0 ? (
                       <div className='flex flex-col gap-3'>
-                        <p className='text-muted-foreground text-sm'>
+                        <p className='text-sm text-muted-foreground'>
                           Esta lista aún no tiene candidatos registrados.
                         </p>
                         {isEditable && (
@@ -446,13 +478,13 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
                               <p className='font-medium'>
                                 {candidato.nombre} {candidato.apellido}
                               </p>
-                              <p className='text-muted-foreground text-sm'>
+                              <p className='text-sm text-muted-foreground'>
                                 {candidato.categoriaNombre
                                   ? `${candidato.categoriaNombre} · `
                                   : ''}
                                 {buildResumenDatosAdicionales(
                                   candidato.datosAdicionales,
-                                  camposConfig,
+                                  camposConfig
                                 )}
                               </p>
                             </div>
@@ -492,7 +524,9 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
             <ul className='flex flex-col gap-1 text-sm'>
               {mapeoQuery.data.map((item) => (
                 <li key={item.idLista}>
-                  <code className='rounded bg-muted px-1'>list_id={item.listId}</code>{' '}
+                  <code className='rounded bg-muted px-1'>
+                    list_id={item.listId}
+                  </code>{' '}
                   → {item.nombre} ({item.sigla})
                 </li>
               ))}
@@ -545,16 +579,16 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
         title='¿Oficializar el comicio?'
         desc={
           <>
-            Esta operación es <strong>irreversible</strong>. Una vez oficializado,
-            no podrás crear, editar ni eliminar listas ni candidatos. Se generará
-            el mapeo de identificadores de lista (<code>list_id</code>) para la
-            integración Web3.
+            Esta operación es <strong>irreversible</strong>. Una vez
+            oficializado, no podrás crear, editar ni eliminar listas ni
+            candidatos. Se generará el mapeo de identificadores de lista (
+            <code>list_id</code>) para la integración Web3.
             {(listasQuery.data?.length ?? 0) > 0 && (
               <>
                 {' '}
                 Se oficializarán{' '}
-                <strong>{listasQuery.data?.length} lista(s)</strong> con la oferta
-                actual.
+                <strong>{listasQuery.data?.length} lista(s)</strong> con la
+                oferta actual.
               </>
             )}
           </>
@@ -572,8 +606,8 @@ export const OfertaElectoralPanel = ({ idEleccion }: OfertaElectoralPanelProps) 
         title='¿Eliminar el comicio?'
         desc={
           <>
-            Esta acción es <strong>irreversible</strong>. Se eliminarán todas las
-            listas, candidatos y configuraciones asociadas al comicio{' '}
+            Esta acción es <strong>irreversible</strong>. Se eliminarán todas
+            las listas, candidatos y configuraciones asociadas al comicio{' '}
             <strong>{eleccionQuery.data?.nombre}</strong>.
           </>
         }
