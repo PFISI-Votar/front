@@ -1,16 +1,20 @@
 import { clearCookies } from '@/test-utils/cookies'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  ELECTION_ADMIN_ROLE,
+  type AuthUser,
+} from '@/features/auth/types/auth.types'
 
 async function importAuthStore() {
   const { useAuthStore } = await import('./auth-store')
   return useAuthStore
 }
 
-const sampleUser = {
-  accountNo: 'ACC-1',
-  email: 'user@example.com',
-  role: ['user'],
-  exp: 1_700_000_000,
+const sampleUser: AuthUser = {
+  sub: '14988',
+  role: ELECTION_ADMIN_ROLE,
+  email: 'admin@votar.local',
+  name: 'Admin Test',
 }
 
 describe('useAuthStore', () => {
@@ -26,9 +30,9 @@ describe('useAuthStore', () => {
     expect(useAuthStore.getState().auth.user).toBeNull()
   })
 
-  it('persists access token so a new store instance reads it back', async () => {
+  it('persists session so a new store instance reads it back', async () => {
     const useAuthStore = await importAuthStore()
-    useAuthStore.getState().auth.setAccessToken('session-token')
+    useAuthStore.getState().auth.setSession(sampleUser, 'session-token')
 
     vi.resetModules()
     const useAuthStoreAfterReload = await importAuthStore()
@@ -36,6 +40,7 @@ describe('useAuthStore', () => {
     expect(useAuthStoreAfterReload.getState().auth.accessToken).toBe(
       'session-token'
     )
+    expect(useAuthStoreAfterReload.getState().auth.user).toEqual(sampleUser)
   })
 
   it('clears persisted access token when resetAccessToken is used', async () => {
@@ -59,8 +64,7 @@ describe('useAuthStore', () => {
 
   it('reset clears user and access token and drops persistence', async () => {
     const useAuthStore = await importAuthStore()
-    useAuthStore.getState().auth.setAccessToken('will-be-cleared')
-    useAuthStore.getState().auth.setUser({ ...sampleUser })
+    useAuthStore.getState().auth.setSession(sampleUser, 'will-be-cleared')
 
     useAuthStore.getState().auth.reset()
 
@@ -72,5 +76,12 @@ describe('useAuthStore', () => {
 
     expect(useAuthStoreAfterReload.getState().auth.user).toBeNull()
     expect(useAuthStoreAfterReload.getState().auth.accessToken).toBe('')
+  })
+
+  it('isElectionAdmin returns true for election_admin role', async () => {
+    const useAuthStore = await importAuthStore()
+    useAuthStore.getState().auth.setSession(sampleUser, 'session-token')
+
+    expect(useAuthStore.getState().auth.isElectionAdmin()).toBe(true)
   })
 })

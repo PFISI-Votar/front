@@ -1,10 +1,19 @@
 import axios, { AxiosError } from 'axios'
+import { getPersistedAuth } from '@/stores/auth-store'
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3000',
   headers: {
     'Content-Type': 'application/json',
   },
+})
+
+apiClient.interceptors.request.use((config) => {
+  const { accessToken } = getPersistedAuth()
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`
+  }
+  return config
 })
 
 export const isConflictError = (error: unknown): error is AxiosError => {
