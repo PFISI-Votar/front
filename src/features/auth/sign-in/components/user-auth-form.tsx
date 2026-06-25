@@ -2,100 +2,205 @@ import { useState } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Link, useNavigate } from '@tanstack/react-router'
-import { Loader2, LogIn } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
+import {
+  ArrowRight,
+  Eye,
+  EyeOff,
+  Loader2,
+  LockKeyhole,
+  User,
+} from 'lucide-react'
 import { toast } from 'sonner'
-import { IconFacebook, IconGithub } from '@/assets/brand-icons'
+import { AxiosError } from 'axios'
 import { useAuthStore } from '@/stores/auth-store'
-import { sleep, cn } from '@/lib/utils'
+import { login } from '@/features/auth/services/auth-api'
+import { scheduleAccessTokenRefresh } from '@/features/auth/services/auth-session'
+import { ELECTION_ADMIN_ROLE } from '@/features/auth/types/auth.types'
+import { LoginField } from '@/features/auth/sign-in/components/login-screen-shared'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { PasswordInput } from '@/components/password-input'
 
 const formSchema = z.object({
-  email: z.email({
-    error: (iss) => (iss.input === '' ? 'Please enter your email.' : undefined),
-  }),
-  password: z
-    .string()
-    .min(1, 'Please enter your password.')
-    .min(7, 'Password must be at least 7 characters long.'),
+  nick: z.string().min(1, 'Ingrese su usuario.'),
+  password: z.string().min(1, 'Ingrese su contraseña.'),
 })
 
 interface UserAuthFormProps extends React.HTMLAttributes<HTMLFormElement> {
   redirectTo?: string
+  variant?: 'default' | 'panel'
 }
 
 export function UserAuthForm({
   className,
   redirectTo,
+  variant = 'default',
   ...props
 }: UserAuthFormProps) {
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const navigate = useNavigate()
   const { auth } = useAuthStore()
+  const isPanelVariant = variant === 'panel'
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: '',
+      nick: '',
       password: '',
     },
   })
 
-  function onSubmit(data: z.infer<typeof formSchema>) {
+  const handleSubmit = async (data: z.infer<typeof formSchema>) => {
     setIsLoading(true)
+    try {
+      const response = await login({
+        nick: data.nick.trim(),
+        password: data.password,
+      })
 
-    toast.promise(sleep(2000), {
-      loading: 'Signing in...',
-      success: () => {
-        setIsLoading(false)
+      if (response.user.role !== ELECTION_ADMIN_ROLE) {
+        toast.error(
+          'Acceso denegado. Su cuenta no tiene privilegios de Autoridad Electoral.',
+        )
+        return
+      }
 
-        // Mock successful authentication with expiry computed at success time
-        const mockUser = {
-          accountNo: 'ACC001',
-          email: data.email,
-          role: ['user'],
-          exp: Date.now() + 24 * 60 * 60 * 1000, // 24 hours from now
-        }
+      auth.setSession(response.user)
+      scheduleAccessTokenRefresh()
 
-        // Set user and access token
-        auth.setUser(mockUser)
-        auth.setAccessToken('mock-access-token')
+      const targetPath = redirectTo || '/'
+      navigate({ to: targetPath, replace: true })
+      toast.success(
+        `Bienvenido${response.user.name ? `, ${response.user.name}` : ''}.`,
+      )
+    } catch (error) {
+      const message =
+        error instanceof AxiosError
+          ? ((error.response?.data as { message?: string } | undefined)
+              ?.message ?? 'Credenciales inválidas.')
+          : 'No se pudo iniciar sesión.'
+      toast.error(message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
-        // Redirect to the stored location or default to dashboard
-        const targetPath = redirectTo || '/'
-        navigate({ to: targetPath, replace: true })
-
-        return `Welcome back, ${data.email}!`
-      },
-      error: 'Error',
-    })
+  if (isPanelVariant) {
+    return (
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(handleSubmit)}
+          className={cn('space-y-4', className)}
+          {...props}
+        >
+          <FormField
+            control={form.control}
+            name='nick'
+            render={({ field }) => (
+              <FormItem className='space-y-1'>
+                <LoginField label='Usuario' htmlFor='admin-usuario' compact>
+                  <User
+                    className='pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#74777d]'
+                    aria-hidden='true'
+                  />
+                  <FormControl>
+                    <Input
+                      id='admin-usuario'
+                      autoComplete='username'
+                      className='h-10 rounded-lg border-[#c9cdd2] bg-white pr-3 pl-10 text-sm shadow-none placeholder:text-[#8a8d93] focus-visible:border-[#2f6f9f] focus-visible:ring-[#2f6f9f]/20'
+                      {...field}
+                    />
+                  </FormControl>
+                </LoginField>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name='password'
+            render={({ field }) => (
+              <FormItem className='space-y-1'>
+                <LoginField label='Contraseña' htmlFor='admin-password' compact>
+                  <LockKeyhole
+                    className='pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-[#74777d]'
+                    aria-hidden='true'
+                  />
+                  <FormControl>
+                    <Input
+                      id='admin-password'
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete='current-password'
+                      className='h-10 rounded-lg border-[#c9cdd2] bg-white pr-10 pl-10 text-sm shadow-none focus-visible:border-[#2f6f9f] focus-visible:ring-[#2f6f9f]/20'
+                      {...field}
+                    />
+                  </FormControl>
+                  <button
+                    type='button'
+                    className='absolute top-1/2 right-2 grid size-7 -translate-y-1/2 place-items-center rounded-full text-[#74777d] transition hover:bg-slate-100 hover:text-[#2f6f9f] focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/20 focus-visible:outline-none'
+                    onClick={() => setShowPassword((current) => !current)}
+                    aria-label={
+                      showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'
+                    }
+                  >
+                    {showPassword ? (
+                      <EyeOff className='size-4' aria-hidden='true' />
+                    ) : (
+                      <Eye className='size-4' aria-hidden='true' />
+                    )}
+                  </button>
+                </LoginField>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <Button
+            type='submit'
+            disabled={isLoading}
+            className='mt-1 h-10 w-full rounded-lg bg-[#264a73] text-sm font-semibold text-white shadow-none hover:bg-[#1f3d5f]'
+          >
+            {isLoading ? (
+              <Loader2 className='size-4 animate-spin' aria-hidden='true' />
+            ) : (
+              <>
+                Ingresar al panel
+                <ArrowRight className='size-4 stroke-[2.5]' aria-hidden='true' />
+              </>
+            )}
+          </Button>
+        </form>
+      </Form>
+    )
   }
 
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={form.handleSubmit(handleSubmit)}
         className={cn('grid gap-3', className)}
         {...props}
       >
         <FormField
           control={form.control}
-          name='email'
+          name='nick'
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <label className='text-sm font-medium'>Usuario institucional</label>
               <FormControl>
-                <Input placeholder='name@example.com' {...field} />
+                <Input
+                  placeholder='Nick de Autogestión UTN'
+                  autoComplete='username'
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -105,45 +210,24 @@ export function UserAuthForm({
           control={form.control}
           name='password'
           render={({ field }) => (
-            <FormItem className='relative'>
-              <FormLabel>Password</FormLabel>
+            <FormItem>
+              <label className='text-sm font-medium'>Contraseña</label>
               <FormControl>
-                <PasswordInput placeholder='********' {...field} />
+                <Input
+                  type='password'
+                  placeholder='Contraseña de Autogestión'
+                  autoComplete='current-password'
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
-              <Link
-                to='/forgot-password'
-                className='absolute inset-e-0 -top-0.5 text-sm font-medium text-muted-foreground hover:opacity-75'
-              >
-                Forgot password?
-              </Link>
             </FormItem>
           )}
         />
-        <Button className='mt-2' disabled={isLoading}>
-          {isLoading ? <Loader2 className='animate-spin' /> : <LogIn />}
-          Sign in
+        <Button className='mt-2' disabled={isLoading} type='submit'>
+          {isLoading ? <Loader2 className='animate-spin' /> : null}
+          Ingresar al Panel de Gestión
         </Button>
-
-        <div className='relative my-2'>
-          <div className='absolute inset-0 flex items-center'>
-            <span className='w-full border-t' />
-          </div>
-          <div className='relative flex justify-center text-xs uppercase'>
-            <span className='bg-background px-2 text-muted-foreground'>
-              Or continue with
-            </span>
-          </div>
-        </div>
-
-        <div className='grid grid-cols-2 gap-2'>
-          <Button variant='outline' type='button' disabled={isLoading}>
-            <IconGithub className='h-4 w-4' /> GitHub
-          </Button>
-          <Button variant='outline' type='button' disabled={isLoading}>
-            <IconFacebook className='h-4 w-4' /> Facebook
-          </Button>
-        </div>
       </form>
     </Form>
   )

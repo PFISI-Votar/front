@@ -1,52 +1,39 @@
-import { clearCookies } from '@/test-utils/cookies'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  ELECTION_ADMIN_ROLE,
+  type AuthUser,
+} from '@/features/auth/types/auth.types'
 
 async function importAuthStore() {
   const { useAuthStore } = await import('./auth-store')
   return useAuthStore
 }
 
-const sampleUser = {
-  accountNo: 'ACC-1',
-  email: 'user@example.com',
-  role: ['user'],
-  exp: 1_700_000_000,
+const sampleUser: AuthUser = {
+  sub: '14988',
+  role: ELECTION_ADMIN_ROLE,
+  email: 'admin@votar.local',
+  name: 'Admin Test',
 }
 
 describe('useAuthStore', () => {
   beforeEach(() => {
-    clearCookies()
     vi.resetModules()
   })
 
-  it('starts with an empty access token when nothing is persisted', async () => {
+  it('starts without an authenticated user', async () => {
     const useAuthStore = await importAuthStore()
 
-    expect(useAuthStore.getState().auth.accessToken).toBe('')
     expect(useAuthStore.getState().auth.user).toBeNull()
+    expect(useAuthStore.getState().auth.isAuthenticated()).toBe(false)
   })
 
-  it('persists access token so a new store instance reads it back', async () => {
+  it('stores the signed-in user in memory', async () => {
     const useAuthStore = await importAuthStore()
-    useAuthStore.getState().auth.setAccessToken('session-token')
+    useAuthStore.getState().auth.setSession(sampleUser)
 
-    vi.resetModules()
-    const useAuthStoreAfterReload = await importAuthStore()
-
-    expect(useAuthStoreAfterReload.getState().auth.accessToken).toBe(
-      'session-token'
-    )
-  })
-
-  it('clears persisted access token when resetAccessToken is used', async () => {
-    const useAuthStore = await importAuthStore()
-    useAuthStore.getState().auth.setAccessToken('to-clear')
-    useAuthStore.getState().auth.resetAccessToken()
-
-    vi.resetModules()
-    const useAuthStoreAfterReload = await importAuthStore()
-
-    expect(useAuthStoreAfterReload.getState().auth.accessToken).toBe('')
+    expect(useAuthStore.getState().auth.user).toEqual(sampleUser)
+    expect(useAuthStore.getState().auth.isAuthenticated()).toBe(true)
   })
 
   it('updates the signed-in user via setUser', async () => {
@@ -57,20 +44,20 @@ describe('useAuthStore', () => {
     expect(useAuthStore.getState().auth.user).toEqual(sampleUser)
   })
 
-  it('reset clears user and access token and drops persistence', async () => {
+  it('reset clears the in-memory user', async () => {
     const useAuthStore = await importAuthStore()
-    useAuthStore.getState().auth.setAccessToken('will-be-cleared')
-    useAuthStore.getState().auth.setUser({ ...sampleUser })
+    useAuthStore.getState().auth.setSession(sampleUser)
 
     useAuthStore.getState().auth.reset()
 
     expect(useAuthStore.getState().auth.user).toBeNull()
-    expect(useAuthStore.getState().auth.accessToken).toBe('')
+    expect(useAuthStore.getState().auth.isAuthenticated()).toBe(false)
+  })
 
-    vi.resetModules()
-    const useAuthStoreAfterReload = await importAuthStore()
+  it('isElectionAdmin returns true for election_admin role', async () => {
+    const useAuthStore = await importAuthStore()
+    useAuthStore.getState().auth.setSession(sampleUser)
 
-    expect(useAuthStoreAfterReload.getState().auth.user).toBeNull()
-    expect(useAuthStoreAfterReload.getState().auth.accessToken).toBe('')
+    expect(useAuthStore.getState().auth.isElectionAdmin()).toBe(true)
   })
 })
