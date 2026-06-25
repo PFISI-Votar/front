@@ -330,6 +330,7 @@ export const BoletaUnicaDigitalPage = ({
             <CategoriaSection
               key={categoria.idCategoria}
               categoria={categoria}
+              nombreEleccion={boleta.nombreEleccion}
               step={index + 1}
               totalSteps={boleta.categorias.length}
               selectedCandidatoId={selecciones[categoria.idCategoria]}

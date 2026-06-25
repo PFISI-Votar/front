@@ -59,8 +59,8 @@ export const CandidatoOptionCard = ({
           </AvatarFallback>
         </Avatar>
 
-        <div className='flex min-w-0 flex-1 flex-col gap-1 overflow-hidden'>
-          <p className='text-[0.65rem] font-semibold tracking-[0.18em] text-slate-500 uppercase'>
+        <div className='flex min-w-0 flex-1 flex-col gap-1'>
+          <p className='text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase'>
             Lista {candidato.numeroLista}
           </p>
           <h3 className='line-clamp-2 max-w-full break-words text-lg leading-tight font-bold sm:text-xl'>
@@ -110,7 +110,9 @@ export const VotoEnBlancoOptionCard = ({
   <Card
     className={cn(
       'relative overflow-hidden border p-0 shadow-sm transition-all',
-      selected ? 'border-slate-700 bg-white shadow-md' : 'border-slate-200 bg-white'
+      selected
+        ? 'border-slate-700 bg-white shadow-md'
+        : 'border-slate-200 bg-white'
     )}
   >
     <label
@@ -122,7 +124,9 @@ export const VotoEnBlancoOptionCard = ({
       </div>
       <div className='flex flex-1 flex-col gap-1'>
         <h3 className='text-xl leading-tight font-bold'>Voto en Blanco</h3>
-        <p className='text-sm text-slate-600'>No seleccionar ningún candidato</p>
+        <p className='text-sm text-slate-600'>
+          No seleccionar ningún candidato
+        </p>
       </div>
       <RadioGroupItem
         id={optionId}
