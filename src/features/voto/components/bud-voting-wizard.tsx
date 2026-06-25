@@ -16,6 +16,7 @@ import {
   UserRoundCheck,
 } from 'lucide-react'
 import budFingerprint from '@/assets/bud-fingerprint.png'
+import { resolveMediaUrl } from '@/lib/media-url'
 import { cn } from '@/lib/utils'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -1356,7 +1357,7 @@ const CandidateAvatar = ({
   >
     {candidate.imageUrl && (
       <AvatarImage
-        src={candidate.imageUrl}
+        src={resolveMediaUrl(candidate.imageUrl)}
         alt={`Foto de ${candidate.name}`}
         className='object-cover'
       />
@@ -1393,7 +1394,7 @@ const ListLogo = ({
     >
       {list.imageUrl && (
         <AvatarImage
-          src={list.imageUrl}
+          src={resolveMediaUrl(list.imageUrl)}
           alt={`Imagen de ${list.name}`}
           className='object-cover'
         />

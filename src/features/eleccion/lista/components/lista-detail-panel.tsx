@@ -18,6 +18,7 @@ import {
   getApiErrorMessage,
   isConflictError,
 } from '@/lib/api-client'
+import { resolveMediaUrl } from '@/lib/media-url'
 import { eliminarCandidato, listarCandidatos } from '@/features/eleccion/candidato/api/candidato-api'
 import type { Candidato } from '@/features/eleccion/candidato/data/schema'
 import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
@@ -154,7 +155,15 @@ export const ListaDetailPanel = ({
   return (
     <div className='flex flex-col gap-6'>
       <div className='flex flex-wrap items-start justify-between gap-4'>
-        <div className='flex flex-col gap-1'>
+        <div className='flex items-start gap-4'>
+          {lista.logoUrl && (
+            <img
+              src={resolveMediaUrl(lista.logoUrl)}
+              alt={`Logotipo de ${lista.nombre}`}
+              className='h-20 w-40 rounded-lg border bg-muted object-cover'
+            />
+          )}
+          <div className='flex flex-col gap-1'>
           <h1 className='flex flex-wrap items-center gap-2 text-2xl font-bold tracking-tight md:text-3xl'>
             {lista.color && (
               <span
@@ -172,6 +181,7 @@ export const ListaDetailPanel = ({
             Comicio #{idEleccion}
             {eleccionQuery.data ? ` — ${eleccionQuery.data.nombre}` : ''}
           </p>
+          </div>
         </div>
         <div className='flex flex-wrap items-center gap-2'>
           <Badge variant={isEditable ? 'secondary' : 'default'}>
@@ -236,6 +246,14 @@ export const ListaDetailPanel = ({
               Candidatos
             </p>
             <p className='font-medium'>{candidatos.length}</p>
+          </div>
+          <div>
+            <p className='text-muted-foreground text-xs uppercase tracking-wide'>
+              Logotipo
+            </p>
+            <p className='font-medium'>
+              {lista.logoUrl ? 'Configurado' : 'Sin logotipo'}
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -319,19 +337,32 @@ export const ListaDetailPanel = ({
             <li key={candidato.idCandidato}>
               <Card>
                 <CardHeader className='flex flex-row items-start justify-between gap-4 space-y-0'>
-                  <div className='flex flex-col gap-1'>
-                    <CardTitle className='text-base'>
-                      {candidato.nombre} {candidato.apellido}
-                    </CardTitle>
-                    <CardDescription>
-                      {candidato.categoriaNombre
-                        ? `${candidato.categoriaNombre} · `
-                        : ''}
-                      {buildResumenDatosAdicionales(
-                        candidato.datosAdicionales,
-                        camposConfig,
-                      )}
-                    </CardDescription>
+                  <div className='flex min-w-0 items-center gap-3'>
+                    {candidato.fotoUrl ? (
+                      <img
+                        src={resolveMediaUrl(candidato.fotoUrl)}
+                        alt={`Foto de ${candidato.nombre} ${candidato.apellido}`}
+                        className='size-14 rounded-xl border bg-muted object-cover'
+                      />
+                    ) : (
+                      <div className='grid size-14 place-items-center rounded-xl border bg-muted text-xs text-muted-foreground'>
+                        Sin foto
+                      </div>
+                    )}
+                    <div className='flex min-w-0 flex-col gap-1'>
+                      <CardTitle className='text-base'>
+                        {candidato.nombre} {candidato.apellido}
+                      </CardTitle>
+                      <CardDescription>
+                        {candidato.categoriaNombre
+                          ? `${candidato.categoriaNombre} · `
+                          : ''}
+                        {buildResumenDatosAdicionales(
+                          candidato.datosAdicionales,
+                          camposConfig,
+                        )}
+                      </CardDescription>
+                    </div>
                   </div>
                   {isEditable && (
                     <div className='flex gap-2'>

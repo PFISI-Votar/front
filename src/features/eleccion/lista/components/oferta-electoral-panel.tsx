@@ -21,6 +21,7 @@ import {
   isConflictError,
   isValidationError,
 } from '@/lib/api-client'
+import { resolveMediaUrl } from '@/lib/media-url'
 import { cn } from '@/lib/utils'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -385,6 +386,13 @@ export const OfertaElectoralPanel = ({
                             aria-hidden='true'
                           />
                         )}
+                        {lista.logoUrl && (
+                          <img
+                            src={resolveMediaUrl(lista.logoUrl)}
+                            alt={`Logotipo de ${lista.nombre}`}
+                            className='h-10 w-20 rounded-md border bg-muted object-cover'
+                          />
+                        )}
                         {lista.nombre}{' '}
                         <span className='text-base font-normal text-muted-foreground'>
                           ({lista.sigla})
@@ -474,19 +482,32 @@ export const OfertaElectoralPanel = ({
                             key={candidato.idCandidato}
                             className='flex flex-wrap items-start justify-between gap-3 rounded-lg border p-3'
                           >
-                            <div className='flex min-w-0 flex-col gap-0.5'>
-                              <p className='font-medium'>
-                                {candidato.nombre} {candidato.apellido}
-                              </p>
-                              <p className='text-sm text-muted-foreground'>
-                                {candidato.categoriaNombre
-                                  ? `${candidato.categoriaNombre} · `
-                                  : ''}
-                                {buildResumenDatosAdicionales(
-                                  candidato.datosAdicionales,
-                                  camposConfig
-                                )}
-                              </p>
+                            <div className='flex min-w-0 items-center gap-3'>
+                              {candidato.fotoUrl ? (
+                                <img
+                                  src={resolveMediaUrl(candidato.fotoUrl)}
+                                  alt={`Foto de ${candidato.nombre} ${candidato.apellido}`}
+                                  className='size-12 rounded-xl border bg-muted object-cover'
+                                />
+                              ) : (
+                                <div className='grid size-12 place-items-center rounded-xl border bg-muted text-xs text-muted-foreground'>
+                                  Sin foto
+                                </div>
+                              )}
+                              <div className='flex min-w-0 flex-col gap-0.5'>
+                                <p className='font-medium'>
+                                  {candidato.nombre} {candidato.apellido}
+                                </p>
+                                <p className='text-sm text-muted-foreground'>
+                                  {candidato.categoriaNombre
+                                    ? `${candidato.categoriaNombre} · `
+                                    : ''}
+                                  {buildResumenDatosAdicionales(
+                                    candidato.datosAdicionales,
+                                    camposConfig
+                                  )}
+                                </p>
+                              </div>
                             </div>
                             {isEditable && (
                               <Button

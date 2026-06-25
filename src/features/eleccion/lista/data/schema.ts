@@ -59,6 +59,8 @@ export const createListaSchema = z.object({
     .regex(/^#[0-9A-Fa-f]{6}$/, 'Color hexadecimal inválido (ej. #2563eb)')
     .optional()
     .or(z.literal('')),
+  logoFile: z.custom<File>().optional().nullable(),
+  removeLogo: z.boolean().optional(),
 })
 
 export type CreateListaInput = z.infer<typeof createListaSchema>
@@ -69,6 +71,7 @@ export type Lista = {
   nombre: string
   sigla: string
   color: string | null
+  logoUrl: string | null
   estado: string
   listId: number | null
   fechaOficializacion: string | null

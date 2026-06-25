@@ -1,4 +1,10 @@
-import { type CSSProperties, type ReactNode, useEffect, useMemo, useState } from 'react'
+import {
+  type CSSProperties,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import { AxiosError } from 'axios'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
@@ -13,6 +19,7 @@ import {
 } from 'lucide-react'
 import budFingerprint from '@/assets/bud-fingerprint.png'
 import { getApiErrorMessage } from '@/lib/api-client'
+import { resolveMediaUrl } from '@/lib/media-url'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -23,14 +30,14 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
+import { METODOS_AUTENTICACION } from '@/features/eleccion/configuracion-comicio/data/constants'
 import {
   confirmarVoto,
   getVotanteTokenStorageKey,
   getVotanteToken,
   obtenerBoletaDigital,
 } from '@/features/voto/api/voto-api'
-import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
-import { METODOS_AUTENTICACION } from '@/features/eleccion/configuracion-comicio/data/constants'
 import {
   BudBottomNav,
   BudLoginScreen,
@@ -83,6 +90,12 @@ const getHttpErrorMessage = (error: unknown): string => {
   }
   return 'No pudimos comunicarnos con el servidor. Reintentá sin perder tu selección.'
 }
+
+const getListImageUrl = (candidato: CandidatoBoletaDigital) =>
+  candidato.imagenListaUrl ??
+  candidato.logoListaUrl ??
+  candidato.fotoListaUrl ??
+  null
 
 export const BoletaUnicaDigitalPage = ({
   idEleccion,
@@ -225,7 +238,12 @@ export const BoletaUnicaDigitalPage = ({
       return <BoletaIntroSplash />
     }
 
-    if (boletaQuery.isError || eleccionQuery.isError || !boleta || !eleccionQuery.data) {
+    if (
+      boletaQuery.isError ||
+      eleccionQuery.isError ||
+      !boleta ||
+      !eleccionQuery.data
+    ) {
       return (
         <main className='grid min-h-svh place-items-center bg-[#fdfcfa] px-6'>
           <Alert variant='destructive' className='max-w-xl'>
@@ -380,7 +398,12 @@ export const BoletaUnicaDigitalPage = ({
           )}
           Confirmar y Encriptar Voto
         </Button>
-        <Button type='button' variant='outline' size='lg' className='h-12 rounded-xl'>
+        <Button
+          type='button'
+          variant='outline'
+          size='lg'
+          className='h-12 rounded-xl'
+        >
           Regresar al Inicio
           <ArrowRight className='ms-2 size-4 rotate-180' />
         </Button>
@@ -395,14 +418,14 @@ export const BoletaUnicaDigitalPage = ({
       <BudBottomNav active='boleta' />
 
       <VotoConfirmDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          boleta={boleta}
-          selecciones={selecciones}
-          votoEnBlanco={votoEnBlanco}
-          isPending={confirmarMutation.isPending}
-          onConfirm={() => confirmarMutation.mutate()}
-        />
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        boleta={boleta}
+        selecciones={selecciones}
+        votoEnBlanco={votoEnBlanco}
+        isPending={confirmarMutation.isPending}
+        onConfirm={() => confirmarMutation.mutate()}
+      />
     </BoletaPageShell>
   )
 }
@@ -469,7 +492,7 @@ const BoletaSuccessScreen = ({
           </CardTitle>
         </CardHeader>
         <CardContent className='grid gap-3'>
-          <code className='block break-all rounded-lg bg-slate-50 p-4 text-xs text-slate-600'>
+          <code className='block rounded-lg bg-slate-50 p-4 text-xs break-all text-slate-600'>
             {comprobante.comprobanteHash}
           </code>
           <Button type='button' variant='ghost' className='justify-end'>
@@ -489,8 +512,14 @@ const BoletaSuccessScreen = ({
 
       <Card className='bg-white/95 text-left shadow-sm'>
         <CardContent className='grid gap-3 p-5 text-sm'>
-          <ReceiptRow label='Emitido el' value={formatReceiptDate(comprobante.recibidoEn)} />
-          <ReceiptRow label='Hora local' value={formatReceiptTime(comprobante.recibidoEn)} />
+          <ReceiptRow
+            label='Emitido el'
+            value={formatReceiptDate(comprobante.recibidoEn)}
+          />
+          <ReceiptRow
+            label='Hora local'
+            value={formatReceiptTime(comprobante.recibidoEn)}
+          />
           <ReceiptRow label='Nodo electoral' value='MX-CENTRAL-04' />
           <p className='pt-2 text-xs font-medium text-sky-800'>
             ● Blockchain: sincronizado
@@ -513,12 +542,38 @@ const BoletaSuccessScreen = ({
                 key={`${candidato.idCategoria}-${candidato.idCandidato}`}
                 className='flex items-center gap-3'
               >
-                <span
-                  className='size-3 rounded-full'
-                  style={{ backgroundColor: candidato.colorLista ?? accentColor }}
-                />
+                {candidato.fotoUrl ? (
+                  <img
+                    src={resolveMediaUrl(candidato.fotoUrl)}
+                    alt={`Foto de ${candidato.nombreCompleto}`}
+                    className='size-12 rounded-xl border bg-muted object-cover'
+                  />
+                ) : (
+                  <span
+                    className='size-12 rounded-xl border bg-muted'
+                    style={{
+                      backgroundColor: `${candidato.colorLista ?? accentColor}22`,
+                    }}
+                    aria-hidden='true'
+                  />
+                )}
+                {getListImageUrl(candidato) ? (
+                  <img
+                    src={resolveMediaUrl(getListImageUrl(candidato))}
+                    alt={`Logo de ${candidato.agrupacionPolitica}`}
+                    className='h-12 w-20 rounded-xl border bg-muted object-cover'
+                  />
+                ) : (
+                  <span
+                    className='h-12 w-20 rounded-xl border bg-muted'
+                    style={{
+                      backgroundColor: candidato.colorLista ?? accentColor,
+                    }}
+                    aria-hidden='true'
+                  />
+                )}
                 <div>
-                  <p className='text-xs uppercase text-slate-500'>
+                  <p className='text-xs text-slate-500 uppercase'>
                     {candidato.agrupacionPolitica}
                   </p>
                   <p className='font-semibold'>{candidato.nombreCompleto}</p>
@@ -581,7 +636,7 @@ const BoletaIntroSplash = () => (
         src={budFingerprint}
         alt=''
         aria-hidden='true'
-        className='size-28 animate-bud-squash object-contain sm:size-36'
+        className='animate-bud-squash size-28 object-contain sm:size-36'
       />
       <div className='space-y-1'>
         <p className='text-sm font-medium tracking-[0.24em] text-[#2f6f9f] uppercase'>

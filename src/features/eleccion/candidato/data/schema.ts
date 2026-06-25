@@ -68,6 +68,8 @@ export const createCandidatoSchema = z.object({
   apellido: z.string().min(1, 'El apellido es obligatorio').max(100),
   idCategoria: z.number().int().min(1, 'Seleccione un rol de candidato'),
   orden: z.number().int().min(1).optional(),
+  fotoFile: z.custom<File>().optional().nullable(),
+  removeFoto: z.boolean().optional(),
   datosAdicionales: z.record(z.string(), z.unknown()),
 })
 
