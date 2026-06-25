@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { resolveMediaUrl } from '@/lib/media-url'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -18,8 +19,11 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { resolveMediaUrl } from '@/lib/media-url'
-import { createListaSchema, type CreateListaInput, type Lista } from '@/features/eleccion/lista/data/schema'
+import {
+  createListaSchema,
+  type CreateListaInput,
+  type Lista,
+} from '@/features/eleccion/lista/data/schema'
 import {
   IMAGE_FILE_REQUIREMENTS,
   validateElectoralImageFile,
@@ -135,7 +139,10 @@ export const ListaFormDialog = ({
           </DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className='space-y-4'>
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className='space-y-4'
+          >
             <FormField
               control={form.control}
               name='nombre'
@@ -179,7 +186,7 @@ export const ListaFormDialog = ({
               <div className='flex items-start justify-between gap-3'>
                 <div>
                   <FormLabel>Logotipo de lista</FormLabel>
-                  <p className='mt-4 text-muted-foreground text-xs'>
+                  <p className='mt-4 text-xs text-muted-foreground'>
                     <span>{IMAGE_FILE_REQUIREMENTS}</span>
                     <span className='block'>Se normaliza a 800x400 px.</span>
                   </p>
@@ -212,13 +219,16 @@ export const ListaFormDialog = ({
                 onChange={(event) => handleLogoChange(event.target.files?.[0])}
               />
               {logoError && (
-                <p className='text-destructive text-sm' role='alert'>
+                <p className='text-sm text-destructive' role='alert'>
                   {logoError}
                 </p>
               )}
             </div>
             <DialogFooter>
-              <Button type='submit' disabled={form.formState.isSubmitting}>
+              <Button
+                type='submit'
+                disabled={form.formState.isSubmitting || Boolean(logoError)}
+              >
                 {form.formState.isSubmitting
                   ? 'Guardando…'
                   : isEditMode

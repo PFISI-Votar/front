@@ -1,6 +1,13 @@
-import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { toast } from 'sonner'
+import {
+  getApiErrorMessage,
+  getApiFieldErrors,
+  isConflictError,
+} from '@/lib/api-client'
+import { resolveMediaUrl } from '@/lib/media-url'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -11,8 +18,6 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { getApiErrorMessage, getApiFieldErrors, isConflictError } from '@/lib/api-client'
-import { resolveMediaUrl } from '@/lib/media-url'
 import {
   CandidatoCamposDinamicos,
   mapApiFieldErrorsToForm,
@@ -30,7 +35,6 @@ import {
   IMAGE_FILE_REQUIREMENTS,
   validateElectoralImageFile,
 } from '@/features/eleccion/shared/utils/image-file'
-import { toast } from 'sonner'
 
 type CandidatoFormProps = {
   categorias: CategoriaElectoral[]
@@ -46,7 +50,7 @@ type CandidatoFormProps = {
 
 const buildDefaultDatosAdicionales = (
   campos: CampoCandidatoDefinicion[],
-  existing?: Record<string, unknown>,
+  existing?: Record<string, unknown>
 ): Record<string, unknown> => {
   const datos: Record<string, unknown> = { ...existing }
   for (const campo of campos) {
@@ -67,7 +71,7 @@ const buildDefaultDatosAdicionales = (
 const buildDefaultValues = (
   categoriasDisponibles: CategoriaElectoral[],
   camposConfig: CampoCandidatoDefinicion[],
-  values?: CreateCandidatoInput,
+  values?: CreateCandidatoInput
 ): CreateCandidatoInput =>
   values ?? {
     nombre: '',
@@ -89,7 +93,7 @@ export const CandidatoForm = ({
   onConflictError,
 }: CandidatoFormProps) => {
   const [fotoPreview, setFotoPreview] = useState<string | undefined>(
-    resolveMediaUrl(currentFotoUrl),
+    resolveMediaUrl(currentFotoUrl)
   )
   const [fotoError, setFotoError] = useState<string | null>(null)
   const categoriasDisponibles = useMemo(
@@ -103,7 +107,7 @@ export const CandidatoForm = ({
       candidatosEnLista,
       excludeCandidatoId,
       defaultValues?.idCategoria,
-    ],
+    ]
   )
 
   const form = useForm<CreateCandidatoInput>({
@@ -114,7 +118,7 @@ export const CandidatoForm = ({
       removeFoto: false,
       datosAdicionales: buildDefaultDatosAdicionales(
         camposConfig,
-        defaultValues?.datosAdicionales,
+        defaultValues?.datosAdicionales
       ),
     },
   })
@@ -178,7 +182,7 @@ export const CandidatoForm = ({
     }
     if (categoriasDisponibles.length === 0) {
       toast.error(
-        'Todas las categorías ya alcanzaron su cupo máximo en esta lista',
+        'Todas las categorías ya alcanzaron su cupo máximo en esta lista'
       )
       return
     }
@@ -204,7 +208,8 @@ export const CandidatoForm = ({
   const canSubmit =
     categorias.length > 0 &&
     categoriasDisponibles.length > 0 &&
-    Boolean(form.watch('idCategoria'))
+    Boolean(form.watch('idCategoria')) &&
+    !fotoError
 
   return (
     <Form {...form}>
@@ -214,7 +219,7 @@ export const CandidatoForm = ({
         aria-label='Formulario de candidato'
       >
         {categorias.length === 0 ? (
-          <p className='text-destructive text-sm' role='alert'>
+          <p className='text-sm text-destructive' role='alert'>
             Este comicio no tiene categorías electorales. Configúrelas en la
             oferta electoral antes de registrar candidatos.
           </p>
@@ -256,13 +261,18 @@ export const CandidatoForm = ({
           <div className='flex items-start justify-between gap-3'>
             <div>
               <FormLabel>Fotografía del candidato</FormLabel>
-              <p className='mt-4 text-muted-foreground text-xs'>
+              <p className='mt-4 text-xs text-muted-foreground'>
                 <span>{IMAGE_FILE_REQUIREMENTS}</span>
                 <span className='block'>Se normaliza a 400x400 px.</span>
               </p>
             </div>
             {fotoPreview && (
-              <Button type='button' variant='ghost' size='sm' onClick={handleRemoveFoto}>
+              <Button
+                type='button'
+                variant='ghost'
+                size='sm'
+                onClick={handleRemoveFoto}
+              >
                 Quitar
               </Button>
             )}
@@ -284,13 +294,19 @@ export const CandidatoForm = ({
             onChange={(event) => handleFotoChange(event.target.files?.[0])}
           />
           {fotoError && (
-            <p className='text-destructive text-sm' role='alert'>
+            <p className='text-sm text-destructive' role='alert'>
               {fotoError}
             </p>
           )}
         </div>
-        <CandidatoCamposDinamicos control={form.control} campos={camposConfig} />
-        <Button type='submit' disabled={form.formState.isSubmitting || !canSubmit}>
+        <CandidatoCamposDinamicos
+          control={form.control}
+          campos={camposConfig}
+        />
+        <Button
+          type='submit'
+          disabled={form.formState.isSubmitting || !canSubmit}
+        >
           {form.formState.isSubmitting ? 'Guardando…' : submitLabel}
         </Button>
       </form>

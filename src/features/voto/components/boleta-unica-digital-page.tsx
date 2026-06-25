@@ -1,4 +1,10 @@
-import { type CSSProperties, type ReactNode, useEffect, useMemo, useState } from 'react'
+import {
+  type CSSProperties,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import { AxiosError } from 'axios'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
@@ -24,14 +30,14 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
+import { METODOS_AUTENTICACION } from '@/features/eleccion/configuracion-comicio/data/constants'
 import {
   confirmarVoto,
   getVotanteTokenStorageKey,
   getVotanteToken,
   obtenerBoletaDigital,
 } from '@/features/voto/api/voto-api'
-import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
-import { METODOS_AUTENTICACION } from '@/features/eleccion/configuracion-comicio/data/constants'
 import {
   BudBottomNav,
   BudLoginScreen,
@@ -67,22 +73,22 @@ const getHttpErrorMessage = (error: unknown): string => {
       return getApiErrorMessage(error)
     }
     if (status === 401) {
-      return 'NecesitÃ¡s iniciar sesiÃ³n como votante para acceder a esta boleta.'
+      return 'Necesitás iniciar sesión como votante para acceder a esta boleta.'
     }
     if (status === 403) {
-      return 'No estÃ¡s habilitado para votar en este comicio o la boleta no estÃ¡ disponible.'
+      return 'No estás habilitado para votar en este comicio o la boleta no está disponible.'
     }
     if (status === 404) {
-      return 'No se encontrÃ³ la boleta digital solicitada.'
+      return 'No se encontró la boleta digital solicitada.'
     }
     if (status === 409) {
       return 'El voto ya fue confirmado o hubo un conflicto de idempotencia.'
     }
     if (status === 429) {
-      return 'Demasiados intentos de confirmaciÃ³n. EsperÃ¡ un minuto y volvÃ© a intentar.'
+      return 'Demasiados intentos de confirmación. Esperá un minuto y volvé a intentar.'
     }
   }
-  return 'No pudimos comunicarnos con el servidor. ReintentÃ¡ sin perder tu selecciÃ³n.'
+  return 'No pudimos comunicarnos con el servidor. Reintentá sin perder tu selección.'
 }
 
 const getListImageUrl = (candidato: CandidatoBoletaDigital) =>
@@ -232,14 +238,19 @@ export const BoletaUnicaDigitalPage = ({
       return <BoletaIntroSplash />
     }
 
-    if (boletaQuery.isError || eleccionQuery.isError || !boleta || !eleccionQuery.data) {
+    if (
+      boletaQuery.isError ||
+      eleccionQuery.isError ||
+      !boleta ||
+      !eleccionQuery.data
+    ) {
       return (
         <main className='grid min-h-svh place-items-center bg-[#fdfcfa] px-6'>
           <Alert variant='destructive' className='max-w-xl'>
             <AlertCircle className='size-4' aria-hidden='true' />
-            <AlertTitle>No se pudo preparar la votaciÃ³n</AlertTitle>
+            <AlertTitle>No se pudo preparar la votación</AlertTitle>
             <AlertDescription>
-              No pudimos obtener la configuraciÃ³n del comicio. ReintentÃ¡ en unos
+              No pudimos obtener la configuración del comicio. Reintentá en unos
               segundos.
             </AlertDescription>
           </Alert>
@@ -308,12 +319,12 @@ export const BoletaUnicaDigitalPage = ({
         <div className='flex items-center justify-between gap-3'>
           <div>
             <p className='text-xs font-semibold tracking-[0.24em] text-sky-700 uppercase'>
-              Boleta Ãÿnica Digital
+              Boleta Única Digital
             </p>
             <h1 className='text-2xl font-bold'>{boleta.nombreEleccion}</h1>
           </div>
           <div className='rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-slate-600 shadow-sm'>
-            {boleta.categorias.length} cargos Â· {totalCandidatos} candidatos
+            {boleta.categorias.length} cargos · {totalCandidatos} candidatos
           </div>
         </div>
 
@@ -350,8 +361,8 @@ export const BoletaUnicaDigitalPage = ({
               Advertencia de Inmutabilidad
             </CardTitle>
             <CardDescription className='text-red-900'>
-              Una vez confirmada, su boleta serÃ¡ encriptada y registrada
-              permanentemente en la red blockchain. Esta acciÃ³n no podrÃ¡ ser
+              Una vez confirmada, su boleta será encriptada y registrada
+              permanentemente en la red blockchain. Esta acción no podrá ser
               modificada.
             </CardDescription>
           </CardHeader>
@@ -362,14 +373,14 @@ export const BoletaUnicaDigitalPage = ({
             <AlertCircle className='size-4' aria-hidden='true' />
             <AlertTitle>Boleta incompleta</AlertTitle>
             <AlertDescription>
-              Hay categorÃ­as sin candidatos oficializados.
+              Hay categorías sin candidatos oficializados.
             </AlertDescription>
           </Alert>
         )}
 
         {!votoEnBlanco && categoriasSinSeleccion.length > 0 && (
           <p className='text-center text-sm text-slate-600' aria-live='polite'>
-            Faltan {categoriasSinSeleccion.length} categorÃ­a
+            Faltan {categoriasSinSeleccion.length} categoría
             {categoriasSinSeleccion.length === 1 ? '' : 's'} por seleccionar.
           </p>
         )}
@@ -387,7 +398,12 @@ export const BoletaUnicaDigitalPage = ({
           )}
           Confirmar y Encriptar Voto
         </Button>
-        <Button type='button' variant='outline' size='lg' className='h-12 rounded-xl'>
+        <Button
+          type='button'
+          variant='outline'
+          size='lg'
+          className='h-12 rounded-xl'
+        >
           Regresar al Inicio
           <ArrowRight className='ms-2 size-4 rotate-180' />
         </Button>
@@ -402,14 +418,14 @@ export const BoletaUnicaDigitalPage = ({
       <BudBottomNav active='boleta' />
 
       <VotoConfirmDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          boleta={boleta}
-          selecciones={selecciones}
-          votoEnBlanco={votoEnBlanco}
-          isPending={confirmarMutation.isPending}
-          onConfirm={() => confirmarMutation.mutate()}
-        />
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        boleta={boleta}
+        selecciones={selecciones}
+        votoEnBlanco={votoEnBlanco}
+        isPending={confirmarMutation.isPending}
+        onConfirm={() => confirmarMutation.mutate()}
+      />
     </BoletaPageShell>
   )
 }
@@ -461,10 +477,10 @@ const BoletaSuccessScreen = ({
       <div className='space-y-2'>
         <p className='sr-only'>Voto confirmado</p>
         <h1 className='text-2xl font-bold text-sky-900'>
-          Voto Registrado con Ãÿxito
+          Voto Registrado con Éxito
         </h1>
         <p className='text-sm leading-relaxed text-slate-600'>
-          Su participaciÃ³n democrÃ¡tica ha sido cifrada y transmitida de forma
+          Su participación democrática ha sido cifrada y transmitida de forma
           inmutable a la red blockchain electoral.
         </p>
       </div>
@@ -472,11 +488,11 @@ const BoletaSuccessScreen = ({
       <Card className='bg-white/95 text-left shadow-sm'>
         <CardHeader>
           <CardTitle className='text-xs tracking-[0.18em] text-slate-500 uppercase'>
-            Hash de transacciÃ³n (SHA-256)
+            Hash de transacción (SHA-256)
           </CardTitle>
         </CardHeader>
         <CardContent className='grid gap-3'>
-          <code className='block break-all rounded-lg bg-slate-50 p-4 text-xs text-slate-600'>
+          <code className='block rounded-lg bg-slate-50 p-4 text-xs break-all text-slate-600'>
             {comprobante.comprobanteHash}
           </code>
           <Button type='button' variant='ghost' className='justify-end'>
@@ -496,11 +512,17 @@ const BoletaSuccessScreen = ({
 
       <Card className='bg-white/95 text-left shadow-sm'>
         <CardContent className='grid gap-3 p-5 text-sm'>
-          <ReceiptRow label='Emitido el' value={formatReceiptDate(comprobante.recibidoEn)} />
-          <ReceiptRow label='Hora local' value={formatReceiptTime(comprobante.recibidoEn)} />
+          <ReceiptRow
+            label='Emitido el'
+            value={formatReceiptDate(comprobante.recibidoEn)}
+          />
+          <ReceiptRow
+            label='Hora local'
+            value={formatReceiptTime(comprobante.recibidoEn)}
+          />
           <ReceiptRow label='Nodo electoral' value='MX-CENTRAL-04' />
           <p className='pt-2 text-xs font-medium text-sky-800'>
-            âÿÿ Blockchain: sincronizado
+            ● Blockchain: sincronizado
           </p>
         </CardContent>
       </Card>
@@ -508,7 +530,7 @@ const BoletaSuccessScreen = ({
       <Card className='overflow-hidden bg-white/95 text-left shadow-sm'>
         <CardHeader className='bg-slate-100 py-3'>
           <CardTitle className='text-xs tracking-[0.18em] text-slate-500 uppercase'>
-            Resumen de selecciÃ³n
+            Resumen de selección
           </CardTitle>
         </CardHeader>
         <CardContent className='grid gap-3 p-5'>
@@ -529,7 +551,9 @@ const BoletaSuccessScreen = ({
                 ) : (
                   <span
                     className='size-12 rounded-xl border bg-muted'
-                    style={{ backgroundColor: `${candidato.colorLista ?? accentColor}22` }}
+                    style={{
+                      backgroundColor: `${candidato.colorLista ?? accentColor}22`,
+                    }}
                     aria-hidden='true'
                   />
                 )}
@@ -542,12 +566,14 @@ const BoletaSuccessScreen = ({
                 ) : (
                   <span
                     className='h-12 w-20 rounded-xl border bg-muted'
-                    style={{ backgroundColor: candidato.colorLista ?? accentColor }}
+                    style={{
+                      backgroundColor: candidato.colorLista ?? accentColor,
+                    }}
                     aria-hidden='true'
                   />
                 )}
                 <div>
-                  <p className='text-xs uppercase text-slate-500'>
+                  <p className='text-xs text-slate-500 uppercase'>
                     {candidato.agrupacionPolitica}
                   </p>
                   <p className='font-semibold'>{candidato.nombreCompleto}</p>
@@ -564,7 +590,7 @@ const BoletaSuccessScreen = ({
       </Button>
       <Button variant='outline' className='h-12 rounded-xl font-semibold'>
         <Share2 className='me-2 size-4' />
-        Compartir Hash de VerificaciÃ³n
+        Compartir Hash de Verificación
       </Button>
 
       <p className='text-xs leading-relaxed text-slate-500'>
@@ -603,18 +629,18 @@ const formatReceiptTime = (value: string) =>
 const BoletaIntroSplash = () => (
   <main
     className='grid min-h-svh place-items-center overflow-hidden bg-[#fdfcfa] px-6 text-foreground'
-    aria-label='Cargando Boleta Ãÿnica Digital'
+    aria-label='Cargando Boleta Única Digital'
   >
     <div className='flex flex-col items-center gap-4 text-center'>
       <img
         src={budFingerprint}
         alt=''
         aria-hidden='true'
-        className='size-28 animate-bud-squash object-contain sm:size-36'
+        className='animate-bud-squash size-28 object-contain sm:size-36'
       />
       <div className='space-y-1'>
         <p className='text-sm font-medium tracking-[0.24em] text-[#2f6f9f] uppercase'>
-          Preparando la votaciÃ³n...
+          Preparando la votación...
         </p>
       </div>
     </div>
@@ -623,7 +649,7 @@ const BoletaIntroSplash = () => (
 
 const BoletaSkeleton = () => (
   <div className='flex flex-col gap-6' aria-busy='true' aria-live='polite'>
-    <p className='text-sm text-muted-foreground'>Cargando boleta digitalâÿ¦</p>
+    <p className='text-sm text-muted-foreground'>Cargando boleta digital…</p>
     <Skeleton className='h-36 rounded-3xl' />
     <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
       {Array.from({ length: 6 }).map((_, index) => (

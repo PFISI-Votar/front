@@ -7,13 +7,15 @@ import type {
 } from '@/features/eleccion/lista/data/schema'
 
 export const listarListas = async (idEleccion: number): Promise<Lista[]> => {
-  const { data } = await apiClient.get<Lista[]>(`/elecciones/${idEleccion}/listas`)
+  const { data } = await apiClient.get<Lista[]>(
+    `/elecciones/${idEleccion}/listas`
+  )
   return data
 }
 
 export const crearLista = async (
   idEleccion: number,
-  input: CreateListaInput,
+  input: CreateListaInput
 ): Promise<Lista> => {
   const { logoFile, ...listaInput } = input
   delete listaInput.removeLogo
@@ -23,17 +25,22 @@ export const crearLista = async (
   }
   const { data: lista } = await apiClient.post<Lista>(
     `/elecciones/${idEleccion}/listas`,
-    payload,
+    payload
   )
   if (logoFile) {
-    return subirLogoLista(lista.idLista, logoFile)
+    try {
+      return await subirLogoLista(lista.idLista, logoFile)
+    } catch (error) {
+      await eliminarLista(lista.idLista).catch(() => undefined)
+      throw error
+    }
   }
   return lista
 }
 
 export const actualizarLista = async (
   idLista: number,
-  input: Partial<CreateListaInput>,
+  input: Partial<CreateListaInput>
 ): Promise<Lista> => {
   const { logoFile, removeLogo, ...listaInput } = input
   const { data: lista } = await apiClient.patch<Lista>(
@@ -55,14 +62,14 @@ export const eliminarLista = async (idLista: number): Promise<void> => {
 
 export const subirLogoLista = async (
   idLista: number,
-  file: File,
+  file: File
 ): Promise<Lista> => {
   const formData = new FormData()
   formData.append('logo', file)
   const { data } = await apiClient.patch<Lista>(
     `/listas/${idLista}/logo`,
     formData,
-    { headers: { 'Content-Type': 'multipart/form-data' } },
+    { headers: { 'Content-Type': 'multipart/form-data' } }
   )
   return data
 }
@@ -73,19 +80,19 @@ export const eliminarLogoLista = async (idLista: number): Promise<Lista> => {
 }
 
 export const oficializarEleccion = async (
-  idEleccion: number,
+  idEleccion: number
 ): Promise<OficializarResponse> => {
   const { data } = await apiClient.post<OficializarResponse>(
-    `/elecciones/${idEleccion}/oficializar`,
+    `/elecciones/${idEleccion}/oficializar`
   )
   return data
 }
 
 export const obtenerMapeoListas = async (
-  idEleccion: number,
+  idEleccion: number
 ): Promise<ListaMapeoItem[]> => {
   const { data } = await apiClient.get<ListaMapeoItem[]>(
-    `/elecciones/${idEleccion}/listas/mapeo`,
+    `/elecciones/${idEleccion}/listas/mapeo`
   )
   return data
 }
