@@ -47,11 +47,49 @@ describe('probeAdminAccessDenied', () => {
     await expect(probeAdminAccessDenied()).resolves.toBeUndefined()
   })
 
-  it('ignores non-403 errors', async () => {
-    getMock.mockRejectedValue(new Error('network'))
+  it('rethrows non-403 errors without treating access as audited', async () => {
+    const networkError = new Error('network')
+    getMock.mockRejectedValue(networkError)
 
     const { probeAdminAccessDenied } = await import('./auth-session')
 
-    await expect(probeAdminAccessDenied()).resolves.toBeUndefined()
+    await expect(probeAdminAccessDenied()).rejects.toBe(networkError)
+  })
+
+  it('rethrows when the probe succeeds without HTTP 403', async () => {
+    getMock.mockResolvedValue({
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {} as never,
+      data: [],
+    })
+
+    const { probeAdminAccessDenied } = await import('./auth-session')
+
+    await expect(probeAdminAccessDenied()).rejects.toThrow(
+      'succeeded without HTTP 403',
+    )
+  })
+
+  it('rethrows HTTP 500 from the probe', async () => {
+    const serverError = new AxiosError(
+      'Internal Server Error',
+      '500',
+      undefined,
+      undefined,
+      {
+        status: 500,
+        statusText: 'Internal Server Error',
+        headers: {},
+        config: {} as never,
+        data: {},
+      },
+    )
+    getMock.mockRejectedValue(serverError)
+
+    const { probeAdminAccessDenied } = await import('./auth-session')
+
+    await expect(probeAdminAccessDenied()).rejects.toBe(serverError)
   })
 })

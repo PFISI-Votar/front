@@ -14,14 +14,22 @@ const ADMIN_PROBE_URL = '/elecciones'
 /**
  * Solicita un endpoint de gestión para que el backend registre ACCESO_DENEGADO
  * cuando el JWT es válido pero el claim role no es election_admin (UAT-02 / US-313).
+ *
+ * Solo resuelve cuando el backend responde HTTP 403; cualquier otro resultado
+ * se re-lanza para no mostrar /403 sin auditoría confirmada.
  */
 export const probeAdminAccessDenied = async (): Promise<void> => {
   try {
     await apiClient.get(ADMIN_PROBE_URL)
+    const unexpectedSuccess = new Error(
+      `Admin access probe to ${ADMIN_PROBE_URL} succeeded without HTTP 403`,
+    )
+    throw unexpectedSuccess
   } catch (error) {
     if (error instanceof AxiosError && error.response?.status === 403) {
       return
     }
+    throw error
   }
 }
 
