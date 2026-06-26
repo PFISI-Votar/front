@@ -37,7 +37,13 @@ const isAuthEndpoint = (url: string): boolean =>
   url.includes('/auth/login') ||
   url.includes('/auth/refresh') ||
   url.includes('/auth/logout') ||
-  url.includes('/auth/me')
+  url.includes('/auth/me') ||
+  url.includes('/auth/votante/')
+
+const isVotanteProtectedEndpoint = (url: string): boolean =>
+  url.includes('/auth/votante/') ||
+  url.includes('/boleta-digital') ||
+  url.includes('/votos/confirmar')
 
 apiClient.interceptors.response.use(
   (response) => response,
@@ -51,7 +57,7 @@ apiClient.interceptors.response.use(
     }
 
     const requestUrl = originalRequest.url ?? ''
-    if (isAuthEndpoint(requestUrl)) {
+    if (isAuthEndpoint(requestUrl) || isVotanteProtectedEndpoint(requestUrl)) {
       return Promise.reject(error)
     }
 

@@ -45,7 +45,7 @@ La documentación completa del proyecto (alcance, reglas de negocio, diagramas, 
 - **Estado / datos:** [TanStack Query](https://tanstack.com/query/latest), [Zustand](https://zustand.docs.pmnd.rs/)
 - **Formularios:** React Hook Form + Zod
 - **HTTP:** Axios
-- **Autenticación:** SSO institucional OAuth 2.0 / OIDC (integración pendiente con el backend)
+- **Autenticación:** SSO institucional vía BFF Autogestión (votante y admin); cookie HttpOnly separada por rol
 - **Blockchain (cliente):** Ethers.js + Web Crypto API (billetera efímera)
 
 ## Requisitos previos
@@ -68,7 +68,15 @@ Variables de entorno disponibles:
 
 | Variable | Descripción | Valor por defecto |
 |---|---|---|
-| `VITE_API_URL` | URL base del backend NestJS | `http://localhost:3000` |
+| `VITE_API_URL` | URL base del backend NestJS | `http://localhost:8000` |
+
+## Login del votante (BUD — US-312)
+
+Ruta pública: `/comicios/{idEleccion}/votar`
+
+1. El votante ingresa legajo y clave de **Autogestión UTN** (no usar `/sign-in` del panel admin).
+2. El backend valida credenciales, comprueba padrón (`hash(dni:email)`) y emite JWT `role=voter` en cookie `votar_voter_access_token` (30 min, sin refresh).
+3. Guía UAT completa: `votar.back/docs/us-312-voter-login-uat.md`
 
 ## Scripts disponibles
 

@@ -30,14 +30,21 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
-import { METODOS_AUTENTICACION } from '@/features/eleccion/configuracion-comicio/data/constants'
+import {
+  METODOS_AUTENTICACION,
+  type MetodoAutenticacion,
+} from '@/features/eleccion/configuracion-comicio/data/constants'
+import type { TipoVotacion } from '@/features/eleccion/lista/data/schema'
 import {
   confirmarVoto,
-  getVotanteTokenStorageKey,
-  getVotanteToken,
   obtenerBoletaDigital,
+  obtenerConfiguracionBud,
 } from '@/features/voto/api/voto-api'
+import {
+  clearVotanteSession,
+  ensureVotanteSession,
+} from '@/features/voto/services/votante-session'
+import type { VotanteAuthUser } from '@/features/voto/types/votante-auth.types'
 import {
   BudBottomNav,
   BudLoginScreen,
@@ -73,7 +80,7 @@ const getHttpErrorMessage = (error: unknown): string => {
       return getApiErrorMessage(error)
     }
     if (status === 401) {
-      return 'Necesitás iniciar sesión como votante para acceder a esta boleta.'
+      return 'Tu sesión expiró. Volvé a iniciar sesión para continuar.'
     }
     if (status === 403) {
       return 'No estás habilitado para votar en este comicio o la boleta no está disponible.'
@@ -103,9 +110,19 @@ export const BoletaUnicaDigitalPage = ({
   showLogin = true,
 }: BoletaUnicaDigitalPageProps) => {
   const [introVisible, setIntroVisible] = useState(() => showIntro)
-  const [sessionToken, setSessionToken] = useState(() =>
-    showLogin ? getVotanteToken(idEleccion) : 'test-session'
+  const [votanteSession, setVotanteSession] = useState<VotanteAuthUser | null>(
+    showLogin ? null : {
+      sub: 'test-session',
+      role: 'voter',
+      idEleccion,
+    }
   )
+  const [sessionBootstrapComplete, setSessionBootstrapComplete] = useState(
+    () => !showLogin
+  )
+  const [sessionExpiredMessage, setSessionExpiredMessage] = useState<
+    string | null
+  >(null)
   const [selecciones, setSelecciones] = useState<SeleccionesPorCategoria>({})
   const [votoEnBlanco, setVotoEnBlanco] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -119,11 +136,11 @@ export const BoletaUnicaDigitalPage = ({
     queryKey: ['boleta-digital', idEleccion],
     queryFn: () => obtenerBoletaDigital(idEleccion),
     retry: false,
-    enabled: Boolean(sessionToken) && !introVisible,
+    enabled: Boolean(votanteSession) && !introVisible && sessionBootstrapComplete,
   })
-  const eleccionQuery = useQuery({
-    queryKey: ['eleccion', idEleccion],
-    queryFn: () => obtenerEleccion(idEleccion),
+  const budConfigQuery = useQuery({
+    queryKey: ['bud-config', idEleccion],
+    queryFn: () => obtenerConfiguracionBud(idEleccion),
     retry: false,
     enabled: showLogin && !introVisible,
   })
@@ -136,6 +153,46 @@ export const BoletaUnicaDigitalPage = ({
     const timeout = window.setTimeout(() => setIntroVisible(false), 1300)
     return () => window.clearTimeout(timeout)
   }, [introVisible])
+
+  const handleSessionExpired = async () => {
+    await clearVotanteSession()
+    setVotanteSession(null)
+    setSessionExpiredMessage(
+      'Tu sesión expiró. Volvé a iniciar sesión para continuar.'
+    )
+  }
+
+  useEffect(() => {
+    if (introVisible || !showLogin || sessionBootstrapComplete) {
+      return
+    }
+
+    let cancelled = false
+    void ensureVotanteSession(idEleccion).then((user) => {
+      if (cancelled) {
+        return
+      }
+      setVotanteSession(user)
+      setSessionBootstrapComplete(true)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [idEleccion, introVisible, showLogin, sessionBootstrapComplete])
+
+  useEffect(() => {
+    if (!boletaQuery.isError || !(boletaQuery.error instanceof AxiosError)) {
+      return
+    }
+    if (boletaQuery.error.response?.status !== 401) {
+      return
+    }
+    const timeoutId = window.setTimeout(() => {
+      void handleSessionExpired()
+    }, 0)
+    return () => window.clearTimeout(timeoutId)
+  }, [boletaQuery.isError, boletaQuery.error])
 
   const confirmarMutation = useMutation({
     mutationFn: () =>
@@ -151,6 +208,10 @@ export const BoletaUnicaDigitalPage = ({
       setDialogOpen(false)
     },
     onError: (error) => {
+      if (error instanceof AxiosError && error.response?.status === 401) {
+        void handleSessionExpired()
+        return
+      }
       setSubmitError(getHttpErrorMessage(error))
     },
   })
@@ -216,8 +277,13 @@ export const BoletaUnicaDigitalPage = ({
     return <BoletaIntroSplash />
   }
 
-  if (showLogin && !sessionToken) {
-    const metodosAutenticacion = eleccionQuery.data?.metodosAutenticacion ?? []
+  if (showLogin && !sessionBootstrapComplete) {
+    return <BoletaIntroSplash />
+  }
+
+  if (showLogin && !votanteSession) {
+    const metodosAutenticacion =
+      (budConfigQuery.data?.metodosAutenticacion ?? []) as MetodoAutenticacion[]
     const authMethod =
       metodosAutenticacion.includes(METODOS_AUTENTICACION.GOOGLE) &&
       !metodosAutenticacion.includes(METODOS_AUTENTICACION.SSO_INSTITUCIONAL)
@@ -225,24 +291,37 @@ export const BoletaUnicaDigitalPage = ({
         : METODOS_AUTENTICACION.SSO_INSTITUCIONAL
 
     return (
-      <BudLoginScreen
-        idEleccion={idEleccion}
-        authMethod={authMethod}
-        onAuthenticated={setSessionToken}
-      />
+      <>
+        {sessionExpiredMessage ? (
+          <div className='pointer-events-none fixed inset-x-0 top-4 z-50 mx-auto w-full max-w-md px-4'>
+            <Alert variant='destructive'>
+              <AlertTitle>Sesión expirada</AlertTitle>
+              <AlertDescription>{sessionExpiredMessage}</AlertDescription>
+            </Alert>
+          </div>
+        ) : null}
+        <BudLoginScreen
+          idEleccion={idEleccion}
+          authMethod={authMethod}
+          onAuthenticated={(user) => {
+            setSessionExpiredMessage(null)
+            setVotanteSession(user)
+          }}
+        />
+      </>
     )
   }
 
-  if (showLogin && sessionToken) {
-    if (boletaQuery.isLoading || eleccionQuery.isLoading) {
+  if (showLogin && votanteSession) {
+    if (boletaQuery.isLoading || budConfigQuery.isLoading) {
       return <BoletaIntroSplash />
     }
 
     if (
       boletaQuery.isError ||
-      eleccionQuery.isError ||
+      budConfigQuery.isError ||
       !boleta ||
-      !eleccionQuery.data
+      !budConfigQuery.data
     ) {
       return (
         <main className='grid min-h-svh place-items-center bg-[#fdfcfa] px-6'>
@@ -261,10 +340,12 @@ export const BoletaUnicaDigitalPage = ({
     return (
       <BudVotingWizard
         boleta={boleta}
-        tipoVotacion={eleccionQuery.data.tipoVotacion}
+        tipoVotacion={budConfigQuery.data.tipoVotacion as TipoVotacion}
         onLogout={() => {
-          window.localStorage.removeItem(getVotanteTokenStorageKey(idEleccion))
-          setSessionToken(null)
+          void clearVotanteSession().finally(() => {
+            setVotanteSession(null)
+            setSessionBootstrapComplete(true)
+          })
         }}
       />
     )
@@ -522,7 +603,7 @@ const BoletaSuccessScreen = ({
           />
           <ReceiptRow label='Nodo electoral' value='MX-CENTRAL-04' />
           <p className='pt-2 text-xs font-medium text-sky-800'>
-            ● Blockchain: sincronizado
+            ✓ Blockchain: sincronizado
           </p>
         </CardContent>
       </Card>

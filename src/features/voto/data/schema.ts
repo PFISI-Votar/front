@@ -42,6 +42,14 @@ export type BoletaDigital = {
   categorias: CategoriaBoletaDigital[]
 }
 
+export type BudConfig = {
+  idEleccion: number
+  nombre: string
+  estado: string
+  tipoVotacion: string
+  metodosAutenticacion: string[]
+}
+
 export type SeleccionVoto = {
   idCategoria: number
   idCandidato: number
