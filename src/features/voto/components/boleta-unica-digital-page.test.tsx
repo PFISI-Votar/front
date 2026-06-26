@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { AxiosError } from 'axios'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
@@ -8,17 +9,35 @@ import type { BoletaDigital } from '@/features/voto/data/schema'
 const mocks = vi.hoisted(() => ({
   obtenerBoletaDigital: vi.fn(),
   confirmarVoto: vi.fn(),
+  obtenerConfiguracionBud: vi.fn(),
+  ensureVotanteSession: vi.fn(),
+  clearVotanteSession: vi.fn(),
 }))
 
 vi.mock('@/features/voto/api/voto-api', () => ({
-  createDemoVotanteToken: () => 'c'.repeat(64),
-  getVotanteTokenStorageKey: (idEleccion: number) =>
-    `votar:votante-token:${idEleccion}`,
-  getVotanteToken: () => null,
   obtenerBoletaDigital: mocks.obtenerBoletaDigital,
   confirmarVoto: mocks.confirmarVoto,
-  setVotanteToken: vi.fn(),
+  obtenerConfiguracionBud: mocks.obtenerConfiguracionBud,
 }))
+
+vi.mock('@/features/voto/services/votante-session', () => ({
+  ensureVotanteSession: mocks.ensureVotanteSession,
+  clearVotanteSession: mocks.clearVotanteSession,
+}))
+
+const budConfig = {
+  idEleccion: 7,
+  nombre: 'Centro de Estudiantes',
+  estado: 'ABIERTA',
+  tipoVotacion: 'POR_LISTA',
+  metodosAutenticacion: ['SSO_INSTITUCIONAL'],
+}
+
+const votanteSession = {
+  sub: '14988',
+  role: 'voter' as const,
+  idEleccion: 7,
+}
 
 const boleta: BoletaDigital = {
   idEleccion: 7,
@@ -104,6 +123,55 @@ describe('BoletaUnicaDigitalPage', () => {
   beforeEach(() => {
     mocks.obtenerBoletaDigital.mockReset()
     mocks.confirmarVoto.mockReset()
+    mocks.obtenerConfiguracionBud.mockReset()
+    mocks.ensureVotanteSession.mockReset()
+    mocks.clearVotanteSession.mockReset()
+    mocks.ensureVotanteSession.mockResolvedValue(null)
+    mocks.clearVotanteSession.mockResolvedValue(undefined)
+    mocks.obtenerConfiguracionBud.mockResolvedValue(budConfig)
+  })
+
+  it('vuelve al login con aviso cuando la sesión del votante expira (401)', async () => {
+    mocks.ensureVotanteSession.mockResolvedValue(votanteSession)
+    mocks.obtenerBoletaDigital.mockRejectedValue(
+      new AxiosError(
+        'Unauthorized',
+        '401',
+        undefined,
+        undefined,
+        {
+          status: 401,
+          data: { message: 'Unauthorized' },
+          statusText: 'Unauthorized',
+          headers: {},
+          config: {} as never,
+        }
+      )
+    )
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <BoletaUnicaDigitalPage idEleccion={7} showIntro={false} showLogin />
+      </QueryClientProvider>
+    )
+
+    await vi.waitFor(async () => {
+      await expect.element(screen.getByText('Sesión expirada')).toBeInTheDocument()
+    })
+    await expect
+      .element(
+        screen.getByText(
+          /Tu sesión expiró\. Volvé a iniciar sesión para continuar\./i
+        )
+      )
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByRole('button', { name: /Ingresar/i }))
+      .toBeInTheDocument()
+    expect(mocks.clearVotanteSession).toHaveBeenCalled()
   })
 
   it('mantiene selecciones activas en categorías distintas y excluye dentro de la misma', async () => {

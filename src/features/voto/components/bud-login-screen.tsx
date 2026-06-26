@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { AxiosError } from 'axios'
+import { toast } from 'sonner'
 import {
   ArrowRight,
   Building2,
@@ -7,14 +9,15 @@ import {
   IdCard,
   KeyRound,
   LockKeyhole,
+  Loader2,
   ShieldCheck,
 } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
@@ -28,16 +31,17 @@ import {
   METODOS_AUTENTICACION,
   type MetodoAutenticacion,
 } from '@/features/eleccion/configuracion-comicio/data/constants'
-import {
-  createDemoVotanteToken,
-  setVotanteToken,
-} from '@/features/voto/api/voto-api'
+import { loginVotante } from '@/features/voto/services/votante-auth-api'
+import type { VotanteAuthUser } from '@/features/voto/types/votante-auth.types'
 
 type BudLoginScreenProps = {
   idEleccion: number
   authMethod?: MetodoAutenticacion
-  onAuthenticated: (token: string) => void
+  onAuthenticated: (user: VotanteAuthUser) => void
 }
+
+const GENERIC_LOGIN_ERROR =
+  'No pudimos iniciar sesión. Verificá tus credenciales institucionales e intentá nuevamente.'
 
 export const BudLoginScreen = ({
   idEleccion,
@@ -47,69 +51,105 @@ export const BudLoginScreen = ({
   const [legajo, setLegajo] = useState('')
   const [clave, setClave] = useState('')
   const [showClave, setShowClave] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const isGoogleLogin = authMethod === METODOS_AUTENTICACION.GOOGLE
 
-  const handleAuthenticate = () => {
-    const token = createDemoVotanteToken()
-    setVotanteToken(idEleccion, token)
-    onAuthenticated(token)
+  const handleGoogleStub = () => {
+    toast.info('El inicio de sesión con Google estará disponible próximamente.')
+  }
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const nick = legajo.trim()
+    if (!nick || !clave) {
+      setErrorMessage('Ingresá tu legajo y clave institucional.')
+      return
+    }
+    setIsLoading(true)
+    setErrorMessage(null)
+    try {
+      const response = await loginVotante({
+        nick,
+        password: clave,
+        idEleccion,
+      })
+      onAuthenticated(response.user)
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        setErrorMessage(GENERIC_LOGIN_ERROR)
+      } else {
+        setErrorMessage(GENERIC_LOGIN_ERROR)
+      }
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
     <main className='relative min-h-svh overflow-hidden bg-[#fdfcfa] text-[#202124]'>
       <VotarLoginBackground />
-      <section className='relative mx-auto flex min-h-svh w-full max-w-[32rem] flex-col items-center px-6 py-8 sm:px-8'>
-        <p className='text-3xl leading-none font-extrabold tracking-tight text-[#2f6f9f]'>
-          VOTAR
-        </p>
+      <section className='relative mx-auto flex min-h-svh w-full max-w-md flex-col items-center justify-center px-4 py-8 sm:px-6'>
+        <div className='mb-8 text-center'>
+          <p className='text-2xl leading-none font-extrabold tracking-tight text-[#2f6f9f]'>
+            VOTAR
+          </p>
+        </div>
 
-        <Card className='mt-12 w-full gap-0 rounded-[1.35rem] border-[#e4e7eb] bg-white/95 py-0 shadow-[0_1.5rem_5rem_rgba(30,64,95,0.07)] backdrop-blur-sm'>
-          <CardHeader className='px-7 pt-10 text-center sm:px-10'>
-            <CardTitle className='text-3xl leading-tight font-bold tracking-[-0.03em] text-[#202124]'>
+        <Card className='w-full gap-0 rounded-2xl border-[#e4e7eb] bg-white/95 py-0 shadow-[0_1rem_3rem_rgba(30,64,95,0.08)] backdrop-blur-sm'>
+          <CardHeader className='space-y-1.5 px-6 pt-8 pb-0 text-center sm:px-8'>
+            <CardTitle className='text-2xl font-bold tracking-tight text-[#202124]'>
               Bienvenido
             </CardTitle>
-            <CardDescription className='mx-auto max-w-xs text-base leading-relaxed text-[#55575d]'>
-              Ingrese sus credenciales para comenzar
+            <CardDescription className='mx-auto max-w-sm text-sm leading-relaxed text-[#55575d]'>
+              Ingresá tus credenciales institucionales para comenzar
             </CardDescription>
           </CardHeader>
 
-          <CardContent className='px-7 pt-9 sm:px-10'>
+          <CardContent className='px-6 pt-6 pb-8 sm:px-8'>
+            {errorMessage ? (
+              <Alert variant='destructive' className='mb-5'>
+                <AlertTitle>Error de autenticación</AlertTitle>
+                <AlertDescription>{errorMessage}</AlertDescription>
+              </Alert>
+            ) : null}
+
             {isGoogleLogin ? (
               <Button
                 type='button'
                 variant='outline'
                 className='h-12 w-full rounded-lg border-[#cfd3d7] bg-white text-sm font-semibold text-[#2f3337] shadow-none hover:bg-slate-50'
-                onClick={handleAuthenticate}
+                onClick={handleGoogleStub}
+                aria-label='Iniciar sesión con Google — próximamente'
               >
                 <GoogleIcon className='size-5' />
                 Iniciar sesión con Google
               </Button>
             ) : (
-              <form
-                className='space-y-6'
-                onSubmit={(event) => {
-                  event.preventDefault()
-                  handleAuthenticate()
-                }}
-              >
+              <form className='flex flex-col gap-5' onSubmit={handleSubmit}>
                 <LoginField label='Número de Legajo' htmlFor='legajo-votante'>
                   <IdCard
-                    className='pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-[#74777d]'
+                    className='pointer-events-none absolute top-1/2 left-3.5 size-[1.125rem] -translate-y-1/2 text-[#74777d]'
                     aria-hidden='true'
                   />
                   <Input
                     id='legajo-votante'
                     value={legajo}
                     onChange={(event) => setLegajo(event.target.value)}
-                    placeholder='Ej: 99887766'
                     inputMode='numeric'
-                    className='h-12 rounded-lg border-[#c9cdd2] bg-white pr-4 pl-12 text-base shadow-none placeholder:text-[#2f3337] focus-visible:border-[#2f6f9f] focus-visible:ring-[#2f6f9f]/20'
+                    autoComplete='username'
+                    disabled={isLoading}
+                    placeholder='Ej. 14988'
+                    className='h-11 rounded-lg border-[#c9cdd2] bg-white pr-4 pl-11 text-base shadow-none placeholder:text-[#9aa0a6] focus-visible:border-[#2f6f9f] focus-visible:ring-[#2f6f9f]/20'
                   />
                 </LoginField>
 
-                <LoginField label='Clave Institucional' htmlFor='clave-votante'>
+                <LoginField
+                  label='Clave Institucional'
+                  htmlFor='clave-votante'
+                >
                   <LockKeyhole
-                    className='pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-[#74777d]'
+                    className='pointer-events-none absolute top-1/2 left-3.5 size-[1.125rem] -translate-y-1/2 text-[#74777d]'
                     aria-hidden='true'
                   />
                   <Input
@@ -117,18 +157,21 @@ export const BudLoginScreen = ({
                     value={clave}
                     onChange={(event) => setClave(event.target.value)}
                     type={showClave ? 'text' : 'password'}
-                    className='h-12 rounded-lg border-[#c9cdd2] bg-white pr-12 pl-12 text-base tracking-[0.28em] shadow-none focus-visible:border-[#2f6f9f] focus-visible:ring-[#2f6f9f]/20'
+                    autoComplete='current-password'
+                    disabled={isLoading}
+                    placeholder='••••••••'
+                    className='h-11 rounded-lg border-[#c9cdd2] bg-white pr-11 pl-11 text-base shadow-none placeholder:tracking-normal focus-visible:border-[#2f6f9f] focus-visible:ring-[#2f6f9f]/20'
                   />
                   <button
                     type='button'
-                    className='absolute top-1/2 right-3 grid size-8 -translate-y-1/2 place-items-center rounded-full text-[#74777d] transition hover:bg-slate-100 hover:text-[#2f6f9f] focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/20 focus-visible:outline-none'
+                    className='absolute top-1/2 right-2.5 grid size-8 -translate-y-1/2 place-items-center rounded-md text-[#74777d] transition hover:bg-slate-100 hover:text-[#2f6f9f] focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/20 focus-visible:outline-none'
                     onClick={() => setShowClave((current) => !current)}
                     aria-label={showClave ? 'Ocultar clave' : 'Mostrar clave'}
                   >
                     {showClave ? (
-                      <EyeOff className='size-5' aria-hidden='true' />
+                      <EyeOff className='size-4' aria-hidden='true' />
                     ) : (
-                      <Eye className='size-5' aria-hidden='true' />
+                      <Eye className='size-4' aria-hidden='true' />
                     )}
                   </button>
                 </LoginField>
@@ -136,26 +179,24 @@ export const BudLoginScreen = ({
                 <Button
                   type='submit'
                   size='lg'
-                  className='mt-8 h-12 w-full rounded-lg bg-[#2f6f9f] text-base font-semibold text-white shadow-none hover:bg-[#285f88]'
+                  disabled={isLoading}
+                  className='mt-1 h-11 w-full rounded-lg bg-[#2f6f9f] text-base font-semibold text-white shadow-none hover:bg-[#285f88]'
                 >
-                  Ingresar
-                  <ArrowRight className='size-6 stroke-[3]' aria-hidden='true' />
+                  {isLoading ? (
+                    <Loader2 className='size-5 animate-spin' aria-hidden='true' />
+                  ) : (
+                    <>
+                      Ingresar
+                      <ArrowRight
+                        className='size-5 stroke-[2.5]'
+                        aria-hidden='true'
+                      />
+                    </>
+                  )}
                 </Button>
               </form>
             )}
           </CardContent>
-
-          <CardFooter className='mx-7 mt-10 justify-center border-t border-[#d8d8d8] px-0 py-6 sm:mx-10'>
-            <div className='flex items-center justify-center gap-5 text-sm font-medium text-[#315f7a]'>
-              <a href='mailto:soporte@votar.local' className='hover:underline'>
-                Soporte Técnico
-              </a>
-              <span className='h-5 w-px bg-[#6c6f73]' aria-hidden='true' />
-              <a href='#privacidad' className='hover:underline'>
-                Privacidad
-              </a>
-            </div>
-          </CardFooter>
         </Card>
       </section>
     </main>

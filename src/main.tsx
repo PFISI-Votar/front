@@ -18,6 +18,9 @@ import { routeTree } from './routeTree.gen'
 // Styles
 import './styles/index.css'
 
+const isBudVotingRoute = (): boolean =>
+  /\/comicios\/\d+\/votar/.test(window.location.pathname)
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -52,6 +55,9 @@ const queryClient = new QueryClient({
     onError: (error) => {
       if (error instanceof AxiosError) {
         if (error.response?.status === 401) {
+          if (isBudVotingRoute()) {
+            return
+          }
           toast.error('Session expired!')
           useAuthStore.getState().auth.reset()
           const redirect = `${router.history.location.href}`
