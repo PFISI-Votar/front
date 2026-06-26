@@ -76,7 +76,6 @@ Ruta pública: `/comicios/{idEleccion}/votar`
 
 1. El votante ingresa legajo y clave de **Autogestión UTN** (no usar `/sign-in` del panel admin).
 2. El backend valida credenciales, comprueba padrón (`hash(dni:email)`) y emite JWT `role=voter` en cookie `votar_voter_access_token` (30 min, sin refresh).
-3. Guía UAT completa: `votar.back/docs/us-312-voter-login-uat.md`
 
 ## Scripts disponibles
 
