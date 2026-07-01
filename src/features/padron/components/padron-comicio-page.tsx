@@ -330,7 +330,7 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
               )}
 
               {merkleQuery.isError && (
-                <p className='text-destructive text-sm' role='alert'>
+                <p className='text-sm text-destructive' role='alert'>
                   No se pudo cargar el sello Merkle consolidado.
                 </p>
               )}
@@ -339,7 +339,9 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
                 <>
                   <div className='grid gap-4 sm:grid-cols-2'>
                     <div>
-                      <p className='text-muted-foreground text-sm'>Estado Merkle</p>
+                      <p className='text-sm text-muted-foreground'>
+                        Estado Merkle
+                      </p>
                       <Badge
                         variant={
                           merkleQuery.data.estado === 'PUBLICADO_ON_CHAIN'
@@ -351,13 +353,17 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
                       </Badge>
                     </div>
                     <div>
-                      <p className='text-muted-foreground text-sm'>Total hojas</p>
+                      <p className='text-sm text-muted-foreground'>
+                        Total hojas
+                      </p>
                       <p className='font-medium'>
                         {merkleQuery.data.totalHojas.toLocaleString('es-AR')}
                       </p>
                     </div>
                     <div className='sm:col-span-2'>
-                      <p className='text-muted-foreground text-sm'>Raíz Merkle</p>
+                      <p className='text-sm text-muted-foreground'>
+                        Raíz Merkle
+                      </p>
                       <p
                         className='font-mono text-xs break-all'
                         title={merkleQuery.data.merkleRoot}
@@ -369,14 +375,14 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
 
                   {merkleQuery.data.estado === 'PUBLICADO_ON_CHAIN' &&
                     merkleQuery.data.txHash && (
-                      <div className='rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-2'>
+                      <div className='space-y-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3'>
                         <p className='text-sm font-medium text-emerald-800 dark:text-emerald-300'>
                           Publicado on-chain
                         </p>
                         {merkleQuery.data.fechaPublicacionOnChain && (
-                          <p className='text-muted-foreground text-sm'>
+                          <p className='text-sm text-muted-foreground'>
                             {formatDateTimeForDisplay(
-                              merkleQuery.data.fechaPublicacionOnChain,
+                              merkleQuery.data.fechaPublicacionOnChain
                             )}
                           </p>
                         )}

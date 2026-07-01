@@ -107,20 +107,20 @@ export const listarPadronVotantes = async (
 
 /** Sello Merkle consolidado del padrón (VOTAR-334 / US-335). */
 export const obtenerMerkleResumen = async (
-  idEleccion: number,
+  idEleccion: number
 ): Promise<MerkleResumen> => {
   const { data } = await apiClient.get<MerkleResumen>(
-    `/elecciones/${idEleccion}/padron/merkle`,
+    `/elecciones/${idEleccion}/padron/merkle`
   )
   return data
 }
 
 /** Publica la raíz Merkle on-chain en Sepolia (VOTAR-335). */
 export const publicarMerkleOnChain = async (
-  idEleccion: number,
+  idEleccion: number
 ): Promise<PublicarMerkleResponse> => {
   const { data } = await apiClient.post<PublicarMerkleResponse>(
-    `/elecciones/${idEleccion}/padron/merkle/publicar`,
+    `/elecciones/${idEleccion}/padron/merkle/publicar`
   )
   return data
 }
