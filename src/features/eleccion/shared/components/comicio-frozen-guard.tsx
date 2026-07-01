@@ -20,7 +20,7 @@ export const ComicioFrozenGuard = ({
 }: ComicioFrozenGuardProps) => {
   if (isLoading) {
     return (
-      <p className='text-muted-foreground text-sm' aria-live='polite'>
+      <p className='text-sm text-muted-foreground' aria-live='polite'>
         Cargando…
       </p>
     )

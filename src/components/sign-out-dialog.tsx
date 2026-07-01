@@ -1,8 +1,8 @@
 import { useNavigate, useLocation } from '@tanstack/react-router'
 import { useAuthStore } from '@/stores/auth-store'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { logout } from '@/features/auth/services/auth-api'
 import { clearAccessTokenRefresh } from '@/features/auth/services/auth-session'
-import { ConfirmDialog } from '@/components/confirm-dialog'
 
 interface SignOutDialogProps {
   open: boolean

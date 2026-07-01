@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, type RenderResult } from 'vitest-browser-react'
 import { type Locator, userEvent } from 'vitest/browser'
-import { UserAuthForm } from './user-auth-form'
 import { ELECTION_ADMIN_ROLE } from '@/features/auth/types/auth.types'
+import { UserAuthForm } from './user-auth-form'
 
 const FORM_MESSAGES = {
   nickEmpty: 'Ingrese su usuario.',
@@ -100,7 +100,7 @@ describe('UserAuthForm', () => {
       })
       expect(setSessionMock).toHaveBeenCalledOnce()
       expect(setSessionMock).toHaveBeenCalledWith(
-        expect.objectContaining({ role: ELECTION_ADMIN_ROLE }),
+        expect.objectContaining({ role: ELECTION_ADMIN_ROLE })
       )
 
       await vi.waitFor(() =>
@@ -157,7 +157,7 @@ describe('UserAuthForm', () => {
     expect(setSessionMock).not.toHaveBeenCalled()
     expect(navigate).not.toHaveBeenCalled()
     expect(toastErrorMock).toHaveBeenCalledWith(
-      'Acceso denegado. Su cuenta no tiene privilegios de Autoridad Electoral.',
+      'Acceso denegado. Su cuenta no tiene privilegios de Autoridad Electoral.'
     )
   })
 })

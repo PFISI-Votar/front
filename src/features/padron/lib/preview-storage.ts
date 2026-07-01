@@ -7,7 +7,7 @@ export function clavePreview(idEleccion: number): string {
 
 export function guardarPreview(
   idEleccion: number,
-  registros: RegistroPreview[],
+  registros: RegistroPreview[]
 ): void {
   sessionStorage.setItem(clavePreview(idEleccion), JSON.stringify(registros))
 }

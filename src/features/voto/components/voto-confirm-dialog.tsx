@@ -1,5 +1,6 @@
 import { Loader2 } from 'lucide-react'
 import { resolveMediaUrl } from '@/lib/media-url'
+import { getDisplayNameInitials } from '@/lib/utils'
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -9,9 +10,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { getDisplayNameInitials } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 import type {
   BoletaDigital,
   CandidatoBoletaDigital,
@@ -72,7 +72,9 @@ export const VotoConfirmDialog = ({
                   key={categoria.idCategoria}
                   className='rounded-md border p-3'
                 >
-                  <span className='block font-semibold'>{categoria.nombre}</span>
+                  <span className='block font-semibold'>
+                    {categoria.nombre}
+                  </span>
                   {candidato ? (
                     <div className='mt-2 flex items-center gap-3'>
                       <Avatar className='size-12 rounded-xl border bg-muted'>
@@ -100,9 +102,12 @@ export const VotoConfirmDialog = ({
                         </AvatarFallback>
                       </Avatar>
                       <div className='min-w-0'>
-                        <p className='font-medium'>{candidato.nombreCompleto}</p>
+                        <p className='font-medium'>
+                          {candidato.nombreCompleto}
+                        </p>
                         <p className='text-muted-foreground'>
-                          {candidato.agrupacionPolitica}, lista {candidato.numeroLista}
+                          {candidato.agrupacionPolitica}, lista{' '}
+                          {candidato.numeroLista}
                         </p>
                       </div>
                     </div>

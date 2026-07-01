@@ -41,11 +41,6 @@ import {
   obtenerConfiguracionBud,
 } from '@/features/voto/api/voto-api'
 import {
-  clearVotanteSession,
-  ensureVotanteSession,
-} from '@/features/voto/services/votante-session'
-import type { VotanteAuthUser } from '@/features/voto/types/votante-auth.types'
-import {
   BudBottomNav,
   BudLoginScreen,
   BudTopBar,
@@ -58,6 +53,11 @@ import type {
   ConfirmarVotoResponse,
   SeleccionesPorCategoria,
 } from '@/features/voto/data/schema'
+import {
+  clearVotanteSession,
+  ensureVotanteSession,
+} from '@/features/voto/services/votante-session'
+import type { VotanteAuthUser } from '@/features/voto/types/votante-auth.types'
 import {
   buildConfirmarVotoInput,
   generarIdempotencyKey,
@@ -111,11 +111,13 @@ export const BoletaUnicaDigitalPage = ({
 }: BoletaUnicaDigitalPageProps) => {
   const [introVisible, setIntroVisible] = useState(() => showIntro)
   const [votanteSession, setVotanteSession] = useState<VotanteAuthUser | null>(
-    showLogin ? null : {
-      sub: 'test-session',
-      role: 'voter',
-      idEleccion,
-    }
+    showLogin
+      ? null
+      : {
+          sub: 'test-session',
+          role: 'voter',
+          idEleccion,
+        }
   )
   const [sessionBootstrapComplete, setSessionBootstrapComplete] = useState(
     () => !showLogin
@@ -136,7 +138,8 @@ export const BoletaUnicaDigitalPage = ({
     queryKey: ['boleta-digital', idEleccion],
     queryFn: () => obtenerBoletaDigital(idEleccion),
     retry: false,
-    enabled: Boolean(votanteSession) && !introVisible && sessionBootstrapComplete,
+    enabled:
+      Boolean(votanteSession) && !introVisible && sessionBootstrapComplete,
   })
   const budConfigQuery = useQuery({
     queryKey: ['bud-config', idEleccion],
@@ -282,8 +285,8 @@ export const BoletaUnicaDigitalPage = ({
   }
 
   if (showLogin && !votanteSession) {
-    const metodosAutenticacion =
-      (budConfigQuery.data?.metodosAutenticacion ?? []) as MetodoAutenticacion[]
+    const metodosAutenticacion = (budConfigQuery.data?.metodosAutenticacion ??
+      []) as MetodoAutenticacion[]
     const authMethod =
       metodosAutenticacion.includes(METODOS_AUTENTICACION.GOOGLE) &&
       !metodosAutenticacion.includes(METODOS_AUTENTICACION.SSO_INSTITUCIONAL)

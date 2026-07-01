@@ -1,11 +1,13 @@
-import { useParams, useRouterState } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
+import { useParams, useRouterState } from '@tanstack/react-router'
+import { type BreadcrumbEntry } from '@/components/layout/breadcrumb-nav'
 import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
 import { listarListas } from '@/features/eleccion/lista/api/lista-api'
-import { type BreadcrumbEntry } from '@/components/layout/breadcrumb-nav'
 
 export const useComiciosBreadcrumbEntries = (): BreadcrumbEntry[] => {
-  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
   const params = useParams({ strict: false })
 
   const idEleccion = params.idEleccion ? Number(params.idEleccion) : undefined

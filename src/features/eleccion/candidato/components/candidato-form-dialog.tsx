@@ -123,7 +123,7 @@ export const CandidatoFormDialog = ({
         <ConflictAlert message={conflictMessage} />
 
         {isLoading ? (
-          <p className='text-muted-foreground text-sm' aria-live='polite'>
+          <p className='text-sm text-muted-foreground' aria-live='polite'>
             Cargando formulario…
           </p>
         ) : (

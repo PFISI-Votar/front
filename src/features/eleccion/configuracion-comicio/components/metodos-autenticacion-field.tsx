@@ -7,9 +7,9 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import type { CreateComicioInput } from '@/features/eleccion/data/schema'
 import { METODOS_AUTENTICACION_OPTIONS } from '@/features/eleccion/configuracion-comicio/data/constants'
 import type { MetodoAutenticacionInput } from '@/features/eleccion/configuracion-comicio/data/schema'
+import type { CreateComicioInput } from '@/features/eleccion/data/schema'
 
 type MetodosAutenticacionFieldProps = {
   control: Control<CreateComicioInput>
@@ -27,7 +27,7 @@ export const MetodosAutenticacionField = ({
 
         const handleToggle = (
           metodo: MetodoAutenticacionInput,
-          checked: boolean,
+          checked: boolean
         ) => {
           const next = checked
             ? [...selected, metodo]
@@ -59,7 +59,9 @@ export const MetodosAutenticacionField = ({
                         aria-label={option.label}
                       />
                     </FormControl>
-                    <FormLabel className='font-normal'>{option.label}</FormLabel>
+                    <FormLabel className='font-normal'>
+                      {option.label}
+                    </FormLabel>
                   </FormItem>
                 )
               })}

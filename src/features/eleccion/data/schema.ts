@@ -1,11 +1,11 @@
 import { z } from 'zod'
 import { isUtcIsoDateTime } from '@/lib/datetime'
+import type { MetodoAutenticacion } from '@/features/eleccion/configuracion-comicio/data/constants'
 import { metodosAutenticacionSchema } from '@/features/eleccion/configuracion-comicio/data/schema'
 import {
   tipoVotacionSchema,
   type TipoVotacion,
 } from '@/features/eleccion/lista/data/schema'
-import type { MetodoAutenticacion } from '@/features/eleccion/configuracion-comicio/data/constants'
 
 export type EleccionEstado =
   | 'BORRADOR'

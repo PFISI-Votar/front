@@ -6,9 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import {
-  VotarLoginBackground,
-} from '@/features/auth/sign-in/components/login-screen-shared'
+import { VotarLoginBackground } from '@/features/auth/sign-in/components/login-screen-shared'
 import { UserAuthForm } from '@/features/auth/sign-in/components/user-auth-form'
 
 type AdminLoginScreenProps = {

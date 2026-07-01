@@ -1,9 +1,11 @@
 import { useMemo, useState, type KeyboardEvent } from 'react'
+import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
-import { toast } from 'sonner'
 import { FolderTree, ChevronDown, Pencil, Plus, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { getApiErrorMessage } from '@/lib/api-client'
+import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -28,8 +30,6 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import { getApiErrorMessage } from '@/lib/api-client'
-import { cn } from '@/lib/utils'
 import {
   actualizarCategoria,
   crearCategoria,
@@ -72,7 +72,7 @@ type CategoriaFormProps = {
 }
 
 const blockInvalidNumberKeys = (
-  event: KeyboardEvent<HTMLInputElement>,
+  event: KeyboardEvent<HTMLInputElement>
 ): void => {
   if (['-', '+', 'e', 'E', '.', ','].includes(event.key)) {
     event.preventDefault()
@@ -81,7 +81,7 @@ const blockInvalidNumberKeys = (
 
 const parseBoundedInteger = (
   rawValue: string,
-  minimum: number,
+  minimum: number
 ): number | null => {
   if (rawValue === '') {
     return null
@@ -114,7 +114,7 @@ const CategoriaForm = ({
         categorias: existingCategorias,
         excludeIdCategoria: editingIdCategoria,
       }),
-    [existingCategorias, editingIdCategoria],
+    [existingCategorias, editingIdCategoria]
   )
   const form = useForm<CategoriaFormInput>({
     resolver: zodResolver(formSchema),
@@ -241,7 +241,7 @@ export const CategoriasPanel = ({
   const [isOpen, setIsOpen] = useState(false)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [editingCategoria, setEditingCategoria] = useState<Categoria | null>(
-    null,
+    null
   )
   const [deleteTarget, setDeleteTarget] = useState<Categoria | null>(null)
 
@@ -251,7 +251,9 @@ export const CategoriasPanel = ({
   })
 
   const invalidateCategorias = async () => {
-    await queryClient.invalidateQueries({ queryKey: ['categorias', idEleccion] })
+    await queryClient.invalidateQueries({
+      queryKey: ['categorias', idEleccion],
+    })
     await queryClient.invalidateQueries({ queryKey: ['eleccion', idEleccion] })
     await queryClient.invalidateQueries({ queryKey: ['listas', idEleccion] })
   }
@@ -316,8 +318,8 @@ export const CategoriasPanel = ({
       </div>
       <ChevronDown
         className={cn(
-          'text-muted-foreground mt-1 size-5 shrink-0 transition-transform duration-200',
-          isOpen && 'rotate-180',
+          'mt-1 size-5 shrink-0 text-muted-foreground transition-transform duration-200',
+          isOpen && 'rotate-180'
         )}
         aria-hidden='true'
       />
@@ -375,137 +377,140 @@ export const CategoriasPanel = ({
               </Button>
             )}
 
-        {showCreateForm && isEditable && (
-          <CategoriaForm
-            defaultValues={buildCategoriaDefaults()}
-            submitLabel='Agregar categoría'
-            isLoading={crearMutation.isPending}
-            existingCategorias={categorias}
-            onSubmit={async (values) => {
-              await crearMutation.mutateAsync(values)
-            }}
-            onCancel={() => setShowCreateForm(false)}
-          />
-        )}
+            {showCreateForm && isEditable && (
+              <CategoriaForm
+                defaultValues={buildCategoriaDefaults()}
+                submitLabel='Agregar categoría'
+                isLoading={crearMutation.isPending}
+                existingCategorias={categorias}
+                onSubmit={async (values) => {
+                  await crearMutation.mutateAsync(values)
+                }}
+                onCancel={() => setShowCreateForm(false)}
+              />
+            )}
 
-        {categorias.length === 0 && (
-          <p className='text-muted-foreground text-sm'>
-            Aún no hay categorías registradas. Agregue al menos una antes de
-            registrar candidatos u oficializar.
-          </p>
-        )}
+            {categorias.length === 0 && (
+              <p className='text-sm text-muted-foreground'>
+                Aún no hay categorías registradas. Agregue al menos una antes de
+                registrar candidatos u oficializar.
+              </p>
+            )}
 
-        {categorias.length > 0 && (
-          <ul
-            className='flex flex-col gap-3'
-            aria-label='Listado de categorías electorales'
-          >
-            {categorias.map((categoria) => {
-              const isEditing =
-                editingCategoria?.idCategoria === categoria.idCategoria
+            {categorias.length > 0 && (
+              <ul
+                className='flex flex-col gap-3'
+                aria-label='Listado de categorías electorales'
+              >
+                {categorias.map((categoria) => {
+                  const isEditing =
+                    editingCategoria?.idCategoria === categoria.idCategoria
 
-              if (isEditing) {
-                return (
-                  <li key={categoria.idCategoria}>
-                    <CategoriaForm
-                      defaultValues={mapCategoriaToForm(categoria)}
-                      submitLabel='Guardar cambios'
-                      isLoading={actualizarMutation.isPending}
-                      existingCategorias={categorias}
-                      editingIdCategoria={categoria.idCategoria}
-                      onSubmit={async (values) => {
-                        await actualizarMutation.mutateAsync({
-                          idCategoria: categoria.idCategoria,
-                          input: values,
-                        })
-                      }}
-                      onCancel={() => setEditingCategoria(null)}
-                    />
-                  </li>
-                )
-              }
-
-              return (
-                <li
-                  key={categoria.idCategoria}
-                  className='flex flex-wrap items-start justify-between gap-3 rounded-lg border px-4 py-3'
-                >
-                  <div className='flex min-w-0 flex-col gap-1'>
-                    <p className='font-medium'>{categoria.nombre}</p>
-                    {categoria.descripcion ? (
-                      <p className='text-muted-foreground text-sm'>
-                        {categoria.descripcion}
-                      </p>
-                    ) : null}
-                    <p className='text-muted-foreground text-sm'>
-                      Postulantes por lista: mín. {categoria.minimoPostulantes}{' '}
-                      · máx. {categoria.cantidadCargos}
-                    </p>
-                  </div>
-                  <div className='flex items-center gap-2'>
-                    <Badge variant='secondary'>Orden {categoria.orden}</Badge>
-                    {isEditable && (
-                      <>
-                        <Button
-                          type='button'
-                          size='icon'
-                          variant='ghost'
-                          aria-label={`Editar categoría ${categoria.nombre}`}
-                          onClick={() => {
-                            setShowCreateForm(false)
-                            setEditingCategoria(categoria)
+                  if (isEditing) {
+                    return (
+                      <li key={categoria.idCategoria}>
+                        <CategoriaForm
+                          defaultValues={mapCategoriaToForm(categoria)}
+                          submitLabel='Guardar cambios'
+                          isLoading={actualizarMutation.isPending}
+                          existingCategorias={categorias}
+                          editingIdCategoria={categoria.idCategoria}
+                          onSubmit={async (values) => {
+                            await actualizarMutation.mutateAsync({
+                              idCategoria: categoria.idCategoria,
+                              input: values,
+                            })
                           }}
-                        >
-                          <Pencil className='size-4' />
-                        </Button>
-                        <Button
-                          type='button'
-                          size='icon'
-                          variant='ghost'
-                          aria-label={`Eliminar categoría ${categoria.nombre}`}
-                          onClick={() => setDeleteTarget(categoria)}
-                        >
-                          <Trash2 className='size-4 text-destructive' />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        )}
+                          onCancel={() => setEditingCategoria(null)}
+                        />
+                      </li>
+                    )
+                  }
+
+                  return (
+                    <li
+                      key={categoria.idCategoria}
+                      className='flex flex-wrap items-start justify-between gap-3 rounded-lg border px-4 py-3'
+                    >
+                      <div className='flex min-w-0 flex-col gap-1'>
+                        <p className='font-medium'>{categoria.nombre}</p>
+                        {categoria.descripcion ? (
+                          <p className='text-sm text-muted-foreground'>
+                            {categoria.descripcion}
+                          </p>
+                        ) : null}
+                        <p className='text-sm text-muted-foreground'>
+                          Postulantes por lista: mín.{' '}
+                          {categoria.minimoPostulantes} · máx.{' '}
+                          {categoria.cantidadCargos}
+                        </p>
+                      </div>
+                      <div className='flex items-center gap-2'>
+                        <Badge variant='secondary'>
+                          Orden {categoria.orden}
+                        </Badge>
+                        {isEditable && (
+                          <>
+                            <Button
+                              type='button'
+                              size='icon'
+                              variant='ghost'
+                              aria-label={`Editar categoría ${categoria.nombre}`}
+                              onClick={() => {
+                                setShowCreateForm(false)
+                                setEditingCategoria(categoria)
+                              }}
+                            >
+                              <Pencil className='size-4' />
+                            </Button>
+                            <Button
+                              type='button'
+                              size='icon'
+                              variant='ghost'
+                              aria-label={`Eliminar categoría ${categoria.nombre}`}
+                              onClick={() => setDeleteTarget(categoria)}
+                            >
+                              <Trash2 className='size-4 text-destructive' />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
           </CardContent>
         </CollapsibleContent>
 
-      <ConfirmDialog
-        open={deleteTarget !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleteTarget(null)
+        <ConfirmDialog
+          open={deleteTarget !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeleteTarget(null)
+            }
+          }}
+          title='¿Eliminar categoría?'
+          desc={
+            deleteTarget ? (
+              <>
+                Se eliminará la categoría <strong>{deleteTarget.nombre}</strong>
+                . Solo es posible si no tiene candidatos registrados.
+              </>
+            ) : (
+              ''
+            )
           }
-        }}
-        title='¿Eliminar categoría?'
-        desc={
-          deleteTarget ? (
-            <>
-              Se eliminará la categoría <strong>{deleteTarget.nombre}</strong>.
-              Solo es posible si no tiene candidatos registrados.
-            </>
-          ) : (
-            ''
-          )
-        }
-        cancelBtnText='Cancelar'
-        confirmText='Sí, eliminar'
-        destructive
-        isLoading={eliminarMutation.isPending}
-        handleConfirm={() => {
-          if (deleteTarget) {
-            eliminarMutation.mutate(deleteTarget.idCategoria)
-          }
-        }}
-      />
+          cancelBtnText='Cancelar'
+          confirmText='Sí, eliminar'
+          destructive
+          isLoading={eliminarMutation.isPending}
+          handleConfirm={() => {
+            if (deleteTarget) {
+              eliminarMutation.mutate(deleteTarget.idCategoria)
+            }
+          }}
+        />
       </Card>
     </Collapsible>
   )

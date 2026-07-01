@@ -4,8 +4,20 @@ import { getCategoriasDisponibles } from '@/features/eleccion/candidato/utils/ca
 import type { CategoriaElectoral } from '@/features/eleccion/categoria/data/schema'
 
 const categorias: CategoriaElectoral[] = [
-  { idCategoria: 1, nombre: 'Presidente', minimoPostulantes: 0, maximoPostulantes: 1, orden: 1 },
-  { idCategoria: 2, nombre: 'Vocal', minimoPostulantes: 0, maximoPostulantes: 2, orden: 2 },
+  {
+    idCategoria: 1,
+    nombre: 'Presidente',
+    minimoPostulantes: 0,
+    maximoPostulantes: 1,
+    orden: 1,
+  },
+  {
+    idCategoria: 2,
+    nombre: 'Vocal',
+    minimoPostulantes: 0,
+    maximoPostulantes: 2,
+    orden: 2,
+  },
 ]
 
 describe('getCategoriasDisponibles', () => {
