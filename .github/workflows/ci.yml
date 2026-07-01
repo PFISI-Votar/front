@@ -14,7 +14,7 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -35,11 +35,24 @@ jobs:
       - name: Run Prettier check
         run: npm run format:check
 
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-chromium-shell-${{ hashFiles('package-lock.json') }}
+
       - name: Install Playwright Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 5
         run: npx playwright install chromium --only-shell
 
-      - name: Run tests
-        run: npm test
+      - name: Run browser tests
+        timeout-minutes: 10
+        run: npm run test:browser
 
       - name: Build the project
         run: npm run build
