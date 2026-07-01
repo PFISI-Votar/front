@@ -3,14 +3,16 @@ name: Continuous Integration
 on:
   push:
     branches:
-      - main
+      - dev
+      - master
 
   pull_request:
     branches:
-      - main
+      - dev
+      - master
 
 jobs:
-  install-lint-build:
+  ci:
     runs-on: ubuntu-latest
 
     steps:
