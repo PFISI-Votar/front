@@ -14,7 +14,6 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -47,11 +46,9 @@ jobs:
 
       - name: Install Playwright Chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        timeout-minutes: 5
         run: npx playwright install chromium --only-shell
 
       - name: Run browser tests
-        timeout-minutes: 10
         run: npm run test:browser
 
       - name: Build the project
