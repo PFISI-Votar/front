@@ -3,7 +3,7 @@ import budFingerprint from '@/assets/bud-fingerprint.png'
 import { cn } from '@/lib/utils'
 import { Label } from '@/components/ui/label'
 
-export const BACKGROUND_FINGERPRINTS = [
+const BACKGROUND_FINGERPRINTS = [
   { top: '8%', left: '12%', width: '7.5rem', opacity: 0.05, rotate: '-18deg' },
   { top: '12%', left: '82%', width: '8rem', opacity: 0.045, rotate: '21deg' },
   { top: '30%', left: '28%', width: '7rem', opacity: 0.04, rotate: '8deg' },

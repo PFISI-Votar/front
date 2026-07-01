@@ -96,6 +96,7 @@ const AppLayout = ({ children, config }: AppLayoutProps) => {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAppLayoutConfig = (config: AppLayoutConfig) => {
   const context = useContext(AppLayoutContext)
 
@@ -108,6 +109,8 @@ export const useAppLayoutConfig = (config: AppLayoutConfig) => {
   useEffect(() => {
     setConfig(config)
     return resetConfig
+    // Granular fields avoid re-running when callers pass a new object literal each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     config.fixed,
     config.headerClassName,

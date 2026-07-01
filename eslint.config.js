@@ -7,7 +7,7 @@ import { defineConfig } from 'eslint/config'
 import tseslint from 'typescript-eslint'
 
 export default defineConfig(
-  { ignores: ['dist', 'src/components/ui'] },
+  { ignores: ['dist', 'src/components/ui', 'coverage'] },
   {
     extends: [
       js.configs.recommended,
@@ -54,6 +54,12 @@ export default defineConfig(
       ],
       // Prevent duplicate imports from the same module
       'no-duplicate-imports': 'error',
+    },
+  },
+  {
+    files: ['src/routes/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
     },
   }
 )
