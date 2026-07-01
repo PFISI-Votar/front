@@ -11,11 +11,12 @@
     "format:check": "prettier --check .",
     "format": "prettier --write .",
     "test": "vitest run --browser.headless",
+    "test:unit": "vitest run --project unit",
+    "test:browser": "vitest run --project browser --browser.headless",
     "test:watch": "vitest --browser.headless",
     "test:ui": "vitest --ui --browser.headless",
-    "test:browser": "vitest",
     "test:coverage": "vitest run --coverage --browser.headless",
-    "test:browser:install": "playwright install chromium --with-deps"
+    "test:browser:install": "playwright install chromium"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

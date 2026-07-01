@@ -1,12 +1,12 @@
 // preview-storage.test.ts
 import { afterEach, describe, expect, it } from 'vitest'
+import type { RegistroPreview } from './parse-csv-padron'
 import {
   clavePreview,
   guardarPreview,
   leerPreview,
   limpiarPreview,
 } from './preview-storage'
-import type { RegistroPreview } from './parse-csv-padron'
 
 const reg: RegistroPreview[] = [
   { id: 'a', linea: 2, dni: '12345678', email: 'a@a.com' },

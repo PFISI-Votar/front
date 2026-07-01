@@ -24,13 +24,39 @@ export default defineConfig({
   test: {
     silent: 'passed-only',
     unstubEnvs: true,
-    browser: {
-      enabled: true,
-      provider: playwright(),
-      instances: [{ browser: 'chromium' }],
-    },
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'unit',
+          environment: 'node',
+          include: ['src/**/*.test.ts'],
+          exclude: [
+            'src/hooks/use-table-url-state.test.ts',
+            'src/lib/cookies.test.ts',
+            'src/features/padron/lib/preview-storage.test.ts',
+          ],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'browser',
+          include: [
+            'src/**/*.test.tsx',
+            'src/hooks/use-table-url-state.test.ts',
+            'src/lib/cookies.test.ts',
+            'src/features/padron/lib/preview-storage.test.ts',
+          ],
+          browser: {
+            enabled: true,
+            provider: playwright(),
+            instances: [{ browser: 'chromium' }],
+          },
+        },
+      },
+    ],
     coverage: {
-      // include: ['src/**/*.{js,jsx,ts,tsx}'], // Uncomment to expand the report to all src/**/* so untested modules appear as 0% coverage.
       exclude: [
         'src/components/ui/**',
         'src/assets/**',

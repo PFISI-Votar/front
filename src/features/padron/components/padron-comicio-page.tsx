@@ -1,8 +1,7 @@
 import { useState } from 'react'
-import { Link } from '@tanstack/react-router'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
-import { toast } from 'sonner'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import {
   ArrowLeft,
   ChevronDown,
@@ -15,8 +14,10 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react'
-import { ConfirmDialog } from '@/components/confirm-dialog'
+import { toast } from 'sonner'
 import { getApiErrorMessage } from '@/lib/api-client'
+import { formatDateTimeForDisplay } from '@/lib/datetime'
+import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -55,12 +56,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { cn } from '@/lib/utils'
-import { formatDateTimeForDisplay } from '@/lib/datetime'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
 import { eliminarPadron, obtenerReporteNovedades } from '../api/padron-api'
-import { descargarReporteNovedades } from '../lib/descargar-reporte'
-import { PadronUploadForm } from './padron-upload-form'
 import {
   PADRON_PAGE_SIZES,
   usePadronMerkle,
@@ -68,6 +66,8 @@ import {
   usePadronVotantes,
 } from '../hooks/use-padron'
 import { usePublicarMerkle } from '../hooks/use-publicar-merkle'
+import { descargarReporteNovedades } from '../lib/descargar-reporte'
+import { PadronUploadForm } from './padron-upload-form'
 
 type PadronComicioPageProps = {
   idEleccion: number
@@ -227,7 +227,7 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
       )}
 
       {resumenQuery.isError && !sinPadron && (
-        <p className='text-destructive text-sm' role='alert'>
+        <p className='text-sm text-destructive' role='alert'>
           No se pudo cargar el resumen del padrón. Verifique que el backend esté
           en ejecución.
         </p>
@@ -245,7 +245,7 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
             </CardHeader>
             <CardContent className='grid gap-4 sm:grid-cols-2'>
               <div>
-                <p className='text-muted-foreground text-sm'>
+                <p className='text-sm text-muted-foreground'>
                   Votantes habilitados
                 </p>
                 <p className='text-2xl font-semibold'>
@@ -255,14 +255,17 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
                 </p>
               </div>
               <div>
-                <p className='text-muted-foreground text-sm'>Estado</p>
+                <p className='text-sm text-muted-foreground'>Estado</p>
                 <Badge variant='secondary'>{resumenQuery.data.estado}</Badge>
               </div>
               <div className='sm:col-span-2'>
-                <p className='text-muted-foreground text-sm'>
+                <p className='text-sm text-muted-foreground'>
                   Hash del padrón (Keccak-256)
                 </p>
-                <p className='font-mono text-xs break-all' title={resumenQuery.data.hashPadron}>
+                <p
+                  className='font-mono text-xs break-all'
+                  title={resumenQuery.data.hashPadron}
+                >
                   {resumenQuery.data.hashPadron}
                 </p>
               </div>
@@ -437,7 +440,7 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
               )}
 
               {votantesQuery.isError && (
-                <p className='text-destructive text-sm' role='alert'>
+                <p className='text-sm text-destructive' role='alert'>
                   No se pudieron cargar las hojas del padrón.
                 </p>
               )}
@@ -467,12 +470,12 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
 
                   <div className='mt-4 flex flex-wrap items-center justify-between gap-3'>
                     <div className='flex items-center gap-3'>
-                      <p className='text-muted-foreground text-sm'>
+                      <p className='text-sm text-muted-foreground'>
                         Página {votantesQuery.data.page} de {totalPaginas} ·{' '}
                         {votantesQuery.data.total.toLocaleString('es-AR')} hojas
                       </p>
                       <div className='flex items-center gap-2'>
-                        <span className='text-muted-foreground text-sm'>
+                        <span className='text-sm text-muted-foreground'>
                           Filas por página
                         </span>
                         <Select
@@ -506,7 +509,9 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
                       <Button
                         variant='outline'
                         size='sm'
-                        disabled={page >= totalPaginas || votantesQuery.isFetching}
+                        disabled={
+                          page >= totalPaginas || votantesQuery.isFetching
+                        }
                         onClick={() => setPage((p) => p + 1)}
                       >
                         Siguiente
@@ -529,7 +534,9 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
         desc={
           <>
             Esta acción <strong>elimina todas las hojas del padrón</strong> (
-            {resumenQuery.data?.totalVotantesHabilitados.toLocaleString('es-AR')}{' '}
+            {resumenQuery.data?.totalVotantesHabilitados.toLocaleString(
+              'es-AR'
+            )}{' '}
             votantes habilitados) del comicio{' '}
             <strong>{eleccionQuery.data?.nombre}</strong>. Sólo es posible
             mientras la elección está en estado BORRADOR. Deberá volver a

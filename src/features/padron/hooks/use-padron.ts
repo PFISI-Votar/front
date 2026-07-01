@@ -1,5 +1,5 @@
-import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import {
   listarPadronVotantes,
   obtenerMerkleResumen,
@@ -44,7 +44,7 @@ export function usePadronVotantes(
   idEleccion: number,
   page: number,
   limit: number,
-  enabled: boolean,
+  enabled: boolean
 ) {
   return useQuery({
     queryKey: ['padron-votantes', idEleccion, page, limit],

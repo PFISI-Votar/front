@@ -27,7 +27,7 @@ export const CandidatoCategoriaField = ({
 }: CandidatoCategoriaFieldProps) => {
   if (categoriasDisponibles.length === 0) {
     return (
-      <p className='text-destructive text-sm' role='alert'>
+      <p className='text-sm text-destructive' role='alert'>
         No hay categorías con cupo disponible en esta lista. Revise los límites
         de postulantes o agregue categorías en la oferta electoral.
       </p>

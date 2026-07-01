@@ -69,20 +69,20 @@ export interface PublicarMerkleResponse {
 
 /** Resumen del padrón de un comicio (total, estado, hash, fecha). */
 export const obtenerPadronResumen = async (
-  idEleccion: number,
+  idEleccion: number
 ): Promise<PadronResumen> => {
   const { data } = await apiClient.get<PadronResumen>(
-    `/elecciones/${idEleccion}/padron`,
+    `/elecciones/${idEleccion}/padron`
   )
   return data
 }
 
 /** Reporte de novedades persistido de la importación (para re-descarga). */
 export const obtenerReporteNovedades = async (
-  idEleccion: number,
+  idEleccion: number
 ): Promise<ReporteNovedades> => {
   const { data } = await apiClient.get<ReporteNovedades>(
-    `/elecciones/${idEleccion}/padron/novedades`,
+    `/elecciones/${idEleccion}/padron/novedades`
   )
   return data
 }
@@ -96,11 +96,11 @@ export const eliminarPadron = async (idEleccion: number): Promise<void> => {
 export const listarPadronVotantes = async (
   idEleccion: number,
   page: number,
-  limit: number,
+  limit: number
 ): Promise<ListarVotantesResponse> => {
   const { data } = await apiClient.get<ListarVotantesResponse>(
     `/elecciones/${idEleccion}/padron/votantes`,
-    { params: { page, limit } },
+    { params: { page, limit } }
   )
   return data
 }

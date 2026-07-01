@@ -1,18 +1,23 @@
 import { apiClient } from '@/lib/api-client'
-import type { CreateComicioInput, Eleccion } from '@/features/eleccion/data/schema'
+import type {
+  CreateComicioInput,
+  Eleccion,
+} from '@/features/eleccion/data/schema'
 
-export const crearEleccion = async (input: CreateComicioInput): Promise<Eleccion> => {
+export const crearEleccion = async (
+  input: CreateComicioInput
+): Promise<Eleccion> => {
   const { data } = await apiClient.post<Eleccion>('/elecciones', input)
   return data
 }
 
 export const actualizarEleccion = async (
   idEleccion: number,
-  input: CreateComicioInput,
+  input: CreateComicioInput
 ): Promise<Eleccion> => {
   const { data } = await apiClient.patch<Eleccion>(
     `/elecciones/${idEleccion}`,
-    input,
+    input
   )
   return data
 }
@@ -26,7 +31,9 @@ export const listarElecciones = async (): Promise<Eleccion[]> => {
   return data
 }
 
-export const obtenerEleccion = async (idEleccion: number): Promise<Eleccion> => {
+export const obtenerEleccion = async (
+  idEleccion: number
+): Promise<Eleccion> => {
   const { data } = await apiClient.get<Eleccion>(`/elecciones/${idEleccion}`)
   return data
 }

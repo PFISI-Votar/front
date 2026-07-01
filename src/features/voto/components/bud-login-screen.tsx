@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { AxiosError } from 'axios'
-import { toast } from 'sonner'
 import {
   ArrowRight,
   Building2,
@@ -12,6 +11,8 @@ import {
   Loader2,
   ShieldCheck,
 } from 'lucide-react'
+import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,7 +23,6 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { cn } from '@/lib/utils'
 import {
   LoginField,
   VotarLoginBackground,
@@ -144,10 +144,7 @@ export const BudLoginScreen = ({
                   />
                 </LoginField>
 
-                <LoginField
-                  label='Clave Institucional'
-                  htmlFor='clave-votante'
-                >
+                <LoginField label='Clave Institucional' htmlFor='clave-votante'>
                   <LockKeyhole
                     className='pointer-events-none absolute top-1/2 left-3.5 size-[1.125rem] -translate-y-1/2 text-[#74777d]'
                     aria-hidden='true'
@@ -183,7 +180,10 @@ export const BudLoginScreen = ({
                   className='mt-1 h-11 w-full rounded-lg bg-[#2f6f9f] text-base font-semibold text-white shadow-none hover:bg-[#285f88]'
                 >
                   {isLoading ? (
-                    <Loader2 className='size-5 animate-spin' aria-hidden='true' />
+                    <Loader2
+                      className='size-5 animate-spin'
+                      aria-hidden='true'
+                    />
                   ) : (
                     <>
                       Ingresar

@@ -87,7 +87,9 @@ const StaticBreadcrumbsNav = ({ pathname }: { pathname: string }) => {
 }
 
 export const AppBreadcrumbs = () => {
-  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
 
   if (pathname.startsWith('/comicios')) {
     return <ComiciosBreadcrumbsNav />

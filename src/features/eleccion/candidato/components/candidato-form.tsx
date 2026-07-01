@@ -18,10 +18,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import {
-  CandidatoCamposDinamicos,
-  mapApiFieldErrorsToForm,
-} from '@/features/eleccion/candidato/components/candidato-campos-dinamicos'
+import { CandidatoCamposDinamicos } from '@/features/eleccion/candidato/components/candidato-campos-dinamicos'
 import { CandidatoCategoriaField } from '@/features/eleccion/candidato/components/candidato-categoria-field'
 import {
   createCandidatoSchema,
@@ -30,6 +27,7 @@ import {
   type CreateCandidatoInput,
 } from '@/features/eleccion/candidato/data/schema'
 import { getCategoriasDisponibles } from '@/features/eleccion/candidato/utils/categorias-disponibles'
+import { mapApiFieldErrorsToForm } from '@/features/eleccion/candidato/utils/map-api-field-errors-to-form'
 import type { CategoriaElectoral } from '@/features/eleccion/categoria/data/schema'
 import {
   IMAGE_FILE_REQUIREMENTS,

@@ -1,6 +1,7 @@
-import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { ArrowRight, FileSpreadsheet, Vote } from 'lucide-react'
+import { formatDateTimeForDisplay } from '@/lib/datetime'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -10,7 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { formatDateTimeForDisplay } from '@/lib/datetime'
 import { listarElecciones } from '@/features/eleccion/api/eleccion-api'
 import type { EleccionEstado } from '@/features/eleccion/data/schema'
 
@@ -21,14 +21,18 @@ const estadoVariant = (estado: EleccionEstado) => {
 }
 
 export const ComiciosList = () => {
-  const { data: comicios, isLoading, isError } = useQuery({
+  const {
+    data: comicios,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['elecciones'],
     queryFn: listarElecciones,
   })
 
   if (isLoading) {
     return (
-      <p className='text-muted-foreground text-sm' aria-live='polite'>
+      <p className='text-sm text-muted-foreground' aria-live='polite'>
         Cargando comicios…
       </p>
     )
@@ -36,9 +40,9 @@ export const ComiciosList = () => {
 
   if (isError) {
     return (
-      <p className='text-destructive text-sm' role='alert'>
-        No se pudo cargar el listado de comicios. Verifique que el backend esté en
-        ejecución.
+      <p className='text-sm text-destructive' role='alert'>
+        No se pudo cargar el listado de comicios. Verifique que el backend esté
+        en ejecución.
       </p>
     )
   }
@@ -78,7 +82,9 @@ export const ComiciosList = () => {
                   {formatDateTimeForDisplay(comicio.fechaInicio)}
                 </CardDescription>
               </div>
-              <Badge variant={estadoVariant(comicio.estado)}>{comicio.estado}</Badge>
+              <Badge variant={estadoVariant(comicio.estado)}>
+                {comicio.estado}
+              </Badge>
             </CardHeader>
             <CardContent className='flex flex-wrap gap-2'>
               <Button asChild variant='outline' size='sm'>

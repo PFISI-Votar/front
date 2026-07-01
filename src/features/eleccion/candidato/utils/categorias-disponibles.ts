@@ -11,18 +11,18 @@ type GetCategoriasDisponiblesOptions = {
 const countCandidatosPorCategoria = (
   candidatos: CandidatoCategoriaRef[],
   idCategoria: number,
-  excludeCandidatoId?: number,
+  excludeCandidatoId?: number
 ): number =>
   candidatos.filter(
     (candidato) =>
       candidato.idCategoria === idCategoria &&
-      candidato.idCandidato !== excludeCandidatoId,
+      candidato.idCandidato !== excludeCandidatoId
   ).length
 
 export const getCategoriasDisponibles = (
   categorias: CategoriaElectoral[],
   candidatos: CandidatoCategoriaRef[],
-  options?: GetCategoriasDisponiblesOptions,
+  options?: GetCategoriasDisponiblesOptions
 ): CategoriaElectoral[] =>
   categorias.filter((categoria) => {
     if (options?.includeCategoriaId === categoria.idCategoria) {
@@ -31,7 +31,7 @@ export const getCategoriasDisponibles = (
     const count = countCandidatosPorCategoria(
       candidatos,
       categoria.idCategoria,
-      options?.excludeCandidatoId,
+      options?.excludeCandidatoId
     )
     return count < categoria.maximoPostulantes
   })

@@ -1,19 +1,20 @@
 /** @vitest-environment node */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { apiClient } from '@/lib/api-client'
 import { crearLista } from '@/features/eleccion/lista/api/lista-api'
 import type { Lista } from '@/features/eleccion/lista/data/schema'
+
+const postMock = vi.fn()
+const patchMock = vi.fn()
+const deleteMock = vi.fn()
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: {
     get: vi.fn(),
-    post: vi.fn(),
-    patch: vi.fn(),
-    delete: vi.fn(),
+    post: (...args: unknown[]) => postMock(...args),
+    patch: (...args: unknown[]) => patchMock(...args),
+    delete: (...args: unknown[]) => deleteMock(...args),
   },
 }))
-
-const mockedApiClient = vi.mocked(apiClient)
 
 const lista: Lista = {
   idLista: 42,
@@ -34,8 +35,8 @@ describe('lista-api', () => {
 
   it('sube el logo como multipart después de crear la lista', async () => {
     const logoFile = new File(['logo'], 'logo.png', { type: 'image/png' })
-    mockedApiClient.post.mockResolvedValue({ data: lista })
-    mockedApiClient.patch.mockResolvedValue({
+    postMock.mockResolvedValue({ data: lista })
+    patchMock.mockResolvedValue({
       data: { ...lista, logoUrl: '/logos/42.png' },
     })
 
@@ -47,26 +48,26 @@ describe('lista-api', () => {
       removeLogo: true,
     })
 
-    expect(mockedApiClient.post).toHaveBeenCalledWith('/elecciones/7/listas', {
+    expect(postMock).toHaveBeenCalledWith('/elecciones/7/listas', {
       nombre: 'Lista Azul',
       sigla: 'LA',
       color: '#2563eb',
     })
-    expect(mockedApiClient.patch).toHaveBeenCalledWith(
+    expect(patchMock).toHaveBeenCalledWith(
       '/listas/42/logo',
       expect.any(FormData),
       { headers: { 'Content-Type': 'multipart/form-data' } }
     )
-    const formData = mockedApiClient.patch.mock.calls[0]?.[1] as FormData
+    const formData = patchMock.mock.calls[0]?.[1] as FormData
     expect(formData.get('logo')).toBe(logoFile)
     expect(result.logoUrl).toBe('/logos/42.png')
   })
 
   it('elimina la lista creada si falla la subida del logo', async () => {
     const uploadError = new Error('upload failed')
-    mockedApiClient.post.mockResolvedValue({ data: lista })
-    mockedApiClient.patch.mockRejectedValue(uploadError)
-    mockedApiClient.delete.mockResolvedValue({})
+    postMock.mockResolvedValue({ data: lista })
+    patchMock.mockRejectedValue(uploadError)
+    deleteMock.mockResolvedValue({})
 
     await expect(
       crearLista(7, {
@@ -77,6 +78,6 @@ describe('lista-api', () => {
       })
     ).rejects.toBe(uploadError)
 
-    expect(mockedApiClient.delete).toHaveBeenCalledWith('/listas/42')
+    expect(deleteMock).toHaveBeenCalledWith('/listas/42')
   })
 })

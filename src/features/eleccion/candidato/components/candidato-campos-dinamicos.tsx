@@ -1,5 +1,4 @@
-import type { Control, FieldValues, Path, UseFormSetError } from 'react-hook-form'
-import type { ApiFieldError } from '@/lib/api-client'
+import type { Control, FieldValues, Path } from 'react-hook-form'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   FormControl,
@@ -20,18 +19,6 @@ type CandidatoCamposDinamicosProps<T extends FieldValues> = {
 const getFieldName = (clave: string): `datosAdicionales.${string}` =>
   `datosAdicionales.${clave}` as `datosAdicionales.${string}`
 
-export const mapApiFieldErrorsToForm = <T extends FieldValues>(
-  errors: ApiFieldError[],
-  setError: UseFormSetError<T>,
-): void => {
-  for (const error of errors) {
-    setError(`datosAdicionales.${error.clave}` as Path<T>, {
-      type: 'server',
-      message: error.message,
-    })
-  }
-}
-
 export const CandidatoCamposDinamicos = <T extends FieldValues>({
   control,
   campos,
@@ -47,7 +34,9 @@ export const CandidatoCamposDinamicos = <T extends FieldValues>({
       <legend className='px-1 text-sm font-medium'>Datos adicionales</legend>
       {camposOrdenados.map((campo) => {
         const fieldName = getFieldName(campo.clave)
-        const label = campo.obligatorio ? campo.etiqueta : `${campo.etiqueta} (opcional)`
+        const label = campo.obligatorio
+          ? campo.etiqueta
+          : `${campo.etiqueta} (opcional)`
 
         if (campo.tipo === 'booleano') {
           return (
@@ -66,7 +55,9 @@ export const CandidatoCamposDinamicos = <T extends FieldValues>({
                   </FormControl>
                   <div className='flex flex-col gap-1'>
                     <FormLabel>{label}</FormLabel>
-                    {campo.ayuda && <FormDescription>{campo.ayuda}</FormDescription>}
+                    {campo.ayuda && (
+                      <FormDescription>{campo.ayuda}</FormDescription>
+                    )}
                     <FormMessage />
                   </div>
                 </FormItem>
@@ -116,7 +107,9 @@ export const CandidatoCamposDinamicos = <T extends FieldValues>({
                     }}
                   />
                 </FormControl>
-                {campo.ayuda && <FormDescription>{campo.ayuda}</FormDescription>}
+                {campo.ayuda && (
+                  <FormDescription>{campo.ayuda}</FormDescription>
+                )}
                 <FormMessage />
               </FormItem>
             )}

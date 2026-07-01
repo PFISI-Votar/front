@@ -1,7 +1,7 @@
 /** @vitest-environment node */
 import { describe, expect, it } from 'vitest'
-import { createComicioSchema } from '@/features/eleccion/data/schema'
 import { METODOS_AUTENTICACION } from '@/features/eleccion/configuracion-comicio/data/constants'
+import { createComicioSchema } from '@/features/eleccion/data/schema'
 import { TIPOS_VOTACION } from '@/features/eleccion/lista/data/schema'
 
 const buildValidInput = () => ({
@@ -23,7 +23,7 @@ describe('createComicioSchema', () => {
     expect(result.success).toBe(false)
     if (!result.success) {
       const fechaFinIssue = result.error.issues.find(
-        (issue) => issue.path[0] === 'fechaFin',
+        (issue) => issue.path[0] === 'fechaFin'
       )
       expect(fechaFinIssue?.message).toContain('posterior a la de inicio')
     }
@@ -37,7 +37,7 @@ describe('createComicioSchema', () => {
     expect(result.success).toBe(false)
     if (!result.success) {
       const fechaInicioIssue = result.error.issues.find(
-        (issue) => issue.path[0] === 'fechaInicio',
+        (issue) => issue.path[0] === 'fechaInicio'
       )
       expect(fechaInicioIssue?.message).toContain('posterior al momento actual')
     }
@@ -54,7 +54,7 @@ describe('createComicioSchema', () => {
       const fechaFinIssue = result.error.issues.find(
         (issue) =>
           issue.path[0] === 'fechaFin' &&
-          issue.message.includes('posterior al momento actual'),
+          issue.message.includes('posterior al momento actual')
       )
       expect(fechaFinIssue).toBeDefined()
     }

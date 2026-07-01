@@ -1,11 +1,11 @@
+import { AxiosError } from 'axios'
+import { useAuthStore } from '@/stores/auth-store'
+import { apiClient } from '@/lib/api-client'
 import {
   getCurrentUser,
   refreshSession,
 } from '@/features/auth/services/auth-api'
 import { ACCESS_REFRESH_INTERVAL_MS } from '@/features/auth/types/auth.types'
-import { apiClient } from '@/lib/api-client'
-import { useAuthStore } from '@/stores/auth-store'
-import { AxiosError } from 'axios'
 
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
@@ -22,7 +22,7 @@ export const probeAdminAccessDenied = async (): Promise<void> => {
   try {
     await apiClient.get(ADMIN_PROBE_URL)
     const unexpectedSuccess = new Error(
-      `Admin access probe to ${ADMIN_PROBE_URL} succeeded without HTTP 403`,
+      `Admin access probe to ${ADMIN_PROBE_URL} succeeded without HTTP 403`
     )
     throw unexpectedSuccess
   } catch (error) {

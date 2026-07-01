@@ -16,9 +16,8 @@ export const loginVotante = async (
 }
 
 export const getVotanteSession = async (): Promise<VotanteAuthUser> => {
-  const { data } = await votanteApiClient.get<VotanteAuthUser>(
-    '/auth/votante/me'
-  )
+  const { data } =
+    await votanteApiClient.get<VotanteAuthUser>('/auth/votante/me')
   return data
 }
 

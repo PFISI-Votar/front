@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AxiosError } from 'axios'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
 import { BudLoginScreen } from '@/features/voto/components/bud-login-screen'
@@ -23,19 +23,13 @@ describe('BudLoginScreen', () => {
 
   it('muestra error genérico ante credenciales inválidas sin filtrar detalles del servidor', async () => {
     loginVotanteMock.mockRejectedValue(
-      new AxiosError(
-        'Unauthorized',
-        '401',
-        undefined,
-        undefined,
-        {
-          status: 401,
-          data: { message: 'Credenciales institucionales inválidas' },
-          statusText: 'Unauthorized',
-          headers: {},
-          config: {} as never,
-        }
-      )
+      new AxiosError('Unauthorized', '401', undefined, undefined, {
+        status: 401,
+        data: { message: 'Credenciales institucionales inválidas' },
+        statusText: 'Unauthorized',
+        headers: {},
+        config: {} as never,
+      })
     )
 
     const screen = await render(
@@ -49,7 +43,9 @@ describe('BudLoginScreen', () => {
     )
     await userEvent.click(screen.getByRole('button', { name: /Ingresar/i }))
 
-    await expect.element(screen.getByText(GENERIC_LOGIN_ERROR)).toBeInTheDocument()
+    await expect
+      .element(screen.getByText(GENERIC_LOGIN_ERROR))
+      .toBeInTheDocument()
     expect(onAuthenticatedMock).not.toHaveBeenCalled()
   })
 

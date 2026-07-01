@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AxiosError } from 'axios'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const getMock = vi.fn()
 
@@ -22,7 +22,7 @@ describe('probeAdminAccessDenied', () => {
         headers: {},
         config: {} as never,
         data: { message: 'Acceso denegado' },
-      }),
+      })
     )
 
     const { probeAdminAccessDenied } = await import('./auth-session')
@@ -39,7 +39,7 @@ describe('probeAdminAccessDenied', () => {
         headers: {},
         config: {} as never,
         data: {},
-      }),
+      })
     )
 
     const { probeAdminAccessDenied } = await import('./auth-session')
@@ -68,7 +68,7 @@ describe('probeAdminAccessDenied', () => {
     const { probeAdminAccessDenied } = await import('./auth-session')
 
     await expect(probeAdminAccessDenied()).rejects.toThrow(
-      'succeeded without HTTP 403',
+      'succeeded without HTTP 403'
     )
   })
 
@@ -84,7 +84,7 @@ describe('probeAdminAccessDenied', () => {
         headers: {},
         config: {} as never,
         data: {},
-      },
+      }
     )
     getMock.mockRejectedValue(serverError)
 

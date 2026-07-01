@@ -2,7 +2,7 @@ import type { CampoCandidatoDefinicion } from '@/features/eleccion/candidato/dat
 
 export const formatValorCampo = (
   valor: unknown,
-  tipo: CampoCandidatoDefinicion['tipo'],
+  tipo: CampoCandidatoDefinicion['tipo']
 ): string => {
   if (valor === undefined || valor === null || valor === '') {
     return '—'
@@ -15,7 +15,7 @@ export const formatValorCampo = (
 
 export const buildResumenDatosAdicionales = (
   datos: Record<string, unknown>,
-  campos: CampoCandidatoDefinicion[],
+  campos: CampoCandidatoDefinicion[]
 ): string => {
   const camposOrdenados = [...campos].sort((a, b) => a.orden - b.orden)
   const partes = camposOrdenados

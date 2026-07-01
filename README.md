@@ -1,18 +1,18 @@
 # VOTAR — Frontend
 
-Frontend del proyecto **VOTAR** (*Plataforma de Votación Electrónica con Tecnología Blockchain*), desarrollado como Proyecto Final de la carrera de Ingeniería en Sistemas de Información en la UTN FRVM.
+Frontend del proyecto **VOTAR** (_Plataforma de Votación Electrónica con Tecnología Blockchain_), desarrollado como Proyecto Final de la carrera de Ingeniería en Sistemas de Información en la UTN FRVM.
 
 Este repositorio contiene el **Panel de Administración** y la base de UI sobre la que se construirán también la Boleta Única Digital (BUD) y el Dashboard Público de resultados.
 
 ## Equipo Five Stack
 
-| Integrante | Legajo |
-|---|---|
-| Liendo, Alejo | 15074 |
-| Lucarelli, Bruno | 14988 |
-| Magni, Gastón | 14991 |
-| Mosconi, Ignacio (director) | 15288 |
-| Terreno, Valentino | 15079 |
+| Integrante                  | Legajo |
+| --------------------------- | ------ |
+| Liendo, Alejo               | 15074  |
+| Lucarelli, Bruno            | 14988  |
+| Magni, Gastón               | 14991  |
+| Mosconi, Ignacio (director) | 15288  |
+| Terreno, Valentino          | 15079  |
 
 **Cátedra:** Proyecto Final ISI — Ing. Christian Villafañe, Ing. Matías Cassani
 
@@ -29,11 +29,11 @@ VOTAR es una plataforma **open source** para digitalizar procesos electorales de
 
 ## Arquitectura del ecosistema
 
-| Contenedor | Repositorio | Tecnología |
-|---|---|---|
-| Panel de Administración / BUD / Dashboard | `votar.front` (este repo) | React 19, Vite, TypeScript, Tailwind CSS 4, shadcn/ui |
-| API Backend | [votar.back](https://github.com/PFISI-Votar/back) | NestJS 11, TypeORM, PostgreSQL 16 |
-| Smart contracts | [blockchain](https://github.com/PFISI-Votar/blockchain) | Solidity, Ethereum Sepolia |
+| Contenedor                                | Repositorio                                             | Tecnología                                            |
+| ----------------------------------------- | ------------------------------------------------------- | ----------------------------------------------------- |
+| Panel de Administración / BUD / Dashboard | `votar.front` (este repo)                               | React 19, Vite, TypeScript, Tailwind CSS 4, shadcn/ui |
+| API Backend                               | [votar.back](https://github.com/PFISI-Votar/back)       | NestJS 11, TypeORM, PostgreSQL 16                     |
+| Smart contracts                           | [blockchain](https://github.com/PFISI-Votar/blockchain) | Solidity, Ethereum Sepolia                            |
 
 La documentación completa del proyecto (alcance, reglas de negocio, diagramas, lineamientos) se encuentra en la carpeta `Contexto/` del workspace académico.
 
@@ -66,8 +66,8 @@ npm run dev
 
 Variables de entorno disponibles:
 
-| Variable | Descripción | Valor por defecto |
-|---|---|---|
+| Variable       | Descripción                 | Valor por defecto       |
+| -------------- | --------------------------- | ----------------------- |
 | `VITE_API_URL` | URL base del backend NestJS | `http://localhost:8000` |
 
 ## Login del votante (BUD — US-312)
@@ -79,14 +79,14 @@ Ruta pública: `/comicios/{idEleccion}/votar`
 
 ## Scripts disponibles
 
-| Comando | Descripción |
-|---|---|
-| `npm run dev` | Servidor de desarrollo |
-| `npm run build` | Build de producción |
-| `npm run preview` | Vista previa del build |
-| `npm run lint` | ESLint |
-| `npm run test` | Tests con Vitest (browser) |
-| `npm run format` | Formateo con Prettier |
+| Comando           | Descripción                |
+| ----------------- | -------------------------- |
+| `npm run dev`     | Servidor de desarrollo     |
+| `npm run build`   | Build de producción        |
+| `npm run preview` | Vista previa del build     |
+| `npm run lint`    | ESLint                     |
+| `npm run test`    | Tests con Vitest (browser) |
+| `npm run format`  | Formateo con Prettier      |
 
 ## Roles y módulos previstos
 
