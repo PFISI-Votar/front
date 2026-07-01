@@ -6,9 +6,12 @@ import { toast } from 'sonner'
 import {
   ArrowLeft,
   ChevronDown,
+  ExternalLink,
   FileDown,
   FileSpreadsheet,
+  Link2,
   ListChecks,
+  Loader2,
   Trash2,
   Upload,
 } from 'lucide-react'
@@ -60,9 +63,11 @@ import { descargarReporteNovedades } from '../lib/descargar-reporte'
 import { PadronUploadForm } from './padron-upload-form'
 import {
   PADRON_PAGE_SIZES,
+  usePadronMerkle,
   usePadronResumen,
   usePadronVotantes,
 } from '../hooks/use-padron'
+import { usePublicarMerkle } from '../hooks/use-publicar-merkle'
 
 type PadronComicioPageProps = {
   idEleccion: number
@@ -77,10 +82,12 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
   const [modalAbierto, setModalAbierto] = useState(false)
   const [tablaAbierta, setTablaAbierta] = useState(false)
   const [eliminarAbierto, setEliminarAbierto] = useState(false)
+  const [publicarAbierto, setPublicarAbierto] = useState(false)
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(50)
   const invalidarPadron = () => {
     queryClient.invalidateQueries({ queryKey: ['padron-resumen', idEleccion] })
+    queryClient.invalidateQueries({ queryKey: ['padron-merkle', idEleccion] })
     queryClient.invalidateQueries({ queryKey: ['padron-votantes', idEleccion] })
     queryClient.invalidateQueries({ queryKey: ['eleccion', idEleccion] })
     queryClient.invalidateQueries({ queryKey: ['elecciones'] })
@@ -113,7 +120,15 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
 
   const esBorrador = eleccionQuery.data?.estado === 'BORRADOR'
   const sinPadron = resumenQuery.isError && esError404(resumenQuery.error)
+  const tienePadron = Boolean(resumenQuery.data) && !sinPadron
+  const merkleQuery = usePadronMerkle(idEleccion, tienePadron)
+  const publicarMerkleMutation = usePublicarMerkle(idEleccion)
   const puedeCargar = esBorrador && sinPadron
+  const puedePublicarOnChain =
+    merkleQuery.data?.estado === 'GENERADO' &&
+    eleccionQuery.data?.estado !== 'ABIERTA' &&
+    eleccionQuery.data?.estado !== 'CERRADA' &&
+    eleccionQuery.data?.estado !== 'ESCRUTADA'
 
   const onCambiarLimit = (nuevoLimit: number) => {
     setLimit(nuevoLimit)
@@ -276,6 +291,120 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
             </CardContent>
           </Card>
 
+          <Card>
+            <CardHeader className='flex flex-row flex-wrap items-start justify-between gap-4'>
+              <div className='space-y-1'>
+                <CardTitle className='flex items-center gap-2 text-lg'>
+                  <Link2 className='size-5' />
+                  Sello de integridad on-chain
+                </CardTitle>
+                <CardDescription>
+                  Ancla la raíz Merkle del padrón en Sepolia antes del inicio de
+                  los comicios (VOTAR-335).
+                </CardDescription>
+              </div>
+              {puedePublicarOnChain && (
+                <Button
+                  onClick={() => setPublicarAbierto(true)}
+                  disabled={publicarMerkleMutation.isPending}
+                  aria-label='Publicar Raíz on-chain'
+                >
+                  {publicarMerkleMutation.isPending ? (
+                    <Loader2 className='size-4 animate-spin' />
+                  ) : (
+                    <Link2 className='size-4' />
+                  )}
+                  Publicar Raíz on-chain
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent className='grid gap-4'>
+              {merkleQuery.isLoading && (
+                <div className='space-y-2'>
+                  <Skeleton className='h-4 w-full' />
+                  <Skeleton className='h-4 w-2/3' />
+                </div>
+              )}
+
+              {merkleQuery.isError && (
+                <p className='text-destructive text-sm' role='alert'>
+                  No se pudo cargar el sello Merkle consolidado.
+                </p>
+              )}
+
+              {merkleQuery.data && (
+                <>
+                  <div className='grid gap-4 sm:grid-cols-2'>
+                    <div>
+                      <p className='text-muted-foreground text-sm'>Estado Merkle</p>
+                      <Badge
+                        variant={
+                          merkleQuery.data.estado === 'PUBLICADO_ON_CHAIN'
+                            ? 'default'
+                            : 'secondary'
+                        }
+                      >
+                        {merkleQuery.data.estado}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className='text-muted-foreground text-sm'>Total hojas</p>
+                      <p className='font-medium'>
+                        {merkleQuery.data.totalHojas.toLocaleString('es-AR')}
+                      </p>
+                    </div>
+                    <div className='sm:col-span-2'>
+                      <p className='text-muted-foreground text-sm'>Raíz Merkle</p>
+                      <p
+                        className='font-mono text-xs break-all'
+                        title={merkleQuery.data.merkleRoot}
+                      >
+                        {merkleQuery.data.merkleRoot}
+                      </p>
+                    </div>
+                  </div>
+
+                  {merkleQuery.data.estado === 'PUBLICADO_ON_CHAIN' &&
+                    merkleQuery.data.txHash && (
+                      <div className='rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-2'>
+                        <p className='text-sm font-medium text-emerald-800 dark:text-emerald-300'>
+                          Publicado on-chain
+                        </p>
+                        {merkleQuery.data.fechaPublicacionOnChain && (
+                          <p className='text-muted-foreground text-sm'>
+                            {formatDateTimeForDisplay(
+                              merkleQuery.data.fechaPublicacionOnChain,
+                            )}
+                          </p>
+                        )}
+                        {merkleQuery.data.contractAddress && (
+                          <p className='font-mono text-xs break-all'>
+                            Contrato: {merkleQuery.data.contractAddress}
+                          </p>
+                        )}
+                        <p className='font-mono text-xs break-all'>
+                          Tx: {merkleQuery.data.txHash}
+                        </p>
+                        {merkleQuery.data.explorerUrl && (
+                          <Button asChild variant='outline' size='sm'>
+                            <a
+                              href={merkleQuery.data.explorerUrl}
+                              target='_blank'
+                              rel='noopener noreferrer'
+                              aria-label='Ver transacción en Etherscan'
+                            >
+                              <ExternalLink className='size-4' />
+                              Ver en Etherscan
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+
           <Collapsible
             open={tablaAbierta}
             onOpenChange={setTablaAbierta}
@@ -410,6 +539,32 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
         cancelBtnText='Cancelar'
         confirmText='Eliminar padrón'
         handleConfirm={() => eliminarMutation.mutate()}
+      />
+
+      <ConfirmDialog
+        open={publicarAbierto}
+        onOpenChange={setPublicarAbierto}
+        isLoading={publicarMerkleMutation.isPending}
+        title='¿Publicar Raíz on-chain?'
+        desc={
+          <>
+            Se enviará la raíz Merkle del padrón a la red Sepolia. Esta acción
+            ancla de forma pública e inmutable la lista de electores habilitados
+            antes del inicio del comicio.
+            {merkleQuery.data && (
+              <span className='mt-2 block font-mono text-xs break-all'>
+                {merkleQuery.data.merkleRoot}
+              </span>
+            )}
+          </>
+        }
+        cancelBtnText='Cancelar'
+        confirmText='Publicar Raíz on-chain'
+        handleConfirm={() => {
+          publicarMerkleMutation.mutate(undefined, {
+            onSuccess: () => setPublicarAbierto(false),
+          })
+        }}
       />
     </div>
   )

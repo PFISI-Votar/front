@@ -2,6 +2,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import {
   listarPadronVotantes,
+  obtenerMerkleResumen,
   obtenerPadronResumen,
 } from '../api/padron-api'
 
@@ -18,6 +19,19 @@ export function usePadronResumen(idEleccion: number) {
   return useQuery({
     queryKey: ['padron-resumen', idEleccion],
     queryFn: () => obtenerPadronResumen(idEleccion),
+    retry: (failureCount, error) => {
+      if (isAxiosError(error) && error.response?.status === 404) return false
+      return failureCount < 2
+    },
+  })
+}
+
+/** Árbol Merkle del padrón; habilitado cuando existe resumen de padrón. */
+export function usePadronMerkle(idEleccion: number, enabled: boolean) {
+  return useQuery({
+    queryKey: ['padron-merkle', idEleccion],
+    queryFn: () => obtenerMerkleResumen(idEleccion),
+    enabled,
     retry: (failureCount, error) => {
       if (isAxiosError(error) && error.response?.status === 404) return false
       return failureCount < 2

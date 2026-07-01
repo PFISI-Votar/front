@@ -38,6 +38,35 @@ export interface ListarVotantesResponse {
   limit: number
 }
 
+export type MerkleTreeEstado =
+  | 'GENERADO'
+  | 'ACTIVO'
+  | 'PUBLICADO_ON_CHAIN'
+  | 'OBSOLETO'
+
+export interface MerkleResumen {
+  merkleRoot: string
+  totalHojas: number
+  version: number
+  estado: MerkleTreeEstado
+  fechaGeneracion: string
+  txHash?: string
+  explorerUrl?: string
+  fechaPublicacionOnChain?: string
+  contractAddress?: string
+}
+
+export interface PublicarMerkleResponse {
+  electionId: number
+  merkleRoot: string
+  estado: MerkleTreeEstado
+  txHash: string
+  blockNumber: number
+  contractAddress: string
+  explorerUrl: string
+  publishedAt: string
+}
+
 /** Resumen del padrón de un comicio (total, estado, hash, fecha). */
 export const obtenerPadronResumen = async (
   idEleccion: number,
@@ -72,6 +101,26 @@ export const listarPadronVotantes = async (
   const { data } = await apiClient.get<ListarVotantesResponse>(
     `/elecciones/${idEleccion}/padron/votantes`,
     { params: { page, limit } },
+  )
+  return data
+}
+
+/** Sello Merkle consolidado del padrón (VOTAR-334 / US-335). */
+export const obtenerMerkleResumen = async (
+  idEleccion: number,
+): Promise<MerkleResumen> => {
+  const { data } = await apiClient.get<MerkleResumen>(
+    `/elecciones/${idEleccion}/padron/merkle`,
+  )
+  return data
+}
+
+/** Publica la raíz Merkle on-chain en Sepolia (VOTAR-335). */
+export const publicarMerkleOnChain = async (
+  idEleccion: number,
+): Promise<PublicarMerkleResponse> => {
+  const { data } = await apiClient.post<PublicarMerkleResponse>(
+    `/elecciones/${idEleccion}/padron/merkle/publicar`,
   )
   return data
 }
