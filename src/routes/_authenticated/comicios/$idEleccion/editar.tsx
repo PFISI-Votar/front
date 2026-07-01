@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import {
   actualizarEleccion,
@@ -8,7 +8,9 @@ import {
 import { ComicioForm } from '@/features/eleccion/components/comicio-form'
 import { ContentSection } from '@/features/settings/components/content-section'
 
-export const Route = createFileRoute('/_authenticated/comicios/$idEleccion/editar')({
+export const Route = createFileRoute(
+  '/_authenticated/comicios/$idEleccion/editar'
+)({
   component: EditarComicioPage,
 })
 
@@ -28,9 +30,13 @@ function EditarComicioPage() {
       actualizarEleccion(idEleccionNum, input),
     onSuccess: async () => {
       toast.success('Comicio actualizado')
-      await queryClient.invalidateQueries({ queryKey: ['eleccion', idEleccionNum] })
+      await queryClient.invalidateQueries({
+        queryKey: ['eleccion', idEleccionNum],
+      })
       await queryClient.invalidateQueries({ queryKey: ['elecciones'] })
-      await queryClient.invalidateQueries({ queryKey: ['listas', idEleccionNum] })
+      await queryClient.invalidateQueries({
+        queryKey: ['listas', idEleccionNum],
+      })
       navigate({
         to: '/comicios/$idEleccion/oferta',
         params: { idEleccion },
@@ -40,7 +46,7 @@ function EditarComicioPage() {
 
   if (eleccionQuery.isLoading) {
     return (
-      <p className='text-muted-foreground text-sm' aria-live='polite'>
+      <p className='text-sm text-muted-foreground' aria-live='polite'>
         Cargando comicio…
       </p>
     )
@@ -48,7 +54,7 @@ function EditarComicioPage() {
 
   if (!eleccionQuery.data) {
     return (
-      <p className='text-destructive text-sm' role='alert'>
+      <p className='text-sm text-destructive' role='alert'>
         No se encontró el comicio solicitado.
       </p>
     )
@@ -56,7 +62,7 @@ function EditarComicioPage() {
 
   if (eleccionQuery.data.estado !== 'BORRADOR') {
     return (
-      <p className='text-destructive text-sm' role='alert'>
+      <p className='text-sm text-destructive' role='alert'>
         Solo se pueden editar comicios en estado BORRADOR.
       </p>
     )

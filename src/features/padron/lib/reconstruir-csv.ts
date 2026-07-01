@@ -8,7 +8,7 @@ export function reconstruirCsv(registros: RegistroPreview[]): string {
 
 export function construirArchivoCsv(
   registros: RegistroPreview[],
-  nombre = 'padron.csv',
+  nombre = 'padron.csv'
 ): File {
   return new File([reconstruirCsv(registros)], nombre, {
     type: 'text/csv;charset=utf-8;',

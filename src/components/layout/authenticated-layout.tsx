@@ -36,9 +36,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
               'peer-data-[variant=inset]:has-data-[layout=fixed]:h-[calc(100svh-(var(--spacing)*4))]'
             )}
           >
-            <AppLayoutProvider>
-              {children ?? <Outlet />}
-            </AppLayoutProvider>
+            <AppLayoutProvider>{children ?? <Outlet />}</AppLayoutProvider>
           </SidebarInset>
         </SidebarProvider>
       </LayoutProvider>

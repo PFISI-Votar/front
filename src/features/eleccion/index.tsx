@@ -4,7 +4,9 @@ type OfertaElectoralPageProps = {
   idEleccion: number
 }
 
-export const OfertaElectoralPage = ({ idEleccion }: OfertaElectoralPageProps) => {
+export const OfertaElectoralPage = ({
+  idEleccion,
+}: OfertaElectoralPageProps) => {
   return <OfertaElectoralPanel idEleccion={idEleccion} />
 }
 

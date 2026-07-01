@@ -65,7 +65,7 @@ export const createCategoriaFormSchema = ({
     const categoriaDuplicada = categorias.find(
       (categoria) =>
         categoria.idCategoria !== excludeIdCategoria &&
-        normalizeCategoriaNombre(categoria.nombre) === nombreNormalizado,
+        normalizeCategoriaNombre(categoria.nombre) === nombreNormalizado
     )
     if (categoriaDuplicada) {
       ctx.addIssue({
@@ -79,7 +79,7 @@ export const createCategoriaFormSchema = ({
 export type CategoriaFormInput = z.infer<typeof categoriaFormSchema>
 
 export const mapCategoriaToElectoral = (
-  categoria: Categoria,
+  categoria: Categoria
 ): CategoriaElectoral => ({
   idCategoria: categoria.idCategoria,
   nombre: categoria.nombre,

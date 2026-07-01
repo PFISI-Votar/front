@@ -65,9 +65,15 @@ describe('datetime utilities', () => {
 
     expect(isHourOptionDisabled('14', selectedDay, minInstant)).toBe(true)
     expect(isHourOptionDisabled('15', selectedDay, minInstant)).toBe(false)
-    expect(isMinuteOptionDisabled('29', '15', selectedDay, minInstant)).toBe(true)
-    expect(isMinuteOptionDisabled('30', '15', selectedDay, minInstant)).toBe(true)
-    expect(isMinuteOptionDisabled('31', '15', selectedDay, minInstant)).toBe(false)
+    expect(isMinuteOptionDisabled('29', '15', selectedDay, minInstant)).toBe(
+      true
+    )
+    expect(isMinuteOptionDisabled('30', '15', selectedDay, minInstant)).toBe(
+      true
+    )
+    expect(isMinuteOptionDisabled('31', '15', selectedDay, minInstant)).toBe(
+      false
+    )
   })
 
   it('clamps invalid times to the first allowed minute', () => {

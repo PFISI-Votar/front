@@ -1,5 +1,5 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AxiosError } from 'axios'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
@@ -114,7 +114,11 @@ async function renderBud() {
   })
   return render(
     <QueryClientProvider client={queryClient}>
-      <BoletaUnicaDigitalPage idEleccion={7} showIntro={false} showLogin={false} />
+      <BoletaUnicaDigitalPage
+        idEleccion={7}
+        showIntro={false}
+        showLogin={false}
+      />
     </QueryClientProvider>
   )
 }
@@ -134,23 +138,20 @@ describe('BoletaUnicaDigitalPage', () => {
   it('vuelve al login con aviso cuando la sesión del votante expira (401)', async () => {
     mocks.ensureVotanteSession.mockResolvedValue(votanteSession)
     mocks.obtenerBoletaDigital.mockRejectedValue(
-      new AxiosError(
-        'Unauthorized',
-        '401',
-        undefined,
-        undefined,
-        {
-          status: 401,
-          data: { message: 'Unauthorized' },
-          statusText: 'Unauthorized',
-          headers: {},
-          config: {} as never,
-        }
-      )
+      new AxiosError('Unauthorized', '401', undefined, undefined, {
+        status: 401,
+        data: { message: 'Unauthorized' },
+        statusText: 'Unauthorized',
+        headers: {},
+        config: {} as never,
+      })
     )
 
     const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
     })
     const screen = await render(
       <QueryClientProvider client={queryClient}>
@@ -159,7 +160,9 @@ describe('BoletaUnicaDigitalPage', () => {
     )
 
     await vi.waitFor(async () => {
-      await expect.element(screen.getByText('Sesión expirada')).toBeInTheDocument()
+      await expect
+        .element(screen.getByText('Sesión expirada'))
+        .toBeInTheDocument()
     })
     await expect
       .element(
@@ -218,9 +221,13 @@ describe('BoletaUnicaDigitalPage', () => {
     mocks.obtenerBoletaDigital.mockResolvedValue(boleta)
     const screen = await renderBud()
 
-    await expect.element(screen.getByText('Lista 1').first()).toBeInTheDocument()
+    await expect
+      .element(screen.getByText('Lista 1').first())
+      .toBeInTheDocument()
     await expect.element(screen.getByText('Ana López')).toBeInTheDocument()
-    await expect.element(screen.getByText('Lista Azul').first()).toBeInTheDocument()
+    await expect
+      .element(screen.getByText('Lista Azul').first())
+      .toBeInTheDocument()
     await expect
       .element(screen.getByRole('img', { name: /Foto de Ana López/i }))
       .toBeInTheDocument()

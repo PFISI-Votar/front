@@ -1,7 +1,7 @@
 // reconstruir-csv.test.ts
 import { describe, expect, it } from 'vitest'
-import { construirArchivoCsv, reconstruirCsv } from './reconstruir-csv'
 import { parseCsvPadron, type RegistroPreview } from './parse-csv-padron'
+import { construirArchivoCsv, reconstruirCsv } from './reconstruir-csv'
 
 const registros: RegistroPreview[] = [
   { id: '1', linea: 2, dni: '12345678', email: 'a@a.com' },
@@ -11,7 +11,7 @@ const registros: RegistroPreview[] = [
 describe('reconstruirCsv', () => {
   it('emite header canónico dni,email y una fila por registro', () => {
     expect(reconstruirCsv(registros)).toBe(
-      'dni,email\n12345678,a@a.com\n87654321,b@b.com\n',
+      'dni,email\n12345678,a@a.com\n87654321,b@b.com\n'
     )
   })
 

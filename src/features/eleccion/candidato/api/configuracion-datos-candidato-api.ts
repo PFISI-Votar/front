@@ -6,21 +6,21 @@ import type {
 } from '@/features/eleccion/candidato/data/schema'
 
 export const obtenerConfiguracionDatosCandidato = async (
-  idEleccion: number,
+  idEleccion: number
 ): Promise<ConfiguracionDatosCandidatoResponse> => {
   const { data } = await apiClient.get<ConfiguracionDatosCandidatoResponse>(
-    `/elecciones/${idEleccion}/configuracion-datos-candidato`,
+    `/elecciones/${idEleccion}/configuracion-datos-candidato`
   )
   return data
 }
 
 export const guardarConfiguracionDatosCandidato = async (
   idEleccion: number,
-  input: GuardarConfiguracionInput,
+  input: GuardarConfiguracionInput
 ): Promise<ConfiguracionDatosCandidatoResponse> => {
   const { data } = await apiClient.put<ConfiguracionDatosCandidatoResponse>(
     `/elecciones/${idEleccion}/configuracion-datos-candidato`,
-    input,
+    input
   )
   return data
 }

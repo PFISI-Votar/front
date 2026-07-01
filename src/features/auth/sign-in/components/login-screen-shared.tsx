@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react'
 import budFingerprint from '@/assets/bud-fingerprint.png'
-import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
+import { Label } from '@/components/ui/label'
 
 export const BACKGROUND_FINGERPRINTS = [
   { top: '8%', left: '12%', width: '7.5rem', opacity: 0.05, rotate: '-18deg' },
@@ -10,7 +10,13 @@ export const BACKGROUND_FINGERPRINTS = [
   { top: '38%', left: '72%', width: '8.5rem', opacity: 0.05, rotate: '-26deg' },
   { top: '58%', left: '14%', width: '8rem', opacity: 0.045, rotate: '24deg' },
   { top: '64%', left: '88%', width: '7rem', opacity: 0.04, rotate: '-10deg' },
-  { top: '82%', left: '34%', width: '8.75rem', opacity: 0.05, rotate: '-22deg' },
+  {
+    top: '82%',
+    left: '34%',
+    width: '8.75rem',
+    opacity: 0.05,
+    rotate: '-22deg',
+  },
   { top: '88%', left: '70%', width: '7.5rem', opacity: 0.04, rotate: '16deg' },
 ] as const
 
@@ -50,7 +56,7 @@ export const LoginField = ({
       htmlFor={htmlFor}
       className={cn(
         'font-semibold text-[#4b4f56]',
-        compact ? 'text-xs' : 'text-sm',
+        compact ? 'text-xs' : 'text-sm'
       )}
     >
       {label}

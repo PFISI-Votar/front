@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { Link, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { AlertCircle, Pencil, Plus, Trash2, UserPen } from 'lucide-react'
 import { toast } from 'sonner'
+import { getApiErrorMessage, isConflictError } from '@/lib/api-client'
+import { resolveMediaUrl } from '@/lib/media-url'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,19 +16,21 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import {
-  getApiErrorMessage,
-  isConflictError,
-} from '@/lib/api-client'
-import { resolveMediaUrl } from '@/lib/media-url'
-import { eliminarCandidato, listarCandidatos } from '@/features/eleccion/candidato/api/candidato-api'
-import type { Candidato } from '@/features/eleccion/candidato/data/schema'
-import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
-import { actualizarLista, eliminarLista, listarListas } from '@/features/eleccion/lista/api/lista-api'
-import { ListaFormDialog } from '@/features/eleccion/lista/components/lista-form-dialog'
+import {
+  eliminarCandidato,
+  listarCandidatos,
+} from '@/features/eleccion/candidato/api/candidato-api'
+import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import { CandidatoFormDialog } from '@/features/eleccion/candidato/components/candidato-form-dialog'
+import type { Candidato } from '@/features/eleccion/candidato/data/schema'
 import { buildResumenDatosAdicionales } from '@/features/eleccion/candidato/utils/format-datos-adicionales'
+import {
+  actualizarLista,
+  eliminarLista,
+  listarListas,
+} from '@/features/eleccion/lista/api/lista-api'
+import { ListaFormDialog } from '@/features/eleccion/lista/components/lista-form-dialog'
 
 type ListaDetailPanelProps = {
   idEleccion: number
@@ -42,7 +46,9 @@ export const ListaDetailPanel = ({
   const [conflictMessage, setConflictMessage] = useState<string | null>(null)
   const [listaDialogOpen, setListaDialogOpen] = useState(false)
   const [candidatoDialogOpen, setCandidatoDialogOpen] = useState(false)
-  const [editingCandidato, setEditingCandidato] = useState<Candidato | null>(null)
+  const [editingCandidato, setEditingCandidato] = useState<Candidato | null>(
+    null
+  )
 
   const eleccionQuery = useQuery({
     queryKey: ['eleccion', idEleccion],
@@ -118,9 +124,13 @@ export const ListaDetailPanel = ({
     onError: handleApiError,
   })
 
-  if (listasQuery.isLoading || candidatosQuery.isLoading || configQuery.isLoading) {
+  if (
+    listasQuery.isLoading ||
+    candidatosQuery.isLoading ||
+    configQuery.isLoading
+  ) {
     return (
-      <p className='text-muted-foreground text-sm' aria-live='polite'>
+      <p className='text-sm text-muted-foreground' aria-live='polite'>
         Cargando lista…
       </p>
     )
@@ -164,23 +174,23 @@ export const ListaDetailPanel = ({
             />
           )}
           <div className='flex flex-col gap-1'>
-          <h1 className='flex flex-wrap items-center gap-2 text-2xl font-bold tracking-tight md:text-3xl'>
-            {lista.color && (
-              <span
-                className='inline-block size-4 rounded-full'
-                style={{ backgroundColor: lista.color }}
-                aria-hidden='true'
-              />
-            )}
-            {lista.nombre}
-            <span className='text-muted-foreground text-xl font-normal'>
-              ({lista.sigla})
-            </span>
-          </h1>
-          <p className='text-muted-foreground'>
-            Comicio #{idEleccion}
-            {eleccionQuery.data ? ` — ${eleccionQuery.data.nombre}` : ''}
-          </p>
+            <h1 className='flex flex-wrap items-center gap-2 text-2xl font-bold tracking-tight md:text-3xl'>
+              {lista.color && (
+                <span
+                  className='inline-block size-4 rounded-full'
+                  style={{ backgroundColor: lista.color }}
+                  aria-hidden='true'
+                />
+              )}
+              {lista.nombre}
+              <span className='text-xl font-normal text-muted-foreground'>
+                ({lista.sigla})
+              </span>
+            </h1>
+            <p className='text-muted-foreground'>
+              Comicio #{idEleccion}
+              {eleccionQuery.data ? ` — ${eleccionQuery.data.nombre}` : ''}
+            </p>
           </div>
         </div>
         <div className='flex flex-wrap items-center gap-2'>
@@ -211,19 +221,19 @@ export const ListaDetailPanel = ({
         </CardHeader>
         <CardContent className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
           <div>
-            <p className='text-muted-foreground text-xs uppercase tracking-wide'>
+            <p className='text-xs tracking-wide text-muted-foreground uppercase'>
               Nombre
             </p>
             <p className='font-medium'>{lista.nombre}</p>
           </div>
           <div>
-            <p className='text-muted-foreground text-xs uppercase tracking-wide'>
+            <p className='text-xs tracking-wide text-muted-foreground uppercase'>
               Sigla
             </p>
             <p className='font-medium'>{lista.sigla}</p>
           </div>
           <div>
-            <p className='text-muted-foreground text-xs uppercase tracking-wide'>
+            <p className='text-xs tracking-wide text-muted-foreground uppercase'>
               Color
             </p>
             <p className='flex items-center gap-2 font-medium'>
@@ -242,13 +252,13 @@ export const ListaDetailPanel = ({
             </p>
           </div>
           <div>
-            <p className='text-muted-foreground text-xs uppercase tracking-wide'>
+            <p className='text-xs tracking-wide text-muted-foreground uppercase'>
               Candidatos
             </p>
             <p className='font-medium'>{candidatos.length}</p>
           </div>
           <div>
-            <p className='text-muted-foreground text-xs uppercase tracking-wide'>
+            <p className='text-xs tracking-wide text-muted-foreground uppercase'>
               Logotipo
             </p>
             <p className='font-medium'>
@@ -261,7 +271,7 @@ export const ListaDetailPanel = ({
       <div className='flex flex-wrap items-end justify-between gap-3'>
         <div>
           <h2 className='text-xl font-semibold tracking-tight'>Candidatos</h2>
-          <p className='text-muted-foreground text-sm'>
+          <p className='text-sm text-muted-foreground'>
             Integrantes registrados en esta lista electoral.
           </p>
         </div>
@@ -359,7 +369,7 @@ export const ListaDetailPanel = ({
                           : ''}
                         {buildResumenDatosAdicionales(
                           candidato.datosAdicionales,
-                          camposConfig,
+                          camposConfig
                         )}
                       </CardDescription>
                     </div>
@@ -381,7 +391,9 @@ export const ListaDetailPanel = ({
                         size='sm'
                         variant='ghost'
                         onClick={() =>
-                          eliminarCandidatoMutation.mutate(candidato.idCandidato)
+                          eliminarCandidatoMutation.mutate(
+                            candidato.idCandidato
+                          )
                         }
                         aria-label={`Eliminar ${candidato.nombre} ${candidato.apellido}`}
                       >
@@ -397,7 +409,7 @@ export const ListaDetailPanel = ({
       )}
 
       {!isEditable && (
-        <p className='text-muted-foreground text-sm'>
+        <p className='text-sm text-muted-foreground'>
           El comicio fue oficializado. No se pueden registrar ni modificar
           candidatos.
         </p>

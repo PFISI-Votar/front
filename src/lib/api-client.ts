@@ -1,6 +1,6 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios'
-import type { AuthResponse } from '@/features/auth/types/auth.types'
 import { useAuthStore } from '@/stores/auth-store'
+import type { AuthResponse } from '@/features/auth/types/auth.types'
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3000',
@@ -85,7 +85,7 @@ apiClient.interceptors.response.use(
     } finally {
       isRefreshing = false
     }
-  },
+  }
 )
 
 export const isConflictError = (error: unknown): error is AxiosError => {
@@ -146,14 +146,16 @@ export const getApiFieldErrors = (error: unknown): ApiFieldError[] => {
 }
 
 export const getApiStructuredFieldErrors = (
-  error: unknown,
+  error: unknown
 ): ApiStructuredFieldError[] => {
   if (!(error instanceof AxiosError)) {
     return []
   }
-  const data = error.response?.data as {
-    errors?: Array<{ field?: string; message?: string }>
-  } | undefined
+  const data = error.response?.data as
+    | {
+        errors?: Array<{ field?: string; message?: string }>
+      }
+    | undefined
   if (!Array.isArray(data?.errors)) {
     return []
   }

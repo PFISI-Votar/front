@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { z } from 'zod'
+import { AxiosError } from 'axios'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from '@tanstack/react-router'
@@ -12,12 +13,7 @@ import {
   User,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { AxiosError } from 'axios'
 import { useAuthStore } from '@/stores/auth-store'
-import { login } from '@/features/auth/services/auth-api'
-import { scheduleAccessTokenRefresh } from '@/features/auth/services/auth-session'
-import { ELECTION_ADMIN_ROLE } from '@/features/auth/types/auth.types'
-import { LoginField } from '@/features/auth/sign-in/components/login-screen-shared'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -28,6 +24,10 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { login } from '@/features/auth/services/auth-api'
+import { scheduleAccessTokenRefresh } from '@/features/auth/services/auth-session'
+import { LoginField } from '@/features/auth/sign-in/components/login-screen-shared'
+import { ELECTION_ADMIN_ROLE } from '@/features/auth/types/auth.types'
 
 const formSchema = z.object({
   nick: z.string().min(1, 'Ingrese su usuario.'),
@@ -69,7 +69,7 @@ export function UserAuthForm({
 
       if (response.user.role !== ELECTION_ADMIN_ROLE) {
         toast.error(
-          'Acceso denegado. Su cuenta no tiene privilegios de Autoridad Electoral.',
+          'Acceso denegado. Su cuenta no tiene privilegios de Autoridad Electoral.'
         )
         return
       }
@@ -80,7 +80,7 @@ export function UserAuthForm({
       const targetPath = redirectTo || '/'
       navigate({ to: targetPath, replace: true })
       toast.success(
-        `Bienvenido${response.user.name ? `, ${response.user.name}` : ''}.`,
+        `Bienvenido${response.user.name ? `, ${response.user.name}` : ''}.`
       )
     } catch (error) {
       const message =
@@ -173,7 +173,10 @@ export function UserAuthForm({
             ) : (
               <>
                 Ingresar al panel
-                <ArrowRight className='size-4 stroke-[2.5]' aria-hidden='true' />
+                <ArrowRight
+                  className='size-4 stroke-[2.5]'
+                  aria-hidden='true'
+                />
               </>
             )}
           </Button>
@@ -194,7 +197,9 @@ export function UserAuthForm({
           name='nick'
           render={({ field }) => (
             <FormItem>
-              <label className='text-sm font-medium'>Usuario institucional</label>
+              <label className='text-sm font-medium'>
+                Usuario institucional
+              </label>
               <FormControl>
                 <Input
                   placeholder='Nick de Autogestión UTN'

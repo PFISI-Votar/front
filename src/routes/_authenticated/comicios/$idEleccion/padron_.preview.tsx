@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -10,12 +10,15 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { leerPreview, limpiarPreview } from '@/features/padron/lib/preview-storage'
 import { PadronPreviewTable } from '@/features/padron/components/padron-preview-table'
 import type { ImportarPadronResponse } from '@/features/padron/hooks/use-importar-padron'
+import {
+  leerPreview,
+  limpiarPreview,
+} from '@/features/padron/lib/preview-storage'
 
 export const Route = createFileRoute(
-  '/_authenticated/comicios/$idEleccion/padron_/preview',
+  '/_authenticated/comicios/$idEleccion/padron_/preview'
 )({
   component: PadronPreviewRoute,
 })
@@ -37,7 +40,10 @@ function PadronPreviewRoute() {
   useEffect(() => () => limpiarPreview(idEleccion), [idEleccion])
 
   const volverAlPadron = () =>
-    navigate({ to: '/comicios/$idEleccion/padron', params: { idEleccion: idParam } })
+    navigate({
+      to: '/comicios/$idEleccion/padron',
+      params: { idEleccion: idParam },
+    })
 
   if (!registros || registros.length === 0) {
     return (
@@ -67,9 +73,11 @@ function PadronPreviewRoute() {
     limpiarPreview(idEleccion)
     invalidar()
     const omitidos =
-      resultado.totalOmitidos > 0 ? ` (${resultado.totalOmitidos} omitidas)` : ''
+      resultado.totalOmitidos > 0
+        ? ` (${resultado.totalOmitidos} omitidas)`
+        : ''
     toast.success(
-      `Se importaron ${resultado.totalImportados} identidades${omitidos}.`,
+      `Se importaron ${resultado.totalImportados} identidades${omitidos}.`
     )
     volverAlPadron()
   }
@@ -82,7 +90,12 @@ function PadronPreviewRoute() {
   return (
     <div className='space-y-6'>
       <div className='space-y-1'>
-        <Button variant='ghost' size='sm' className='-ms-2' onClick={volverAlPadron}>
+        <Button
+          variant='ghost'
+          size='sm'
+          className='-ms-2'
+          onClick={volverAlPadron}
+        >
           <ArrowLeft className='size-4' />
           Volver al padrón
         </Button>

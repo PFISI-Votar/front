@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useNavigate } from '@tanstack/react-router'
 import {
   FileCheck2,
   FileDown,
@@ -11,7 +12,6 @@ import {
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useNavigate } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -30,9 +30,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useElecciones } from '../hooks/use-elecciones'
 import { parseCsvPadron, CsvColumnasError } from '../lib/parse-csv-padron'
 import { guardarPreview } from '../lib/preview-storage'
-import { useElecciones } from '../hooks/use-elecciones'
 
 const formSchema = z.object({
   idEleccion: z
@@ -106,7 +106,7 @@ export function PadronUploadForm({
       toast.error(
         error instanceof CsvColumnasError
           ? error.message
-          : 'No se pudo leer el archivo CSV.',
+          : 'No se pudo leer el archivo CSV.'
       )
     } finally {
       setProcesando(false)
@@ -185,7 +185,8 @@ export function PadronUploadForm({
                     isDragging
                       ? 'border-primary bg-primary/5'
                       : 'border-input hover:bg-accent/40',
-                    value && 'border-green-500/50 bg-green-500/5 hover:bg-green-500/10'
+                    value &&
+                      'border-green-500/50 bg-green-500/5 hover:bg-green-500/10'
                   )}
                 >
                   {value ? (

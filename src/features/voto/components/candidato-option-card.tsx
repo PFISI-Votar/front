@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 import { CircleOff } from 'lucide-react'
-import { cn, getDisplayNameInitials } from '@/lib/utils'
 import { resolveMediaUrl } from '@/lib/media-url'
+import { cn, getDisplayNameInitials } from '@/lib/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card } from '@/components/ui/card'
 import { RadioGroupItem } from '@/components/ui/radio-group'
@@ -63,7 +63,7 @@ export const CandidatoOptionCard = ({
           <p className='text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase'>
             Lista {candidato.numeroLista}
           </p>
-          <h3 className='line-clamp-2 max-w-full break-words text-lg leading-tight font-bold sm:text-xl'>
+          <h3 className='line-clamp-2 max-w-full text-lg leading-tight font-bold break-words sm:text-xl'>
             {candidato.nombreCompleto}
           </h3>
           <div className='flex min-w-0 items-center gap-2 text-sm text-slate-600'>
@@ -80,7 +80,9 @@ export const CandidatoOptionCard = ({
                 aria-hidden='true'
               />
             )}
-            <span className='min-w-0 truncate'>{candidato.agrupacionPolitica}</span>
+            <span className='min-w-0 truncate'>
+              {candidato.agrupacionPolitica}
+            </span>
           </div>
         </div>
 

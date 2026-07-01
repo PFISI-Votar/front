@@ -1,6 +1,9 @@
 import { z } from 'zod'
 import type { Candidato } from '@/features/eleccion/candidato/data/schema'
-import type { EleccionEstado, RolCandidato } from '@/features/eleccion/data/schema'
+import type {
+  EleccionEstado,
+  RolCandidato,
+} from '@/features/eleccion/data/schema'
 
 export type { RolCandidato }
 
@@ -18,26 +21,28 @@ export const tipoVotacionSchema = z.enum([
   TIPOS_VOTACION.MIXTO,
 ])
 
-export const rolCandidatoSchema = z.object({
-  idCategoria: z.number().int().min(1).optional(),
-  nombre: z.string().min(1, 'El nombre del rol es obligatorio').max(255),
-  minimoPostulantes: z
-    .number()
-    .int('Debe ser un número entero')
-    .min(0, 'El mínimo de postulantes no puede ser negativo'),
-  maximoPostulantes: z
-    .number()
-    .int('Debe ser un número entero')
-    .min(1, 'El máximo de postulantes debe ser al menos 1'),
-}).superRefine((data, ctx) => {
-  if (data.minimoPostulantes > data.maximoPostulantes) {
-    ctx.addIssue({
-      code: 'custom',
-      message: 'El mínimo no puede ser mayor al máximo de postulantes',
-      path: ['minimoPostulantes'],
-    })
-  }
-})
+export const rolCandidatoSchema = z
+  .object({
+    idCategoria: z.number().int().min(1).optional(),
+    nombre: z.string().min(1, 'El nombre del rol es obligatorio').max(255),
+    minimoPostulantes: z
+      .number()
+      .int('Debe ser un número entero')
+      .min(0, 'El mínimo de postulantes no puede ser negativo'),
+    maximoPostulantes: z
+      .number()
+      .int('Debe ser un número entero')
+      .min(1, 'El máximo de postulantes debe ser al menos 1'),
+  })
+  .superRefine((data, ctx) => {
+    if (data.minimoPostulantes > data.maximoPostulantes) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'El mínimo no puede ser mayor al máximo de postulantes',
+        path: ['minimoPostulantes'],
+      })
+    }
+  })
 
 export const rolesCandidatoSchema = z
   .array(rolCandidatoSchema)

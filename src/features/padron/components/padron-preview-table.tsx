@@ -19,17 +19,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import type {
-  RegistroPreview,
-  TipoNovedadPreview,
-} from '../lib/parse-csv-padron'
-import { contarProblemas, validarRegistros } from '../lib/validar-padron'
-import { construirArchivoCsv } from '../lib/reconstruir-csv'
 import {
   useImportarPadron,
   type ImportarPadronResponse,
 } from '../hooks/use-importar-padron'
 import { PADRON_PAGE_SIZES } from '../hooks/use-padron'
+import type {
+  RegistroPreview,
+  TipoNovedadPreview,
+} from '../lib/parse-csv-padron'
+import { construirArchivoCsv } from '../lib/reconstruir-csv'
+import { contarProblemas, validarRegistros } from '../lib/validar-padron'
 
 interface PadronPreviewTableProps {
   idEleccion: number
@@ -65,7 +65,7 @@ export function PadronPreviewTable({
 
   const editar = (id: string, campo: 'dni' | 'email', valor: string) =>
     setRegistros((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, [campo]: valor } : r)),
+      prev.map((r) => (r.id === id ? { ...r, [campo]: valor } : r))
     )
 
   const borrar = (id: string) =>
@@ -74,7 +74,7 @@ export function PadronPreviewTable({
   const confirmar = () => {
     importar.mutate(
       { idEleccion, archivo: construirArchivoCsv(registros) },
-      { onSuccess: onConfirmado },
+      { onSuccess: onConfirmado }
     )
   }
 
@@ -84,7 +84,9 @@ export function PadronPreviewTable({
         <p className='text-sm'>
           <span className='font-medium'>{registros.length} registros</span> ·{' '}
           <span
-            className={problemas > 0 ? 'text-amber-600' : 'text-muted-foreground'}
+            className={
+              problemas > 0 ? 'text-amber-600' : 'text-muted-foreground'
+            }
           >
             {problemas} con problemas
           </span>
@@ -160,7 +162,9 @@ export function PadronPreviewTable({
 
       <div className='flex flex-wrap items-center justify-between gap-3'>
         <div className='flex items-center gap-2'>
-          <span className='text-muted-foreground text-sm'>Filas por página</span>
+          <span className='text-sm text-muted-foreground'>
+            Filas por página
+          </span>
           <Select
             value={limit.toString()}
             onValueChange={(v) => {
@@ -181,7 +185,7 @@ export function PadronPreviewTable({
           </Select>
         </div>
         <div className='flex items-center gap-2'>
-          <span className='text-muted-foreground text-sm'>
+          <span className='text-sm text-muted-foreground'>
             Página {page} de {totalPaginas}
           </span>
           <Button

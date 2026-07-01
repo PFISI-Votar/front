@@ -9,7 +9,7 @@ export function claveDedup(dni: string, email: string): string {
 }
 
 export function validarRegistros(
-  registros: RegistroPreview[],
+  registros: RegistroPreview[]
 ): Record<string, TipoNovedadPreview> {
   const vistos = new Set<string>()
   const estados: Record<string, TipoNovedadPreview> = {}
@@ -48,7 +48,7 @@ export function validarRegistros(
 }
 
 export function contarProblemas(
-  estados: Record<string, TipoNovedadPreview>,
+  estados: Record<string, TipoNovedadPreview>
 ): number {
   return Object.values(estados).filter((e) => e !== 'OK').length
 }

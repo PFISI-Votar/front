@@ -1,10 +1,10 @@
 // padron-preview-table.test.tsx
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { PadronPreviewTable } from './padron-preview-table'
 import type { RegistroPreview } from '../lib/parse-csv-padron'
+import { PadronPreviewTable } from './padron-preview-table'
 
 vi.mock('../hooks/use-importar-padron', () => ({
   useImportarPadron: () => ({ mutate: vi.fn(), isPending: false }),
@@ -15,7 +15,9 @@ const registros: RegistroPreview[] = [
   { id: '2', linea: 3, dni: '', email: 'b@b.com' },
 ]
 
-async function renderTabla(props?: Partial<Parameters<typeof PadronPreviewTable>[0]>) {
+async function renderTabla(
+  props?: Partial<Parameters<typeof PadronPreviewTable>[0]>
+) {
   const qc = new QueryClient()
   return render(
     <QueryClientProvider client={qc}>
@@ -26,20 +28,22 @@ async function renderTabla(props?: Partial<Parameters<typeof PadronPreviewTable>
         onCancelar={vi.fn()}
         {...props}
       />
-    </QueryClientProvider>,
+    </QueryClientProvider>
   )
 }
 
 describe('PadronPreviewTable', () => {
   it('muestra el conteo de problemas inicial', async () => {
     const screen = await renderTabla()
-    await expect.element(screen.getByText(/1 con problemas/i)).toBeInTheDocument()
+    await expect
+      .element(screen.getByText(/1 con problemas/i))
+      .toBeInTheDocument()
   })
 
   it('borrar una fila actualiza el total', async () => {
     const screen = await renderTabla()
     await userEvent.click(
-      screen.getByRole('button', { name: /Borrar fila 3/i }),
+      screen.getByRole('button', { name: /Borrar fila 3/i })
     )
     await expect.element(screen.getByText(/1 registros/i)).toBeInTheDocument()
   })
@@ -48,7 +52,9 @@ describe('PadronPreviewTable', () => {
     const screen = await renderTabla()
     const inputDni = screen.getByLabelText(/DNI línea 3/i)
     await userEvent.fill(inputDni, '87654321')
-    await expect.element(screen.getByText(/0 con problemas/i)).toBeInTheDocument()
+    await expect
+      .element(screen.getByText(/0 con problemas/i))
+      .toBeInTheDocument()
   })
 
   it('cancelar invoca onCancelar', async () => {

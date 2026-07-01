@@ -18,7 +18,9 @@ describe('parseCsvPadron', () => {
   })
 
   it('ignora líneas en blanco y numera por línea física', () => {
-    const r = parseCsvPadron('dni,email\n12345678,a@a.com\n\n87654321,b@b.com\n')
+    const r = parseCsvPadron(
+      'dni,email\n12345678,a@a.com\n\n87654321,b@b.com\n'
+    )
     expect(r).toHaveLength(2)
     expect(r[1].linea).toBe(4)
   })

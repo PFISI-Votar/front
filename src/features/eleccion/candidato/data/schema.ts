@@ -40,7 +40,10 @@ export const campoCandidatoDefinicionSchema = z.object({
     .string()
     .min(1, 'La clave es obligatoria')
     .max(50)
-    .regex(/^[a-z][a-z0-9_-]*$/, 'Use minúsculas, números y guiones (ej. legajo-utn)'),
+    .regex(
+      /^[a-z][a-z0-9_-]*$/,
+      'Use minúsculas, números y guiones (ej. legajo-utn)'
+    ),
   etiqueta: z.string().min(1, 'La etiqueta es obligatoria').max(100),
   tipo: z.enum(['texto', 'numero', 'email', 'url', 'fecha', 'booleano']),
   obligatorio: z.boolean(),
@@ -73,7 +76,9 @@ export const createCandidatoSchema = z.object({
   datosAdicionales: z.record(z.string(), z.unknown()),
 })
 
-export type GuardarConfiguracionInput = z.infer<typeof guardarConfiguracionSchema>
+export type GuardarConfiguracionInput = z.infer<
+  typeof guardarConfiguracionSchema
+>
 export type CreateCandidatoInput = z.infer<typeof createCandidatoSchema>
 
 export type Candidato = {

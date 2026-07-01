@@ -1,6 +1,11 @@
-import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
+import {
+  getApiErrorMessage,
+  getApiStructuredFieldErrors,
+  isValidationError,
+} from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -13,18 +18,13 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { DateTimePicker } from '@/components/datetime-picker'
-import {
-  getApiErrorMessage,
-  getApiStructuredFieldErrors,
-  isValidationError,
-} from '@/lib/api-client'
 import { CreateComicioTipoVotacionField } from '@/features/eleccion/components/create-comicio-tipo-votacion-field'
+import { MetodosAutenticacionField } from '@/features/eleccion/configuracion-comicio/components/metodos-autenticacion-field'
 import {
   createComicioSchema,
   type CreateComicioInput,
   type Eleccion,
 } from '@/features/eleccion/data/schema'
-import { MetodosAutenticacionField } from '@/features/eleccion/configuracion-comicio/components/metodos-autenticacion-field'
 import { TIPOS_VOTACION } from '@/features/eleccion/lista/data/schema'
 
 type ComicioFormProps = {
@@ -36,7 +36,7 @@ type ComicioFormProps = {
 
 const mapApiErrorsToForm = (
   errors: { field: string; message: string }[],
-  setError: ReturnType<typeof useForm<CreateComicioInput>>['setError'],
+  setError: ReturnType<typeof useForm<CreateComicioInput>>['setError']
 ) => {
   for (const error of errors) {
     if (
@@ -51,7 +51,7 @@ const mapApiErrorsToForm = (
 
 const buildFormDefaults = (
   mode: ComicioFormProps['mode'],
-  eleccion?: Eleccion,
+  eleccion?: Eleccion
 ): CreateComicioInput => {
   if (mode === 'edit' && eleccion) {
     return {
@@ -197,7 +197,7 @@ export const ComicioForm = ({
           </h2>
           <CreateComicioTipoVotacionField control={form.control} />
           {mode === 'create' && (
-            <p className='text-muted-foreground text-sm'>
+            <p className='text-sm text-muted-foreground'>
               Las categorías electorales (cargos a cubrir) se configuran en la
               oferta electoral después de crear el comicio.
             </p>
