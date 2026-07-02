@@ -37,8 +37,24 @@ jobs:
       - name: Run unit tests
         run: npm run test:unit
 
+      - name: Verify nginx security headers template sync
+        run: npm run verify:nginx-security-headers
+
       - name: Build the project
         run: npm run build
+
+      - name: Verify security headers on preview
+        run: |
+          npm run preview:ci &
+          PREVIEW_PID=$!
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:4173/ > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          SECURITY_HEADERS_URL=http://127.0.0.1:4173/ npm run verify:security-headers
+          kill $PREVIEW_PID
 
   browser-tests:
     needs: ci
