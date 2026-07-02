@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
@@ -7,6 +8,13 @@ import {
 } from '@/features/eleccion/lista/data/schema'
 import { BudVotingWizard } from '@/features/voto/components/bud-voting-wizard'
 import type { BoletaDigital } from '@/features/voto/data/schema'
+
+vi.mock('@/features/voto/api/voto-api', () => ({
+  solicitarMerkleProof: vi.fn().mockResolvedValue({
+    merkleProof: ['0x' + '1'.repeat(64)],
+    root: '0x' + 'a'.repeat(64),
+  }),
+}))
 
 const boleta: BoletaDigital = {
   idEleccion: 7,
@@ -92,17 +100,25 @@ const boleta: BoletaDigital = {
 async function renderWizard(
   tipoVotacion: TipoVotacion = TIPOS_VOTACION.POR_CANDIDATO
 ) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
   const screen = await render(
-    <BudVotingWizard
-      boleta={boleta}
-      tipoVotacion={tipoVotacion}
-      onLogout={vi.fn()}
-    />
+    <QueryClientProvider client={queryClient}>
+      <BudVotingWizard
+        boleta={boleta}
+        tipoVotacion={tipoVotacion}
+        onLogout={vi.fn()}
+      />
+    </QueryClientProvider>
   )
 
   await userEvent.click(
     screen.getByRole('button', { name: /Confirmar Identidad y Comenzar/i })
   )
+  await expect
+    .element(screen.getByText('Opciones especiales'))
+    .toBeInTheDocument()
 
   return screen
 }
