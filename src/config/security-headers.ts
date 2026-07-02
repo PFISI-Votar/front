@@ -77,7 +77,7 @@ export const buildNginxSecurityHeaderLines = (): string[] => {
   })
 
   return Object.entries(headers).map(
-    ([name, value]) => `add_header ${name} "${value}" always;`,
+    ([name, value]) => `add_header ${name} "${value}" always;`
   )
 }
 

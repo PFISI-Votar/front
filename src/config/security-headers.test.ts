@@ -70,9 +70,7 @@ describe('security-headers', () => {
     expect(lines).toContain('add_header X-Frame-Options "DENY" always;')
     expect(lines.some((line) => line.includes('${API_ORIGIN}'))).toBe(true)
     expect(
-      lines.some((line) =>
-        line.includes('Strict-Transport-Security'),
-      ),
+      lines.some((line) => line.includes('Strict-Transport-Security'))
     ).toBe(true)
   })
 })
