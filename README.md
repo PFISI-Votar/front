@@ -88,6 +88,15 @@ Ruta pública: `/comicios/{idEleccion}/votar`
 | `npm run test`    | Tests con Vitest (browser) |
 | `npm run format`  | Formateo con Prettier      |
 
+## Deploy y cabeceras de seguridad (VOTAR-381)
+
+El build estático se despliega con Docker/nginx. Ver [deploy/README.md](./deploy/README.md) para variables, HSTS detrás de TLS y sincronización de CSP con `src/config/security-headers.ts`.
+
+```bash
+npm run generate:nginx-security-headers   # regenerar snippet nginx desde el módulo TS
+npm run verify:security-headers           # validar headers en Vite preview
+```
+
 ## Roles y módulos previstos
 
 - **Autoridad Electoral:** configuración de comicios, gestión de padrón, publicación de Merkle Root, reportes

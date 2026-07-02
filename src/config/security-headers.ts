@@ -6,7 +6,13 @@ export type SecurityHeadersOptions = {
 
 const PERMISSIONS_POLICY = 'camera=(), microphone=(), geolocation=()'
 
+export const NGINX_API_ORIGIN_PLACEHOLDER = '${API_ORIGIN}' as const
+
 const normalizeOrigin = (apiOrigin: string): string => {
+  if (apiOrigin === NGINX_API_ORIGIN_PLACEHOLDER) {
+    return apiOrigin
+  }
+
   try {
     return new URL(apiOrigin).origin
   } catch {
@@ -61,6 +67,18 @@ export const buildSecurityHeaders = (
   }
 
   return headers
+}
+
+export const buildNginxSecurityHeaderLines = (): string[] => {
+  const headers = buildSecurityHeaders({
+    apiOrigin: NGINX_API_ORIGIN_PLACEHOLDER,
+    isDev: false,
+    isHttps: true,
+  })
+
+  return Object.entries(headers).map(
+    ([name, value]) => `add_header ${name} "${value}" always;`,
+  )
 }
 
 export const REQUIRED_SECURITY_HEADER_NAMES = [

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildContentSecurityPolicy,
+  buildNginxSecurityHeaderLines,
   buildSecurityHeaders,
   REQUIRED_SECURITY_HEADER_NAMES,
 } from './security-headers'
@@ -61,5 +62,17 @@ describe('security-headers', () => {
   it('documents required header names for verification script', () => {
     expect(REQUIRED_SECURITY_HEADER_NAMES).toContain('x-content-type-options')
     expect(REQUIRED_SECURITY_HEADER_NAMES).toContain('permissions-policy')
+  })
+
+  it('builds nginx header lines with API_ORIGIN placeholder', () => {
+    const lines = buildNginxSecurityHeaderLines()
+
+    expect(lines).toContain('add_header X-Frame-Options "DENY" always;')
+    expect(lines.some((line) => line.includes('${API_ORIGIN}'))).toBe(true)
+    expect(
+      lines.some((line) =>
+        line.includes('Strict-Transport-Security'),
+      ),
+    ).toBe(true)
   })
 })
