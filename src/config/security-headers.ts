@@ -20,7 +20,9 @@ export const buildContentSecurityPolicy = ({
   isHttps = !isDev,
 }: SecurityHeadersOptions): string => {
   const api = normalizeOrigin(apiOrigin)
-  const scriptSrc = isDev ? "script-src 'self' 'unsafe-inline'" : "script-src 'self'"
+  const scriptSrc = isDev
+    ? "script-src 'self' 'unsafe-inline'"
+    : "script-src 'self'"
   const directives = [
     "default-src 'self'",
     scriptSrc,
@@ -42,7 +44,7 @@ export const buildContentSecurityPolicy = ({
 }
 
 export const buildSecurityHeaders = (
-  options: SecurityHeadersOptions,
+  options: SecurityHeadersOptions
 ): Record<string, string> => {
   const { isDev, isHttps = !isDev } = options
   const headers: Record<string, string> = {

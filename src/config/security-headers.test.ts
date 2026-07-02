@@ -39,13 +39,13 @@ describe('security-headers', () => {
 
     expect(headers['X-Frame-Options']).toBe('DENY')
     expect(headers['Permissions-Policy']).toBe(
-      'camera=(), microphone=(), geolocation=()',
+      'camera=(), microphone=(), geolocation=()'
     )
     expect(headers['X-Content-Type-Options']).toBe('nosniff')
     expect(headers['Referrer-Policy']).toBe('same-origin')
     expect(headers['Strict-Transport-Security']).toContain('max-age=31536000')
     expect(headers['Content-Security-Policy']).toContain(
-      'https://api.votar.test',
+      'https://api.votar.test'
     )
   })
 
