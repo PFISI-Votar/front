@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { AxiosError } from 'axios'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -38,7 +39,9 @@ import {
 import type {
   BoletaDigital,
   CandidatoBoletaDigital,
+  VoterMerkleProof,
 } from '@/features/voto/data/schema'
+import { useSolicitarMerkleProof } from '@/features/voto/hooks/use-merkle-proof'
 
 type VotingVariant = 'lista-completa' | 'candidatos' | 'mixto'
 type SpecialVote = 'blank' | 'null' | null
@@ -254,6 +257,10 @@ export const BudVotingWizard = ({
     Record<string, string[]>
   >({})
   const [messageIndex, setMessageIndex] = useState(0)
+  const [merkleProofData, setMerkleProofData] =
+    useState<VoterMerkleProof | null>(null)
+  const [identityError, setIdentityError] = useState<string | null>(null)
+  const merkleProofMutation = useSolicitarMerkleProof(boleta.idEleccion)
 
   const lists = useMemo(() => buildListsFromBoleta(boleta), [boleta])
   const roles = useMemo(() => buildRolesFromBoleta(boleta), [boleta])
@@ -330,8 +337,33 @@ export const BudVotingWizard = ({
     }
   }
 
-  const handleIdentityConfirm = () => {
-    setStep(returningVoter ? 'registered' : 'selection')
+  const handleIdentityConfirm = async () => {
+    setIdentityError(null)
+    try {
+      const proof = await merkleProofMutation.mutateAsync()
+      setMerkleProofData(proof)
+      setStep(returningVoter ? 'registered' : 'selection')
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        if (error.response?.status === 401) {
+          onLogout()
+          return
+        }
+        if (error.response?.status === 403) {
+          setIdentityError('No te encuentras habilitado en el padrón.')
+          return
+        }
+        if (error.response?.status === 429) {
+          setIdentityError(
+            'Demasiadas solicitudes. Esperá un minuto e intentá de nuevo.'
+          )
+          return
+        }
+      }
+      setIdentityError(
+        'No pudimos obtener tu prueba de pertenencia al padrón. Reintentá.'
+      )
+    }
   }
 
   const handleSignVote = () => {
@@ -356,8 +388,12 @@ export const BudVotingWizard = ({
           <IdentityStep
             boleta={boleta}
             returningVoter={returningVoter}
+            identityError={identityError}
+            isLoadingProof={merkleProofMutation.isPending}
             onReturningVoterChange={setReturningVoter}
-            onConfirm={handleIdentityConfirm}
+            onConfirm={() => {
+              void handleIdentityConfirm()
+            }}
           />
         )}
         {step === 'registered' && (
@@ -406,7 +442,10 @@ export const BudVotingWizard = ({
           />
         )}
         {step === 'blockchain' && (
-          <BlockchainStep message={BLOCKCHAIN_MESSAGES[messageIndex]} />
+          <BlockchainStep
+            message={BLOCKCHAIN_MESSAGES[messageIndex]}
+            merkleRoot={merkleProofData?.root}
+          />
         )}
         {step === 'success' && (
           <SuccessStep
@@ -562,11 +601,15 @@ const WizardStepper = ({ currentStep }: { currentStep: WizardStep }) => {
 const IdentityStep = ({
   boleta,
   returningVoter,
+  identityError,
+  isLoadingProof,
   onReturningVoterChange,
   onConfirm,
 }: {
   boleta: BoletaDigital
   returningVoter: boolean
+  identityError: string | null
+  isLoadingProof: boolean
   onReturningVoterChange: (value: boolean) => void
   onConfirm: () => void
 }) => (
@@ -601,6 +644,13 @@ const IdentityStep = ({
             identidad para preservar el secreto del voto.
           </AlertDescription>
         </Alert>
+        {identityError && (
+          <Alert variant='destructive'>
+            <AlertTriangle className='size-4' />
+            <AlertTitle>No se pudo validar el padrón</AlertTitle>
+            <AlertDescription>{identityError}</AlertDescription>
+          </Alert>
+        )}
         <div className='rounded-2xl border border-dashed border-[#2f6f9f]/30 bg-white p-3'>
           <p className='mb-3 text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase'>
             Simulación temporal
@@ -633,10 +683,20 @@ const IdentityStep = ({
         <Button
           size='lg'
           className='h-12 w-full rounded-xl bg-[#2f6f9f] text-base font-semibold hover:bg-[#285f88]'
+          disabled={isLoadingProof}
           onClick={onConfirm}
         >
-          Confirmar Identidad y Comenzar
-          <ArrowRight className='size-5' />
+          {isLoadingProof ? (
+            <>
+              <Loader2 className='size-5 animate-spin' />
+              Obteniendo prueba Merkle...
+            </>
+          ) : (
+            <>
+              Confirmar Identidad y Comenzar
+              <ArrowRight className='size-5' />
+            </>
+          )}
         </Button>
       </CardFooter>
     </Card>
@@ -897,7 +957,13 @@ const ReviewStep = ({
   </div>
 )
 
-const BlockchainStep = ({ message }: { message: string }) => (
+const BlockchainStep = ({
+  message,
+  merkleRoot,
+}: {
+  message: string
+  merkleRoot?: string
+}) => (
   <div className='grid min-h-[58svh] place-items-center'>
     <Card className='w-full max-w-lg border-[#e4e7eb] bg-white/95 text-center shadow-[0_1.5rem_5rem_rgba(30,64,95,0.07)]'>
       <CardContent className='flex flex-col items-center gap-5 p-10'>
@@ -913,6 +979,14 @@ const BlockchainStep = ({ message }: { message: string }) => (
           >
             {message}
           </p>
+          {merkleRoot && (
+            <p
+              className='mt-3 text-xs break-all text-slate-500'
+              aria-hidden='true'
+            >
+              Raíz Merkle validada
+            </p>
+          )}
         </div>
       </CardContent>
     </Card>

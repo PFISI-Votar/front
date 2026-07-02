@@ -4,6 +4,7 @@ import type {
   BudConfig,
   ConfirmarVotoInput,
   ConfirmarVotoResponse,
+  VoterMerkleProof,
 } from '@/features/voto/data/schema'
 
 export const obtenerConfiguracionBud = async (
@@ -20,6 +21,15 @@ export const obtenerBoletaDigital = async (
 ): Promise<BoletaDigital> => {
   const { data } = await votanteApiClient.get<BoletaDigital>(
     `/elecciones/${idEleccion}/boleta-digital`
+  )
+  return data
+}
+
+export const solicitarMerkleProof = async (
+  idEleccion: number
+): Promise<VoterMerkleProof> => {
+  const { data } = await votanteApiClient.get<VoterMerkleProof>(
+    `/elecciones/${idEleccion}/merkle-proof`
   )
   return data
 }

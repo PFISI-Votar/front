@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   obtenerBoletaDigital: vi.fn(),
   confirmarVoto: vi.fn(),
   obtenerConfiguracionBud: vi.fn(),
+  solicitarMerkleProof: vi.fn(),
   ensureVotanteSession: vi.fn(),
   clearVotanteSession: vi.fn(),
 }))
@@ -18,6 +19,7 @@ vi.mock('@/features/voto/api/voto-api', () => ({
   obtenerBoletaDigital: mocks.obtenerBoletaDigital,
   confirmarVoto: mocks.confirmarVoto,
   obtenerConfiguracionBud: mocks.obtenerConfiguracionBud,
+  solicitarMerkleProof: mocks.solicitarMerkleProof,
 }))
 
 vi.mock('@/features/voto/services/votante-session', () => ({
@@ -128,11 +130,16 @@ describe('BoletaUnicaDigitalPage', () => {
     mocks.obtenerBoletaDigital.mockReset()
     mocks.confirmarVoto.mockReset()
     mocks.obtenerConfiguracionBud.mockReset()
+    mocks.solicitarMerkleProof.mockReset()
     mocks.ensureVotanteSession.mockReset()
     mocks.clearVotanteSession.mockReset()
     mocks.ensureVotanteSession.mockResolvedValue(null)
     mocks.clearVotanteSession.mockResolvedValue(undefined)
     mocks.obtenerConfiguracionBud.mockResolvedValue(budConfig)
+    mocks.solicitarMerkleProof.mockResolvedValue({
+      merkleProof: ['0x' + '1'.repeat(64)],
+      root: '0x' + 'a'.repeat(64),
+    })
   })
 
   it('vuelve al login con aviso cuando la sesión del votante expira (401)', async () => {

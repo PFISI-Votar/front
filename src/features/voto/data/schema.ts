@@ -71,3 +71,8 @@ export type ConfirmarVotoResponse = {
 }
 
 export type SeleccionesPorCategoria = Record<number, number>
+
+export type VoterMerkleProof = {
+  merkleProof: string[]
+  root: string
+}
