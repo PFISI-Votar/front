@@ -126,14 +126,6 @@ export const DashboardPublicoPage = ({
         </div>
         <TotalVotantesCard idEleccion={idEleccion} />
       </section>
-
-      <footer className='mt-10 border-t border-[#e4e7eb] pt-6'>
-        <p className='text-xs leading-relaxed text-[#80868b]'>
-          Esta vista no requiere autenticación. Solo se publica el volumen del
-          padrón consolidado; no se exponen datos identificatorios de los
-          electores.
-        </p>
-      </footer>
     </DashboardShell>
   )
 }
