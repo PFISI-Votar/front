@@ -1,6 +1,7 @@
 import {
   type CSSProperties,
   type ReactNode,
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -53,6 +54,10 @@ import type {
   ConfirmarVotoResponse,
   SeleccionesPorCategoria,
 } from '@/features/voto/data/schema'
+import { CryptoUnsupportedScreen } from '@/features/voto/crypto/components/crypto-unsupported-screen'
+import { EphemeralWalletProvider } from '@/features/voto/crypto/ephemeral-wallet-context'
+import { useEphemeralWallet } from '@/features/voto/crypto/use-ephemeral-wallet'
+import { isWebCryptoSupported } from '@/features/voto/crypto/web-crypto-support'
 import {
   clearVotanteSession,
   ensureVotanteSession,
@@ -72,6 +77,9 @@ type BoletaUnicaDigitalPageProps = {
   showIntro?: boolean
   showLogin?: boolean
 }
+
+const WALLET_INIT_ERROR =
+  'No pudimos generar tu identidad criptográfica efímera. Reintentá iniciar sesión.'
 
 const getHttpErrorMessage = (error: unknown): string => {
   if (error instanceof AxiosError) {
@@ -104,11 +112,25 @@ const getListImageUrl = (candidato: CandidatoBoletaDigital) =>
   candidato.fotoListaUrl ??
   null
 
-export const BoletaUnicaDigitalPage = ({
+export const BoletaUnicaDigitalPage = (props: BoletaUnicaDigitalPageProps) => {
+  if (!isWebCryptoSupported()) {
+    return <CryptoUnsupportedScreen />
+  }
+
+  return (
+    <EphemeralWalletProvider>
+      <BoletaUnicaDigitalPageContent {...props} />
+    </EphemeralWalletProvider>
+  )
+}
+
+const BoletaUnicaDigitalPageContent = ({
   idEleccion,
   showIntro = true,
   showLogin = true,
 }: BoletaUnicaDigitalPageProps) => {
+  const { initialize: initializeWallet, destroy: destroyWallet, isReady } =
+    useEphemeralWallet()
   const [introVisible, setIntroVisible] = useState(() => showIntro)
   const [votanteSession, setVotanteSession] = useState<VotanteAuthUser | null>(
     showLogin
@@ -122,9 +144,11 @@ export const BoletaUnicaDigitalPage = ({
   const [sessionBootstrapComplete, setSessionBootstrapComplete] = useState(
     () => !showLogin
   )
+  const [isWalletBootstrapping, setIsWalletBootstrapping] = useState(false)
   const [sessionExpiredMessage, setSessionExpiredMessage] = useState<
     string | null
   >(null)
+  const [walletError, setWalletError] = useState<string | null>(null)
   const [selecciones, setSelecciones] = useState<SeleccionesPorCategoria>({})
   const [votoEnBlanco, setVotoEnBlanco] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -157,13 +181,26 @@ export const BoletaUnicaDigitalPage = ({
     return () => window.clearTimeout(timeout)
   }, [introVisible])
 
-  const handleSessionExpired = async () => {
+  const handleSessionExpired = useCallback(async () => {
+    destroyWallet()
     await clearVotanteSession()
     setVotanteSession(null)
     setSessionExpiredMessage(
       'Tu sesión expiró. Volvé a iniciar sesión para continuar.'
     )
-  }
+  }, [destroyWallet])
+
+  const prepareEphemeralWallet = useCallback(async (): Promise<boolean> => {
+    try {
+      await initializeWallet(idEleccion)
+      setWalletError(null)
+      return true
+    } catch {
+      destroyWallet()
+      setWalletError(WALLET_INIT_ERROR)
+      return false
+    }
+  }, [destroyWallet, idEleccion, initializeWallet])
 
   useEffect(() => {
     if (introVisible || !showLogin || sessionBootstrapComplete) {
@@ -171,18 +208,42 @@ export const BoletaUnicaDigitalPage = ({
     }
 
     let cancelled = false
-    void ensureVotanteSession(idEleccion).then((user) => {
-      if (cancelled) {
-        return
-      }
-      setVotanteSession(user)
-      setSessionBootstrapComplete(true)
-    })
+    void ensureVotanteSession(idEleccion)
+      .then(async (user) => {
+        if (cancelled) {
+          return
+        }
+        if (!user) {
+          setVotanteSession(null)
+          return
+        }
+        const isWalletReady = await prepareEphemeralWallet()
+        if (cancelled) {
+          return
+        }
+        if (!isWalletReady) {
+          await clearVotanteSession()
+          setVotanteSession(null)
+          return
+        }
+        setVotanteSession(user)
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSessionBootstrapComplete(true)
+        }
+      })
 
     return () => {
       cancelled = true
     }
-  }, [idEleccion, introVisible, showLogin, sessionBootstrapComplete])
+  }, [
+    idEleccion,
+    introVisible,
+    prepareEphemeralWallet,
+    showLogin,
+    sessionBootstrapComplete,
+  ])
 
   useEffect(() => {
     if (!boletaQuery.isError || !(boletaQuery.error instanceof AxiosError)) {
@@ -195,7 +256,7 @@ export const BoletaUnicaDigitalPage = ({
       void handleSessionExpired()
     }, 0)
     return () => window.clearTimeout(timeoutId)
-  }, [boletaQuery.isError, boletaQuery.error])
+  }, [boletaQuery.isError, boletaQuery.error, handleSessionExpired])
 
   const confirmarMutation = useMutation({
     mutationFn: () =>
@@ -280,7 +341,7 @@ export const BoletaUnicaDigitalPage = ({
     return <BoletaIntroSplash />
   }
 
-  if (showLogin && !sessionBootstrapComplete) {
+  if (showLogin && (!sessionBootstrapComplete || isWalletBootstrapping)) {
     return <BoletaIntroSplash />
   }
 
@@ -303,12 +364,29 @@ export const BoletaUnicaDigitalPage = ({
             </Alert>
           </div>
         ) : null}
+        {walletError ? (
+          <div className='pointer-events-none fixed inset-x-0 top-4 z-50 mx-auto w-full max-w-md px-4'>
+            <Alert variant='destructive'>
+              <AlertTitle>Error de seguridad</AlertTitle>
+              <AlertDescription>{walletError}</AlertDescription>
+            </Alert>
+          </div>
+        ) : null}
         <BudLoginScreen
           idEleccion={idEleccion}
           authMethod={authMethod}
           onAuthenticated={(user) => {
-            setSessionExpiredMessage(null)
-            setVotanteSession(user)
+            void (async () => {
+              setIsWalletBootstrapping(true)
+              setSessionExpiredMessage(null)
+              const isWalletReady = await prepareEphemeralWallet()
+              setIsWalletBootstrapping(false)
+              if (!isWalletReady) {
+                await clearVotanteSession()
+                return
+              }
+              setVotanteSession(user)
+            })()
           }}
         />
       </>
@@ -316,7 +394,7 @@ export const BoletaUnicaDigitalPage = ({
   }
 
   if (showLogin && votanteSession) {
-    if (boletaQuery.isLoading || budConfigQuery.isLoading) {
+    if (boletaQuery.isLoading || budConfigQuery.isLoading || !isReady) {
       return <BoletaIntroSplash />
     }
 
@@ -344,7 +422,9 @@ export const BoletaUnicaDigitalPage = ({
       <BudVotingWizard
         boleta={boleta}
         tipoVotacion={budConfigQuery.data.tipoVotacion as TipoVotacion}
+        cryptoReady={isReady}
         onLogout={() => {
+          destroyWallet()
           void clearVotanteSession().finally(() => {
             setVotanteSession(null)
             setSessionBootstrapComplete(true)
