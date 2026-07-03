@@ -43,7 +43,7 @@ describe('DashboardPublicoPage', () => {
         status: 404,
         statusText: 'Not Found',
         headers: {},
-        config: { headers: {} },
+        config: {} as never,
         data: { message: 'Comicio no encontrado' },
       })
     )
