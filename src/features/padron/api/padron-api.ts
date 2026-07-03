@@ -67,6 +67,10 @@ export interface PublicarMerkleResponse {
   publishedAt: string
 }
 
+export interface TotalVotantesResponse {
+  totalVotantesHabilitados: number
+}
+
 /** Resumen del padrón de un comicio (total, estado, hash, fecha). */
 export const obtenerPadronResumen = async (
   idEleccion: number
@@ -121,6 +125,16 @@ export const publicarMerkleOnChain = async (
 ): Promise<PublicarMerkleResponse> => {
   const { data } = await apiClient.post<PublicarMerkleResponse>(
     `/elecciones/${idEleccion}/padron/merkle/publicar`
+  )
+  return data
+}
+
+/** Total de votantes habilitados del padrón consolidado, acceso público (VOTAR-333). */
+export const obtenerTotalVotantesPublico = async (
+  idEleccion: number
+): Promise<TotalVotantesResponse> => {
+  const { data } = await apiClient.get<TotalVotantesResponse>(
+    `/elecciones/${idEleccion}/padron/total-votantes`
   )
   return data
 }

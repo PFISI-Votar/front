@@ -4,6 +4,7 @@ import {
   listarPadronVotantes,
   obtenerMerkleResumen,
   obtenerPadronResumen,
+  obtenerTotalVotantesPublico,
 } from '../api/padron-api'
 
 const PAGE_SIZE = 50
@@ -51,6 +52,22 @@ export function usePadronVotantes(
     queryFn: () => listarPadronVotantes(idEleccion, page, limit),
     enabled,
     placeholderData: keepPreviousData,
+  })
+}
+
+/**
+ * Total de votantes habilitados del padrón consolidado (acceso público).
+ * Un 404 (padrón sin publicar aún) no se reintenta: la vista lo trata como
+ * estado "aún no consolidado".
+ */
+export function useTotalVotantesPublico(idEleccion: number) {
+  return useQuery({
+    queryKey: ['padron-total-votantes', idEleccion],
+    queryFn: () => obtenerTotalVotantesPublico(idEleccion),
+    retry: (failureCount, error) => {
+      if (isAxiosError(error) && error.response?.status === 404) return false
+      return failureCount < 2
+    },
   })
 }
 
