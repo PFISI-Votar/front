@@ -31,6 +31,7 @@ import { Route as AuthenticatedComiciosIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedChatsIndexRouteImport } from './routes/_authenticated/chats/index'
 import { Route as AuthenticatedAppsIndexRouteImport } from './routes/_authenticated/apps/index'
 import { Route as ComiciosIdEleccionVotarRouteImport } from './routes/comicios/$idEleccion/votar'
+import { Route as ComiciosIdEleccionDashboardRouteImport } from './routes/comicios/$idEleccion/dashboard'
 import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes/_authenticated/settings/notifications'
 import { Route as AuthenticatedSettingsDisplayRouteImport } from './routes/_authenticated/settings/display'
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
@@ -157,6 +158,12 @@ const ComiciosIdEleccionVotarRoute = ComiciosIdEleccionVotarRouteImport.update({
   path: '/comicios/$idEleccion/votar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ComiciosIdEleccionDashboardRoute =
+  ComiciosIdEleccionDashboardRouteImport.update({
+    id: '/comicios/$idEleccion/dashboard',
+    path: '/comicios/$idEleccion/dashboard',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedSettingsNotificationsRoute =
   AuthenticatedSettingsNotificationsRouteImport.update({
     id: '/notifications',
@@ -244,6 +251,7 @@ export interface FileRoutesByFullPath {
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/settings/display': typeof AuthenticatedSettingsDisplayRoute
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
+  '/comicios/$idEleccion/dashboard': typeof ComiciosIdEleccionDashboardRoute
   '/comicios/$idEleccion/votar': typeof ComiciosIdEleccionVotarRoute
   '/apps/': typeof AuthenticatedAppsIndexRoute
   '/chats/': typeof AuthenticatedChatsIndexRoute
@@ -276,6 +284,7 @@ export interface FileRoutesByTo {
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/settings/display': typeof AuthenticatedSettingsDisplayRoute
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
+  '/comicios/$idEleccion/dashboard': typeof ComiciosIdEleccionDashboardRoute
   '/comicios/$idEleccion/votar': typeof ComiciosIdEleccionVotarRoute
   '/apps': typeof AuthenticatedAppsIndexRoute
   '/chats': typeof AuthenticatedChatsIndexRoute
@@ -312,6 +321,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/_authenticated/settings/display': typeof AuthenticatedSettingsDisplayRoute
   '/_authenticated/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
+  '/comicios/$idEleccion/dashboard': typeof ComiciosIdEleccionDashboardRoute
   '/comicios/$idEleccion/votar': typeof ComiciosIdEleccionVotarRoute
   '/_authenticated/apps/': typeof AuthenticatedAppsIndexRoute
   '/_authenticated/chats/': typeof AuthenticatedChatsIndexRoute
@@ -348,6 +358,7 @@ export interface FileRouteTypes {
     | '/settings/appearance'
     | '/settings/display'
     | '/settings/notifications'
+    | '/comicios/$idEleccion/dashboard'
     | '/comicios/$idEleccion/votar'
     | '/apps/'
     | '/chats/'
@@ -380,6 +391,7 @@ export interface FileRouteTypes {
     | '/settings/appearance'
     | '/settings/display'
     | '/settings/notifications'
+    | '/comicios/$idEleccion/dashboard'
     | '/comicios/$idEleccion/votar'
     | '/apps'
     | '/chats'
@@ -415,6 +427,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/appearance'
     | '/_authenticated/settings/display'
     | '/_authenticated/settings/notifications'
+    | '/comicios/$idEleccion/dashboard'
     | '/comicios/$idEleccion/votar'
     | '/_authenticated/apps/'
     | '/_authenticated/chats/'
@@ -442,6 +455,7 @@ export interface RootRouteChildren {
   errors404Route: typeof errors404Route
   errors500Route: typeof errors500Route
   errors503Route: typeof errors503Route
+  ComiciosIdEleccionDashboardRoute: typeof ComiciosIdEleccionDashboardRoute
   ComiciosIdEleccionVotarRoute: typeof ComiciosIdEleccionVotarRoute
 }
 
@@ -599,6 +613,13 @@ declare module '@tanstack/react-router' {
       path: '/comicios/$idEleccion/votar'
       fullPath: '/comicios/$idEleccion/votar'
       preLoaderRoute: typeof ComiciosIdEleccionVotarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/comicios/$idEleccion/dashboard': {
+      id: '/comicios/$idEleccion/dashboard'
+      path: '/comicios/$idEleccion/dashboard'
+      fullPath: '/comicios/$idEleccion/dashboard'
+      preLoaderRoute: typeof ComiciosIdEleccionDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/settings/notifications': {
@@ -774,6 +795,7 @@ const rootRouteChildren: RootRouteChildren = {
   errors404Route: errors404Route,
   errors500Route: errors500Route,
   errors503Route: errors503Route,
+  ComiciosIdEleccionDashboardRoute: ComiciosIdEleccionDashboardRoute,
   ComiciosIdEleccionVotarRoute: ComiciosIdEleccionVotarRoute,
 }
 export const routeTree = rootRouteImport

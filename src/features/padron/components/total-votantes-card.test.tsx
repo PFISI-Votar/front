@@ -11,7 +11,7 @@ vi.mock('@/features/padron/hooks/use-padron', () => ({
   useTotalVotantesPublico: useTotalVotantesPublicoMock,
 }))
 
-async function renderCard(idEleccion = 6) {
+const renderCard = async (idEleccion = 6) => {
   const qc = new QueryClient()
   return render(
     <QueryClientProvider client={qc}>
@@ -59,7 +59,7 @@ describe('TotalVotantesCard', () => {
     const screen = await renderCard()
 
     await expect
-      .element(screen.getByText(/Votantes habilitados/i))
+      .element(screen.getByText(/Total de votantes habilitados/i))
       .toBeInTheDocument()
     await expect.element(screen.getByText('1.500')).toBeInTheDocument()
   })
