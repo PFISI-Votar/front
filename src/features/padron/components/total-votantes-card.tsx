@@ -17,7 +17,7 @@ export function TotalVotantesCard({ idEleccion }: TotalVotantesCardProps) {
 
   if (isLoading) {
     return (
-      <p className='text-muted-foreground text-sm' aria-live='polite'>
+      <p className='text-sm text-muted-foreground' aria-live='polite'>
         Cargando total de votantes…
       </p>
     )
