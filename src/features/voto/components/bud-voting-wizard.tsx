@@ -46,12 +46,7 @@ import { useSolicitarMerkleProof } from '@/features/voto/hooks/use-merkle-proof'
 type VotingVariant = 'lista-completa' | 'candidatos' | 'mixto'
 type SpecialVote = 'blank' | 'null' | null
 type WizardStep =
-  | 'identity'
-  | 'registered'
-  | 'selection'
-  | 'review'
-  | 'blockchain'
-  | 'success'
+  'identity' | 'registered' | 'selection' | 'review' | 'blockchain' | 'success'
 
 type Candidate = {
   id: string

@@ -1,12 +1,7 @@
 import { z } from 'zod'
 
 export type TipoCampoCandidato =
-  | 'texto'
-  | 'numero'
-  | 'email'
-  | 'url'
-  | 'fecha'
-  | 'booleano'
+  'texto' | 'numero' | 'email' | 'url' | 'fecha' | 'booleano'
 
 export type ValidacionCampoCandidato = {
   minLength?: number

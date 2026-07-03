@@ -49,15 +49,15 @@ import {
 import { BudVotingWizard } from '@/features/voto/components/bud-voting-wizard'
 import { CategoriaSection } from '@/features/voto/components/categoria-section'
 import { VotoConfirmDialog } from '@/features/voto/components/voto-confirm-dialog'
+import { CryptoUnsupportedScreen } from '@/features/voto/crypto/components/crypto-unsupported-screen'
+import { EphemeralWalletProvider } from '@/features/voto/crypto/ephemeral-wallet-context'
+import { useEphemeralWallet } from '@/features/voto/crypto/use-ephemeral-wallet'
+import { isWebCryptoSupported } from '@/features/voto/crypto/web-crypto-support'
 import type {
   CandidatoBoletaDigital,
   ConfirmarVotoResponse,
   SeleccionesPorCategoria,
 } from '@/features/voto/data/schema'
-import { CryptoUnsupportedScreen } from '@/features/voto/crypto/components/crypto-unsupported-screen'
-import { EphemeralWalletProvider } from '@/features/voto/crypto/ephemeral-wallet-context'
-import { useEphemeralWallet } from '@/features/voto/crypto/use-ephemeral-wallet'
-import { isWebCryptoSupported } from '@/features/voto/crypto/web-crypto-support'
 import {
   clearVotanteSession,
   ensureVotanteSession,
@@ -129,8 +129,11 @@ const BoletaUnicaDigitalPageContent = ({
   showIntro = true,
   showLogin = true,
 }: BoletaUnicaDigitalPageProps) => {
-  const { initialize: initializeWallet, destroy: destroyWallet, isReady } =
-    useEphemeralWallet()
+  const {
+    initialize: initializeWallet,
+    destroy: destroyWallet,
+    isReady,
+  } = useEphemeralWallet()
   const [introVisible, setIntroVisible] = useState(() => showIntro)
   const [votanteSession, setVotanteSession] = useState<VotanteAuthUser | null>(
     showLogin

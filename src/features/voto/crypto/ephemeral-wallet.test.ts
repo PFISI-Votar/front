@@ -94,9 +94,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
     expect(
       (globalThis as { myPrivateKey?: unknown }).myPrivateKey
     ).toBeUndefined()
-    expect(
-      (globalThis as { privateKey?: unknown }).privateKey
-    ).toBeUndefined()
+    expect((globalThis as { privateKey?: unknown }).privateKey).toBeUndefined()
 
     const publicKeys = Object.keys(manager)
     expect(publicKeys).toEqual([
