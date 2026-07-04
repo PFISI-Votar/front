@@ -37,3 +37,19 @@ export const obtenerEleccion = async (
   const { data } = await apiClient.get<Eleccion>(`/elecciones/${idEleccion}`)
   return data
 }
+
+export interface AbrirEleccionResponse {
+  idEleccion: number
+  estado: 'ABIERTA'
+  fechaApertura: string
+  modo: 'MANUAL' | 'AUTOMATICO'
+}
+
+export const abrirEleccion = async (
+  idEleccion: number
+): Promise<AbrirEleccionResponse> => {
+  const { data } = await apiClient.post<AbrirEleccionResponse>(
+    `/elecciones/${idEleccion}/abrir`
+  )
+  return data
+}
