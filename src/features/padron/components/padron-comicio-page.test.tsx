@@ -114,17 +114,17 @@ describe('PadronComicioPage — VOTAR-336', () => {
     it('NO muestra alerta de padrón sellado cuando el estado es BORRADOR', async () => {
       const screen = await renderPage('BORRADOR')
 
-      await expect(() =>
-        screen.getByText(/Padrón Sellado Criptográficamente/i)
-      ).rejects.toThrow()
+      await expect
+        .element(screen.getByText(/Padrón Sellado Criptográficamente/i))
+        .not.toBeInTheDocument()
     })
 
     it('NO muestra alerta de padrón sellado cuando el estado es CONFIGURADA', async () => {
       const screen = await renderPage('CONFIGURADA')
 
-      await expect(() =>
-        screen.getByText(/Padrón Sellado Criptográficamente/i)
-      ).rejects.toThrow()
+      await expect
+        .element(screen.getByText(/Padrón Sellado Criptográficamente/i))
+        .not.toBeInTheDocument()
     })
 
     it('muestra icono de Lock cuando el estado es ABIERTA', async () => {
