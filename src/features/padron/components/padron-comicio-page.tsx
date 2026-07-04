@@ -19,11 +19,7 @@ import { toast } from 'sonner'
 import { getApiErrorMessage } from '@/lib/api-client'
 import { formatDateTimeForDisplay } from '@/lib/datetime'
 import { cn } from '@/lib/utils'
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -210,8 +206,10 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
             Padrón Sellado Criptográficamente
           </AlertTitle>
           <AlertDescription className='text-amber-800 dark:text-amber-300'>
-            El padrón electoral se encuentra sellado y no admite alteraciones mientras el comicio esté abierto.
-            Esta medida garantiza la integridad del proceso electoral según lo establecido en la Ley 25.326.
+            El padrón electoral se encuentra sellado y no admite alteraciones
+            mientras el comicio esté abierto. Esta medida garantiza la
+            integridad del proceso electoral según lo establecido en la Ley
+            25.326.
           </AlertDescription>
         </Alert>
       )}

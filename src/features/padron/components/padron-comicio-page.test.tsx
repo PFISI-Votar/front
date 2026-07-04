@@ -82,7 +82,7 @@ const renderPage = async (estado: string = 'BORRADOR') => {
   return render(
     <QueryClientProvider client={qc}>
       <PadronComicioPage idEleccion={42} />
-    </QueryClientProvider>,
+    </QueryClientProvider>
   )
 }
 
@@ -98,14 +98,12 @@ describe('PadronComicioPage — VOTAR-336', () => {
       await expect
         .element(
           screen.getByText(
-            /El padrón electoral se encuentra sellado y no admite alteraciones/i,
-          ),
+            /El padrón electoral se encuentra sellado y no admite alteraciones/i
+          )
         )
         .toBeInTheDocument()
 
-      await expect
-        .element(screen.getByText(/Ley 25\.326/i))
-        .toBeInTheDocument()
+      await expect.element(screen.getByText(/Ley 25\.326/i)).toBeInTheDocument()
     })
 
     it('NO muestra alerta de padrón sellado cuando el estado es BORRADOR', async () => {
@@ -128,7 +126,8 @@ describe('PadronComicioPage — VOTAR-336', () => {
       const screen = await renderPage('ABIERTA')
 
       // El icono Lock está presente en el DOM
-      const alert = screen.getByText(/Padrón Sellado Criptográficamente/i)
+      const alert = screen
+        .getByText(/Padrón Sellado Criptográficamente/i)
         .closest('[role="alert"]')
 
       await expect.element(alert).toBeInTheDocument()
