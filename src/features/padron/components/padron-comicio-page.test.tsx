@@ -42,7 +42,9 @@ vi.mock('@/features/padron/hooks/use-publicar-merkle', () => ({
 }))
 
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
+  Link: ({ children, ...props }: React.PropsWithChildren<unknown>) => (
+    <a {...props}>{children}</a>
+  ),
 }))
 
 const renderPage = async (estado: string = 'BORRADOR') => {
