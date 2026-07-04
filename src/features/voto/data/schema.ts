@@ -68,6 +68,12 @@ export type ConfirmarVotoResponse = {
   payloadHash: string
   recibidoEn: string
   idempotente: boolean
+  // VOTAR-360: Campos de recibo blockchain
+  txHash?: string
+  blockNumber?: number
+  contractAddress?: string
+  codigoVerificacionE2E: string
+  txStatus?: string
 }
 
 export type SeleccionesPorCategoria = Record<number, number>
@@ -75,4 +81,17 @@ export type SeleccionesPorCategoria = Record<number, number>
 export type VoterMerkleProof = {
   merkleProof: string[]
   root: string
+}
+
+// VOTAR-360: Respuesta de verificación de recibo electoral
+export type VerificarReciboResponse = {
+  idEleccion: number
+  nombreEleccion: string
+  recibidoEn: string
+  txHash?: string
+  blockNumber?: number
+  estadoTx?: string
+  urlExploradorBlockchain?: string
+  contractAddress?: string
+  comprobanteHash: string
 }

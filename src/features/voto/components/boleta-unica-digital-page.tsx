@@ -14,6 +14,7 @@ import {
   Download,
   LockKeyhole,
   Loader2,
+  QrCode,
   RotateCcw,
   Share2,
 } from 'lucide-react'
@@ -66,6 +67,7 @@ import {
   getTotalCandidatos,
   seleccionarCandidato,
 } from '@/features/voto/utils/seleccion-voto'
+import { generarReciboPDF } from '@/features/voto/lib/generar-recibo-pdf'
 
 type BoletaUnicaDigitalPageProps = {
   idEleccion: number
@@ -548,143 +550,232 @@ const BoletaSuccessScreen = ({
   selecciones: CandidatoBoletaDigital[]
   votoEnBlanco: boolean
   accentColor: string
-}) => (
-  <BoletaPageShell accentColor={accentColor}>
-    <BudTopBar />
-    <section className='mx-auto flex w-full max-w-md flex-col gap-5 px-4 py-6 pb-24 text-center'>
-      <div className='mx-auto grid size-28 place-items-center rounded-full bg-sky-100 ring-[18px] ring-sky-100/50'>
-        <div className='grid size-16 place-items-center rounded-full bg-sky-500 text-white'>
-          <CheckCircle2 className='size-9' />
+}) => {
+  const [descargando, setDescargando] = useState(false)
+  const [copiado, setCopiado] = useState(false)
+
+  const handleDescargarPDF = async () => {
+    if (!comprobante.txHash || !comprobante.codigoVerificacionE2E) {
+      alert(
+        'No se puede generar el PDF porque faltan datos blockchain. Contacte al administrador.',
+      )
+      return
+    }
+
+    setDescargando(true)
+    try {
+      await generarReciboPDF({
+        idEleccion: comprobante.idEleccion,
+        nombreEleccion: boletaNombre,
+        txHash: comprobante.txHash,
+        timestamp: comprobante.recibidoEn,
+        codigoVerificacionE2E: comprobante.codigoVerificacionE2E,
+        blockNumber: comprobante.blockNumber,
+        comprobanteHash: comprobante.comprobanteHash,
+      })
+    } catch (error) {
+      console.error('Error generando PDF:', error)
+      alert('Error al generar el PDF. Intente nuevamente.')
+    } finally {
+      setDescargando(false)
+    }
+  }
+
+  const handleCopiarHash = async () => {
+    try {
+      await navigator.clipboard.writeText(comprobante.comprobanteHash)
+      setCopiado(true)
+      setTimeout(() => setCopiado(false), 2000)
+    } catch {
+      alert('No se pudo copiar el hash. Selecciónelo manualmente.')
+    }
+  }
+
+  const handleCompartirHash = async () => {
+    const urlVerificacion = `${window.location.origin}/verificar/${comprobante.codigoVerificacionE2E}`
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Verificar Participación Electoral',
+          text: 'Verifique mi participación en la elección',
+          url: urlVerificacion,
+        })
+      } else {
+        await navigator.clipboard.writeText(urlVerificacion)
+        alert('URL de verificación copiada al portapapeles')
+      }
+    } catch (error) {
+      console.log('Error compartiendo:', error)
+    }
+  }
+
+  return (
+    <BoletaPageShell accentColor={accentColor}>
+      <BudTopBar />
+      <section className='mx-auto flex w-full max-w-md flex-col gap-5 px-4 py-6 pb-24 text-center'>
+        <div className='mx-auto grid size-28 place-items-center rounded-full bg-sky-100 ring-[18px] ring-sky-100/50'>
+          <div className='grid size-16 place-items-center rounded-full bg-sky-500 text-white'>
+            <CheckCircle2 className='size-9' />
+          </div>
         </div>
-      </div>
 
-      <div className='space-y-2'>
-        <p className='sr-only'>Voto confirmado</p>
-        <h1 className='text-2xl font-bold text-sky-900'>
-          Voto Registrado con Éxito
-        </h1>
-        <p className='text-sm leading-relaxed text-slate-600'>
-          Su participación democrática ha sido cifrada y transmitida de forma
-          inmutable a la red blockchain electoral.
-        </p>
-      </div>
-
-      <Card className='bg-white/95 text-left shadow-sm'>
-        <CardHeader>
-          <CardTitle className='text-xs tracking-[0.18em] text-slate-500 uppercase'>
-            Hash de transacción (SHA-256)
-          </CardTitle>
-        </CardHeader>
-        <CardContent className='grid gap-3'>
-          <code className='block rounded-lg bg-slate-50 p-4 text-xs break-all text-slate-600'>
-            {comprobante.comprobanteHash}
-          </code>
-          <Button type='button' variant='ghost' className='justify-end'>
-            Copiar Hash
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card className='bg-white/95 shadow-sm'>
-        <CardContent className='grid gap-3 p-6'>
-          <div className='mx-auto grid size-28 place-items-center rounded-md bg-[linear-gradient(135deg,#0f172a_25%,#fff_25%,#fff_50%,#0f172a_50%,#0f172a_75%,#fff_75%)] bg-[length:18px_18px] shadow-inner' />
-          <p className='text-sm text-slate-600'>
-            Escanee para verificar integridad externa
+        <div className='space-y-2'>
+          <p className='sr-only'>Voto confirmado</p>
+          <h1 className='text-2xl font-bold text-sky-900'>
+            Voto Registrado con Éxito
+          </h1>
+          <p className='text-sm leading-relaxed text-slate-600'>
+            Su participación democrática ha sido cifrada y transmitida de forma
+            inmutable a la red blockchain electoral.
           </p>
-        </CardContent>
-      </Card>
+        </div>
 
-      <Card className='bg-white/95 text-left shadow-sm'>
-        <CardContent className='grid gap-3 p-5 text-sm'>
-          <ReceiptRow
-            label='Emitido el'
-            value={formatReceiptDate(comprobante.recibidoEn)}
-          />
-          <ReceiptRow
-            label='Hora local'
-            value={formatReceiptTime(comprobante.recibidoEn)}
-          />
-          <ReceiptRow label='Nodo electoral' value='MX-CENTRAL-04' />
-          <p className='pt-2 text-xs font-medium text-sky-800'>
-            ✓ Blockchain: sincronizado
-          </p>
-        </CardContent>
-      </Card>
+        <Card className='bg-white/95 text-left shadow-sm'>
+          <CardHeader>
+            <CardTitle className='text-xs tracking-[0.18em] text-slate-500 uppercase'>
+              Hash de transacción blockchain
+            </CardTitle>
+          </CardHeader>
+          <CardContent className='grid gap-3'>
+            <code className='block rounded-lg bg-slate-50 p-4 text-xs break-all text-slate-600'>
+              {comprobante.txHash || comprobante.comprobanteHash}
+            </code>
+            <Button
+              type='button'
+              variant='ghost'
+              className='justify-end'
+              onClick={handleCopiarHash}
+            >
+              {copiado ? 'Copiado ✓' : 'Copiar Hash'}
+            </Button>
+          </CardContent>
+        </Card>
 
-      <Card className='overflow-hidden bg-white/95 text-left shadow-sm'>
-        <CardHeader className='bg-slate-100 py-3'>
-          <CardTitle className='text-xs tracking-[0.18em] text-slate-500 uppercase'>
-            Resumen de selección
-          </CardTitle>
-        </CardHeader>
-        <CardContent className='grid gap-3 p-5'>
-          {votoEnBlanco ? (
-            <p className='font-semibold'>Voto en blanco confirmado</p>
-          ) : (
-            selecciones.map((candidato) => (
-              <div
-                key={`${candidato.idCategoria}-${candidato.idCandidato}`}
-                className='flex items-center gap-3'
-              >
-                {candidato.fotoUrl ? (
-                  <img
-                    src={resolveMediaUrl(candidato.fotoUrl)}
-                    alt={`Foto de ${candidato.nombreCompleto}`}
-                    className='size-12 rounded-xl border bg-muted object-cover'
-                  />
-                ) : (
-                  <span
-                    className='size-12 rounded-xl border bg-muted'
-                    style={{
-                      backgroundColor: `${candidato.colorLista ?? accentColor}22`,
-                    }}
-                    aria-hidden='true'
-                  />
-                )}
-                {getListImageUrl(candidato) ? (
-                  <img
-                    src={resolveMediaUrl(getListImageUrl(candidato))}
-                    alt={`Logo de ${candidato.agrupacionPolitica}`}
-                    className='h-12 w-20 rounded-xl border bg-muted object-cover'
-                  />
-                ) : (
-                  <span
-                    className='h-12 w-20 rounded-xl border bg-muted'
-                    style={{
-                      backgroundColor: candidato.colorLista ?? accentColor,
-                    }}
-                    aria-hidden='true'
-                  />
-                )}
-                <div>
-                  <p className='text-xs text-slate-500 uppercase'>
-                    {candidato.agrupacionPolitica}
-                  </p>
-                  <p className='font-semibold'>{candidato.nombreCompleto}</p>
+        <Card className='bg-white/95 shadow-sm'>
+          <CardContent className='grid gap-3 p-6'>
+            <div className='mx-auto flex size-28 items-center justify-center rounded-md bg-slate-100 shadow-inner'>
+              <QrCode className='size-16 text-slate-400' />
+            </div>
+            <p className='text-sm text-slate-600'>
+              Descargue el PDF para obtener el código QR de verificación
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className='bg-white/95 text-left shadow-sm'>
+          <CardContent className='grid gap-3 p-5 text-sm'>
+            <ReceiptRow
+              label='Emitido el'
+              value={formatReceiptDate(comprobante.recibidoEn)}
+            />
+            <ReceiptRow
+              label='Hora local'
+              value={formatReceiptTime(comprobante.recibidoEn)}
+            />
+            {comprobante.blockNumber && (
+              <ReceiptRow
+                label='Bloque'
+                value={`#${comprobante.blockNumber}`}
+              />
+            )}
+            <p className='pt-2 text-xs font-medium text-sky-800'>
+              ✓ Blockchain: {comprobante.txStatus || 'confirmado'}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className='overflow-hidden bg-white/95 text-left shadow-sm'>
+          <CardHeader className='bg-slate-100 py-3'>
+            <CardTitle className='text-xs tracking-[0.18em] text-slate-500 uppercase'>
+              Resumen de selección
+            </CardTitle>
+          </CardHeader>
+          <CardContent className='grid gap-3 p-5'>
+            {votoEnBlanco ? (
+              <p className='font-semibold'>Voto en blanco confirmado</p>
+            ) : (
+              selecciones.map((candidato) => (
+                <div
+                  key={`${candidato.idCategoria}-${candidato.idCandidato}`}
+                  className='flex items-center gap-3'
+                >
+                  {candidato.fotoUrl ? (
+                    <img
+                      src={resolveMediaUrl(candidato.fotoUrl)}
+                      alt={`Foto de ${candidato.nombreCompleto}`}
+                      className='size-12 rounded-xl border bg-muted object-cover'
+                    />
+                  ) : (
+                    <span
+                      className='size-12 rounded-xl border bg-muted'
+                      style={{
+                        backgroundColor: `${candidato.colorLista ?? accentColor}22`,
+                      }}
+                      aria-hidden='true'
+                    />
+                  )}
+                  {getListImageUrl(candidato) ? (
+                    <img
+                      src={resolveMediaUrl(getListImageUrl(candidato))}
+                      alt={`Logo de ${candidato.agrupacionPolitica}`}
+                      className='h-12 w-20 rounded-xl border bg-muted object-cover'
+                    />
+                  ) : (
+                    <span
+                      className='h-12 w-20 rounded-xl border bg-muted'
+                      style={{
+                        backgroundColor: candidato.colorLista ?? accentColor,
+                      }}
+                      aria-hidden='true'
+                    />
+                  )}
+                  <div>
+                    <p className='text-xs text-slate-500 uppercase'>
+                      {candidato.agrupacionPolitica}
+                    </p>
+                    <p className='font-semibold'>{candidato.nombreCompleto}</p>
+                  </div>
                 </div>
-              </div>
-            ))
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Button
+          className='h-12 rounded-xl font-semibold'
+          onClick={handleDescargarPDF}
+          disabled={descargando}
+        >
+          {descargando ? (
+            <>
+              <Loader2 className='me-2 size-4 animate-spin' />
+              Generando PDF...
+            </>
+          ) : (
+            <>
+              <Download className='me-2 size-4' />
+              Descargar Comprobante PDF
+            </>
           )}
-        </CardContent>
-      </Card>
+        </Button>
+        <Button
+          variant='outline'
+          className='h-12 rounded-xl font-semibold'
+          onClick={handleCompartirHash}
+        >
+          <Share2 className='me-2 size-4' />
+          Compartir Hash de Verificación
+        </Button>
 
-      <Button className='h-12 rounded-xl font-semibold'>
-        <Download className='me-2 size-4' />
-        Descargar Comprobante PDF
-      </Button>
-      <Button variant='outline' className='h-12 rounded-xl font-semibold'>
-        <Share2 className='me-2 size-4' />
-        Compartir Hash de Verificación
-      </Button>
-
-      <p className='text-xs leading-relaxed text-slate-500'>
-        Comicio: {boletaNombre}. Este recibo no contiene su identidad real ni el
-        sentido de su voto en texto plano.
-      </p>
-    </section>
-    <BudBottomNav active='verificar' />
-  </BoletaPageShell>
-)
+        <p className='text-xs leading-relaxed text-slate-500'>
+          Comicio: {boletaNombre}. Este recibo no contiene su identidad real ni
+          el sentido de su voto en texto plano.
+        </p>
+      </section>
+      <BudBottomNav active='verificar' />
+    </BoletaPageShell>
+  )
+}
 
 const ReceiptRow = ({ label, value }: { label: string; value: string }) => (
   <div className='flex items-center justify-between gap-3'>
