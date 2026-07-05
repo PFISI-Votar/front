@@ -21,9 +21,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { listarElecciones } from '@/features/eleccion/api/eleccion-api'
+import type { EleccionEstado } from '@/features/eleccion/data/schema'
 import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
 import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
-import type { EleccionEstado } from '@/features/eleccion/data/schema'
 
 const estadoVariant = (estado: EleccionEstado) => {
   if (estado === 'BORRADOR') return 'secondary' as const
