@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ArrowRight, FileSpreadsheet, Vote, Play } from 'lucide-react'
 import { formatDateTimeForDisplay } from '@/lib/datetime'
@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dialog'
 import { listarElecciones } from '@/features/eleccion/api/eleccion-api'
 import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
+import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
 import type { EleccionEstado } from '@/features/eleccion/data/schema'
 
 const estadoVariant = (estado: EleccionEstado) => {
@@ -90,6 +91,7 @@ const AbrirComicioDialog = ({
 }
 
 export const ComiciosList = () => {
+  const queryClient = useQueryClient()
   const [dialogState, setDialogState] = useState<{
     open: boolean
     idEleccion: number | null
@@ -107,6 +109,15 @@ export const ComiciosList = () => {
   } = useQuery({
     queryKey: ['elecciones'],
     queryFn: listarElecciones,
+  })
+
+  // Conectar WebSocket y actualizar lista cuando se abre un comicio
+  useEleccionWebSocket({
+    onEleccionAbierta: (data) => {
+      console.log(`Comicio ${data.idEleccion} abierto automáticamente`)
+      // Invalidar cache para refrescar lista de elecciones
+      queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+    },
   })
 
   const handleOpenDialog = (idEleccion: number, nombreEleccion: string) => {
