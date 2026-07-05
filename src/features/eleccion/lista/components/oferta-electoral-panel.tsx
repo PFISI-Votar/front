@@ -8,6 +8,7 @@ import {
   ChevronDown,
   Lock,
   Pencil,
+  Play,
   Plus,
   Trash2,
   UserPen,
@@ -44,6 +45,8 @@ import {
   eliminarEleccion,
   obtenerEleccion,
 } from '@/features/eleccion/api/eleccion-api'
+import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
+import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
 import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import { CandidatoFormDialog } from '@/features/eleccion/candidato/components/candidato-form-dialog'
 import { ConfiguracionDatosCandidatoPanel } from '@/features/eleccion/candidato/components/configuracion-datos-candidato-panel'
@@ -88,6 +91,7 @@ export const OfertaElectoralPanel = ({
     useState<CandidatoDialogState | null>(null)
   const [oficializarDialogOpen, setOficializarDialogOpen] = useState(false)
   const [eliminarDialogOpen, setEliminarDialogOpen] = useState(false)
+  const [abrirComicioDialogOpen, setAbrirComicioDialogOpen] = useState(false)
 
   const eleccionQuery = useQuery({
     queryKey: ['eleccion', idEleccion],
@@ -112,7 +116,18 @@ export const OfertaElectoralPanel = ({
   })
 
   const isEditable = eleccionQuery.data?.estado === 'BORRADOR'
+  const isConfigurada = eleccionQuery.data?.estado === 'CONFIGURADA'
   const camposConfig = configQuery.data?.campos ?? []
+
+  // WebSocket para actualizar cuando el comicio se abre automáticamente
+  useEleccionWebSocket({
+    onEleccionAbierta: (data) => {
+      if (data.idEleccion === idEleccion) {
+        toast.info(`El comicio fue abierto automáticamente`)
+        invalidateOferta()
+      }
+    },
+  })
 
   const invalidateOferta = async () => {
     await queryClient.invalidateQueries({ queryKey: ['listas', idEleccion] })
@@ -221,6 +236,13 @@ export const OfertaElectoralPanel = ({
     eliminarComicioMutation.mutate()
   }
 
+  const abrirComicioMutation = useAbrirEleccion(idEleccion)
+
+  const handleConfirmAbrirComicio = () => {
+    setAbrirComicioDialogOpen(false)
+    abrirComicioMutation.mutate()
+  }
+
   return (
     <div className='flex flex-col gap-6'>
       <div className='flex flex-wrap items-center justify-between gap-3'>
@@ -250,6 +272,17 @@ export const OfertaElectoralPanel = ({
               Abrir BUD
             </Link>
           </Button>
+          {isConfigurada && (
+            <Button
+              onClick={() => setAbrirComicioDialogOpen(true)}
+              disabled={abrirComicioMutation.isPending}
+              aria-haspopup='dialog'
+              aria-label='Abrir comicio manualmente'
+            >
+              <Play className='me-2 size-4' />
+              Abrir comicio
+            </Button>
+          )}
           {isEditable && (
             <Button
               onClick={() => setOficializarDialogOpen(true)}
@@ -593,6 +626,24 @@ export const OfertaElectoralPanel = ({
           candidato={candidatoDialog.candidato}
         />
       )}
+
+      <ConfirmDialog
+        open={abrirComicioDialogOpen}
+        onOpenChange={setAbrirComicioDialogOpen}
+        title='¿Abrir el comicio?'
+        desc={
+          <>
+            Se abrirá el comicio <strong>{eleccionQuery.data?.nombre}</strong>{' '}
+            permitiendo que los votantes emitan su sufragio. Esta operación
+            requiere que el padrón electoral y la raíz de Merkle estén
+            publicados on-chain.
+          </>
+        }
+        cancelBtnText='Cancelar'
+        confirmText='Sí, abrir comicio'
+        isLoading={abrirComicioMutation.isPending}
+        handleConfirm={handleConfirmAbrirComicio}
+      />
 
       <ConfirmDialog
         open={oficializarDialogOpen}
