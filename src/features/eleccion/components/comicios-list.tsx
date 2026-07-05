@@ -113,8 +113,7 @@ export const ComiciosList = () => {
 
   // Conectar WebSocket y actualizar lista cuando se abre un comicio
   useEleccionWebSocket({
-    onEleccionAbierta: (data) => {
-      console.log(`Comicio ${data.idEleccion} abierto automáticamente`)
+    onEleccionAbierta: () => {
       // Invalidar cache para refrescar lista de elecciones
       queryClient.invalidateQueries({ queryKey: ['elecciones'] })
     },

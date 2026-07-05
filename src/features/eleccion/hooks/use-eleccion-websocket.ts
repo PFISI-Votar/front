@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { io, type Socket } from 'socket.io-client';
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -31,30 +31,26 @@ export function useEleccionWebSocket(options: UseEleccionWebSocketOptions = {}) 
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('[WebSocket] Conectado al servidor de elecciones');
+      // WebSocket conectado
     });
 
-    socket.on('disconnect', (reason) => {
-      console.log('[WebSocket] Desconectado:', reason);
+    socket.on('disconnect', () => {
+      // WebSocket desconectado
     });
 
-    socket.on('connect_error', (error) => {
-      console.error('[WebSocket] Error de conexión:', error);
+    socket.on('connect_error', () => {
+      // Error de conexión WebSocket
     });
 
     // Escuchar evento de elección abierta
     socket.on('eleccion:abierta', (data: EleccionAbiertaEvent) => {
-      console.log('[WebSocket] Elección abierta:', data);
       onEleccionAbierta?.(data);
     });
 
     // Cleanup al desmontar
     return () => {
-      console.log('[WebSocket] Cerrando conexión');
       socket.disconnect();
       socketRef.current = null;
     };
   }, [onEleccionAbierta]);
-
-  return socketRef.current;
 }
