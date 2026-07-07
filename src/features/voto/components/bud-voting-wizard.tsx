@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { AxiosError } from 'axios'
 import {
   AlertTriangle,
@@ -41,7 +41,14 @@ import type {
   CandidatoBoletaDigital,
   VoterMerkleProof,
 } from '@/features/voto/data/schema'
+import {
+  createEphemeralWallet,
+  type EphemeralWallet,
+  type SignedVotePayload,
+  signVotePayload,
+} from '@/features/voto/crypto'
 import { useSolicitarMerkleProof } from '@/features/voto/hooks/use-merkle-proof'
+import { buildWizardSelectionPayload } from '@/features/voto/utils/wizard-selection'
 
 type VotingVariant = 'lista-completa' | 'candidatos' | 'mixto'
 type SpecialVote = 'blank' | 'null' | null
@@ -90,10 +97,10 @@ type BudVotingWizardProps = {
 
 const PREVIOUS_VOTE_DATE = '23/06/2026, 10:42 hs'
 const BLOCKCHAIN_MESSAGES = [
+  'Firmando boleta de forma local...',
   'Desvinculando identidad del elector...',
-  'Cifrando boleta de votación...',
-  'Procesando transacción en la blockchain...',
-  'Confirmando bloque...',
+  'Enviando voto firmado...',
+  'Confirmando registro...',
 ]
 
 const BACKGROUND_FINGERPRINTS = [
@@ -111,8 +118,6 @@ const BACKGROUND_FINGERPRINTS = [
   { top: '86%', left: '76%', width: '7rem', opacity: 0.032, rotate: '16deg' },
 ] as const
 
-const HASH =
-  '0x7f9c2a15e4b88d20f6a91c33bb82a91f0e87d6cb41a6470f8f6d1a93c0bb42a9'
 
 const getInitials = (value: string) => {
   const words = value.trim().split(/\s+/).filter(Boolean)
@@ -260,7 +265,16 @@ export const BudVotingWizard = ({
   const [merkleProofData, setMerkleProofData] =
     useState<VoterMerkleProof | null>(null)
   const [identityError, setIdentityError] = useState<string | null>(null)
+  const [signingError, setSigningError] = useState<string | null>(null)
+  const [isSigning, setIsSigning] = useState(false)
+  const [signedVote, setSignedVote] = useState<SignedVotePayload | null>(null)
+  const ephemeralWalletRef = useRef<EphemeralWallet | null>(null)
   const merkleProofMutation = useSolicitarMerkleProof(boleta.idEleccion)
+
+  const destroyEphemeralWallet = () => {
+    ephemeralWalletRef.current?.destroy()
+    ephemeralWalletRef.current = null
+  }
 
   const lists = useMemo(() => buildListsFromBoleta(boleta), [boleta])
   const roles = useMemo(() => buildRolesFromBoleta(boleta), [boleta])
@@ -340,6 +354,8 @@ export const BudVotingWizard = ({
   const handleIdentityConfirm = async () => {
     setIdentityError(null)
     try {
+      destroyEphemeralWallet()
+      ephemeralWalletRef.current = createEphemeralWallet()
       const proof = await merkleProofMutation.mutateAsync()
       setMerkleProofData(proof)
       setStep(returningVoter ? 'registered' : 'selection')
@@ -366,9 +382,50 @@ export const BudVotingWizard = ({
     }
   }
 
-  const handleSignVote = () => {
-    setMessageIndex(0)
-    setStep('blockchain')
+  const handleSignVote = async () => {
+    const wallet = ephemeralWalletRef.current
+    if (!wallet) {
+      setSigningError(
+        'La sesión de firma no está disponible. Volvé a confirmar tu identidad.'
+      )
+      return
+    }
+
+    setSigningError(null)
+    setIsSigning(true)
+
+    try {
+      const selection = buildWizardSelectionPayload({
+        specialVote,
+        candidateSelections,
+        selectedListId,
+        roles,
+        candidates,
+      })
+
+      const signed = await signVotePayload(
+        wallet.account,
+        boleta.idEleccion,
+        selection
+      )
+
+      wallet.destroy()
+      ephemeralWalletRef.current = null
+      setSignedVote(signed)
+      setMessageIndex(0)
+      setStep('blockchain')
+    } catch {
+      setSigningError(
+        'No pudimos firmar tu voto de forma local. Reintentá en unos segundos.'
+      )
+    } finally {
+      setIsSigning(false)
+    }
+  }
+
+  const handleLogout = () => {
+    destroyEphemeralWallet()
+    onLogout()
   }
 
   const handleSpecialVote = (value: Exclude<SpecialVote, null>) => {
@@ -398,7 +455,7 @@ export const BudVotingWizard = ({
         )}
         {step === 'registered' && (
           <RegisteredVoteStep
-            onLogout={onLogout}
+            onLogout={handleLogout}
             onModify={() => {
               resetVote()
               goToSelection()
@@ -437,8 +494,12 @@ export const BudVotingWizard = ({
             specialVote={specialVote}
             roles={roles}
             candidates={candidates}
+            signingError={signingError}
+            isSigning={isSigning}
             onBack={goToSelection}
-            onSign={handleSignVote}
+            onSign={() => {
+              void handleSignVote()
+            }}
           />
         )}
         {step === 'blockchain' && (
@@ -449,7 +510,8 @@ export const BudVotingWizard = ({
         )}
         {step === 'success' && (
           <SuccessStep
-            onLogout={onLogout}
+            signedVote={signedVote}
+            onLogout={handleLogout}
             onModify={() => {
               resetVote()
               goToSelection()
@@ -876,6 +938,8 @@ const ReviewStep = ({
   specialVote,
   roles,
   candidates,
+  signingError,
+  isSigning,
   onBack,
   onSign,
 }: {
@@ -885,6 +949,8 @@ const ReviewStep = ({
   specialVote: SpecialVote
   roles: CandidateRole[]
   candidates: Candidate[]
+  signingError: string | null
+  isSigning: boolean
   onBack: () => void
   onSign: () => void
 }) => (
@@ -938,19 +1004,42 @@ const ReviewStep = ({
               </div>
             </div>
           )}
+        {signingError && (
+          <Alert variant='destructive'>
+            <AlertTriangle className='size-4' />
+            <AlertTitle>No se pudo firmar el voto</AlertTitle>
+            <AlertDescription>{signingError}</AlertDescription>
+          </Alert>
+        )}
       </CardContent>
       <CardFooter className='grid gap-3 sm:grid-cols-[1fr_1.5fr]'>
-        <Button variant='outline' size='lg' className='h-12' onClick={onBack}>
+        <Button
+          variant='outline'
+          size='lg'
+          className='h-12'
+          disabled={isSigning}
+          onClick={onBack}
+        >
           <ArrowLeft className='size-4' />
           Volver
         </Button>
         <Button
           size='lg'
           className='h-12 bg-[#2f6f9f] font-semibold hover:bg-[#285f88]'
+          disabled={isSigning}
           onClick={onSign}
         >
-          <Fingerprint className='size-5' />
-          Firmar y Emitir Voto
+          {isSigning ? (
+            <>
+              <Loader2 className='size-5 animate-spin' />
+              Firmando voto...
+            </>
+          ) : (
+            <>
+              <Fingerprint className='size-5' />
+              Firmar y Emitir Voto
+            </>
+          )}
         </Button>
       </CardFooter>
     </Card>
@@ -994,9 +1083,11 @@ const BlockchainStep = ({
 )
 
 const SuccessStep = ({
+  signedVote,
   onLogout,
   onModify,
 }: {
+  signedVote: SignedVotePayload | null
   onLogout: () => void
   onModify: () => void
 }) => (
@@ -1008,16 +1099,21 @@ const SuccessStep = ({
         </div>
         <CardTitle className='text-2xl'>Voto Exitoso</CardTitle>
         <CardDescription>
-          Tu boleta fue firmada y registrada correctamente.
+          Su voto ha sido firmado y enviado con éxito.
         </CardDescription>
       </CardHeader>
       <CardContent className='grid gap-4 text-left'>
-        <div className='rounded-2xl bg-slate-50 p-4'>
-          <p className='mb-2 text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase'>
-            Hash de transacción ficticio
-          </p>
-          <code className='text-xs break-all text-slate-700'>{HASH}</code>
-        </div>
+        {signedVote && (
+          <div className='rounded-2xl bg-slate-50 p-4'>
+            <p className='mb-2 text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase'>
+              Comprobante criptográfico
+            </p>
+            <p className='text-sm text-slate-700'>
+              Tu boleta quedó protegida con firma digital local. Cualquier
+              alteración posterior invalidará el sufragio.
+            </p>
+          </div>
+        )}
       </CardContent>
       <CardFooter className='grid gap-3'>
         <Button
