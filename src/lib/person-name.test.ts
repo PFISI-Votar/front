@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  PERSON_NAME_PATTERN,
-  sanitizePersonNameInput,
-} from '@/lib/person-name'
+import { PERSON_NAME_PATTERN, sanitizePersonNameInput } from '@/lib/person-name'
 
 describe('sanitizePersonNameInput', () => {
   it('elimina símbolos especiales al escribir', () => {

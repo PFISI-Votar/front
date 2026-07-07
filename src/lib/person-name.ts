@@ -11,9 +11,7 @@ export const PERSON_NAME_INVALID_CHARS_MESSAGE =
   'Solo se permiten letras, espacios, guiones y apóstrofes.'
 
 export const sanitizePersonNameInput = (value: string) =>
-  value
-    .replace(PERSON_NAME_INPUT_FILTER, '')
-    .replace(/\s{2,}/g, ' ')
+  value.replace(PERSON_NAME_INPUT_FILTER, '').replace(/\s{2,}/g, ' ')
 
 export const personNameSchema = ({
   fieldLabel,

@@ -7,8 +7,8 @@ import {
   getApiFieldErrors,
   isConflictError,
 } from '@/lib/api-client'
-import { bindPersonNameInput } from '@/lib/person-name'
 import { resolveMediaUrl } from '@/lib/media-url'
+import { bindPersonNameInput } from '@/lib/person-name'
 import { Button } from '@/components/ui/button'
 import {
   Form,
