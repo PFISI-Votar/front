@@ -21,7 +21,7 @@ import { Input } from '@/components/ui/input'
 import { CandidatoCamposDinamicos } from '@/features/eleccion/candidato/components/candidato-campos-dinamicos'
 import { CandidatoCategoriaField } from '@/features/eleccion/candidato/components/candidato-categoria-field'
 import {
-  createCandidatoSchema,
+  createCandidatoFormSchema,
   type CampoCandidatoDefinicion,
   type Candidato,
   type CreateCandidatoInput,
@@ -37,6 +37,7 @@ import {
 type CandidatoFormProps = {
   categorias: CategoriaElectoral[]
   candidatosEnLista: Pick<Candidato, 'idCategoria' | 'idCandidato'>[]
+  candidatosEnComicio: Pick<Candidato, 'idCandidato' | 'datosAdicionales'>[]
   excludeCandidatoId?: number
   camposConfig: CampoCandidatoDefinicion[]
   defaultValues?: CreateCandidatoInput
@@ -82,6 +83,7 @@ const buildDefaultValues = (
 export const CandidatoForm = ({
   categorias,
   candidatosEnLista,
+  candidatosEnComicio,
   excludeCandidatoId,
   camposConfig,
   defaultValues,
@@ -108,8 +110,18 @@ export const CandidatoForm = ({
     ]
   )
 
+  const schema = useMemo(
+    () =>
+      createCandidatoFormSchema({
+        camposConfig,
+        candidatosEnComicio,
+        excludeCandidatoId,
+      }),
+    [camposConfig, candidatosEnComicio, excludeCandidatoId]
+  )
+
   const form = useForm<CreateCandidatoInput>({
-    resolver: zodResolver(createCandidatoSchema),
+    resolver: zodResolver(schema),
     defaultValues: {
       ...buildDefaultValues(categoriasDisponibles, camposConfig, defaultValues),
       fotoFile: null,

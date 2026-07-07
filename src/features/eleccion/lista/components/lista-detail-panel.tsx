@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { AlertCircle, Pencil, Plus, Trash2, UserPen } from 'lucide-react'
@@ -71,6 +71,10 @@ export const ListaDetailPanel = ({
   })
 
   const lista = listasQuery.data?.find((item) => item.idLista === idLista)
+  const candidatosEnComicio = useMemo(
+    () => (listasQuery.data ?? []).flatMap((item) => item.candidatos ?? []),
+    [listasQuery.data]
+  )
   const isEditable = eleccionQuery.data?.estado === 'BORRADOR'
 
   const invalidateLista = async () => {
@@ -435,6 +439,7 @@ export const ListaDetailPanel = ({
         listaNombre={lista.nombre}
         listaSigla={lista.sigla}
         candidatosEnLista={candidatos}
+        candidatosEnComicio={candidatosEnComicio}
         candidato={editingCandidato}
       />
     </div>
