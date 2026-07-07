@@ -4,6 +4,94 @@ import { type BreadcrumbEntry } from '@/components/layout/breadcrumb-nav'
 import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
 import { listarListas } from '@/features/eleccion/lista/api/lista-api'
 
+type BuildComiciosBreadcrumbInput = {
+  pathname: string
+  idEleccion?: number
+  idLista?: number
+  eleccionNombre?: string
+  listaNombre?: string
+  listaSigla?: string
+}
+
+export const buildComiciosBreadcrumbEntries = ({
+  pathname,
+  idEleccion,
+  idLista,
+  eleccionNombre,
+  listaNombre,
+  listaSigla,
+}: BuildComiciosBreadcrumbInput): BreadcrumbEntry[] => {
+  const entries: BreadcrumbEntry[] = [
+    { label: 'Comicios', to: '/comicios' },
+  ]
+
+  if (pathname.endsWith('/comicios/nuevo')) {
+    entries.push({ label: 'Nuevo comicio' })
+    return entries
+  }
+
+  if (idEleccion == null) {
+    return entries
+  }
+
+  const idEleccionParam = String(idEleccion)
+  const eleccionLabel = eleccionNombre ?? `Comicio #${idEleccion}`
+  const ofertaLink: BreadcrumbEntry = {
+    label: eleccionLabel,
+    to: '/comicios/$idEleccion/oferta',
+    params: { idEleccion: idEleccionParam },
+  }
+
+  if (pathname.endsWith('/editar')) {
+    entries.push(ofertaLink, { label: 'Editar comicio' })
+    return entries
+  }
+
+  if (pathname.includes('/padron/preview')) {
+    entries.push(
+      ofertaLink,
+      {
+        label: 'Padrón electoral',
+        to: '/comicios/$idEleccion/padron',
+        params: { idEleccion: idEleccionParam },
+      },
+      { label: 'Previsualizar padrón' }
+    )
+    return entries
+  }
+
+  if (pathname.includes('/padron')) {
+    entries.push(ofertaLink, { label: 'Padrón electoral' })
+    return entries
+  }
+
+  if (pathname.includes('/oferta')) {
+    entries.push(ofertaLink, { label: 'Oferta electoral' })
+    return entries
+  }
+
+  if (idLista != null) {
+    const listaLabel =
+      listaNombre && listaSigla
+        ? `${listaNombre} (${listaSigla})`
+        : `Lista #${idLista}`
+
+    entries.push(
+      ofertaLink,
+      {
+        label: 'Oferta electoral',
+        to: '/comicios/$idEleccion/oferta',
+        params: { idEleccion: idEleccionParam },
+      },
+      { label: listaLabel }
+    )
+    return entries
+  }
+
+  entries.push(ofertaLink)
+  return entries
+}
+
 export const useComiciosBreadcrumbEntries = (): BreadcrumbEntry[] => {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
@@ -12,10 +100,6 @@ export const useComiciosBreadcrumbEntries = (): BreadcrumbEntry[] => {
 
   const idEleccion = params.idEleccion ? Number(params.idEleccion) : undefined
   const idLista = params.idLista ? Number(params.idLista) : undefined
-
-  const isNuevoComicio = pathname.endsWith('/comicios/nuevo')
-  const isEditarComicio = pathname.endsWith('/editar')
-  const isOferta = pathname.includes('/oferta')
 
   const eleccionQuery = useQuery({
     queryKey: ['eleccion', idEleccion],
@@ -31,49 +115,12 @@ export const useComiciosBreadcrumbEntries = (): BreadcrumbEntry[] => {
 
   const lista = listasQuery.data?.find((item) => item.idLista === idLista)
 
-  const eleccionLabel =
-    eleccionQuery.data?.nombre ??
-    (idEleccion != null ? `Comicio #${idEleccion}` : 'Comicio')
-
-  const listaLabel = lista
-    ? `${lista.nombre} (${lista.sigla})`
-    : idLista != null
-      ? `Lista #${idLista}`
-      : 'Lista'
-
-  const entries: BreadcrumbEntry[] = [{ label: 'Comicios', href: '/comicios' }]
-
-  if (isNuevoComicio) {
-    entries.push({ label: 'Nuevo comicio' })
-    return entries
-  }
-
-  if (idEleccion == null) {
-    return entries
-  }
-
-  entries.push({
-    label: eleccionLabel,
-    href: `/comicios/${idEleccion}/oferta`,
+  return buildComiciosBreadcrumbEntries({
+    pathname,
+    idEleccion,
+    idLista,
+    eleccionNombre: eleccionQuery.data?.nombre,
+    listaNombre: lista?.nombre,
+    listaSigla: lista?.sigla,
   })
-
-  if (isEditarComicio) {
-    entries.push({ label: 'Editar comicio' })
-    return entries
-  }
-
-  if (isOferta) {
-    entries.push({ label: 'Oferta electoral' })
-    return entries
-  }
-
-  if (idLista == null) {
-    return entries
-  }
-
-  entries.push({
-    label: listaLabel,
-  })
-
-  return entries
 }
