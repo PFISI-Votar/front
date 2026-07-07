@@ -25,7 +25,9 @@ export const buildSelectionPayload = (
 /**
  * Canonical hash of the ballot selection used inside the EIP-712 Vote struct.
  */
-export const computeSelectionHash = (payload: SelectionPayload): `0x${string}` => {
+export const computeSelectionHash = (
+  payload: SelectionPayload
+): `0x${string}` => {
   const normalized = buildSelectionPayload(payload)
   return keccak256(toBytes(JSON.stringify(normalized)))
 }

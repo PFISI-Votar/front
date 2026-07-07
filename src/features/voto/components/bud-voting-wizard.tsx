@@ -36,17 +36,17 @@ import {
   TIPOS_VOTACION,
   type TipoVotacion,
 } from '@/features/eleccion/lista/data/schema'
-import type {
-  BoletaDigital,
-  CandidatoBoletaDigital,
-  VoterMerkleProof,
-} from '@/features/voto/data/schema'
 import {
   createEphemeralWallet,
   type EphemeralWallet,
   type SignedVotePayload,
   signVotePayload,
 } from '@/features/voto/crypto'
+import type {
+  BoletaDigital,
+  CandidatoBoletaDigital,
+  VoterMerkleProof,
+} from '@/features/voto/data/schema'
 import { useSolicitarMerkleProof } from '@/features/voto/hooks/use-merkle-proof'
 import { buildWizardSelectionPayload } from '@/features/voto/utils/wizard-selection'
 
@@ -117,7 +117,6 @@ const BACKGROUND_FINGERPRINTS = [
   },
   { top: '86%', left: '76%', width: '7rem', opacity: 0.032, rotate: '16deg' },
 ] as const
-
 
 const getInitials = (value: string) => {
   const words = value.trim().split(/\s+/).filter(Boolean)

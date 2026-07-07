@@ -1,5 +1,5 @@
-import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import type { PrivateKeyAccount } from 'viem'
+import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 
 export type EphemeralWallet = {
   account: PrivateKeyAccount

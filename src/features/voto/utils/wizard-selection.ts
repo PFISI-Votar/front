@@ -1,5 +1,5 @@
-import type { SeleccionVoto } from '@/features/voto/data/schema'
 import type { SelectionPayload } from '@/features/voto/crypto/selection-hash'
+import type { SeleccionVoto } from '@/features/voto/data/schema'
 
 type WizardSelectionInput = {
   specialVote: 'blank' | 'null' | null
