@@ -111,9 +111,8 @@ export const createCandidatoFormSchema = ({
       const candidatoDuplicado = candidatosEnComicio.find(
         (candidato) =>
           candidato.idCandidato !== excludeCandidatoId &&
-          normalizeDatoAdicionalUnico(
-            candidato.datosAdicionales?.[clave]
-          ) === valorNormalizado
+          normalizeDatoAdicionalUnico(candidato.datosAdicionales?.[clave]) ===
+            valorNormalizado
       )
       if (!candidatoDuplicado) {
         continue
