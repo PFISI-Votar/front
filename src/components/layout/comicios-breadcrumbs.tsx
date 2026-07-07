@@ -21,9 +21,7 @@ export const buildComiciosBreadcrumbEntries = ({
   listaNombre,
   listaSigla,
 }: BuildComiciosBreadcrumbInput): BreadcrumbEntry[] => {
-  const entries: BreadcrumbEntry[] = [
-    { label: 'Comicios', to: '/comicios' },
-  ]
+  const entries: BreadcrumbEntry[] = [{ label: 'Comicios', to: '/comicios' }]
 
   if (pathname.endsWith('/comicios/nuevo')) {
     entries.push({ label: 'Nuevo comicio' })

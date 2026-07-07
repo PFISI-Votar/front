@@ -6,9 +6,9 @@ const idLista = 7
 
 describe('buildComiciosBreadcrumbEntries', () => {
   it('returns only Comicios on the list page', () => {
-    expect(
-      buildComiciosBreadcrumbEntries({ pathname: '/comicios' })
-    ).toEqual([{ label: 'Comicios', to: '/comicios' }])
+    expect(buildComiciosBreadcrumbEntries({ pathname: '/comicios' })).toEqual([
+      { label: 'Comicios', to: '/comicios' },
+    ])
   })
 
   it('returns Comicios and Nuevo comicio on the create page', () => {
