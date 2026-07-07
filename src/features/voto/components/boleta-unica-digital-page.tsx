@@ -522,7 +522,7 @@ const BoletaPageShell = ({
   accentColor: string
 }) => (
   <main
-    className='min-h-svh text-slate-950'
+    className='votar-light-surface min-h-svh text-slate-950'
     style={
       {
         '--bud-accent': accentColor,
