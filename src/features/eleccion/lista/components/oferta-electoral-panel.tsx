@@ -326,7 +326,6 @@ export const OfertaElectoralPanel = ({
             >
               Ir a carga de padrón
             </Link>
-            .
           </AlertDescription>
         </Alert>
       )}
