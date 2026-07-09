@@ -130,10 +130,17 @@ describe('PadronComicioPage — VOTAR-336', () => {
     it('muestra icono de Lock cuando el estado es ABIERTA', async () => {
       const screen = await renderPage('ABIERTA')
 
-      // El icono Lock está presente en el DOM dentro del alert
+      // Verify the alert title is present
       await expect
         .element(screen.getByText(/Padrón Sellado Criptográficamente/i))
         .toBeInTheDocument()
+
+      // Verify the Lock icon SVG is present in the DOM
+      const alertContainer = screen.getByText(
+        /Padrón Sellado Criptográficamente/i
+      ).parentElement
+      const lockIcon = alertContainer?.querySelector('svg.lucide-lock')
+      expect(lockIcon).toBeTruthy()
     })
   })
 })
