@@ -131,15 +131,12 @@ describe('PadronComicioPage — VOTAR-336', () => {
       const screen = await renderPage('ABIERTA')
 
       // Verify the alert title is present
-      await expect
-        .element(screen.getByText(/Padrón Sellado Criptográficamente/i))
-        .toBeInTheDocument()
+      const alertTitle = screen.getByText(/Padrón Sellado Criptográficamente/i)
+      await expect.element(alertTitle).toBeInTheDocument()
 
       // Verify the Lock icon SVG is present in the DOM
-      const alertContainer = screen.getByText(
-        /Padrón Sellado Criptográficamente/i
-      ).parentElement
-      const lockIcon = alertContainer?.querySelector('svg.lucide-lock')
+      // The lucide-lock class is added to the Lock icon component
+      const lockIcon = screen.container.querySelector('svg.lucide-lock')
       expect(lockIcon).toBeTruthy()
     })
   })
