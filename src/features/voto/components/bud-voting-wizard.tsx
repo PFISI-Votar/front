@@ -259,6 +259,7 @@ export const BudVotingWizard = ({
   const merkleProofMutation = useSolicitarMerkleProof(boleta.idEleccion)
   const {
     publicKeyHex,
+    initialize: initializeEphemeralWallet,
     signVotePayload,
     destroy: destroyEphemeralWallet,
   } = useEphemeralWallet()
@@ -308,6 +309,20 @@ export const BudVotingWizard = ({
     setCandidateSelections({})
     setSignedVote(null)
     setSigningError(null)
+  }
+
+  const handleModifyVote = async () => {
+    setSigningError(null)
+    try {
+      // VOTAR-418: post-sign destroy() cleared the key; mint a fresh wallet to re-sign.
+      await initializeEphemeralWallet(boleta.idEleccion)
+      resetVote()
+      goToSelection()
+    } catch {
+      setSigningError(
+        'No pudimos regenerar tu identidad criptográfica. Reintentá o cerrá sesión.'
+      )
+    }
   }
 
   const handleSelectList = (listId: string | null) => {
@@ -432,8 +447,7 @@ export const BudVotingWizard = ({
           <RegisteredVoteStep
             onLogout={handleLogout}
             onModify={() => {
-              resetVote()
-              goToSelection()
+              void handleModifyVote()
             }}
           />
         )}
@@ -481,10 +495,10 @@ export const BudVotingWizard = ({
           <SuccessStep
             signedVote={signedVote}
             hasMerkleProof={Boolean(merkleProofData)}
+            signingError={signingError}
             onLogout={handleLogout}
             onModify={() => {
-              resetVote()
-              goToSelection()
+              void handleModifyVote()
             }}
           />
         )}
@@ -1032,11 +1046,13 @@ const ReviewStep = ({
 const SuccessStep = ({
   signedVote,
   hasMerkleProof,
+  signingError,
   onLogout,
   onModify,
 }: {
   signedVote: SignedVotePayload | null
   hasMerkleProof: boolean
+  signingError: string | null
   onLogout: () => void
   onModify: () => void
 }) => (
@@ -1069,6 +1085,13 @@ const SuccessStep = ({
             </p>
           </div>
         )}
+        {signingError && (
+          <Alert variant='destructive'>
+            <AlertTriangle className='size-4' />
+            <AlertTitle>No se pudo continuar</AlertTitle>
+            <AlertDescription>{signingError}</AlertDescription>
+          </Alert>
+        )}
       </CardContent>
       <CardFooter className='grid gap-3'>
         <Button
@@ -1076,6 +1099,7 @@ const SuccessStep = ({
           size='lg'
           className='h-12 w-full'
           onClick={onModify}
+          aria-label='Modificar mi voto'
         >
           <PenLine className='size-4' />
           Modificar mi voto

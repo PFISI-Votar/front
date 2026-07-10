@@ -17,7 +17,13 @@ export type EphemeralWalletManager = {
   getSession: () => EphemeralWalletSession | null
   getPublicKeyHex: () => string | null
   /**
+   * Signs a 32-byte digest with the ephemeral private key.
+   * Does not destroy the wallet.
+   */
+  signDigest: (digest: Hex) => Promise<Hex>
+  /**
    * Signs the ballot selection. `nullifier` must come from VOTAR-353.
+   * On success, destroys the private key and session immediately (VOTAR-418).
    */
   signVotePayload: (
     selection: SelectionPayload,

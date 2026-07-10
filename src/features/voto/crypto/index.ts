@@ -16,11 +16,17 @@ export {
   type SelectionPayload,
 } from '@/features/voto/crypto/selection-hash'
 export {
+  assembleSignedVotePayload,
   buildVoteTypedDataDomain,
+  buildVoteTypedDataMessage,
+  hashVoteTypedData,
   signVotePayload,
+  signVotePayloadWithDigestSigner,
   type SignedVotePayload,
   type SignVotePayloadOptions,
+  type SignVotePayloadWithDigestSignerOptions,
 } from '@/features/voto/crypto/vote-signer'
+export { signDigestWithSecp256k1 } from '@/features/voto/crypto/secp256k1-digest-signer'
 export {
   calcularNullifier,
   CredencialNulificadorInvalidaError,
