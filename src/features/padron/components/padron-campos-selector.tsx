@@ -1,9 +1,6 @@
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
-import {
-  CAMPOS_PADRON,
-  type ClaveCampoPadron,
-} from '../lib/campos-padron'
+import { CAMPOS_PADRON, type ClaveCampoPadron } from '../lib/campos-padron'
 
 interface PadronCamposSelectorProps {
   value: ClaveCampoPadron[]
@@ -44,16 +41,12 @@ export function PadronCamposSelector({
                 id={id}
                 checked={checked}
                 disabled={campo.obligatorio}
-                onCheckedChange={() =>
-                  toggle(campo.clave, campo.obligatorio)
-                }
+                onCheckedChange={() => toggle(campo.clave, campo.obligatorio)}
               />
               <Label
                 htmlFor={id}
                 className={
-                  campo.obligatorio
-                    ? 'text-muted-foreground'
-                    : 'cursor-pointer'
+                  campo.obligatorio ? 'text-muted-foreground' : 'cursor-pointer'
                 }
               >
                 {campo.etiqueta}

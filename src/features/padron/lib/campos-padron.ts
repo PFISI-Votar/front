@@ -1,10 +1,6 @@
 /** Campos disponibles para el archivo de padrón (VOTAR-417). */
 export type ClaveCampoPadron =
-  | 'dni'
-  | 'email'
-  | 'nombre'
-  | 'apellido'
-  | 'direccion'
+  'dni' | 'email' | 'nombre' | 'apellido' | 'direccion'
 
 export interface CampoPadronDefinicion {
   clave: ClaveCampoPadron

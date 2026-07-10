@@ -50,7 +50,9 @@ export function leerPreview(idEleccion: number): PadronPreviewPayload | null {
     ) {
       const payload = parsed as PadronPreviewPayload
       return {
-        campos: normalizarCamposSeleccionados(payload.campos ?? ['dni', 'email']),
+        campos: normalizarCamposSeleccionados(
+          payload.campos ?? ['dni', 'email']
+        ),
         registros: payload.registros.map((r) => ({
           ...r,
           adicionales: r.adicionales ?? {},

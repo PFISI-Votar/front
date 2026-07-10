@@ -31,17 +31,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useElecciones } from '../hooks/use-elecciones'
-import {
-  clavesObligatorias,
-  type ClaveCampoPadron,
-} from '../lib/campos-padron'
+import { clavesObligatorias, type ClaveCampoPadron } from '../lib/campos-padron'
 import {
   esArchivoPadronSoportado,
   parseArchivoPadron,
 } from '../lib/parse-archivo-padron'
 import { CsvColumnasError, ArchivoPadronError } from '../lib/parse-csv-padron'
-import { descargarCsvEjemplo } from '../lib/reconstruir-csv'
 import { guardarPreview } from '../lib/preview-storage'
+import { descargarCsvEjemplo } from '../lib/reconstruir-csv'
 import { PadronCamposSelector } from './padron-campos-selector'
 import { PadronEjemploTabla } from './padron-ejemplo-tabla'
 

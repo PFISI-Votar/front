@@ -23,10 +23,7 @@ import {
   type ImportarPadronResponse,
 } from '../hooks/use-importar-padron'
 import { PADRON_PAGE_SIZES } from '../hooks/use-padron'
-import {
-  etiquetaCampo,
-  type ClaveCampoPadron,
-} from '../lib/campos-padron'
+import { etiquetaCampo, type ClaveCampoPadron } from '../lib/campos-padron'
 import type {
   RegistroPreview,
   TipoNovedadPreview,

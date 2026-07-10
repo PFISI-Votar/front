@@ -34,10 +34,10 @@ describe('parseCsvPadron', () => {
   })
 
   it('ignora columnas extra no seleccionadas', () => {
-    const r = parseCsvPadron(
-      'dni,nombre,email\n12345678,Ana,a@a.com\n',
-      ['dni', 'email']
-    )
+    const r = parseCsvPadron('dni,nombre,email\n12345678,Ana,a@a.com\n', [
+      'dni',
+      'email',
+    ])
     expect(r[0].adicionales).toEqual({})
   })
 

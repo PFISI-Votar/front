@@ -17,11 +17,7 @@ describe('campos-padron', () => {
   it('generarFilasEjemplo produce 5 filas con las claves pedidas', () => {
     const filas = generarFilasEjemplo(['dni', 'email', 'apellido'])
     expect(filas).toHaveLength(CANTIDAD_EJEMPLOS_PADRON)
-    expect(Object.keys(filas[0]).sort()).toEqual([
-      'apellido',
-      'dni',
-      'email',
-    ])
+    expect(Object.keys(filas[0]).sort()).toEqual(['apellido', 'dni', 'email'])
     expect(filas[0].dni).toMatch(/^\d+$/)
   })
 })
