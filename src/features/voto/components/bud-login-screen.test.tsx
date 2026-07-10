@@ -2,6 +2,7 @@ import { AxiosError } from 'axios'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
+import { VOTAR_LIGHT_SURFACE_CLASS } from '@/features/auth/sign-in/components/login-screen-shared'
 import { BudLoginScreen } from '@/features/voto/components/bud-login-screen'
 import { VOTER_ROLE } from '@/features/voto/types/votante-auth.types'
 
@@ -19,6 +20,24 @@ describe('BudLoginScreen', () => {
   beforeEach(() => {
     loginVotanteMock.mockReset()
     onAuthenticatedMock.mockReset()
+    document.documentElement.classList.add('dark')
+  })
+
+  it('fuerza superficie clara y marca VOTAR bajo tema oscuro global (VOTAR-412)', async () => {
+    const screen = await render(
+      <BudLoginScreen idEleccion={2} onAuthenticated={onAuthenticatedMock} />
+    )
+
+    const main = document.querySelector('main')
+    expect(main?.className).toContain('votar-light-surface')
+    for (const token of VOTAR_LIGHT_SURFACE_CLASS.split(' ')) {
+      expect(main?.className).toContain(token)
+    }
+
+    await expect.element(screen.getByText('VOTAR')).toBeInTheDocument()
+    await expect
+      .element(screen.getByLabelText(/^Número de Legajo$/i))
+      .toBeInTheDocument()
   })
 
   it('muestra error genérico ante credenciales inválidas sin filtrar detalles del servidor', async () => {
