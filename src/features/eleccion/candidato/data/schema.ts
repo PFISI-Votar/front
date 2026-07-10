@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { personNameSchema } from '@/lib/person-name'
 import { CLAVES_DATOS_CANDIDATO_UNICOS } from '@/features/eleccion/candidato/constants/datos-candidato-unicos'
 
 export type TipoCampoCandidato =
@@ -68,8 +69,8 @@ export const guardarConfiguracionSchema = z.object({
 })
 
 export const createCandidatoSchema = z.object({
-  nombre: z.string().min(1, 'El nombre es obligatorio').max(100),
-  apellido: z.string().min(1, 'El apellido es obligatorio').max(100),
+  nombre: personNameSchema({ fieldLabel: 'El nombre' }),
+  apellido: personNameSchema({ fieldLabel: 'El apellido' }),
   idCategoria: z.number().int().min(1, 'Seleccione un rol de candidato'),
   orden: z.number().int().min(1).optional(),
   fotoFile: z.custom<File>().optional().nullable(),

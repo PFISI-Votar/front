@@ -8,6 +8,7 @@ import {
   isConflictError,
 } from '@/lib/api-client'
 import { resolveMediaUrl } from '@/lib/media-url'
+import { bindPersonNameInput } from '@/lib/person-name'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -247,7 +248,7 @@ export const CandidatoForm = ({
               <FormItem>
                 <FormLabel>Nombre</FormLabel>
                 <FormControl>
-                  <Input {...field} required />
+                  <Input {...bindPersonNameInput(field)} required />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -260,7 +261,7 @@ export const CandidatoForm = ({
               <FormItem>
                 <FormLabel>Apellido</FormLabel>
                 <FormControl>
-                  <Input {...field} required />
+                  <Input {...bindPersonNameInput(field)} required />
                 </FormControl>
                 <FormMessage />
               </FormItem>
