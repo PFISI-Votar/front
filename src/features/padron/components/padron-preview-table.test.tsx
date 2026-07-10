@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
+import { CAMPOS_PADRON_PREDEFINIDOS } from '../lib/campos-padron'
 import type { RegistroPreview } from '../lib/parse-csv-padron'
 import { PadronPreviewTable } from './padron-preview-table'
 
@@ -25,6 +26,7 @@ async function renderTabla(
         idEleccion={7}
         registrosIniciales={registros}
         campos={['dni', 'email']}
+        definiciones={CAMPOS_PADRON_PREDEFINIDOS}
         onConfirmado={vi.fn()}
         onCancelar={vi.fn()}
         {...props}

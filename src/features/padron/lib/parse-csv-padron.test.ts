@@ -59,8 +59,22 @@ describe('parseCsvPadron', () => {
     expect(r[0]).toMatchObject({ dni: '', email: 'a@a.com' })
   })
 
-  it('lanza CsvColumnasError si falta una columna requerida', () => {
-    expect(() => parseCsvPadron('dni\n12345678\n')).toThrow(CsvColumnasError)
+  it('lanza CsvColumnasError si falta una columna seleccionada', () => {
+    expect(() => parseCsvPadron('dni\n12345678\n', ['dni', 'email'])).toThrow(
+      CsvColumnasError
+    )
+  })
+
+  it('permite parsear sin dni si no fue seleccionado', () => {
+    const r = parseCsvPadron('nombre,apellido\nAna,Pérez\n', [
+      'nombre',
+      'apellido',
+    ])
+    expect(r[0]).toMatchObject({
+      dni: '',
+      email: '',
+      adicionales: { nombre: 'Ana', apellido: 'Pérez' },
+    })
   })
 
   it('lanza CsvColumnasError si falta una columna opcional seleccionada', () => {

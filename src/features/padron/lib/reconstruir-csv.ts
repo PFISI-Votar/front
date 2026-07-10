@@ -1,6 +1,7 @@
 import {
   generarFilasEjemplo,
   normalizarCamposSeleccionados,
+  type CampoPadronDefinicion,
   type ClaveCampoPadron,
 } from './campos-padron'
 import type { RegistroPreview } from './parse-csv-padron'
@@ -21,9 +22,12 @@ export function construirArchivoCsv(
 }
 
 /** CSV de ejemplo con las columnas seleccionadas y 5 filas ilustrativas. */
-export function construirCsvEjemplo(campos: ClaveCampoPadron[]): string {
-  const ordenados = normalizarCamposSeleccionados(campos)
-  const filas = generarFilasEjemplo(ordenados)
+export function construirCsvEjemplo(
+  campos: ClaveCampoPadron[],
+  definiciones?: CampoPadronDefinicion[]
+): string {
+  const ordenados = normalizarCamposSeleccionados(campos, definiciones)
+  const filas = generarFilasEjemplo(ordenados, definiciones)
   const lineas = [
     ordenados.join(','),
     ...filas.map((fila) => ordenados.map((c) => fila[c] ?? '').join(',')),
@@ -31,8 +35,11 @@ export function construirCsvEjemplo(campos: ClaveCampoPadron[]): string {
   return `${lineas.join('\n')}\n`
 }
 
-export function descargarCsvEjemplo(campos: ClaveCampoPadron[]): void {
-  const contenido = construirCsvEjemplo(campos)
+export function descargarCsvEjemplo(
+  campos: ClaveCampoPadron[],
+  definiciones?: CampoPadronDefinicion[]
+): void {
+  const contenido = construirCsvEjemplo(campos, definiciones)
   const blob = new Blob([contenido], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const enlace = document.createElement('a')

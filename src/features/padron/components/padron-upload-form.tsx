@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -31,12 +31,17 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useElecciones } from '../hooks/use-elecciones'
-import { clavesObligatorias, type ClaveCampoPadron } from '../lib/campos-padron'
+import {
+  CAMPOS_PADRON_PREDEFINIDOS,
+  camposPreseleccionados,
+  type CampoPadronDefinicion,
+  type ClaveCampoPadron,
+} from '../lib/campos-padron'
 import {
   esArchivoPadronSoportado,
   parseArchivoPadron,
 } from '../lib/parse-archivo-padron'
-import { CsvColumnasError, ArchivoPadronError } from '../lib/parse-csv-padron'
+import { ArchivoPadronError, CsvColumnasError } from '../lib/parse-csv-padron'
 import { guardarPreview } from '../lib/preview-storage'
 import { descargarCsvEjemplo } from '../lib/reconstruir-csv'
 import { PadronCamposSelector } from './padron-campos-selector'
@@ -66,19 +71,31 @@ function formatBytes(bytes: number): string {
 interface PadronUploadFormProps {
   /** Si se provee, el comicio queda fijo y se oculta el selector. */
   idEleccionFijo?: number
+  /** Notifica cambios en la cantidad de columnas (para adaptar el modal). */
+  onCantidadCamposChange?: (cantidad: number) => void
 }
 
 export function PadronUploadForm({
   idEleccionFijo,
+  onCantidadCamposChange,
 }: PadronUploadFormProps = {}) {
   const [isDragging, setIsDragging] = useState(false)
   const [procesando, setProcesando] = useState(false)
-  const [campos, setCampos] = useState<ClaveCampoPadron[]>(clavesObligatorias())
+  const [definiciones, setDefiniciones] = useState<CampoPadronDefinicion[]>(
+    CAMPOS_PADRON_PREDEFINIDOS
+  )
+  const [campos, setCampos] = useState<ClaveCampoPadron[]>(
+    camposPreseleccionados()
+  )
   const comicioFijo = idEleccionFijo !== undefined
   const { data: elecciones, isLoading: cargandoElecciones } = useElecciones({
     enabled: !comicioFijo,
   })
   const navigate = useNavigate()
+
+  useEffect(() => {
+    onCantidadCamposChange?.(campos.length)
+  }, [campos.length, onCantidadCamposChange])
 
   const form = useForm<PadronUploadValues>({
     resolver: zodResolver(formSchema),
@@ -86,6 +103,10 @@ export function PadronUploadForm({
   })
 
   async function onSubmit(values: PadronUploadValues) {
+    if (campos.length === 0) {
+      toast.error('Seleccione al menos un campo para el archivo.')
+      return
+    }
     setProcesando(true)
     try {
       const registros = await parseArchivoPadron(values.archivo, campos)
@@ -93,7 +114,7 @@ export function PadronUploadForm({
         toast.error('El archivo no contiene registros.')
         return
       }
-      guardarPreview(values.idEleccion, registros, campos)
+      guardarPreview(values.idEleccion, registros, campos, definiciones)
       await navigate({
         to: '/comicios/$idEleccion/padron/preview',
         params: { idEleccion: String(values.idEleccion) },
@@ -156,9 +177,14 @@ export function PadronUploadForm({
           />
         )}
 
-        <PadronCamposSelector value={campos} onChange={setCampos} />
+        <PadronCamposSelector
+          value={campos}
+          onChange={setCampos}
+          definiciones={definiciones}
+          onDefinicionesChange={setDefiniciones}
+        />
 
-        <PadronEjemploTabla campos={campos} />
+        <PadronEjemploTabla campos={campos} definiciones={definiciones} />
 
         <FormField
           control={form.control}
@@ -239,8 +265,9 @@ export function PadronUploadForm({
                 </label>
               </FormControl>
               <FormDescription>
-                El archivo debe incluir las columnas seleccionadas arriba. Sólo
-                DNI y email se usan para el padrón hasheado.
+                El archivo debe incluir las columnas seleccionadas. Para
+                importar al padrón hasheado se usan DNI y email cuando estén
+                presentes.
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -248,7 +275,11 @@ export function PadronUploadForm({
         />
 
         <div className='flex items-center justify-between gap-3'>
-          <Button type='submit' disabled={procesando} className='w-fit'>
+          <Button
+            type='submit'
+            disabled={procesando || campos.length === 0}
+            className='w-fit'
+          >
             {procesando ? <Loader2 className='animate-spin' /> : <Upload />}
             Previsualizar padrón
           </Button>
@@ -256,7 +287,8 @@ export function PadronUploadForm({
             type='button'
             variant='outline'
             className='w-fit'
-            onClick={() => descargarCsvEjemplo(campos)}
+            disabled={campos.length === 0}
+            onClick={() => descargarCsvEjemplo(campos, definiciones)}
           >
             <FileDown />
             Descargar CSV ejemplo

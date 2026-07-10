@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { CAMPOS_PADRON_PREDEFINIDOS } from './campos-padron'
 import type { RegistroPreview } from './parse-csv-padron'
 import {
   clavePreview,
@@ -18,10 +19,11 @@ describe('preview-storage', () => {
     expect(clavePreview(7)).toBe('padron-preview:7')
   })
 
-  it('guarda y lee los registros con campos', () => {
+  it('guarda y lee los registros con campos y definiciones', () => {
     guardarPreview(7, reg, ['dni', 'email', 'nombre'])
     expect(leerPreview(7)).toEqual({
       campos: ['dni', 'email', 'nombre'],
+      definiciones: CAMPOS_PADRON_PREDEFINIDOS,
       registros: reg,
     })
   })
@@ -42,6 +44,7 @@ describe('preview-storage', () => {
     )
     expect(leerPreview(7)).toEqual({
       campos: ['dni', 'email'],
+      definiciones: CAMPOS_PADRON_PREDEFINIDOS,
       registros: [
         { id: 'a', linea: 2, dni: '1', email: 'a@a.com', adicionales: {} },
       ],

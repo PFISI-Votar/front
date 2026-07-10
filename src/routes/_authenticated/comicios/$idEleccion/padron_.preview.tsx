@@ -111,6 +111,7 @@ function PadronPreviewRoute() {
         idEleccion={idEleccion}
         registrosIniciales={preview.registros}
         campos={preview.campos}
+        definiciones={preview.definiciones}
         onConfirmado={onConfirmado}
         onCancelar={onCancelar}
       />

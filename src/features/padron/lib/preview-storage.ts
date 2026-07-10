@@ -1,11 +1,14 @@
 import {
+  CAMPOS_PADRON_PREDEFINIDOS,
   normalizarCamposSeleccionados,
+  type CampoPadronDefinicion,
   type ClaveCampoPadron,
 } from './campos-padron'
 import type { RegistroPreview } from './parse-csv-padron'
 
 export interface PadronPreviewPayload {
   campos: ClaveCampoPadron[]
+  definiciones: CampoPadronDefinicion[]
   registros: RegistroPreview[]
 }
 
@@ -16,10 +19,12 @@ export function clavePreview(idEleccion: number): string {
 export function guardarPreview(
   idEleccion: number,
   registros: RegistroPreview[],
-  campos: ClaveCampoPadron[] = ['dni', 'email']
+  campos: ClaveCampoPadron[] = ['dni', 'email'],
+  definiciones: CampoPadronDefinicion[] = CAMPOS_PADRON_PREDEFINIDOS
 ): void {
   const payload: PadronPreviewPayload = {
-    campos: normalizarCamposSeleccionados(campos),
+    campos: normalizarCamposSeleccionados(campos, definiciones),
+    definiciones,
     registros: registros.map((r) => ({
       ...r,
       adicionales: r.adicionales ?? {},
@@ -37,6 +42,7 @@ export function leerPreview(idEleccion: number): PadronPreviewPayload | null {
     if (Array.isArray(parsed)) {
       return {
         campos: ['dni', 'email'],
+        definiciones: CAMPOS_PADRON_PREDEFINIDOS,
         registros: (parsed as RegistroPreview[]).map((r) => ({
           ...r,
           adicionales: r.adicionales ?? {},
@@ -49,10 +55,16 @@ export function leerPreview(idEleccion: number): PadronPreviewPayload | null {
       Array.isArray((parsed as PadronPreviewPayload).registros)
     ) {
       const payload = parsed as PadronPreviewPayload
+      const definiciones =
+        payload.definiciones?.length > 0
+          ? payload.definiciones
+          : CAMPOS_PADRON_PREDEFINIDOS
       return {
         campos: normalizarCamposSeleccionados(
-          payload.campos ?? ['dni', 'email']
+          payload.campos ?? ['dni', 'email'],
+          definiciones
         ),
+        definiciones,
         registros: payload.registros.map((r) => ({
           ...r,
           adicionales: r.adicionales ?? {},

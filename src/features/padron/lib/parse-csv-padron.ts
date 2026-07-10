@@ -16,8 +16,8 @@ export interface RegistroPreview {
   linea: number
   dni: string
   email: string
-  /** Columnas opcionales seleccionadas (nombre, apellido, dirección, …). */
-  adicionales: Partial<Record<ClaveCampoPadron, string>>
+  /** Columnas de visualización (predefinidas o personalizadas). */
+  adicionales: Record<string, string>
 }
 
 export class ArchivoPadronError extends Error {
@@ -69,6 +69,10 @@ function parseFilasDesdeCabecera(
   camposEsperados: ClaveCampoPadron[]
 ): RegistroPreview[] {
   const campos = normalizarCamposSeleccionados(camposEsperados)
+  if (campos.length === 0) {
+    throw new CsvColumnasError(['(ningún campo seleccionado)'])
+  }
+
   const indices = new Map<ClaveCampoPadron, number>()
   const faltantes: string[] = []
 
@@ -88,8 +92,12 @@ function parseFilasDesdeCabecera(
   for (const fila of filas) {
     if (fila.celdas === null) continue
     const celdas = fila.celdas
-    const dni = (celdas[indices.get('dni')!] ?? '').trim()
-    const email = (celdas[indices.get('email')!] ?? '').trim()
+    const dni = indices.has('dni')
+      ? (celdas[indices.get('dni')!] ?? '').trim()
+      : ''
+    const email = indices.has('email')
+      ? (celdas[indices.get('email')!] ?? '').trim()
+      : ''
     const adicionales: RegistroPreview['adicionales'] = {}
     for (const clave of campos) {
       if (clave === 'dni' || clave === 'email') continue

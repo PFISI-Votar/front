@@ -23,7 +23,11 @@ import {
   type ImportarPadronResponse,
 } from '../hooks/use-importar-padron'
 import { PADRON_PAGE_SIZES } from '../hooks/use-padron'
-import { etiquetaCampo, type ClaveCampoPadron } from '../lib/campos-padron'
+import {
+  etiquetaCampo,
+  type CampoPadronDefinicion,
+  type ClaveCampoPadron,
+} from '../lib/campos-padron'
 import type {
   RegistroPreview,
   TipoNovedadPreview,
@@ -35,6 +39,7 @@ interface PadronPreviewTableProps {
   idEleccion: number
   registrosIniciales: RegistroPreview[]
   campos: ClaveCampoPadron[]
+  definiciones: CampoPadronDefinicion[]
   onConfirmado: (resultado: ImportarPadronResponse) => void
   onCancelar: () => void
 }
@@ -52,6 +57,7 @@ export function PadronPreviewTable({
   idEleccion,
   registrosIniciales,
   campos,
+  definiciones,
   onConfirmado,
   onCancelar,
 }: PadronPreviewTableProps) {
@@ -64,6 +70,8 @@ export function PadronPreviewTable({
   const problemas = contarProblemas(estados)
   const totalPaginas = Math.max(1, Math.ceil(registros.length / limit))
   const visibles = registros.slice((page - 1) * limit, page * limit)
+  const muestraDni = campos.includes('dni')
+  const muestraEmail = campos.includes('email')
   const columnasExtra = campos.filter((c) => c !== 'dni' && c !== 'email')
 
   const editar = (id: string, campo: 'dni' | 'email', valor: string) =>
@@ -113,63 +121,73 @@ export function PadronPreviewTable({
         </div>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className='w-20'>Línea</TableHead>
-            <TableHead>DNI</TableHead>
-            <TableHead>Email</TableHead>
-            {columnasExtra.map((clave) => (
-              <TableHead key={clave}>{etiquetaCampo(clave)}</TableHead>
-            ))}
-            <TableHead className='w-32'>Estado</TableHead>
-            <TableHead className='w-16' />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {visibles.map((r) => (
-            <TableRow key={r.id}>
-              <TableCell className='font-mono'>{r.linea}</TableCell>
-              <TableCell>
-                <Input
-                  aria-label={`DNI línea ${r.linea}`}
-                  value={r.dni}
-                  onChange={(e) => editar(r.id, 'dni', e.target.value)}
-                />
-              </TableCell>
-              <TableCell>
-                <Input
-                  aria-label={`Email línea ${r.linea}`}
-                  value={r.email}
-                  onChange={(e) => editar(r.id, 'email', e.target.value)}
-                />
-              </TableCell>
+      <div className='overflow-x-auto'>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className='w-20'>Línea</TableHead>
+              {muestraDni && <TableHead>DNI</TableHead>}
+              {muestraEmail && <TableHead>Email</TableHead>}
               {columnasExtra.map((clave) => (
-                <TableCell key={clave} className='text-muted-foreground'>
-                  {r.adicionales?.[clave] ?? ''}
-                </TableCell>
+                <TableHead key={clave}>
+                  {etiquetaCampo(clave, definiciones)}
+                </TableHead>
               ))}
-              <TableCell>
-                <Badge
-                  variant={estados[r.id] === 'OK' ? 'secondary' : 'destructive'}
-                >
-                  {ETIQUETA[estados[r.id]]}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <Button
-                  variant='ghost'
-                  size='icon'
-                  aria-label={`Borrar fila ${r.linea}`}
-                  onClick={() => borrar(r.id)}
-                >
-                  <Trash2 className='size-4' />
-                </Button>
-              </TableCell>
+              <TableHead className='w-32'>Estado</TableHead>
+              <TableHead className='w-16' />
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {visibles.map((r) => (
+              <TableRow key={r.id}>
+                <TableCell className='font-mono'>{r.linea}</TableCell>
+                {muestraDni && (
+                  <TableCell>
+                    <Input
+                      aria-label={`DNI línea ${r.linea}`}
+                      value={r.dni}
+                      onChange={(e) => editar(r.id, 'dni', e.target.value)}
+                    />
+                  </TableCell>
+                )}
+                {muestraEmail && (
+                  <TableCell>
+                    <Input
+                      aria-label={`Email línea ${r.linea}`}
+                      value={r.email}
+                      onChange={(e) => editar(r.id, 'email', e.target.value)}
+                    />
+                  </TableCell>
+                )}
+                {columnasExtra.map((clave) => (
+                  <TableCell key={clave} className='text-muted-foreground'>
+                    {r.adicionales?.[clave] ?? ''}
+                  </TableCell>
+                ))}
+                <TableCell>
+                  <Badge
+                    variant={
+                      estados[r.id] === 'OK' ? 'secondary' : 'destructive'
+                    }
+                  >
+                    {ETIQUETA[estados[r.id]]}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Button
+                    variant='ghost'
+                    size='icon'
+                    aria-label={`Borrar fila ${r.linea}`}
+                    onClick={() => borrar(r.id)}
+                  >
+                    <Trash2 className='size-4' />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
 
       <div className='flex flex-wrap items-center justify-between gap-3'>
         <div className='flex items-center gap-2'>
