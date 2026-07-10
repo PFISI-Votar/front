@@ -46,12 +46,7 @@ import { useSolicitarMerkleProof } from '@/features/voto/hooks/use-merkle-proof'
 type VotingVariant = 'lista-completa' | 'candidatos' | 'mixto'
 type SpecialVote = 'blank' | 'null' | null
 type WizardStep =
-  | 'identity'
-  | 'registered'
-  | 'selection'
-  | 'review'
-  | 'blockchain'
-  | 'success'
+  'identity' | 'registered' | 'selection' | 'review' | 'blockchain' | 'success'
 
 type Candidate = {
   id: string
@@ -85,6 +80,7 @@ type PartyList = {
 type BudVotingWizardProps = {
   boleta: BoletaDigital
   tipoVotacion: TipoVotacion
+  cryptoReady?: boolean
   onLogout: () => void
 }
 
@@ -246,6 +242,7 @@ const groupCandidatesByParty = (candidates: Candidate[]) => {
 export const BudVotingWizard = ({
   boleta,
   tipoVotacion,
+  cryptoReady = false,
   onLogout,
 }: BudVotingWizardProps) => {
   const [step, setStep] = useState<WizardStep>('identity')
@@ -389,6 +386,7 @@ export const BudVotingWizard = ({
             boleta={boleta}
             returningVoter={returningVoter}
             identityError={identityError}
+            cryptoReady={cryptoReady}
             isLoadingProof={merkleProofMutation.isPending}
             onReturningVoterChange={setReturningVoter}
             onConfirm={() => {
@@ -468,7 +466,7 @@ const BudWizardShell = ({
   children: ReactNode
   step: WizardStep
 }) => (
-  <main className='relative min-h-svh overflow-hidden bg-[#fdfcfa] text-[#202124]'>
+  <main className='votar-light-surface relative min-h-svh overflow-hidden bg-[#fdfcfa] text-[#202124]'>
     <div className='pointer-events-none absolute inset-0' aria-hidden='true'>
       {BACKGROUND_FINGERPRINTS.map((fingerprint) => (
         <img
@@ -602,6 +600,7 @@ const IdentityStep = ({
   boleta,
   returningVoter,
   identityError,
+  cryptoReady,
   isLoadingProof,
   onReturningVoterChange,
   onConfirm,
@@ -609,6 +608,7 @@ const IdentityStep = ({
   boleta: BoletaDigital
   returningVoter: boolean
   identityError: string | null
+  cryptoReady: boolean
   isLoadingProof: boolean
   onReturningVoterChange: (value: boolean) => void
   onConfirm: () => void
@@ -625,6 +625,16 @@ const IdentityStep = ({
         </CardDescription>
       </CardHeader>
       <CardContent className='grid gap-5'>
+        {cryptoReady ? (
+          <div
+            className='flex items-center justify-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800'
+            role='status'
+            aria-label='Identidad criptográfica efímera generada'
+          >
+            <Fingerprint className='size-4' aria-hidden='true' />
+            Identidad criptográfica efímera generada
+          </div>
+        ) : null}
         <div className='grid gap-3 rounded-2xl bg-[#f7fbfd] p-4 sm:grid-cols-2'>
           <IdentityItem label='Sesión' value='Votante autenticado' />
           <IdentityItem label='Comicio' value={boleta.nombreEleccion} />

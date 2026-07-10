@@ -142,6 +142,17 @@ describe('BoletaUnicaDigitalPage', () => {
     })
   })
 
+  it('aplica superficie clara en la boleta bajo tema oscuro global (VOTAR-412)', async () => {
+    document.documentElement.classList.add('dark')
+    mocks.obtenerBoletaDigital.mockResolvedValue(boleta)
+    await renderBud()
+
+    await vi.waitFor(() => {
+      const main = document.querySelector('main')
+      expect(main?.className).toContain('votar-light-surface')
+    })
+  })
+
   it('vuelve al login con aviso cuando la sesión del votante expira (401)', async () => {
     mocks.ensureVotanteSession.mockResolvedValue(votanteSession)
     mocks.obtenerBoletaDigital.mockRejectedValue(
