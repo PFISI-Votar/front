@@ -31,7 +31,7 @@ function PadronPreviewRoute() {
   // Se lee el padrón en texto plano una sola vez al montar. Los re-renders no
   // vuelven a tocar sessionStorage, así el cleanup de abajo no puede dejar la
   // vista en estado vacío mientras sigue montada.
-  const [registros] = useState(() => leerPreview(idEleccion))
+  const [preview] = useState(() => leerPreview(idEleccion))
 
   // Privacidad (Ley 25.326): el padrón en texto plano vive sólo en
   // sessionStorage. Se limpia al salir de la preview por cualquier vía —botón,
@@ -45,13 +45,13 @@ function PadronPreviewRoute() {
       params: { idEleccion: idParam },
     })
 
-  if (!registros || registros.length === 0) {
+  if (!preview || preview.registros.length === 0) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>No hay padrón para previsualizar</CardTitle>
           <CardDescription>
-            Volvé a la página del comicio y cargá un archivo CSV.
+            Volvé a la página del comicio y cargá un archivo CSV o Excel.
           </CardDescription>
           <Button variant='outline' className='w-fit' onClick={volverAlPadron}>
             <ArrowLeft className='size-4' />
@@ -109,7 +109,8 @@ function PadronPreviewRoute() {
       </div>
       <PadronPreviewTable
         idEleccion={idEleccion}
-        registrosIniciales={registros}
+        registrosIniciales={preview.registros}
+        campos={preview.campos}
         onConfirmado={onConfirmado}
         onCancelar={onCancelar}
       />

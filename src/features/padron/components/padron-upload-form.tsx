@@ -31,8 +31,19 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useElecciones } from '../hooks/use-elecciones'
-import { parseCsvPadron, CsvColumnasError } from '../lib/parse-csv-padron'
+import {
+  clavesObligatorias,
+  type ClaveCampoPadron,
+} from '../lib/campos-padron'
+import {
+  esArchivoPadronSoportado,
+  parseArchivoPadron,
+} from '../lib/parse-archivo-padron'
+import { CsvColumnasError, ArchivoPadronError } from '../lib/parse-csv-padron'
+import { descargarCsvEjemplo } from '../lib/reconstruir-csv'
 import { guardarPreview } from '../lib/preview-storage'
+import { PadronCamposSelector } from './padron-campos-selector'
+import { PadronEjemploTabla } from './padron-ejemplo-tabla'
 
 const formSchema = z.object({
   idEleccion: z
@@ -40,10 +51,10 @@ const formSchema = z.object({
     .int('El ID debe ser un número entero.')
     .positive('El ID debe ser un número positivo.'),
   archivo: z
-    .instanceof(File, { error: 'Seleccione un archivo CSV.' })
+    .instanceof(File, { error: 'Seleccione un archivo CSV o Excel.' })
     .refine(
-      (file) => file.name.toLowerCase().endsWith('.csv'),
-      'El archivo debe tener extensión .csv'
+      (file) => esArchivoPadronSoportado(file),
+      'El archivo debe ser .csv, .xlsx o .xls'
     ),
 })
 
@@ -53,18 +64,6 @@ function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
-/** Descarga un CSV de ejemplo con la estructura correcta del padrón. */
-function descargarCsvEjemplo(): void {
-  const contenido = 'dni,email\n00000000,mail@prueba.com\n'
-  const blob = new Blob([contenido], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const enlace = document.createElement('a')
-  enlace.href = url
-  enlace.download = 'padron-ejemplo.csv'
-  enlace.click()
-  URL.revokeObjectURL(url)
 }
 
 interface PadronUploadFormProps {
@@ -77,6 +76,7 @@ export function PadronUploadForm({
 }: PadronUploadFormProps = {}) {
   const [isDragging, setIsDragging] = useState(false)
   const [procesando, setProcesando] = useState(false)
+  const [campos, setCampos] = useState<ClaveCampoPadron[]>(clavesObligatorias())
   const comicioFijo = idEleccionFijo !== undefined
   const { data: elecciones, isLoading: cargandoElecciones } = useElecciones({
     enabled: !comicioFijo,
@@ -91,22 +91,21 @@ export function PadronUploadForm({
   async function onSubmit(values: PadronUploadValues) {
     setProcesando(true)
     try {
-      const texto = await values.archivo.text()
-      const registros = parseCsvPadron(texto)
+      const registros = await parseArchivoPadron(values.archivo, campos)
       if (registros.length === 0) {
-        toast.error('El archivo CSV no contiene registros.')
+        toast.error('El archivo no contiene registros.')
         return
       }
-      guardarPreview(values.idEleccion, registros)
+      guardarPreview(values.idEleccion, registros, campos)
       await navigate({
         to: '/comicios/$idEleccion/padron/preview',
         params: { idEleccion: String(values.idEleccion) },
       })
     } catch (error) {
       toast.error(
-        error instanceof CsvColumnasError
+        error instanceof CsvColumnasError || error instanceof ArchivoPadronError
           ? error.message
-          : 'No se pudo leer el archivo CSV.'
+          : 'No se pudo leer el archivo CSV o Excel.'
       )
     } finally {
       setProcesando(false)
@@ -160,12 +159,16 @@ export function PadronUploadForm({
           />
         )}
 
+        <PadronCamposSelector value={campos} onChange={setCampos} />
+
+        <PadronEjemploTabla campos={campos} />
+
         <FormField
           control={form.control}
           name='archivo'
           render={({ field: { value, onChange, ref, name, onBlur } }) => (
             <FormItem>
-              <FormLabel>Archivo CSV del padrón</FormLabel>
+              <FormLabel>Archivo del padrón</FormLabel>
               <FormControl>
                 <label
                   htmlFor='padron-file'
@@ -221,7 +224,7 @@ export function PadronUploadForm({
                           Haga clic o arrastre el archivo aquí
                         </p>
                         <p className='text-xs text-muted-foreground'>
-                          Sólo archivos .csv
+                          Archivos .csv, .xlsx o .xls
                         </p>
                       </div>
                     </>
@@ -229,7 +232,7 @@ export function PadronUploadForm({
                   <input
                     id='padron-file'
                     type='file'
-                    accept='.csv'
+                    accept='.csv,.xlsx,.xls'
                     className='sr-only'
                     name={name}
                     ref={ref}
@@ -239,7 +242,8 @@ export function PadronUploadForm({
                 </label>
               </FormControl>
               <FormDescription>
-                Columnas requeridas: <code>dni</code>, <code>email</code>.
+                El archivo debe incluir las columnas seleccionadas arriba. Sólo
+                DNI y email se usan para el padrón hasheado.
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -255,7 +259,7 @@ export function PadronUploadForm({
             type='button'
             variant='outline'
             className='w-fit'
-            onClick={descargarCsvEjemplo}
+            onClick={() => descargarCsvEjemplo(campos)}
           >
             <FileDown />
             Descargar CSV ejemplo

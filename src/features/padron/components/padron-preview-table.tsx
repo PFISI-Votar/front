@@ -1,4 +1,3 @@
-// padron-preview-table.tsx
 import { useMemo, useState } from 'react'
 import { Loader2, Trash2, Upload, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -24,6 +23,10 @@ import {
   type ImportarPadronResponse,
 } from '../hooks/use-importar-padron'
 import { PADRON_PAGE_SIZES } from '../hooks/use-padron'
+import {
+  etiquetaCampo,
+  type ClaveCampoPadron,
+} from '../lib/campos-padron'
 import type {
   RegistroPreview,
   TipoNovedadPreview,
@@ -34,6 +37,7 @@ import { contarProblemas, validarRegistros } from '../lib/validar-padron'
 interface PadronPreviewTableProps {
   idEleccion: number
   registrosIniciales: RegistroPreview[]
+  campos: ClaveCampoPadron[]
   onConfirmado: (resultado: ImportarPadronResponse) => void
   onCancelar: () => void
 }
@@ -50,6 +54,7 @@ const ETIQUETA: Record<TipoNovedadPreview, string> = {
 export function PadronPreviewTable({
   idEleccion,
   registrosIniciales,
+  campos,
   onConfirmado,
   onCancelar,
 }: PadronPreviewTableProps) {
@@ -62,6 +67,7 @@ export function PadronPreviewTable({
   const problemas = contarProblemas(estados)
   const totalPaginas = Math.max(1, Math.ceil(registros.length / limit))
   const visibles = registros.slice((page - 1) * limit, page * limit)
+  const columnasExtra = campos.filter((c) => c !== 'dni' && c !== 'email')
 
   const editar = (id: string, campo: 'dni' | 'email', valor: string) =>
     setRegistros((prev) =>
@@ -116,6 +122,9 @@ export function PadronPreviewTable({
             <TableHead className='w-20'>Línea</TableHead>
             <TableHead>DNI</TableHead>
             <TableHead>Email</TableHead>
+            {columnasExtra.map((clave) => (
+              <TableHead key={clave}>{etiquetaCampo(clave)}</TableHead>
+            ))}
             <TableHead className='w-32'>Estado</TableHead>
             <TableHead className='w-16' />
           </TableRow>
@@ -138,6 +147,11 @@ export function PadronPreviewTable({
                   onChange={(e) => editar(r.id, 'email', e.target.value)}
                 />
               </TableCell>
+              {columnasExtra.map((clave) => (
+                <TableCell key={clave} className='text-muted-foreground'>
+                  {r.adicionales?.[clave] ?? ''}
+                </TableCell>
+              ))}
               <TableCell>
                 <Badge
                   variant={estados[r.id] === 'OK' ? 'secondary' : 'destructive'}

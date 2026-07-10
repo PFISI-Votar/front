@@ -1,11 +1,14 @@
-// reconstruir-csv.test.ts
 import { describe, expect, it } from 'vitest'
 import { parseCsvPadron, type RegistroPreview } from './parse-csv-padron'
-import { construirArchivoCsv, reconstruirCsv } from './reconstruir-csv'
+import {
+  construirArchivoCsv,
+  construirCsvEjemplo,
+  reconstruirCsv,
+} from './reconstruir-csv'
 
 const registros: RegistroPreview[] = [
-  { id: '1', linea: 2, dni: '12345678', email: 'a@a.com' },
-  { id: '2', linea: 3, dni: '87654321', email: 'b@b.com' },
+  { id: '1', linea: 2, dni: '12345678', email: 'a@a.com', adicionales: {} },
+  { id: '2', linea: 3, dni: '87654321', email: 'b@b.com', adicionales: {} },
 ]
 
 describe('reconstruirCsv', () => {
@@ -30,5 +33,14 @@ describe('construirArchivoCsv', () => {
     expect(file.name).toBe('padron.csv')
     expect(file.type).toContain('csv')
     expect(await file.text()).toBe(reconstruirCsv(registros))
+  })
+})
+
+describe('construirCsvEjemplo', () => {
+  it('genera 5 filas con las columnas seleccionadas', () => {
+    const csv = construirCsvEjemplo(['dni', 'email', 'nombre'])
+    const lineas = csv.trim().split('\n')
+    expect(lineas[0]).toBe('dni,email,nombre')
+    expect(lineas).toHaveLength(6)
   })
 })

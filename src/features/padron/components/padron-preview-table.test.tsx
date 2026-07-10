@@ -11,8 +11,8 @@ vi.mock('../hooks/use-importar-padron', () => ({
 }))
 
 const registros: RegistroPreview[] = [
-  { id: '1', linea: 2, dni: '12345678', email: 'a@a.com' },
-  { id: '2', linea: 3, dni: '', email: 'b@b.com' },
+  { id: '1', linea: 2, dni: '12345678', email: 'a@a.com', adicionales: {} },
+  { id: '2', linea: 3, dni: '', email: 'b@b.com', adicionales: {} },
 ]
 
 async function renderTabla(
@@ -24,6 +24,7 @@ async function renderTabla(
       <PadronPreviewTable
         idEleccion={7}
         registrosIniciales={registros}
+        campos={['dni', 'email']}
         onConfirmado={vi.fn()}
         onCancelar={vi.fn()}
         {...props}
