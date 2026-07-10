@@ -6,12 +6,14 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import type { Hex } from 'viem'
 import { createEphemeralWalletManager } from '@/features/voto/crypto/ephemeral-wallet'
 import {
   EphemeralWalletContext,
   type EphemeralWalletContextValue,
 } from '@/features/voto/crypto/ephemeral-wallet-context-value'
 import type { EphemeralWalletSession } from '@/features/voto/crypto/ephemeral-wallet.types'
+import type { SelectionPayload } from '@/features/voto/crypto/selection-hash'
 import { isWebCryptoSupported } from '@/features/voto/crypto/web-crypto-support'
 
 type EphemeralWalletProviderProps = {
@@ -36,6 +38,13 @@ export const EphemeralWalletProvider = ({
     return nextSession
   }, [])
 
+  const signVotePayload = useCallback(
+    async (selection: SelectionPayload, nullifier: Hex) => {
+      return managerRef.current.signVotePayload(selection, nullifier)
+    },
+    []
+  )
+
   useEffect(() => {
     const manager = managerRef.current
     const handlePageExit = () => {
@@ -59,9 +68,10 @@ export const EphemeralWalletProvider = ({
       publicKeyHex: session?.publicKeyHex ?? null,
       session,
       initialize,
+      signVotePayload,
       destroy,
     }),
-    [destroy, initialize, isSupported, session]
+    [destroy, initialize, isSupported, session, signVotePayload]
   )
 
   return (

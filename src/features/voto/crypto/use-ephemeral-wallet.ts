@@ -13,8 +13,15 @@ export const useEphemeralWallet = () => {
     )
   }
 
-  const { isSupported, isReady, publicKeyHex, session, initialize, destroy } =
-    value
+  const {
+    isSupported,
+    isReady,
+    publicKeyHex,
+    session,
+    initialize,
+    signVotePayload,
+    destroy,
+  } = value
 
   return {
     isSupported,
@@ -22,6 +29,7 @@ export const useEphemeralWallet = () => {
     publicKeyHex,
     session,
     initialize,
+    signVotePayload,
     destroy,
   }
 }

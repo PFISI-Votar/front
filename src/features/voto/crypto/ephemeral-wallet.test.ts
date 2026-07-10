@@ -101,8 +101,28 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
       'initialize',
       'getSession',
       'getPublicKeyHex',
+      'signVotePayload',
       'destroy',
     ])
+  })
+
+  it('UAT-04: signVotePayload zeroizes the private key so a second sign fails', async () => {
+    await manager.initialize(357)
+    const selection = {
+      selecciones: [{ idCategoria: 1, idCandidato: 101 }],
+    }
+    const nullifier =
+      '0x1111111111111111111111111111111111111111111111111111111111111111' as const
+
+    const signed = await manager.signVotePayload(selection, nullifier)
+    expect(signed.electionId).toBe(357)
+    expect(signed.nullifier).toBe(nullifier)
+    expect(signed.signature).toMatch(/^0x[0-9a-f]+$/i)
+    expect(manager.getPublicKeyHex()).toMatch(/^0x0[23][0-9a-f]{64}$/)
+
+    await expect(manager.signVotePayload(selection, nullifier)).rejects.toThrow(
+      'Ephemeral wallet is not initialized'
+    )
   })
 
   it('rejects invalid election ids', async () => {

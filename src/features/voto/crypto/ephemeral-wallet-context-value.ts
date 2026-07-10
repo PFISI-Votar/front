@@ -1,5 +1,8 @@
 import { createContext } from 'react'
+import type { Hex } from 'viem'
 import type { EphemeralWalletSession } from '@/features/voto/crypto/ephemeral-wallet.types'
+import type { SelectionPayload } from '@/features/voto/crypto/selection-hash'
+import type { SignedVotePayload } from '@/features/voto/crypto/vote-signer'
 
 export type EphemeralWalletContextValue = {
   isSupported: boolean
@@ -7,6 +10,10 @@ export type EphemeralWalletContextValue = {
   publicKeyHex: string | null
   session: EphemeralWalletSession | null
   initialize: (idEleccion: number) => Promise<EphemeralWalletSession>
+  signVotePayload: (
+    selection: SelectionPayload,
+    nullifier: Hex
+  ) => Promise<SignedVotePayload>
   destroy: () => void
 }
 

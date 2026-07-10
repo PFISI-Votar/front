@@ -1,14 +1,21 @@
 import { getPublicKey, utils as secpUtils } from '@noble/secp256k1'
+import type { Hex } from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
 import type {
   EphemeralWalletManager,
   EphemeralWalletSession,
 } from '@/features/voto/crypto/ephemeral-wallet.types'
+import type { SelectionPayload } from '@/features/voto/crypto/selection-hash'
+import {
+  signVotePayload as signTypedVotePayload,
+  type SignedVotePayload,
+} from '@/features/voto/crypto/vote-signer'
 import { isWebCryptoSupported } from '@/features/voto/crypto/web-crypto-support'
 
 const PRIVATE_KEY_BYTES = 32
 const MAX_KEYGEN_ATTEMPTS = 16
 
-const bytesToHex = (bytes: Uint8Array): string =>
+const bytesToHex = (bytes: Uint8Array): Hex =>
   `0x${Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')}`
 
 const zeroize = (buffer: Uint8Array | null): void => {
@@ -41,6 +48,7 @@ const generateSecp256k1PrivateKey = (): Uint8Array => {
  *
  * The private key lives only inside this closure and is never exposed
  * through the public API (equivalent to extractable: false).
+ * After a successful signVotePayload the key is zeroized (UAT-04 / VOTAR-357).
  */
 export const createEphemeralWalletManager = (): EphemeralWalletManager => {
   let privateKey: Uint8Array | null = null
@@ -83,10 +91,35 @@ export const createEphemeralWalletManager = (): EphemeralWalletManager => {
 
   const getPublicKeyHex = (): string | null => session?.publicKeyHex ?? null
 
+  const signVotePayload = async (
+    selection: SelectionPayload,
+    nullifier: Hex
+  ): Promise<SignedVotePayload> => {
+    if (!privateKey || !session) {
+      throw new Error('Ephemeral wallet is not initialized')
+    }
+
+    const privateKeyHex = bytesToHex(privateKey)
+    const account = privateKeyToAccount(privateKeyHex)
+    const signed = await signTypedVotePayload(
+      account,
+      session.idEleccion,
+      selection,
+      { nullifier }
+    )
+
+    // UAT-04: destroy signing material immediately after a successful signature.
+    zeroize(privateKey)
+    privateKey = null
+
+    return signed
+  }
+
   return Object.freeze({
     initialize,
     getSession,
     getPublicKeyHex,
+    signVotePayload,
     destroy,
   })
 }

@@ -426,6 +426,7 @@ const BoletaUnicaDigitalPageContent = ({
         boleta={boleta}
         tipoVotacion={budConfigQuery.data.tipoVotacion as TipoVotacion}
         cryptoReady={isReady}
+        nullifier={null}
         onLogout={() => {
           destroyWallet()
           void clearVotanteSession().finally(() => {
