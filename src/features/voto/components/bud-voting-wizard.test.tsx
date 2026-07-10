@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
 import {
@@ -8,6 +8,7 @@ import {
 } from '@/features/eleccion/lista/data/schema'
 import { BudVotingWizard } from '@/features/voto/components/bud-voting-wizard'
 import { EphemeralWalletProvider } from '@/features/voto/crypto/ephemeral-wallet-context'
+import { calcularNullifier } from '@/features/voto/crypto/nullifier'
 import type { BoletaDigital } from '@/features/voto/data/schema'
 
 vi.mock('@/features/voto/api/voto-api', () => ({
@@ -16,6 +17,8 @@ vi.mock('@/features/voto/api/voto-api', () => ({
     root: '0x' + 'a'.repeat(64),
   }),
 }))
+
+const WALLET_PUBLIC_KEY = '0x02' + 'a'.repeat(64)
 
 const signVotePayloadMock = vi.fn().mockResolvedValue({
   electionId: 7,
@@ -26,14 +29,20 @@ const signVotePayloadMock = vi.fn().mockResolvedValue({
   signature: '0x' + 'e'.repeat(130),
 })
 
+const walletState = {
+  publicKeyHex: WALLET_PUBLIC_KEY as string | null,
+}
+
 vi.mock('@/features/voto/crypto/use-ephemeral-wallet', () => ({
   useEphemeralWallet: () => ({
     isSupported: true,
     isReady: true,
-    publicKeyHex: '0x02' + 'a'.repeat(64),
+    get publicKeyHex() {
+      return walletState.publicKeyHex
+    },
     session: {
       idEleccion: 7,
-      publicKeyHex: '0x02' + 'a'.repeat(64),
+      publicKeyHex: WALLET_PUBLIC_KEY,
       createdAt: Date.now(),
     },
     initialize: vi.fn(),
@@ -124,8 +133,7 @@ const boleta: BoletaDigital = {
 }
 
 async function renderWizard(
-  tipoVotacion: TipoVotacion = TIPOS_VOTACION.POR_CANDIDATO,
-  nullifier: `0x${string}` | null = ('0x' + 'b'.repeat(64)) as `0x${string}`
+  tipoVotacion: TipoVotacion = TIPOS_VOTACION.POR_CANDIDATO
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -136,7 +144,6 @@ async function renderWizard(
         <BudVotingWizard
           boleta={boleta}
           tipoVotacion={tipoVotacion}
-          nullifier={nullifier}
           onLogout={vi.fn()}
         />
       </EphemeralWalletProvider>
@@ -154,6 +161,19 @@ async function renderWizard(
 }
 
 describe('BudVotingWizard', () => {
+  beforeEach(() => {
+    walletState.publicKeyHex = WALLET_PUBLIC_KEY
+    signVotePayloadMock.mockClear()
+    signVotePayloadMock.mockResolvedValue({
+      electionId: 7,
+      nullifier: '0x' + 'b'.repeat(64),
+      selectionHash: '0x' + 'c'.repeat(64),
+      timestamp: 1_700_000_000,
+      expectedSigner: '0x' + 'd'.repeat(40),
+      signature: '0x' + 'e'.repeat(130),
+    })
+  })
+
   it('aplica superficie clara en el shell bajo tema oscuro global (VOTAR-412)', async () => {
     document.documentElement.classList.add('dark')
     await renderWizard()
@@ -242,8 +262,11 @@ describe('BudVotingWizard', () => {
     await expect.element(screen.getByText('Alicia Sol')).not.toBeInTheDocument()
   })
 
-  it('UAT-01: firma localmente y muestra mensaje de éxito sin hash de tx fake', async () => {
-    signVotePayloadMock.mockClear()
+  it('UAT-01: firma localmente con nulificador derivado de la clave pública', async () => {
+    const expectedNullifier = calcularNullifier(
+      WALLET_PUBLIC_KEY,
+      boleta.idEleccion
+    )
     const screen = await renderWizard()
 
     await userEvent.click(
@@ -261,11 +284,16 @@ describe('BudVotingWizard', () => {
       .element(screen.getByText(/Hash de transacción ficticio/i))
       .not.toBeInTheDocument()
     expect(signVotePayloadMock).toHaveBeenCalledOnce()
+    expect(signVotePayloadMock).toHaveBeenCalledWith(
+      expect.objectContaining({ votoEnBlanco: true }),
+      expectedNullifier
+    )
+    expect(document.body.innerHTML).not.toContain(expectedNullifier)
   })
 
-  it('muestra error cuando falta el nulificador de VOTAR-353', async () => {
-    signVotePayloadMock.mockClear()
-    const screen = await renderWizard(TIPOS_VOTACION.POR_CANDIDATO, null)
+  it('muestra error cuando falta la clave pública de la billetera efímera', async () => {
+    walletState.publicKeyHex = null
+    const screen = await renderWizard()
 
     await userEvent.click(
       screen.getByRole('button', { name: /Votar en blanco/i })
@@ -276,7 +304,11 @@ describe('BudVotingWizard', () => {
     )
 
     await expect
-      .element(screen.getByText(/No hay un nulificador de sesión disponible/i))
+      .element(
+        screen.getByText(
+          /No se pudo verificar tu identidad criptográfica efímera/i
+        )
+      )
       .toBeInTheDocument()
     expect(signVotePayloadMock).not.toHaveBeenCalled()
   })
