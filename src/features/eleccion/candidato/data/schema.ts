@@ -1,14 +1,9 @@
 import { z } from 'zod'
-import { CLAVES_DATOS_CANDIDATO_UNICOS } from '@/features/eleccion/candidato/constants/datos-candidato-unicos'
 import { personNameSchema } from '@/lib/person-name'
+import { CLAVES_DATOS_CANDIDATO_UNICOS } from '@/features/eleccion/candidato/constants/datos-candidato-unicos'
 
 export type TipoCampoCandidato =
-  | 'texto'
-  | 'numero'
-  | 'email'
-  | 'url'
-  | 'fecha'
-  | 'booleano'
+  'texto' | 'numero' | 'email' | 'url' | 'fecha' | 'booleano'
 
 export type ValidacionCampoCandidato = {
   minLength?: number
