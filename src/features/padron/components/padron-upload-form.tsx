@@ -103,10 +103,6 @@ export function PadronUploadForm({
   })
 
   async function onSubmit(values: PadronUploadValues) {
-    if (campos.length === 0) {
-      toast.error('Seleccione al menos un campo para el archivo.')
-      return
-    }
     setProcesando(true)
     try {
       const registros = await parseArchivoPadron(values.archivo, campos)
@@ -265,9 +261,8 @@ export function PadronUploadForm({
                 </label>
               </FormControl>
               <FormDescription>
-                El archivo debe incluir las columnas seleccionadas. Para
-                importar al padrón hasheado se usan DNI y email cuando estén
-                presentes.
+                El archivo debe incluir las columnas seleccionadas. DNI y email
+                se usan para el hash de identidad del padrón.
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -275,11 +270,7 @@ export function PadronUploadForm({
         />
 
         <div className='flex items-center justify-between gap-3'>
-          <Button
-            type='submit'
-            disabled={procesando || campos.length === 0}
-            className='w-fit'
-          >
+          <Button type='submit' disabled={procesando} className='w-fit'>
             {procesando ? <Loader2 className='animate-spin' /> : <Upload />}
             Previsualizar padrón
           </Button>
@@ -287,7 +278,6 @@ export function PadronUploadForm({
             type='button'
             variant='outline'
             className='w-fit'
-            disabled={campos.length === 0}
             onClick={() => descargarCsvEjemplo(campos, definiciones)}
           >
             <FileDown />

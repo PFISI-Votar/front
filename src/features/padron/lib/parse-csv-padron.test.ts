@@ -65,15 +65,14 @@ describe('parseCsvPadron', () => {
     )
   })
 
-  it('permite parsear sin dni si no fue seleccionado', () => {
-    const r = parseCsvPadron('nombre,apellido\nAna,Pérez\n', [
+  it('incluye dni y email aunque no se pasen en la selección', () => {
+    const r = parseCsvPadron('dni,email,nombre\n12345678,a@a.com,Ana\n', [
       'nombre',
-      'apellido',
     ])
     expect(r[0]).toMatchObject({
-      dni: '',
-      email: '',
-      adicionales: { nombre: 'Ana', apellido: 'Pérez' },
+      dni: '12345678',
+      email: 'a@a.com',
+      adicionales: { nombre: 'Ana' },
     })
   })
 

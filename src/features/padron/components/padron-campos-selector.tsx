@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   crearCampoPersonalizado,
+  esCampoObligatorio,
   normalizarCamposSeleccionados,
   type CampoPadronDefinicion,
   type ClaveCampoPadron,
@@ -28,6 +29,7 @@ export function PadronCamposSelector({
   const seleccion = new Set(value)
 
   const toggle = (clave: ClaveCampoPadron) => {
+    if (esCampoObligatorio(clave)) return
     const next = new Set(seleccion)
     if (next.has(clave)) next.delete(clave)
     else next.add(clave)
@@ -63,9 +65,9 @@ export function PadronCamposSelector({
         Campos del archivo CSV / Excel
       </legend>
       <p className='text-xs text-muted-foreground'>
-        Elija qué columnas traerá el archivo. DNI y email vienen
-        preseleccionados (recomendados para el hash de identidad) pero puede
-        desmarcarlos. Debe haber al menos un campo seleccionado.
+        DNI y email son obligatorios: forman el hash de identidad del padrón
+        (mismo cálculo que el login vía Autogestión). El resto de columnas es
+        opcional y sólo se usa en la previsualización.
       </p>
       <div className='flex flex-wrap gap-x-6 gap-y-3'>
         {predefinidos.map((campo) => {
@@ -76,13 +78,17 @@ export function PadronCamposSelector({
               <Checkbox
                 id={id}
                 checked={checked}
+                disabled={campo.obligatorio}
                 onCheckedChange={() => toggle(campo.clave)}
               />
-              <Label htmlFor={id} className='cursor-pointer'>
+              <Label
+                htmlFor={id}
+                className={
+                  campo.obligatorio ? 'text-muted-foreground' : 'cursor-pointer'
+                }
+              >
                 {campo.etiqueta}
-                {campo.preseleccionado ? (
-                  <span className='text-muted-foreground'> (recomendado)</span>
-                ) : null}
+                {campo.obligatorio ? <span> (requerido)</span> : null}
               </Label>
             </div>
           )
@@ -156,12 +162,6 @@ export function PadronCamposSelector({
           Agregar columna
         </Button>
       </div>
-
-      {value.length === 0 && (
-        <p className='text-xs text-amber-600'>
-          Seleccione al menos un campo para continuar.
-        </p>
-      )}
     </fieldset>
   )
 }

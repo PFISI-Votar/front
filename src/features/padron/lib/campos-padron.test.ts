@@ -14,8 +14,12 @@ describe('campos-padron', () => {
     expect(camposPreseleccionados()).toEqual(['dni', 'email'])
   })
 
-  it('normalizarCamposSeleccionados no fuerza dni/email', () => {
-    expect(normalizarCamposSeleccionados(['nombre'])).toEqual(['nombre'])
+  it('normalizarCamposSeleccionados siempre incluye dni y email', () => {
+    expect(normalizarCamposSeleccionados(['nombre'])).toEqual([
+      'dni',
+      'email',
+      'nombre',
+    ])
   })
 
   it('normalizarCamposSeleccionados preserva orden de definiciones', () => {
@@ -51,6 +55,7 @@ describe('campos-padron', () => {
         clave: 'legajo',
         etiqueta: 'Legajo',
         preseleccionado: true,
+        obligatorio: false,
         personalizado: true,
         ejemplos: [],
       },

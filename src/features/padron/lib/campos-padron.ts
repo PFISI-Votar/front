@@ -6,8 +6,13 @@ export type ClaveCampoPadron = string
 export interface CampoPadronDefinicion {
   clave: ClaveCampoPadron
   etiqueta: string
-  /** Si true, arranca marcado en el selector (no implica bloqueo). */
+  /** Si true, arranca marcado en el selector. */
   preseleccionado: boolean
+  /**
+   * Si true, no se puede desmarcar: forma parte del hash de identidad
+   * (dni+email, alineado con Autogestión / VotanteAuthService).
+   */
+  obligatorio: boolean
   /** Valor de ejemplo para la guía visual (5 filas). */
   ejemplos: string[]
   personalizado?: boolean
@@ -20,12 +25,14 @@ export const CAMPOS_PADRON_PREDEFINIDOS: CampoPadronDefinicion[] = [
     clave: 'dni',
     etiqueta: 'DNI',
     preseleccionado: true,
+    obligatorio: true,
     ejemplos: ['30111222', '28999888', '31555666', '27444333', '32888777'],
   },
   {
     clave: 'email',
     etiqueta: 'Email',
     preseleccionado: true,
+    obligatorio: true,
     ejemplos: [
       'ana.perez@frvm.utn.edu.ar',
       'bruno.gomez@frvm.utn.edu.ar',
@@ -38,18 +45,21 @@ export const CAMPOS_PADRON_PREDEFINIDOS: CampoPadronDefinicion[] = [
     clave: 'nombre',
     etiqueta: 'Nombre',
     preseleccionado: false,
+    obligatorio: false,
     ejemplos: ['Ana', 'Bruno', 'Carla', 'Diego', 'Elena'],
   },
   {
     clave: 'apellido',
     etiqueta: 'Apellido',
     preseleccionado: false,
+    obligatorio: false,
     ejemplos: ['Pérez', 'Gómez', 'Díaz', 'López', 'Ruiz'],
   },
   {
     clave: 'direccion',
     etiqueta: 'Dirección',
     preseleccionado: false,
+    obligatorio: false,
     ejemplos: [
       'San Martín 123',
       'Belgrano 456',
@@ -65,19 +75,30 @@ export const CAMPOS_PADRON = CAMPOS_PADRON_PREDEFINIDOS
 
 export const CLAVES_IDENTIDAD = ['dni', 'email'] as const
 
+export function clavesObligatorias(): ClaveCampoPadron[] {
+  return CAMPOS_PADRON_PREDEFINIDOS.filter((c) => c.obligatorio).map(
+    (c) => c.clave
+  )
+}
+
 export function camposPreseleccionados(): ClaveCampoPadron[] {
   return CAMPOS_PADRON_PREDEFINIDOS.filter((c) => c.preseleccionado).map(
     (c) => c.clave
   )
 }
 
+export function esCampoObligatorio(clave: ClaveCampoPadron): boolean {
+  return (CLAVES_IDENTIDAD as readonly string[]).includes(clave)
+}
+
 export function normalizarCamposSeleccionados(
   seleccion: ClaveCampoPadron[],
   definiciones: CampoPadronDefinicion[] = CAMPOS_PADRON_PREDEFINIDOS
 ): ClaveCampoPadron[] {
-  const set = new Set(
-    seleccion.map((c) => c.trim().toLowerCase()).filter(Boolean)
-  )
+  const set = new Set<ClaveCampoPadron>([
+    ...clavesObligatorias(),
+    ...seleccion.map((c) => c.trim().toLowerCase()).filter(Boolean),
+  ])
   const ordenDefs = definiciones.map((d) => d.clave)
   const ordenados = ordenDefs.filter((clave) => set.has(clave))
   for (const clave of set) {
@@ -107,6 +128,7 @@ export function crearCampoPersonalizado(
     clave,
     etiqueta: etiquetaLimpia,
     preseleccionado: true,
+    obligatorio: false,
     personalizado: true,
     ejemplos: Array.from(
       { length: CANTIDAD_EJEMPLOS_PADRON },
