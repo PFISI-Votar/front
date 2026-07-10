@@ -16,7 +16,6 @@ import {
   ShieldCheck,
   UserRoundCheck,
 } from 'lucide-react'
-import type { Hex } from 'viem'
 import budFingerprint from '@/assets/bud-fingerprint.png'
 import { resolveMediaUrl } from '@/lib/media-url'
 import { cn } from '@/lib/utils'
@@ -38,6 +37,10 @@ import {
   type TipoVotacion,
 } from '@/features/eleccion/lista/data/schema'
 import type { SignedVotePayload } from '@/features/voto/crypto'
+import {
+  calcularNullifier,
+  CredencialNulificadorInvalidaError,
+} from '@/features/voto/crypto/nullifier'
 import { useEphemeralWallet } from '@/features/voto/crypto/use-ephemeral-wallet'
 import type {
   BoletaDigital,
@@ -84,11 +87,6 @@ type BudVotingWizardProps = {
   boleta: BoletaDigital
   tipoVotacion: TipoVotacion
   cryptoReady?: boolean
-  /**
-   * Opaque nullifier from VOTAR-353. Required to sign (VOTAR-357).
-   * When null, the confirm step explains that the nullifier is unavailable.
-   */
-  nullifier?: Hex | null
   onLogout: () => void
 }
 
@@ -242,7 +240,6 @@ export const BudVotingWizard = ({
   boleta,
   tipoVotacion,
   cryptoReady = false,
-  nullifier = null,
   onLogout,
 }: BudVotingWizardProps) => {
   const [step, setStep] = useState<WizardStep>('identity')
@@ -260,8 +257,11 @@ export const BudVotingWizard = ({
   const [isSigning, setIsSigning] = useState(false)
   const [signedVote, setSignedVote] = useState<SignedVotePayload | null>(null)
   const merkleProofMutation = useSolicitarMerkleProof(boleta.idEleccion)
-  const { signVotePayload, destroy: destroyEphemeralWallet } =
-    useEphemeralWallet()
+  const {
+    publicKeyHex,
+    signVotePayload,
+    destroy: destroyEphemeralWallet,
+  } = useEphemeralWallet()
 
   const lists = useMemo(() => buildListsFromBoleta(boleta), [boleta])
   const roles = useMemo(() => buildRolesFromBoleta(boleta), [boleta])
@@ -353,11 +353,26 @@ export const BudVotingWizard = ({
   const handleSignVote = async () => {
     setSigningError(null)
 
-    if (!nullifier) {
+    if (!publicKeyHex) {
       setSigningError(
-        'No hay un nulificador de sesión disponible. Completá el cálculo del nulificador antes de firmar.'
+        'No se pudo verificar tu identidad criptográfica efímera. Reintentá iniciar sesión.'
       )
       return
+    }
+
+    let nullifier: `0x${string}`
+    try {
+      // Calculado just-in-time en esta closure: no se expone en props ni en el DOM
+      // (VOTAR-353 UAT-04). Solo viaja al payload firmado en memoria.
+      nullifier = calcularNullifier(publicKeyHex, boleta.idEleccion)
+    } catch (error) {
+      if (error instanceof CredencialNulificadorInvalidaError) {
+        setSigningError(
+          'No se pudo calcular tu identificador anónimo de votación. Reintentá.'
+        )
+        return
+      }
+      throw error
     }
 
     setIsSigning(true)

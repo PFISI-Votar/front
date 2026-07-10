@@ -27,54 +27,28 @@ const esIdEleccionValido = (idEleccion: unknown): idEleccion is number =>
  *
  * Fórmula: `Nullifier = Keccak256(credencial + ":" + idEleccion)`
  *
- * (El separador `:` es un detalle de implementación para evitar
- * ambigüedad de concatenación entre credenciales de largo variable y el
- * id de elección; no altera el diseño conceptual
- * `hash(credencial + idEleccion)` documentado en `CLAUDE.md` y
- * `lineamientos-desarrollo.md` §7.3.)
+ * El separador `:` evita ambigüedad de concatenación entre credenciales de
+ * largo variable y el id de elección; no altera el diseño conceptual
+ * `hash(clavePublica + idEleccion)` de `lineamientos-desarrollo.md` §7.3
+ * y `contexto-sistema.md`.
  *
- * **Alcance de esta implementación**: la credencial es un parámetro
- * genérico, deliberadamente desacoplado de su fuente real. Según la
- * arquitectura documentada (lineamientos-desarrollo.md`),
- * la credencial de referencia es la **clave pública de la billetera
- * efímera** (`clavePublica`) — no `votanteHash` del padrón, que sería
- * recomputable por cualquiera con acceso al padrón (dni+email) y
- * rompería la desvinculación identidad↔voto exigida por VOTAR-379.
+ * La credencial de referencia es la **clave pública de la billetera
+ * efímera** (`clavePublica`), no `votanteHash` del padrón (recomputable
+ * desde dni+email y rompería la desvinculación identidad↔voto de
+ * VOTAR-379).
  *
- * Esta función todavía NO está integrada al flujo real de la BUD: la
- * billetera efímera (VOTAR-352) ya está mergeada en `dev`
- * (`features/voto/crypto/ephemeral-wallet.ts`), pero la conexión en
- * `bud-voting-wizard.tsx` (llamar a esta función en `handleSignVote`
- * con la clave pública real) queda para un commit/PR de integración
- * separado, para no mezclar en un mismo cambio el motor de cálculo con
- * su punto de uso.
+ * Corre exclusivamente en cliente. El valor retornado debe vivir solo en
+ * memoria volátil; nunca en localStorage, sessionStorage ni cookies.
  *
- * Irreversibilidad (criterio de aceptación): esta función corre
- * exclusivamente en cliente y Keccak-256 no tiene operación inversa
- * conocida — no existe camino de vuelta de nulificador a credencial.
- *
- * Persistencia: el valor retornado debe vivir solo en memoria volátil
- * (closure/estado en RAM). Nunca debe escribirse en localStorage,
- * sessionStorage ni cookies (VOTAR-353, criterio de aceptación /
- * VOTAR-379 UAT-03). Esta función no persiste nada por sí misma; la
- * responsabilidad de no persistir el resultado es del código que la
- * invoque.
- *
- * @param credencial Identificador anónimo estable asociado al votante
- *   para esta elección (referencia: clave pública de la billetera
- *   efímera, en formato string, ej. hex).
+ * @param credencial Clave pública de la billetera efímera (string hex).
  * @param idEleccion Identificador numérico entero positivo de la elección.
- * @returns Nulificador de 256 bits en formato hex con prefijo `0x`
- *   (66 caracteres en total).
- * @throws {CredencialNulificadorInvalidaError} si `credencial` es vacía,
- *   solo espacios, o no es un string; o si `idEleccion` no es un entero
- *   positivo.
+ * @returns Nulificador de 256 bits en formato hex con prefijo `0x`.
+ * @throws {CredencialNulificadorInvalidaError} si los inputs son inválidos.
  */
-
 export const calcularNullifier = (
   credencial: string,
   idEleccion: number
-): string => {
+): `0x${string}` => {
   if (!esCredencialValida(credencial)) {
     throw new CredencialNulificadorInvalidaError(
       'La credencial provista para calcular el nulificador es inválida o está vacía.'

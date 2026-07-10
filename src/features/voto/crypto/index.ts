@@ -21,3 +21,7 @@ export {
   type SignedVotePayload,
   type SignVotePayloadOptions,
 } from '@/features/voto/crypto/vote-signer'
+export {
+  calcularNullifier,
+  CredencialNulificadorInvalidaError,
+} from '@/features/voto/crypto/nullifier'
