@@ -6,7 +6,10 @@ import type {
   EphemeralWalletSession,
 } from '@/features/voto/crypto/ephemeral-wallet.types'
 import type { SelectionPayload } from '@/features/voto/crypto/selection-hash'
-import { signVotePayload as signTypedVotePayload } from '@/features/voto/crypto/vote-signer'
+import {
+  signVotePayload as signTypedVotePayload,
+  type SignedVotePayload,
+} from '@/features/voto/crypto/vote-signer'
 import { isWebCryptoSupported } from '@/features/voto/crypto/web-crypto-support'
 
 const PRIVATE_KEY_BYTES = 32
@@ -91,7 +94,7 @@ export const createEphemeralWalletManager = (): EphemeralWalletManager => {
   const signVotePayload = async (
     selection: SelectionPayload,
     nullifier: Hex
-  ): Promise<ReturnType<typeof signTypedVotePayload>> => {
+  ): Promise<SignedVotePayload> => {
     if (!privateKey || !session) {
       throw new Error('Ephemeral wallet is not initialized')
     }
