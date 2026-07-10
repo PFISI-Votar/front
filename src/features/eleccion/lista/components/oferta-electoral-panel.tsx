@@ -8,7 +8,6 @@ import {
   ChevronDown,
   Lock,
   Pencil,
-  Play,
   Plus,
   Trash2,
   UserPen,
@@ -21,6 +20,7 @@ import {
   getApiRulesViolations,
   isConflictError,
   isValidationError,
+  isPreconditionFailedError,
 } from '@/lib/api-client'
 import { resolveMediaUrl } from '@/lib/media-url'
 import { cn } from '@/lib/utils'
@@ -44,6 +44,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   eliminarEleccion,
   obtenerEleccion,
+  abrirEleccion,
 } from '@/features/eleccion/api/eleccion-api'
 import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import { CandidatoFormDialog } from '@/features/eleccion/candidato/components/candidato-form-dialog'
@@ -51,8 +52,6 @@ import { ConfiguracionDatosCandidatoPanel } from '@/features/eleccion/candidato/
 import type { Candidato } from '@/features/eleccion/candidato/data/schema'
 import { buildResumenDatosAdicionales } from '@/features/eleccion/candidato/utils/format-datos-adicionales'
 import { CategoriasPanel } from '@/features/eleccion/categoria/components/categorias-panel'
-import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
-import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
 import {
   actualizarLista,
   crearLista,
@@ -85,13 +84,14 @@ export const OfertaElectoralPanel = ({
   const [oficializacionBlockMessage, setOficializacionBlockMessage] = useState<
     string | null
   >(null)
+  const [preconditionError, setPreconditionError] = useState<string | null>(null)
   const [listaDialogOpen, setListaDialogOpen] = useState(false)
   const [editingLista, setEditingLista] = useState<Lista | null>(null)
   const [candidatoDialog, setCandidatoDialog] =
     useState<CandidatoDialogState | null>(null)
   const [oficializarDialogOpen, setOficializarDialogOpen] = useState(false)
+  const [abrirDialogOpen, setAbrirDialogOpen] = useState(false)
   const [eliminarDialogOpen, setEliminarDialogOpen] = useState(false)
-  const [abrirComicioDialogOpen, setAbrirComicioDialogOpen] = useState(false)
 
   const eleccionQuery = useQuery({
     queryKey: ['eleccion', idEleccion],
@@ -116,18 +116,7 @@ export const OfertaElectoralPanel = ({
   })
 
   const isEditable = eleccionQuery.data?.estado === 'BORRADOR'
-  const isConfigurada = eleccionQuery.data?.estado === 'CONFIGURADA'
   const camposConfig = configQuery.data?.campos ?? []
-
-  // WebSocket para actualizar cuando el comicio se abre automáticamente
-  useEleccionWebSocket({
-    onEleccionAbierta: (data) => {
-      if (data.idEleccion === idEleccion) {
-        toast.info(`El comicio fue abierto automáticamente`)
-        invalidateOferta()
-      }
-    },
-  })
 
   const invalidateOferta = async () => {
     await queryClient.invalidateQueries({ queryKey: ['listas', idEleccion] })
@@ -221,6 +210,31 @@ export const OfertaElectoralPanel = ({
     oficializarMutation.mutate()
   }
 
+  const abrirComicioMutation = useMutation({
+    mutationFn: () => abrirEleccion(idEleccion),
+    onSuccess: async () => {
+      setAbrirDialogOpen(false)
+      setPreconditionError(null)
+      toast.success('Comicio abierto exitosamente')
+      await invalidateOferta()
+      await queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+    },
+    onError: (error) => {
+      setAbrirDialogOpen(false)
+      if (isPreconditionFailedError(error)) {
+        const message = getApiErrorMessage(error)
+        setPreconditionError(message)
+        return
+      }
+      handleApiError(error)
+    },
+  })
+
+  const handleConfirmAbrir = () => {
+    setPreconditionError(null)
+    abrirComicioMutation.mutate()
+  }
+
   const eliminarComicioMutation = useMutation({
     mutationFn: () => eliminarEleccion(idEleccion),
     onSuccess: async () => {
@@ -234,13 +248,6 @@ export const OfertaElectoralPanel = ({
 
   const handleConfirmEliminarComicio = () => {
     eliminarComicioMutation.mutate()
-  }
-
-  const abrirComicioMutation = useAbrirEleccion(idEleccion)
-
-  const handleConfirmAbrirComicio = () => {
-    setAbrirComicioDialogOpen(false)
-    abrirComicioMutation.mutate()
   }
 
   return (
@@ -272,17 +279,6 @@ export const OfertaElectoralPanel = ({
               Abrir BUD
             </Link>
           </Button>
-          {isConfigurada && (
-            <Button
-              onClick={() => setAbrirComicioDialogOpen(true)}
-              disabled={abrirComicioMutation.isPending}
-              aria-haspopup='dialog'
-              aria-label='Abrir comicio manualmente'
-            >
-              <Play className='me-2 size-4' />
-              Abrir comicio
-            </Button>
-          )}
           {isEditable && (
             <Button
               onClick={() => setOficializarDialogOpen(true)}
@@ -292,6 +288,17 @@ export const OfertaElectoralPanel = ({
             >
               <BadgeCheck className='me-2 size-4' />
               Oficializar comicio
+            </Button>
+          )}
+          {eleccionQuery.data?.estado === 'CONFIGURADA' && (
+            <Button
+              onClick={() => setAbrirDialogOpen(true)}
+              disabled={abrirComicioMutation.isPending}
+              aria-haspopup='dialog'
+              aria-label='Abrir comicio'
+            >
+              <Vote className='me-2 size-4' />
+              Abrir comicio
             </Button>
           )}
         </div>
@@ -329,6 +336,14 @@ export const OfertaElectoralPanel = ({
             El comicio fue oficializado. El mismo no puede ser modificado ni
             eliminado.
           </AlertDescription>
+        </Alert>
+      )}
+
+      {preconditionError && (
+        <Alert variant='destructive'>
+          <AlertCircle className='size-4' />
+          <AlertTitle>Fallo de Precondición (412)</AlertTitle>
+          <AlertDescription>{preconditionError}</AlertDescription>
         </Alert>
       )}
 
@@ -628,21 +643,22 @@ export const OfertaElectoralPanel = ({
       )}
 
       <ConfirmDialog
-        open={abrirComicioDialogOpen}
-        onOpenChange={setAbrirComicioDialogOpen}
+        open={abrirDialogOpen}
+        onOpenChange={setAbrirDialogOpen}
         title='¿Abrir el comicio?'
         desc={
           <>
-            Se abrirá el comicio <strong>{eleccionQuery.data?.nombre}</strong>{' '}
-            permitiendo que los votantes emitan su sufragio. Esta operación
-            requiere que el padrón electoral y la raíz de Merkle estén
-            publicados on-chain.
+            Esta operación transicionará el comicio al estado{' '}
+            <strong>ABIERTA</strong> y sincronizará el estado con la blockchain.
+            Se validarán las precondiciones criptográficas (padrón cargado,
+            Merkle publicado on-chain). Una vez abierto, el sistema comenzará a
+            recibir votos.
           </>
         }
         cancelBtnText='Cancelar'
         confirmText='Sí, abrir comicio'
         isLoading={abrirComicioMutation.isPending}
-        handleConfirm={handleConfirmAbrirComicio}
+        handleConfirm={handleConfirmAbrir}
       />
 
       <ConfirmDialog
