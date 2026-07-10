@@ -468,7 +468,7 @@ const BudWizardShell = ({
   children: ReactNode
   step: WizardStep
 }) => (
-  <main className='relative min-h-svh overflow-hidden bg-[#fdfcfa] text-[#202124]'>
+  <main className='votar-light-surface relative min-h-svh overflow-hidden bg-[#fdfcfa] text-[#202124]'>
     <div className='pointer-events-none absolute inset-0' aria-hidden='true'>
       {BACKGROUND_FINGERPRINTS.map((fingerprint) => (
         <img
