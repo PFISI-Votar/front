@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { CLAVES_DATOS_CANDIDATO_UNICOS } from '@/features/eleccion/candidato/constants/datos-candidato-unicos'
 
 export type TipoCampoCandidato =
   | 'texto'
@@ -75,6 +76,55 @@ export const createCandidatoSchema = z.object({
   removeFoto: z.boolean().optional(),
   datosAdicionales: z.record(z.string(), z.unknown()),
 })
+
+export type CandidatoDatoUnicoContext = {
+  camposConfig: CampoCandidatoDefinicion[]
+  candidatosEnComicio: Pick<Candidato, 'idCandidato' | 'datosAdicionales'>[]
+  excludeCandidatoId?: number
+}
+
+const normalizeDatoAdicionalUnico = (valor: unknown): string => {
+  if (valor === undefined || valor === null) {
+    return ''
+  }
+  return String(valor).trim().toLocaleLowerCase()
+}
+
+export const createCandidatoFormSchema = ({
+  camposConfig,
+  candidatosEnComicio,
+  excludeCandidatoId,
+}: CandidatoDatoUnicoContext) =>
+  createCandidatoSchema.superRefine((data, ctx) => {
+    for (const clave of CLAVES_DATOS_CANDIDATO_UNICOS) {
+      const campo = camposConfig.find((item) => item.clave === clave)
+      if (!campo) {
+        continue
+      }
+
+      const valor = data.datosAdicionales[clave]
+      const valorNormalizado = normalizeDatoAdicionalUnico(valor)
+      if (!valorNormalizado) {
+        continue
+      }
+
+      const candidatoDuplicado = candidatosEnComicio.find(
+        (candidato) =>
+          candidato.idCandidato !== excludeCandidatoId &&
+          normalizeDatoAdicionalUnico(candidato.datosAdicionales?.[clave]) ===
+            valorNormalizado
+      )
+      if (!candidatoDuplicado) {
+        continue
+      }
+
+      ctx.addIssue({
+        code: 'custom',
+        message: `Ya existe un candidato con este ${campo.etiqueta.toLowerCase()} en el comicio.`,
+        path: ['datosAdicionales', clave],
+      })
+    }
+  })
 
 export type GuardarConfiguracionInput = z.infer<
   typeof guardarConfiguracionSchema
