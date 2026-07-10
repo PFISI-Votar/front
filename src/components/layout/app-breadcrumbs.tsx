@@ -68,7 +68,7 @@ const getStaticBreadcrumbEntries = (pathname: string): BreadcrumbEntry[] => {
 
   if (config.parent) {
     return [
-      { label: config.parent.label, href: config.parent.href },
+      { label: config.parent.label, to: config.parent.href },
       { label: config.label },
     ]
   }

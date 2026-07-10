@@ -11,7 +11,8 @@ import {
 
 export type BreadcrumbEntry = {
   label: string
-  href?: string
+  to?: string
+  params?: Record<string, string>
 }
 
 type BreadcrumbNavProps = {
@@ -33,11 +34,13 @@ export const BreadcrumbNav = ({ entries }: BreadcrumbNavProps) => {
             <Fragment key={`${entry.label}-${index}`}>
               {index > 0 && <BreadcrumbSeparator />}
               <BreadcrumbItem>
-                {isLast || !entry.href ? (
+                {isLast || !entry.to ? (
                   <BreadcrumbPage>{entry.label}</BreadcrumbPage>
                 ) : (
                   <BreadcrumbLink asChild>
-                    <Link to={entry.href}>{entry.label}</Link>
+                    <Link to={entry.to} params={entry.params}>
+                      {entry.label}
+                    </Link>
                   </BreadcrumbLink>
                 )}
               </BreadcrumbItem>
