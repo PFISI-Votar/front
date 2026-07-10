@@ -1,3 +1,11 @@
+/**
+ * Cross-repo EIP-712 contract for VOTAR-357 (must match BallotContract.sol).
+ *
+ * Domain: name "VOTAR", version "1", chainId, verifyingContract
+ * Type: Vote(uint256 electionId, bytes32 nullifier, bytes32 selectionHash, uint256 timestamp)
+ * Nullifier: opaque bytes32 produced by VOTAR-353 (not derived in this module)
+ * selectionHash: keccak256(JSON.stringify(normalizedPayload))
+ */
 export const VOTE_EIP712_DOMAIN_NAME = 'VOTAR' as const
 export const VOTE_EIP712_DOMAIN_VERSION = '1' as const
 

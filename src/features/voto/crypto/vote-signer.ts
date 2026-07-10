@@ -11,7 +11,6 @@ import {
   VOTE_EIP712_DOMAIN_VERSION,
   VOTE_EIP712_TYPES,
 } from '@/features/voto/crypto/constants'
-import { deriveNullifier } from '@/features/voto/crypto/nullifier'
 import {
   computeSelectionHash,
   type SelectionPayload,
@@ -26,6 +25,17 @@ export type SignedVotePayload = {
   signature: Hex
 }
 
+export type SignVotePayloadOptions = {
+  /** Opaque nullifier from VOTAR-353 (required). */
+  nullifier: Hex
+  timestamp?: number
+  chainId?: number
+  verifyingContract?: Address
+}
+
+const isBytes32Hex = (value: string): value is Hex =>
+  /^0x[0-9a-fA-F]{64}$/.test(value)
+
 export const buildVoteTypedDataDomain = (
   verifyingContract: Address,
   chainId = getChainId()
@@ -36,23 +46,28 @@ export const buildVoteTypedDataDomain = (
   verifyingContract,
 })
 
+/**
+ * Signs the EIP-712 Vote payload. The nullifier must be supplied by VOTAR-353;
+ * this module only includes it in the typed data and signs.
+ */
 export const signVotePayload = async (
   account: PrivateKeyAccount,
   electionId: number,
   selection: SelectionPayload,
-  options?: {
-    timestamp?: number
-    chainId?: number
-    verifyingContract?: Address
-  }
+  options: SignVotePayloadOptions
 ): Promise<SignedVotePayload> => {
-  const verifyingContract =
-    options?.verifyingContract ?? getBallotContractAddress()
+  if (!isBytes32Hex(options.nullifier)) {
+    throw new Error(
+      'nullifier must be a 32-byte hex value provided by VOTAR-353'
+    )
+  }
 
-  const timestamp = options?.timestamp ?? Math.floor(Date.now() / 1000)
-  const nullifier = deriveNullifier(account.address, electionId)
+  const verifyingContract =
+    options.verifyingContract ?? getBallotContractAddress()
+  const timestamp = options.timestamp ?? Math.floor(Date.now() / 1000)
   const selectionHash = computeSelectionHash(selection)
-  const chainId = options?.chainId ?? getChainId()
+  const chainId = options.chainId ?? getChainId()
+  const { nullifier } = options
 
   const signature = await account.signTypedData({
     domain: buildVoteTypedDataDomain(verifyingContract, chainId),

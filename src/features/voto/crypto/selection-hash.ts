@@ -24,6 +24,7 @@ export const buildSelectionPayload = (
 
 /**
  * Canonical hash of the ballot selection used inside the EIP-712 Vote struct.
+ * Must match BallotContract EIP-712 tests (JSON.stringify of normalized payload).
  */
 export const computeSelectionHash = (
   payload: SelectionPayload

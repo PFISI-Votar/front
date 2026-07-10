@@ -1,15 +1,15 @@
 export {
-  getBallotContractAddress,
-  getChainId,
   VOTE_EIP712_DOMAIN_NAME,
   VOTE_EIP712_DOMAIN_VERSION,
   VOTE_EIP712_TYPES,
+  getBallotContractAddress,
+  getChainId,
 } from '@/features/voto/crypto/constants'
-export {
-  createEphemeralWallet,
-  type EphemeralWallet,
-} from '@/features/voto/crypto/ephemeral-wallet'
-export { deriveNullifier } from '@/features/voto/crypto/nullifier'
+export { createEphemeralWalletManager } from '@/features/voto/crypto/ephemeral-wallet'
+export type {
+  EphemeralWalletManager,
+  EphemeralWalletSession,
+} from '@/features/voto/crypto/ephemeral-wallet.types'
 export {
   buildSelectionPayload,
   computeSelectionHash,
@@ -19,4 +19,5 @@ export {
   buildVoteTypedDataDomain,
   signVotePayload,
   type SignedVotePayload,
+  type SignVotePayloadOptions,
 } from '@/features/voto/crypto/vote-signer'

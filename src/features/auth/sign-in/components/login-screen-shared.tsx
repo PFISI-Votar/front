@@ -20,6 +20,29 @@ const BACKGROUND_FINGERPRINTS = [
   { top: '88%', left: '70%', width: '7.5rem', opacity: 0.04, rotate: '16deg' },
 ] as const
 
+export const VOTAR_LIGHT_SURFACE_CLASS = 'votar-light-surface text-[#202124]'
+
+type VotarBrandHeaderProps = {
+  subtitle?: string
+  className?: string
+}
+
+export const VotarBrandHeader = ({
+  subtitle,
+  className,
+}: VotarBrandHeaderProps) => (
+  <div className={cn('flex flex-col items-center gap-1', className)}>
+    <p className='text-2xl leading-none font-extrabold tracking-[0.08em] text-[#2f6f9f]'>
+      VOTAR
+    </p>
+    {subtitle ? (
+      <p className='text-xs font-semibold tracking-[0.16em] text-[#315f7a] uppercase'>
+        {subtitle}
+      </p>
+    ) : null}
+  </div>
+)
+
 export const VotarLoginBackground = () => (
   <div className='pointer-events-none absolute inset-0' aria-hidden='true'>
     {BACKGROUND_FINGERPRINTS.map((fingerprint) => (
