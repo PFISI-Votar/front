@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
@@ -113,6 +113,10 @@ export const OfertaElectoralPanel = ({
 
   const isEditable = eleccionQuery.data?.estado === 'BORRADOR'
   const camposConfig = configQuery.data?.campos ?? []
+  const candidatosEnComicio = useMemo(
+    () => (listasQuery.data ?? []).flatMap((lista) => lista.candidatos ?? []),
+    [listasQuery.data]
+  )
 
   const invalidateOferta = async () => {
     await queryClient.invalidateQueries({ queryKey: ['listas', idEleccion] })
@@ -590,6 +594,7 @@ export const OfertaElectoralPanel = ({
           listaNombre={candidatoDialog.lista.nombre}
           listaSigla={candidatoDialog.lista.sigla}
           candidatosEnLista={candidatoDialog.lista.candidatos ?? []}
+          candidatosEnComicio={candidatosEnComicio}
           candidato={candidatoDialog.candidato}
         />
       )}
