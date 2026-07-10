@@ -29,6 +29,7 @@ type CandidatoFormDialogProps = {
   listaNombre: string
   listaSigla: string
   candidatosEnLista: Pick<Candidato, 'idCategoria' | 'idCandidato'>[]
+  candidatosEnComicio: Pick<Candidato, 'idCandidato' | 'datosAdicionales'>[]
   candidato?: Candidato | null
 }
 
@@ -40,6 +41,7 @@ export const CandidatoFormDialog = ({
   listaNombre,
   listaSigla,
   candidatosEnLista,
+  candidatosEnComicio,
   candidato = null,
 }: CandidatoFormDialogProps) => {
   const queryClient = useQueryClient()
@@ -132,6 +134,7 @@ export const CandidatoFormDialog = ({
               key={formKey}
               categorias={categorias}
               candidatosEnLista={candidatosEnLista}
+              candidatosEnComicio={candidatosEnComicio}
               excludeCandidatoId={candidato?.idCandidato}
               camposConfig={camposConfig}
               defaultValues={

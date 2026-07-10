@@ -124,6 +124,14 @@ async function renderWizard(
 }
 
 describe('BudVotingWizard', () => {
+  it('aplica superficie clara en el shell bajo tema oscuro global (VOTAR-412)', async () => {
+    document.documentElement.classList.add('dark')
+    await renderWizard()
+
+    const main = document.querySelector('main')
+    expect(main?.className).toContain('votar-light-surface')
+  })
+
   it('agrupa candidatos por partido en votación por candidato', async () => {
     const screen = await renderWizard()
 
