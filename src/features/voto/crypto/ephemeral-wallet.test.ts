@@ -1,5 +1,10 @@
+import { hexToBytes } from 'viem'
+import { privateKeyToAccount, generatePrivateKey } from 'viem/accounts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createEphemeralWalletManager } from '@/features/voto/crypto/ephemeral-wallet'
+import { signDigestWithSecp256k1 } from '@/features/voto/crypto/secp256k1-digest-signer'
+import { computeSelectionHash } from '@/features/voto/crypto/selection-hash'
+import { hashVoteTypedData } from '@/features/voto/crypto/vote-signer'
 
 const createMemoryStorage = () => {
   const store = new Map<string, string>()
@@ -101,12 +106,13 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
       'initialize',
       'getSession',
       'getPublicKeyHex',
+      'signDigest',
       'signVotePayload',
       'destroy',
     ])
   })
 
-  it('UAT-04: signVotePayload zeroizes the private key so a second sign fails', async () => {
+  it('UAT-04 / VOTAR-418: signVotePayload destroys session so a second sign fails', async () => {
     await manager.initialize(357)
     const selection = {
       selecciones: [{ idCategoria: 1, idCandidato: 101 }],
@@ -118,11 +124,95 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
     expect(signed.electionId).toBe(357)
     expect(signed.nullifier).toBe(nullifier)
     expect(signed.signature).toMatch(/^0x[0-9a-f]+$/i)
-    expect(manager.getPublicKeyHex()).toMatch(/^0x0[23][0-9a-f]{64}$/)
+    expect(manager.getPublicKeyHex()).toBeNull()
+    expect(manager.getSession()).toBeNull()
 
     await expect(manager.signVotePayload(selection, nullifier)).rejects.toThrow(
       'Ephemeral wallet is not initialized'
     )
+  })
+
+  it('VOTAR-418: signVotePayload zeroizes the private-key Uint8Array buffer', async () => {
+    const fillSpy = vi.spyOn(Uint8Array.prototype, 'fill')
+    await manager.initialize(418)
+    const selection = {
+      selecciones: [{ idCategoria: 1, idCandidato: 101 }],
+    }
+    const nullifier =
+      '0x2222222222222222222222222222222222222222222222222222222222222222' as const
+
+    fillSpy.mockClear()
+    await manager.signVotePayload(selection, nullifier)
+
+    const zeroizeCalls = fillSpy.mock.calls.filter(
+      (call) => call[0] === 0 && call.length === 1
+    )
+    expect(zeroizeCalls.length).toBeGreaterThanOrEqual(1)
+    fillSpy.mockRestore()
+  })
+
+  it('VOTAR-418: failed signature does not destroy the wallet', async () => {
+    await manager.initialize(418)
+    const publicKeyBefore = manager.getPublicKeyHex()
+    const selection = {
+      selecciones: [{ idCategoria: 1, idCandidato: 101 }],
+    }
+
+    await expect(
+      manager.signVotePayload(selection, '0xdead' as `0x${string}`)
+    ).rejects.toThrow(/nullifier must be a 32-byte hex value/)
+
+    expect(manager.getPublicKeyHex()).toBe(publicKeyBefore)
+    expect(manager.getSession()).not.toBeNull()
+
+    const nullifier =
+      '0x3333333333333333333333333333333333333333333333333333333333333333' as const
+    const signed = await manager.signVotePayload(selection, nullifier)
+    expect(signed.signature).toMatch(/^0x[0-9a-f]+$/i)
+  })
+
+  it('VOTAR-418: signDigest matches viem account signature for the same digest', async () => {
+    const privateKeyHex = generatePrivateKey()
+    const account = privateKeyToAccount(privateKeyHex)
+    const privateKeyBytes = hexToBytes(privateKeyHex)
+    const selection = {
+      selecciones: [{ idCategoria: 1, idCandidato: 101 }],
+    }
+    const nullifier =
+      '0x4444444444444444444444444444444444444444444444444444444444444444' as const
+    const timestamp = 1_700_000_000
+    const selectionHash = computeSelectionHash(selection)
+    const digest = hashVoteTypedData(357, selectionHash, nullifier, timestamp, {
+      chainId: 31_337,
+      verifyingContract: '0x0000000000000000000000000000000000000001',
+    })
+
+    const nobleSig = await signDigestWithSecp256k1(privateKeyBytes, digest)
+    const viemSig = await account.signTypedData({
+      domain: {
+        name: 'VOTAR',
+        version: '1',
+        chainId: 31_337,
+        verifyingContract: '0x0000000000000000000000000000000000000001',
+      },
+      types: {
+        Vote: [
+          { name: 'electionId', type: 'uint256' },
+          { name: 'nullifier', type: 'bytes32' },
+          { name: 'selectionHash', type: 'bytes32' },
+          { name: 'timestamp', type: 'uint256' },
+        ],
+      },
+      primaryType: 'Vote',
+      message: {
+        electionId: BigInt(357),
+        nullifier,
+        selectionHash,
+        timestamp: BigInt(timestamp),
+      },
+    })
+
+    expect(nobleSig.toLowerCase()).toBe(viemSig.toLowerCase())
   })
 
   it('rejects invalid election ids', async () => {

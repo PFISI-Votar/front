@@ -29,6 +29,12 @@ const signVotePayloadMock = vi.fn().mockResolvedValue({
   signature: '0x' + 'e'.repeat(130),
 })
 
+const initializeWalletMock = vi.fn().mockResolvedValue({
+  idEleccion: 7,
+  publicKeyHex: WALLET_PUBLIC_KEY,
+  createdAt: Date.now(),
+})
+
 const walletState = {
   publicKeyHex: WALLET_PUBLIC_KEY as string | null,
 }
@@ -45,7 +51,7 @@ vi.mock('@/features/voto/crypto/use-ephemeral-wallet', () => ({
       publicKeyHex: WALLET_PUBLIC_KEY,
       createdAt: Date.now(),
     },
-    initialize: vi.fn(),
+    initialize: initializeWalletMock,
     signVotePayload: signVotePayloadMock,
     destroy: vi.fn(),
   }),
@@ -164,6 +170,12 @@ describe('BudVotingWizard', () => {
   beforeEach(() => {
     walletState.publicKeyHex = WALLET_PUBLIC_KEY
     signVotePayloadMock.mockClear()
+    initializeWalletMock.mockClear()
+    initializeWalletMock.mockResolvedValue({
+      idEleccion: 7,
+      publicKeyHex: WALLET_PUBLIC_KEY,
+      createdAt: Date.now(),
+    })
     signVotePayloadMock.mockResolvedValue({
       electionId: 7,
       nullifier: '0x' + 'b'.repeat(64),
@@ -328,5 +340,30 @@ describe('BudVotingWizard', () => {
     await expect
       .element(screen.getByText('No se pudo firmar el voto'))
       .toBeInTheDocument()
+  })
+
+  it('VOTAR-418: al modificar el voto regenera la billetera efímera', async () => {
+    const screen = await renderWizard()
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /Votar en blanco/i })
+    )
+    await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
+    await userEvent.click(
+      screen.getByRole('button', { name: /Firmar y confirmar/i })
+    )
+
+    await expect
+      .element(screen.getByText('Su voto ha sido firmado con éxito.'))
+      .toBeInTheDocument()
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /Modificar mi voto/i })
+    )
+
+    await expect
+      .element(screen.getByText('Opciones especiales'))
+      .toBeInTheDocument()
+    expect(initializeWalletMock).toHaveBeenCalledWith(boleta.idEleccion)
   })
 })
