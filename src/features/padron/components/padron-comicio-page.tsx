@@ -105,6 +105,14 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
         invalidarPadron()
       }
     },
+    onEleccionAbierta: (data) => {
+      if (data.idEleccion === idEleccion) {
+        invalidarPadron()
+        void queryClient.invalidateQueries({
+          queryKey: ['eleccion', idEleccion],
+        })
+      }
+    },
   })
 
   const descargarReporteMutation = useMutation({

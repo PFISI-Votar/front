@@ -72,17 +72,19 @@ const AbrirComicioDialog = ({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Abrir comicio</DialogTitle>
-          <DialogDescription>
-            ¿Está seguro de que desea abrir el comicio "{nombreEleccion}"?
-            <br />
-            <br />
-            Esta acción habilitará la interfaz de votación (BUD) y comenzará a
-            recibir votos de forma oficial. Asegúrese de que:
-            <ul className='mt-2 list-inside list-disc space-y-1 text-sm'>
-              <li>La raíz de Merkle del padrón esté publicada on-chain</li>
-              <li>Los Smart Contracts estén disponibles en Sepolia</li>
-              <li>La configuración del comicio sea correcta</li>
-            </ul>
+          <DialogDescription asChild>
+            <div>
+              ¿Está seguro de que desea abrir el comicio "{nombreEleccion}"?
+              <br />
+              <br />
+              Esta acción habilitará la interfaz de votación (BUD) y comenzará a
+              recibir votos de forma oficial. Asegúrese de que:
+              <ul className='mt-2 list-inside list-disc space-y-1 text-sm'>
+                <li>La raíz de Merkle del padrón esté publicada on-chain</li>
+                <li>Los Smart Contracts estén disponibles en Sepolia</li>
+                <li>La configuración del comicio sea correcta</li>
+              </ul>
+            </div>
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -145,6 +147,7 @@ export const ComiciosList = () => {
 
   const handlePreconditionError = (message: string) => {
     setPreconditionError(message)
+    handleCloseDialog()
   }
 
   if (isLoading) {

@@ -1,3 +1,4 @@
+import { AxiosError } from 'axios'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
@@ -9,7 +10,10 @@ import {
 import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import type { ConfiguracionDatosCandidatoResponse } from '@/features/eleccion/candidato/data/schema'
 import type { Eleccion } from '@/features/eleccion/data/schema'
-import { listarListas } from '@/features/eleccion/lista/api/lista-api'
+import {
+  listarListas,
+  obtenerMapeoListas,
+} from '@/features/eleccion/lista/api/lista-api'
 import { OfertaElectoralPanel } from './oferta-electoral-panel'
 
 vi.mock('@tanstack/react-router', () => ({
@@ -47,6 +51,34 @@ vi.mock(
   })
 )
 
+vi.mock('@/features/eleccion/hooks/use-eleccion-websocket', () => ({
+  useEleccionWebSocket: vi.fn(),
+}))
+
+vi.mock('@/features/padron/hooks/use-padron', () => ({
+  usePadronResumen: () => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+    error: null,
+  }),
+}))
+
+const createPreconditionError = (message: string) =>
+  new AxiosError(
+    'Precondition Failed',
+    'ERR_BAD_REQUEST',
+    undefined,
+    undefined,
+    {
+      status: 412,
+      statusText: 'Precondition Failed',
+      headers: {},
+      config: {} as never,
+      data: { message },
+    }
+  )
+
 const mockEleccionConfigurada: Eleccion = {
   idEleccion: 1,
   nombre: 'Elección Municipal 2025',
@@ -68,9 +100,9 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     })
     vi.clearAllMocks()
 
-    // Mocks por defecto
     vi.mocked(obtenerEleccion).mockResolvedValue(mockEleccionConfigurada)
     vi.mocked(listarListas).mockResolvedValue([])
+    vi.mocked(obtenerMapeoListas).mockResolvedValue([])
     vi.mocked(obtenerConfiguracionDatosCandidato).mockResolvedValue({
       idEleccion: 1,
       campos: [],
@@ -119,49 +151,32 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
       .toBeInTheDocument()
   })
 
-  it.skip('muestra alerta crítica UAT-02 cuando hay error 412', async () => {
-    vi.mocked(abrirEleccion).mockRejectedValue({
-      response: {
-        status: 412,
-        data: {
-          message:
-            'Fallo de Precondición: Raíz de Merkle no detectada en la red descentralizada. Estado actual del árbol: CONSOLIDADO',
-        },
-      },
-    })
+  it('muestra alerta crítica UAT-02 cuando hay error 412', async () => {
+    vi.mocked(abrirEleccion).mockRejectedValue(
+      createPreconditionError('Estado actual del árbol: CONSOLIDADO')
+    )
 
     await renderPanel()
 
-    // Abrir diálogo
     const abrirButton = page.getByRole('button', { name: 'Abrir comicio' })
     await userEvent.click(abrirButton)
 
-    // Confirmar apertura
     const confirmButton = page.getByRole('button', {
       name: 'Sí, abrir comicio',
     })
     await userEvent.click(confirmButton)
 
-    // Verificar alerta crítica con texto UAT-02 exacto
     await expect
-      .element(
-        page.getByText(
-          'Fallo de Precondición: Raíz de Merkle no detectada en la red descentralizada'
-        )
-      )
+      .element(page.getByText(/Fallo de Precondición.*Raíz de Merkle/))
+      .toBeInTheDocument()
+    await expect
+      .element(page.getByText(/Estado actual del árbol.*CONSOLIDADO/))
       .toBeInTheDocument()
   })
 
-  it.skip('limpia error 412 al confirmar nuevamente tras fallo', async () => {
+  it('limpia error 412 al confirmar nuevamente tras fallo', async () => {
     vi.mocked(abrirEleccion)
-      .mockRejectedValueOnce({
-        response: {
-          status: 412,
-          data: {
-            message: 'Error de Merkle',
-          },
-        },
-      })
+      .mockRejectedValueOnce(createPreconditionError('Error de Merkle'))
       .mockResolvedValueOnce({
         ...mockEleccionConfigurada,
         estado: 'ABIERTA',
@@ -169,7 +184,6 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
 
     await renderPanel()
 
-    // Primera apertura con error
     const abrirButton = page.getByRole('button', { name: 'Abrir comicio' })
     await userEvent.click(abrirButton)
 
@@ -178,13 +192,9 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     })
     await userEvent.click(confirmButton)
 
-    // Verificar que se muestra el error
     await expect.element(page.getByText('Error de Merkle')).toBeInTheDocument()
 
-    // Abrir diálogo nuevamente
     await userEvent.click(abrirButton)
-
-    // El error debe limpiarse al confirmar nuevamente
     await userEvent.click(confirmButton)
 
     await expect
@@ -200,17 +210,14 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
 
     await renderPanel()
 
-    // Abrir diálogo
     const abrirButton = page.getByRole('button', { name: 'Abrir comicio' })
     await userEvent.click(abrirButton)
 
-    // Confirmar apertura
     const confirmButton = page.getByRole('button', {
       name: 'Sí, abrir comicio',
     })
     await userEvent.click(confirmButton)
 
-    // Verificar que se llamó a la API
     expect(abrirEleccion).toHaveBeenCalledWith(1)
   })
 

@@ -19,15 +19,24 @@ interface UseEleccionWebSocketOptions {
 /**
  * Hook para conectar y escuchar eventos WebSocket de elecciones.
  * Se reconecta automáticamente en caso de desconexión.
+ * Callbacks se guardan en refs para no recrear el socket en cada render.
  */
 export function useEleccionWebSocket(
   options: UseEleccionWebSocketOptions = {}
 ) {
-  const { onEleccionAbierta, onMerklePublicado } = options
+  const onEleccionAbiertaRef = useRef(options.onEleccionAbierta)
+  const onMerklePublicadoRef = useRef(options.onMerklePublicado)
   const socketRef = useRef<Socket | null>(null)
 
   useEffect(() => {
-    // Crear conexión WebSocket
+    onEleccionAbiertaRef.current = options.onEleccionAbierta
+  }, [options.onEleccionAbierta])
+
+  useEffect(() => {
+    onMerklePublicadoRef.current = options.onMerklePublicado
+  }, [options.onMerklePublicado])
+
+  useEffect(() => {
     const socket = io(`${BACKEND_URL}/elecciones`, {
       transports: ['websocket', 'polling'],
       reconnection: true,
@@ -37,32 +46,17 @@ export function useEleccionWebSocket(
 
     socketRef.current = socket
 
-    socket.on('connect', () => {
-      // WebSocket conectado
-    })
-
-    socket.on('disconnect', () => {
-      // WebSocket desconectado
-    })
-
-    socket.on('connect_error', () => {
-      // Error de conexión WebSocket
-    })
-
-    // Escuchar evento de elección abierta
     socket.on('eleccion:abierta', (data: EleccionAbiertaEvent) => {
-      onEleccionAbierta?.(data)
+      onEleccionAbiertaRef.current?.(data)
     })
 
-    // Escuchar evento de Merkle publicado
     socket.on('eleccion:merkle-publicado', (data: MerklePublicadoEvent) => {
-      onMerklePublicado?.(data)
+      onMerklePublicadoRef.current?.(data)
     })
 
-    // Cleanup al desmontar
     return () => {
       socket.disconnect()
       socketRef.current = null
     }
-  }, [onEleccionAbierta, onMerklePublicado])
+  }, [])
 }

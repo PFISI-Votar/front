@@ -1,3 +1,4 @@
+import { AxiosError } from 'axios'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
@@ -20,6 +21,25 @@ vi.mock('@/features/eleccion/api/eleccion-api', () => ({
   listarElecciones: vi.fn(),
   abrirEleccion: vi.fn(),
 }))
+
+vi.mock('@/features/eleccion/hooks/use-eleccion-websocket', () => ({
+  useEleccionWebSocket: vi.fn(),
+}))
+
+const createPreconditionError = (message: string) =>
+  new AxiosError(
+    'Precondition Failed',
+    'ERR_BAD_REQUEST',
+    undefined,
+    undefined,
+    {
+      status: 412,
+      statusText: 'Precondition Failed',
+      headers: {},
+      config: {} as never,
+      data: { message },
+    }
+  )
 
 const mockElecciones: Eleccion[] = [
   {
@@ -79,7 +99,6 @@ describe('ComiciosList', () => {
 
     await renderComiciosList()
 
-    // Verificar que existe el botón para la elección CONFIGURADA
     await expect
       .element(
         page.getByRole('button', {
@@ -111,47 +130,32 @@ describe('ComiciosList', () => {
       .toBeInTheDocument()
   })
 
-  it.skip('muestra alerta crítica cuando hay error 412 (Precondition Failed)', async () => {
+  it('muestra alerta crítica cuando hay error 412 (Precondition Failed)', async () => {
     vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
-    vi.mocked(abrirEleccion).mockRejectedValue({
-      response: {
-        status: 412,
-        data: {
-          message: 'Estado actual del árbol: CONSOLIDADO',
-        },
-      },
-    })
+    vi.mocked(abrirEleccion).mockRejectedValue(
+      createPreconditionError('Estado actual del árbol: CONSOLIDADO')
+    )
 
     await renderComiciosList()
 
-    // Abrir diálogo
     const abrirButton = page.getByRole('button', {
       name: 'Abrir comicio Elección Municipal 2025',
     })
     await userEvent.click(abrirButton)
 
-    // Confirmar apertura
     const confirmButton = page.getByRole('button', { name: 'Abrir comicio' })
     await userEvent.click(confirmButton)
 
-    // Esperar a que la API sea llamada y falle
     await vi.waitFor(() => {
       expect(abrirEleccion).toHaveBeenCalledWith(1)
     })
 
-    // Cerrar el diálogo manualmente para ver la alerta en la lista
-    const cancelButton = page.getByRole('button', { name: 'Cancelar' })
-    await userEvent.click(cancelButton)
-
-    // Esperar a que el diálogo se cierre
     await expect.poll(() => page.getByRole('dialog').query()).toBeNull()
 
-    // Verificar que se muestra la alerta crítica con el título
     await expect
       .element(page.getByText(/Fallo de Precondición.*Raíz de Merkle/))
       .toBeInTheDocument()
 
-    // Verificar que se muestra el mensaje del backend
     await expect
       .element(page.getByText(/Estado actual del árbol.*CONSOLIDADO/))
       .toBeInTheDocument()
@@ -166,34 +170,25 @@ describe('ComiciosList', () => {
 
     await renderComiciosList()
 
-    // Abrir diálogo
     const abrirButton = page.getByRole('button', {
       name: 'Abrir comicio Elección Municipal 2025',
     })
     await userEvent.click(abrirButton)
 
-    // Confirmar apertura
     const confirmButton = page.getByRole('button', { name: 'Abrir comicio' })
     await userEvent.click(confirmButton)
 
-    // Verificar que se llamó a la API
     expect(abrirEleccion).toHaveBeenCalledWith(1)
   })
 
   it('limpia error previo al abrir diálogo nuevamente', async () => {
     vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
-    vi.mocked(abrirEleccion).mockRejectedValueOnce({
-      response: {
-        status: 412,
-        data: {
-          message: 'Error previo',
-        },
-      },
-    })
+    vi.mocked(abrirEleccion).mockRejectedValueOnce(
+      createPreconditionError('Error previo')
+    )
 
     await renderComiciosList()
 
-    // Primera apertura con error
     const abrirButton = page.getByRole('button', {
       name: 'Abrir comicio Elección Municipal 2025',
     })
@@ -202,14 +197,10 @@ describe('ComiciosList', () => {
     const confirmButton = page.getByRole('button', { name: 'Abrir comicio' })
     await userEvent.click(confirmButton)
 
-    // Cerrar diálogo
-    const cancelButton = page.getByRole('button', { name: 'Cancelar' })
-    await userEvent.click(cancelButton)
+    await expect.element(page.getByText('Error previo')).toBeInTheDocument()
 
-    // Abrir nuevamente
     await userEvent.click(abrirButton)
 
-    // Verificar que no se muestra el error previo
     await expect.poll(() => page.getByText('Error previo').query()).toBeNull()
   })
 })
