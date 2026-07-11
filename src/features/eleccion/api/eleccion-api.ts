@@ -37,3 +37,10 @@ export const obtenerEleccion = async (
   const { data } = await apiClient.get<Eleccion>(`/elecciones/${idEleccion}`)
   return data
 }
+
+export const abrirEleccion = async (idEleccion: number): Promise<Eleccion> => {
+  const { data } = await apiClient.post<Eleccion>(
+    `/elecciones/${idEleccion}/abrir`
+  )
+  return data
+}
