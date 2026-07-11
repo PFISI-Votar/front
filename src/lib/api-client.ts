@@ -43,8 +43,7 @@ const isAuthEndpoint = (url: string): boolean =>
 const isVotanteProtectedEndpoint = (url: string): boolean =>
   url.includes('/auth/votante/') ||
   url.includes('/boleta-digital') ||
-  url.includes('/merkle-proof') ||
-  url.includes('/votos/confirmar')
+  url.includes('/merkle-proof')
 
 apiClient.interceptors.response.use(
   (response) => response,

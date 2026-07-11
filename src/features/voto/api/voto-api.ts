@@ -2,8 +2,6 @@ import { votanteApiClient } from '@/lib/votante-api-client'
 import type {
   BoletaDigital,
   BudConfig,
-  ConfirmarVotoInput,
-  ConfirmarVotoResponse,
   VoterMerkleProof,
 } from '@/features/voto/data/schema'
 
@@ -30,17 +28,6 @@ export const solicitarMerkleProof = async (
 ): Promise<VoterMerkleProof> => {
   const { data } = await votanteApiClient.get<VoterMerkleProof>(
     `/elecciones/${idEleccion}/merkle-proof`
-  )
-  return data
-}
-
-export const confirmarVoto = async (
-  idEleccion: number,
-  input: ConfirmarVotoInput
-): Promise<ConfirmarVotoResponse> => {
-  const { data } = await votanteApiClient.post<ConfirmarVotoResponse>(
-    `/elecciones/${idEleccion}/votos/confirmar`,
-    input
   )
   return data
 }

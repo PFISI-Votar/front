@@ -2,22 +2,20 @@ import { AxiosError } from 'axios'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
-import { userEvent } from 'vitest/browser'
 import { BoletaUnicaDigitalPage } from '@/features/voto/components/boleta-unica-digital-page'
 import type { BoletaDigital } from '@/features/voto/data/schema'
 
 const mocks = vi.hoisted(() => ({
   obtenerBoletaDigital: vi.fn(),
-  confirmarVoto: vi.fn(),
   obtenerConfiguracionBud: vi.fn(),
   solicitarMerkleProof: vi.fn(),
   ensureVotanteSession: vi.fn(),
   clearVotanteSession: vi.fn(),
+  walletIsReady: true,
 }))
 
 vi.mock('@/features/voto/api/voto-api', () => ({
   obtenerBoletaDigital: mocks.obtenerBoletaDigital,
-  confirmarVoto: mocks.confirmarVoto,
   obtenerConfiguracionBud: mocks.obtenerConfiguracionBud,
   solicitarMerkleProof: mocks.solicitarMerkleProof,
 }))
@@ -25,6 +23,26 @@ vi.mock('@/features/voto/api/voto-api', () => ({
 vi.mock('@/features/voto/services/votante-session', () => ({
   ensureVotanteSession: mocks.ensureVotanteSession,
   clearVotanteSession: mocks.clearVotanteSession,
+}))
+
+vi.mock('@/features/voto/crypto/use-ephemeral-wallet', () => ({
+  useEphemeralWallet: () => ({
+    isSupported: true,
+    get isReady() {
+      return mocks.walletIsReady
+    },
+    publicKeyHex: '0x' + 'ab'.repeat(33),
+    session: mocks.walletIsReady
+      ? { publicKeyHex: '0x' + 'ab'.repeat(33), createdAt: Date.now() }
+      : null,
+    initialize: vi.fn().mockResolvedValue(undefined),
+    signVotePayload: vi.fn(),
+    destroy: vi.fn(),
+  }),
+}))
+
+vi.mock('@/features/voto/crypto/web-crypto-support', () => ({
+  isWebCryptoSupported: () => true,
 }))
 
 const budConfig = {
@@ -67,42 +85,6 @@ const boleta: BoletaDigital = {
           agrupacionPolitica: 'Lista Azul',
           numeroLista: 1,
           colorLista: '#0ea5e9',
-          fotoUrl:
-            'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"%3E%3Crect width="1" height="1" fill="%230ea5e9"/%3E%3C/svg%3E',
-        },
-        {
-          idCandidato: 102,
-          idCategoria: 1,
-          idLista: 12,
-          listId: 2,
-          nombre: 'Bruno',
-          apellido: 'Paz',
-          nombreCompleto: 'Bruno Paz',
-          agrupacionPolitica: 'Lista Celeste',
-          numeroLista: 2,
-          colorLista: '#2563eb',
-          fotoUrl: null,
-        },
-      ],
-    },
-    {
-      idCategoria: 2,
-      nombre: 'Vocales',
-      descripcion: null,
-      orden: 2,
-      estado: 'DISPONIBLE',
-      candidatos: [
-        {
-          idCandidato: 201,
-          idCategoria: 2,
-          idLista: 11,
-          listId: 1,
-          nombre: 'Carla',
-          apellido: 'Río',
-          nombreCompleto: 'Carla Río',
-          agrupacionPolitica: 'Lista Azul',
-          numeroLista: 1,
-          colorLista: '#0ea5e9',
           fotoUrl: null,
         },
       ],
@@ -110,29 +92,14 @@ const boleta: BoletaDigital = {
   ],
 }
 
-async function renderBud() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  })
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <BoletaUnicaDigitalPage
-        idEleccion={7}
-        showIntro={false}
-        showLogin={false}
-      />
-    </QueryClientProvider>
-  )
-}
-
 describe('BoletaUnicaDigitalPage', () => {
   beforeEach(() => {
     mocks.obtenerBoletaDigital.mockReset()
-    mocks.confirmarVoto.mockReset()
     mocks.obtenerConfiguracionBud.mockReset()
     mocks.solicitarMerkleProof.mockReset()
     mocks.ensureVotanteSession.mockReset()
     mocks.clearVotanteSession.mockReset()
+    mocks.walletIsReady = true
     mocks.ensureVotanteSession.mockResolvedValue(null)
     mocks.clearVotanteSession.mockResolvedValue(undefined)
     mocks.obtenerConfiguracionBud.mockResolvedValue(budConfig)
@@ -143,10 +110,22 @@ describe('BoletaUnicaDigitalPage', () => {
     })
   })
 
-  it('aplica superficie clara en la boleta bajo tema oscuro global (VOTAR-412)', async () => {
+  it('aplica superficie clara en el wizard bajo tema oscuro global (VOTAR-412)', async () => {
     document.documentElement.classList.add('dark')
+    mocks.ensureVotanteSession.mockResolvedValue(votanteSession)
     mocks.obtenerBoletaDigital.mockResolvedValue(boleta)
-    await renderBud()
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    await render(
+      <QueryClientProvider client={queryClient}>
+        <BoletaUnicaDigitalPage idEleccion={7} showIntro={false} />
+      </QueryClientProvider>
+    )
 
     await vi.waitFor(() => {
       const main = document.querySelector('main')
@@ -174,7 +153,7 @@ describe('BoletaUnicaDigitalPage', () => {
     })
     const screen = await render(
       <QueryClientProvider client={queryClient}>
-        <BoletaUnicaDigitalPage idEleccion={7} showIntro={false} showLogin />
+        <BoletaUnicaDigitalPage idEleccion={7} showIntro={false} />
       </QueryClientProvider>
     )
 
@@ -196,143 +175,48 @@ describe('BoletaUnicaDigitalPage', () => {
     expect(mocks.clearVotanteSession).toHaveBeenCalled()
   })
 
-  it('mantiene selecciones activas en categorías distintas y excluye dentro de la misma', async () => {
-    mocks.obtenerBoletaDigital.mockResolvedValue(boleta)
-    const screen = await renderBud()
-
-    await userEvent.click(
-      screen.getByRole('radio', {
-        name: /Ana López, Lista Azul, lista 1/i,
-      })
-    )
-    await userEvent.click(
-      screen.getByRole('radio', {
-        name: /Carla Río, Lista Azul, lista 1/i,
-      })
-    )
-
-    await expect
-      .element(screen.getByRole('radio', { name: /Ana López/i }))
-      .toBeChecked()
-    await expect
-      .element(screen.getByRole('radio', { name: /Carla Río/i }))
-      .toBeChecked()
-
-    await userEvent.click(
-      screen.getByRole('radio', {
-        name: /Bruno Paz, Lista Celeste, lista 2/i,
-      })
-    )
-
-    await expect
-      .element(screen.getByRole('radio', { name: /Ana López/i }))
-      .not.toBeChecked()
-    await expect
-      .element(screen.getByRole('radio', { name: /Bruno Paz/i }))
-      .toBeChecked()
-    await expect
-      .element(screen.getByRole('radio', { name: /Carla Río/i }))
-      .toBeChecked()
-    expect(mocks.confirmarVoto).not.toHaveBeenCalled()
-  })
-
-  it('expone información obligatoria y nombres accesibles en cada tarjeta de candidato', async () => {
-    mocks.obtenerBoletaDigital.mockResolvedValue(boleta)
-    const screen = await renderBud()
-
-    await expect
-      .element(screen.getByText('Lista 1').first())
-      .toBeInTheDocument()
-    await expect.element(screen.getByText('Ana López')).toBeInTheDocument()
-    await expect
-      .element(screen.getByText('Lista Azul').first())
-      .toBeInTheDocument()
-    await expect
-      .element(screen.getByRole('img', { name: /Foto de Ana López/i }))
-      .toBeInTheDocument()
-    await expect
-      .element(
-        screen.getByRole('radio', {
-          name: /Ana López, Lista Azul, lista 1/i,
-        })
-      )
-      .toBeInTheDocument()
-  })
-
-  it('permite seleccionar por teclado y confirma recién en el diálogo final', async () => {
-    mocks.obtenerBoletaDigital.mockResolvedValue(boleta)
-    mocks.confirmarVoto.mockResolvedValue({
-      idEleccion: 7,
-      estado: 'RECIBIDO',
-      comprobanteHash: 'a'.repeat(64),
-      payloadHash: 'b'.repeat(64),
-      recibidoEn: '2026-06-22T00:00:00.000Z',
-      idempotente: false,
+  it('muestra login cuando no hay sesión de votante', async () => {
+    mocks.ensureVotanteSession.mockResolvedValue(null)
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
     })
-    const screen = await renderBud()
-    const presidente = screen.getByRole('radio', { name: /Ana López/i })
-    const vocal = screen.getByRole('radio', { name: /Carla Río/i })
-
-    await userEvent.click(presidente)
-    await userEvent.keyboard('{Space}')
-    await userEvent.click(vocal)
-    await userEvent.keyboard('{Enter}')
-
-    expect(mocks.confirmarVoto).not.toHaveBeenCalled()
-
-    await userEvent.click(
-      screen.getByRole('button', { name: /Confirmar y Encriptar Voto/i })
-    )
-    await userEvent.click(
-      screen.getByRole('button', { name: /^Confirmar Voto$/i })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <BoletaUnicaDigitalPage idEleccion={7} showIntro={false} />
+      </QueryClientProvider>
     )
 
-    expect(mocks.confirmarVoto).toHaveBeenCalledOnce()
-    expect(mocks.confirmarVoto).toHaveBeenCalledWith(
-      7,
-      expect.objectContaining({
-        selecciones: [
-          { idCategoria: 1, idCandidato: 101 },
-          { idCategoria: 2, idCandidato: 201 },
-        ],
-      })
-    )
     await expect
-      .element(screen.getByText(/Voto confirmado/i))
+      .element(screen.getByRole('button', { name: /Ingresar/i }))
       .toBeInTheDocument()
+    expect(mocks.obtenerBoletaDigital).not.toHaveBeenCalled()
   })
 
-  it('mantiene la boleta legible en layouts responsive y usa scroll eficiente con muchas opciones', async () => {
-    const candidatos = Array.from({ length: 21 }, (_, index) => ({
-      idCandidato: 300 + index,
-      idCategoria: 1,
-      idLista: 20 + index,
-      listId: 20 + index,
-      nombre: `Candidato ${index + 1}`,
-      apellido: 'Demo',
-      nombreCompleto: `Candidato ${index + 1} Demo`,
-      agrupacionPolitica: `Lista ${index + 1}`,
-      numeroLista: index + 1,
-      colorLista: '#2563eb',
-      fotoUrl: null,
-    }))
-    mocks.obtenerBoletaDigital.mockResolvedValue({
-      ...boleta,
-      categorias: [
-        {
-          ...boleta.categorias[0],
-          candidatos,
-        },
-      ],
-    })
+  it('VOTAR-379/418: tras zeroizar la wallet sigue mostrando el wizard (no el splash)', async () => {
+    mocks.walletIsReady = false
+    mocks.ensureVotanteSession.mockResolvedValue(votanteSession)
+    mocks.obtenerBoletaDigital.mockResolvedValue(boleta)
 
-    const screen = await renderBud()
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <BoletaUnicaDigitalPage idEleccion={7} showIntro={false} />
+      </QueryClientProvider>
+    )
 
     await expect
-      .element(screen.getByText('Candidato 21 Demo'))
+      .element(screen.getByText(/Preparando tu boleta/i))
+      .not.toBeInTheDocument()
+    await expect
+      .element(screen.getByText('Boleta — Centro de Estudiantes'))
       .toBeInTheDocument()
-    expect(document.querySelector('[data-slot="scroll-area"]')).not.toBeNull()
-    expect(document.querySelector('.sm\\:max-w-3xl')).not.toBeNull()
-    expect(document.querySelector('.lg\\:max-w-5xl')).not.toBeNull()
   })
 })
