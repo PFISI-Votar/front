@@ -46,7 +46,7 @@ La documentación completa del proyecto (alcance, reglas de negocio, diagramas, 
 - **Formularios:** React Hook Form + Zod
 - **HTTP:** Axios
 - **Autenticación:** SSO institucional vía BFF Autogestión (votante y admin); cookie HttpOnly separada por rol
-- **Blockchain (cliente):** Ethers.js + Web Crypto API (billetera efímera)
+- **Blockchain (cliente):** `@noble/secp256k1` + Web Crypto API (billetera efímera) + `viem` (EIP-712 typed data)
 
 ## Requisitos previos
 

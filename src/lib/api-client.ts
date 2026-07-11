@@ -50,8 +50,7 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as
-      | (InternalAxiosRequestConfig & { _retry?: boolean })
-      | undefined
+      (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined
 
     if (!originalRequest || error.response?.status !== 401) {
       return Promise.reject(error)
@@ -101,8 +100,7 @@ export const isValidationError = (error: unknown): error is AxiosError => {
 export const getApiErrorMessage = (error: unknown): string => {
   if (error instanceof AxiosError) {
     const data = error.response?.data as
-      | { message?: string | string[] }
-      | undefined
+      { message?: string | string[] } | undefined
     if (Array.isArray(data?.message)) {
       return data.message.join(', ')
     }
@@ -173,8 +171,7 @@ export const getApiRulesViolations = (error: unknown): ApiRulesViolation[] => {
     return []
   }
   const data = error.response?.data as
-    | { violations?: ApiRulesViolation[] }
-    | undefined
+    { violations?: ApiRulesViolation[] } | undefined
   if (!Array.isArray(data?.violations)) {
     return []
   }

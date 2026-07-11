@@ -25,6 +25,8 @@ import {
 import { Input } from '@/components/ui/input'
 import {
   LoginField,
+  VOTAR_LIGHT_SURFACE_CLASS,
+  VotarBrandHeader,
   VotarLoginBackground,
 } from '@/features/auth/sign-in/components/login-screen-shared'
 import {
@@ -87,14 +89,12 @@ export const BudLoginScreen = ({
   }
 
   return (
-    <main className='relative min-h-svh overflow-hidden bg-[#fdfcfa] text-[#202124]'>
+    <main
+      className={`relative min-h-svh overflow-hidden bg-[#fdfcfa] ${VOTAR_LIGHT_SURFACE_CLASS}`}
+    >
       <VotarLoginBackground />
       <section className='relative mx-auto flex min-h-svh w-full max-w-md flex-col items-center justify-center px-4 py-8 sm:px-6'>
-        <div className='mb-8 text-center'>
-          <p className='text-2xl leading-none font-extrabold tracking-tight text-[#2f6f9f]'>
-            VOTAR
-          </p>
-        </div>
+        <VotarBrandHeader className='mb-8' />
 
         <Card className='w-full gap-0 rounded-2xl border-[#e4e7eb] bg-white/95 py-0 shadow-[0_1rem_3rem_rgba(30,64,95,0.08)] backdrop-blur-sm'>
           <CardHeader className='space-y-1.5 px-6 pt-8 pb-0 text-center sm:px-8'>
