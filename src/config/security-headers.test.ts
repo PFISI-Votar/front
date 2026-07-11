@@ -73,4 +73,16 @@ describe('security-headers', () => {
       lines.some((line) => line.includes('Strict-Transport-Security'))
     ).toBe(true)
   })
+
+  it('allows Hardhat RPC origins via extraConnectSrc in dev', () => {
+    const csp = buildContentSecurityPolicy({
+      apiOrigin: 'http://localhost:8000',
+      isDev: true,
+      extraConnectSrc: ['http://127.0.0.1:8545', 'http://localhost:8545'],
+    })
+
+    expect(csp).toContain('http://127.0.0.1:8545')
+    expect(csp).toContain('http://localhost:8545')
+    expect(csp).toContain('http://localhost:8000')
+  })
 })

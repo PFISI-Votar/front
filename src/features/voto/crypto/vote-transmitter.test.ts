@@ -1,0 +1,129 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { SignedVotePayload } from '@/features/voto/crypto/vote-signer'
+import {
+  applyGasMargin,
+  transmitSignedVote,
+  type TransmitSignedVoteInput,
+} from '@/features/voto/crypto/vote-transmitter'
+import type { VoteTxError } from '@/features/voto/crypto/vote-tx-errors'
+
+const signed: SignedVotePayload = {
+  electionId: 7,
+  nullifier:
+    '0x1111111111111111111111111111111111111111111111111111111111111111',
+  selectionHash:
+    '0x2222222222222222222222222222222222222222222222222222222222222222',
+  timestamp: 1_700_000_000,
+  expectedSigner: '0x00000000000000000000000000000000000000aa',
+  signature: `0x${'ab'.repeat(65)}`,
+}
+
+const input: TransmitSignedVoteInput = {
+  signed,
+  voterLeaf:
+    '0x3333333333333333333333333333333333333333333333333333333333333333',
+  merkleProof: [
+    '0x4444444444444444444444444444444444444444444444444444444444444444',
+  ],
+}
+
+describe('vote-transmitter — VOTAR-358', () => {
+  const estimateContractGas = vi.fn()
+  const writeContract = vi.fn()
+  const waitForTransactionReceipt = vi.fn()
+  const onProgress = vi.fn()
+
+  const publicClient = {
+    estimateContractGas,
+    waitForTransactionReceipt,
+  }
+
+  const walletClient = {
+    account: { address: '0x00000000000000000000000000000000000000bb' },
+    chain: { id: 31_337 },
+    writeContract,
+  }
+
+  beforeEach(() => {
+    estimateContractGas.mockReset()
+    writeContract.mockReset()
+    waitForTransactionReceipt.mockReset()
+    onProgress.mockReset()
+  })
+
+  it('UAT-01: estimates gas with +10% margin, sends and returns tx hash', async () => {
+    estimateContractGas.mockResolvedValue(100_000n)
+    writeContract.mockResolvedValue('0x' + 'f'.repeat(64))
+    waitForTransactionReceipt.mockResolvedValue({
+      status: 'success',
+      blockNumber: 42n,
+    })
+
+    const result = await transmitSignedVote(input, {
+      publicClient: publicClient as never,
+      walletClient: walletClient as never,
+      contractAddress: '0x0000000000000000000000000000000000000001',
+      onProgress,
+    })
+
+    expect(estimateContractGas).toHaveBeenCalledOnce()
+    expect(writeContract).toHaveBeenCalledWith(
+      expect.objectContaining({ gas: 110_000n })
+    )
+    expect(result.txHash).toBe('0x' + 'f'.repeat(64))
+    expect(result.blockNumber).toBe(42n)
+    expect(onProgress.mock.calls.map((call) => call[0])).toEqual([
+      'estimating',
+      'sending',
+      'confirming',
+    ])
+  })
+
+  it('UAT-02: retries transient network errors up to 3 attempts', async () => {
+    estimateContractGas
+      .mockRejectedValueOnce(new Error('Failed to fetch'))
+      .mockRejectedValueOnce(new Error('network timeout'))
+      .mockResolvedValueOnce(50_000n)
+    writeContract.mockResolvedValue('0x' + 'a'.repeat(64))
+    waitForTransactionReceipt.mockResolvedValue({
+      status: 'success',
+      blockNumber: 7n,
+    })
+
+    const result = await transmitSignedVote(input, {
+      publicClient: publicClient as never,
+      walletClient: walletClient as never,
+      contractAddress: '0x0000000000000000000000000000000000000001',
+      maxAttempts: 3,
+    })
+
+    expect(estimateContractGas).toHaveBeenCalledTimes(3)
+    expect(result.txHash).toBe('0x' + 'a'.repeat(64))
+  })
+
+  it('UAT-03: does not retry insufficient funds and preserves error code', async () => {
+    estimateContractGas.mockRejectedValue(
+      new Error('insufficient funds for transfer')
+    )
+
+    await expect(
+      transmitSignedVote(input, {
+        publicClient: publicClient as never,
+        walletClient: walletClient as never,
+        contractAddress: '0x0000000000000000000000000000000000000001',
+        maxAttempts: 3,
+      })
+    ).rejects.toMatchObject({
+      code: 'insufficient_funds',
+      canRetrySend: true,
+    } satisfies Partial<VoteTxError>)
+
+    expect(estimateContractGas).toHaveBeenCalledTimes(1)
+    expect(writeContract).not.toHaveBeenCalled()
+  })
+
+  it('applies ceil gas margin correctly', () => {
+    expect(applyGasMargin(100n, 1.1)).toBe(110n)
+    expect(applyGasMargin(101n, 1.1)).toBe(112n)
+  })
+})
