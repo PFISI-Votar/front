@@ -68,6 +68,7 @@ import {
   usePadronVotantes,
 } from '../hooks/use-padron'
 import { usePublicarMerkle } from '../hooks/use-publicar-merkle'
+import { claseAnchoModalPadron } from '../lib/campos-padron'
 import { descargarReporteNovedades } from '../lib/descargar-reporte'
 import { PadronUploadForm } from './padron-upload-form'
 
@@ -82,6 +83,7 @@ function esError404(error: unknown): boolean {
 export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
   const queryClient = useQueryClient()
   const [modalAbierto, setModalAbierto] = useState(false)
+  const [cantidadCamposModal, setCantidadCamposModal] = useState(2)
   const [tablaAbierta, setTablaAbierta] = useState(false)
   const [eliminarAbierto, setEliminarAbierto] = useState(false)
   const [publicarAbierto, setPublicarAbierto] = useState(false)
@@ -175,7 +177,12 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
                 Cargar padrón electoral
               </Button>
             </DialogTrigger>
-            <DialogContent className='max-h-[90vh] overflow-y-auto sm:max-w-2xl'>
+            <DialogContent
+              className={cn(
+                'max-h-[90vh] w-full overflow-y-auto transition-[max-width] duration-200',
+                claseAnchoModalPadron(cantidadCamposModal)
+              )}
+            >
               <DialogHeader>
                 <DialogTitle>Cargar padrón electoral</DialogTitle>
                 <DialogDescription>
@@ -183,7 +190,10 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
                   persiste el dato en texto plano.
                 </DialogDescription>
               </DialogHeader>
-              <PadronUploadForm idEleccionFijo={idEleccion} />
+              <PadronUploadForm
+                idEleccionFijo={idEleccion}
+                onCantidadCamposChange={setCantidadCamposModal}
+              />
             </DialogContent>
           </Dialog>
         )}
