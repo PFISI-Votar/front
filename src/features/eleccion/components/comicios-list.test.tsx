@@ -74,7 +74,9 @@ describe('ComiciosList', () => {
     // Verificar que existe el botón para la elección CONFIGURADA
     await expect
       .element(
-        page.getByRole('button', { name: 'Abrir comicio Elección Municipal 2025' })
+        page.getByRole('button', {
+          name: 'Abrir comicio Elección Municipal 2025',
+        })
       )
       .toBeInTheDocument()
   })
@@ -188,8 +190,6 @@ describe('ComiciosList', () => {
     await userEvent.click(abrirButton)
 
     // Verificar que no se muestra el error previo
-    await expect
-      .poll(() => page.getByText('Error previo').query())
-      .toBeNull()
+    await expect.poll(() => page.getByText('Error previo').query()).toBeNull()
   })
 })

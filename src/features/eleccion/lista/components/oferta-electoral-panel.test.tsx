@@ -111,7 +111,9 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     await userEvent.click(abrirButton)
 
     // Confirmar apertura
-    const confirmButton = page.getByRole('button', { name: 'Sí, abrir comicio' })
+    const confirmButton = page.getByRole('button', {
+      name: 'Sí, abrir comicio',
+    })
     await userEvent.click(confirmButton)
 
     // Verificar alerta crítica con texto UAT-02 exacto
@@ -145,13 +147,13 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     const abrirButton = page.getByRole('button', { name: 'Abrir comicio' })
     await userEvent.click(abrirButton)
 
-    const confirmButton = page.getByRole('button', { name: 'Sí, abrir comicio' })
+    const confirmButton = page.getByRole('button', {
+      name: 'Sí, abrir comicio',
+    })
     await userEvent.click(confirmButton)
 
     // Verificar que se muestra el error
-    await expect
-      .element(page.getByText('Error de Merkle'))
-      .toBeInTheDocument()
+    await expect.element(page.getByText('Error de Merkle')).toBeInTheDocument()
 
     // Abrir diálogo nuevamente
     await userEvent.click(abrirButton)
@@ -179,7 +181,9 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     await userEvent.click(abrirButton)
 
     // Confirmar apertura
-    const confirmButton = page.getByRole('button', { name: 'Sí, abrir comicio' })
+    const confirmButton = page.getByRole('button', {
+      name: 'Sí, abrir comicio',
+    })
     await userEvent.click(confirmButton)
 
     // Verificar que se llamó a la API
