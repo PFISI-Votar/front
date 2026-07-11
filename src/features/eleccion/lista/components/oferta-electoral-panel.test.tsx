@@ -46,7 +46,10 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
       configuracionApi,
       'obtenerConfiguracionDatosCandidato'
     ).mockResolvedValue({
+      idEleccion: 1,
       campos: [],
+      editable: false,
+      cantidadCandidatos: 0,
     } satisfies ConfiguracionDatosCandidatoResponse)
   })
 
