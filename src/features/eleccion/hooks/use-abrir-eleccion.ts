@@ -1,9 +1,15 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { getApiErrorMessage } from '@/lib/api-client'
+import {
+  getApiErrorMessage,
+  isPreconditionFailedError,
+} from '@/lib/api-client'
 import { abrirEleccion } from '../api/eleccion-api'
 
-export const useAbrirEleccion = (idEleccion: number) => {
+export const useAbrirEleccion = (
+  idEleccion: number,
+  onPreconditionError?: (message: string) => void
+) => {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -15,10 +21,15 @@ export const useAbrirEleccion = (idEleccion: number) => {
     },
     onError: (error) => {
       const message = getApiErrorMessage(error)
-      if (message.includes('Fallo de Precondición')) {
-        toast.error('No se puede abrir el comicio', {
-          description: message,
-        })
+      if (isPreconditionFailedError(error)) {
+        // Si hay un callback para manejar el error 412, llamarlo
+        if (onPreconditionError) {
+          onPreconditionError(message)
+        } else {
+          toast.error('No se puede abrir el comicio', {
+            description: message,
+          })
+        }
       } else {
         toast.error(message)
       }

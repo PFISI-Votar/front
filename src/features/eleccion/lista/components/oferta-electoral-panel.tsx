@@ -359,7 +359,7 @@ export const OfertaElectoralPanel = ({
       {preconditionError && (
         <Alert variant='destructive'>
           <AlertCircle className='size-4' />
-          <AlertTitle>Fallo de Precondición (412)</AlertTitle>
+          <AlertTitle>Fallo de Precondición: Raíz de Merkle no detectada en la red descentralizada</AlertTitle>
           <AlertDescription>{preconditionError}</AlertDescription>
         </Alert>
       )}

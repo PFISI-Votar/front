@@ -1,8 +1,15 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ArrowRight, FileSpreadsheet, Vote, Play } from 'lucide-react'
+import {
+  ArrowRight,
+  FileSpreadsheet,
+  Vote,
+  Play,
+  AlertCircle,
+} from 'lucide-react'
 import { formatDateTimeForDisplay } from '@/lib/datetime'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -37,6 +44,7 @@ interface AbrirComicioDialogProps {
   nombreEleccion: string
   open: boolean
   onOpenChange: (open: boolean) => void
+  onPreconditionError: (message: string) => void
 }
 
 const AbrirComicioDialog = ({
@@ -44,8 +52,12 @@ const AbrirComicioDialog = ({
   nombreEleccion,
   open,
   onOpenChange,
+  onPreconditionError,
 }: AbrirComicioDialogProps) => {
-  const { mutate: abrirEleccion, isPending } = useAbrirEleccion(idEleccion)
+  const { mutate: abrirEleccion, isPending } = useAbrirEleccion(
+    idEleccion,
+    onPreconditionError
+  )
 
   const handleConfirm = () => {
     abrirEleccion(undefined, {
@@ -101,6 +113,9 @@ export const ComiciosList = () => {
     idEleccion: null,
     nombreEleccion: '',
   })
+  const [preconditionError, setPreconditionError] = useState<string | null>(
+    null
+  )
 
   const {
     data: comicios,
@@ -121,10 +136,15 @@ export const ComiciosList = () => {
 
   const handleOpenDialog = (idEleccion: number, nombreEleccion: string) => {
     setDialogState({ open: true, idEleccion, nombreEleccion })
+    setPreconditionError(null) // Limpiar error anterior
   }
 
   const handleCloseDialog = () => {
     setDialogState({ open: false, idEleccion: null, nombreEleccion: '' })
+  }
+
+  const handlePreconditionError = (message: string) => {
+    setPreconditionError(message)
   }
 
   if (isLoading) {
@@ -168,6 +188,16 @@ export const ComiciosList = () => {
 
   return (
     <>
+      {preconditionError && (
+        <Alert variant='destructive' className='mb-4'>
+          <AlertCircle className='size-4' />
+          <AlertTitle>
+            Fallo de Precondición: Raíz de Merkle no detectada en la red
+            descentralizada
+          </AlertTitle>
+          <AlertDescription>{preconditionError}</AlertDescription>
+        </Alert>
+      )}
       <ul className='grid gap-4' aria-label='Listado de comicios'>
         {comicios.map((comicio) => (
           <li key={comicio.idEleccion}>
@@ -243,6 +273,7 @@ export const ComiciosList = () => {
           nombreEleccion={dialogState.nombreEleccion}
           open={dialogState.open}
           onOpenChange={handleCloseDialog}
+          onPreconditionError={handlePreconditionError}
         />
       )}
     </>
