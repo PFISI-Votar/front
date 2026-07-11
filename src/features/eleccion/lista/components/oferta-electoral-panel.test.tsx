@@ -71,8 +71,9 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
 
     await renderPanel()
 
-    const botonAbrir = page.queryByRole('button', { name: 'Abrir comicio' })
-    expect(botonAbrir).toBeNull()
+    await expect
+      .poll(() => page.getByRole('button', { name: 'Abrir comicio' }).query())
+      .toBeNull()
   })
 
   it('abre diálogo de confirmación al hacer clic en "Abrir comicio"', async () => {
@@ -153,8 +154,9 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     // El error debe limpiarse al confirmar nuevamente
     await userEvent.click(confirmButton)
 
-    const errorMerkle = page.queryByText('Error de Merkle')
-    expect(errorMerkle).toBeNull()
+    await expect
+      .poll(() => page.getByText('Error de Merkle').query())
+      .toBeNull()
   })
 
   it('actualiza estado tras apertura exitosa', async () => {

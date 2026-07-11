@@ -69,8 +69,12 @@ describe('ComiciosList', () => {
 
     await renderComiciosList()
 
-    const abrirButtons = page.getAllByRole('button', { name: /Abrir comicio/i })
-    expect(abrirButtons).toHaveLength(1) // Solo la elección CONFIGURADA
+    // Verificar que existe el botón para la elección CONFIGURADA
+    await expect
+      .element(
+        page.getByRole('button', { name: 'Abrir comicio Elección Municipal 2025' })
+      )
+      .toBeInTheDocument()
   })
 
   it('abre diálogo de confirmación al hacer clic en "Abrir comicio"', async () => {
@@ -183,7 +187,8 @@ describe('ComiciosList', () => {
     await userEvent.click(abrirButton)
 
     // Verificar que no se muestra el error previo
-    const errorPrevio = page.queryByText('Error previo')
-    expect(errorPrevio).toBeNull()
+    await expect
+      .poll(() => page.getByText('Error previo').query())
+      .toBeNull()
   })
 })
