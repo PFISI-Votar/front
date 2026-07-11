@@ -8,6 +8,7 @@ const r = (id: string, dni: string, email: string): RegistroPreview => ({
   linea: 0,
   dni,
   email,
+  adicionales: {},
 })
 
 describe('claveDedup', () => {
