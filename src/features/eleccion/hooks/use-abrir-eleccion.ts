@@ -8,10 +8,8 @@ export const useAbrirEleccion = (idEleccion: number) => {
 
   return useMutation({
     mutationFn: () => abrirEleccion(idEleccion),
-    onSuccess: (resultado) => {
-      toast.success(
-        `Comicio abierto correctamente (${resultado.modo === 'MANUAL' ? 'apertura manual' : 'apertura automática'}).`
-      )
+    onSuccess: () => {
+      toast.success('Comicio abierto correctamente.')
       queryClient.invalidateQueries({ queryKey: ['elecciones'] })
       queryClient.invalidateQueries({ queryKey: ['eleccion', idEleccion] })
     },
