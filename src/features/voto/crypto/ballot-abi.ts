@@ -1,0 +1,63 @@
+/**
+ * Minimal BallotContract ABI for VOTAR-358 castSignedVote transmission.
+ * Must stay aligned with votar.btc/contracts/ballot/BallotContract.sol.
+ */
+export const BALLOT_CONTRACT_ABI = [
+  {
+    type: 'function',
+    name: 'castSignedVote',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'electionId', type: 'uint256' },
+      { name: 'voterLeaf', type: 'bytes32' },
+      { name: 'merkleProof', type: 'bytes32[]' },
+      { name: 'nullifier', type: 'bytes32' },
+      { name: 'selectionHash', type: 'bytes32' },
+      { name: 'timestamp', type: 'uint256' },
+      { name: 'expectedSigner', type: 'address' },
+      { name: 'signature', type: 'bytes' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'isNullifierUsed',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'electionId', type: 'uint256' },
+      { name: 'nullifier', type: 'bytes32' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+  {
+    type: 'event',
+    name: 'SignedVoteCast',
+    inputs: [
+      { name: 'electionId', type: 'uint256', indexed: true },
+      { name: 'voterLeaf', type: 'bytes32', indexed: true },
+      { name: 'nullifier', type: 'bytes32', indexed: true },
+      { name: 'selectionHash', type: 'bytes32', indexed: false },
+      { name: 'signer', type: 'address', indexed: false },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'InvalidMerkleProof',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'MerkleRootNotPublished',
+    inputs: [{ name: 'electionId', type: 'uint256' }],
+  },
+  {
+    type: 'error',
+    name: 'NullifierAlreadyUsed',
+    inputs: [{ name: 'nullifier', type: 'bytes32' }],
+  },
+  {
+    type: 'error',
+    name: 'InvalidSignature',
+    inputs: [],
+  },
+] as const
