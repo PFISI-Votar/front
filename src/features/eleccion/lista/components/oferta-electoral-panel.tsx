@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { isAxiosError } from 'axios'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
@@ -63,6 +64,7 @@ import {
 } from '@/features/eleccion/lista/api/lista-api'
 import { ListaFormDialog } from '@/features/eleccion/lista/components/lista-form-dialog'
 import type { Lista } from '@/features/eleccion/lista/data/schema'
+import { usePadronResumen } from '@/features/padron/hooks/use-padron'
 
 type CandidatoDialogState = {
   lista: Lista
@@ -111,6 +113,8 @@ export const OfertaElectoralPanel = ({
     queryFn: () => obtenerConfiguracionDatosCandidato(idEleccion),
   })
 
+  const padronResumenQuery = usePadronResumen(idEleccion)
+
   const mapeoQuery = useQuery({
     queryKey: ['listas-mapeo', idEleccion],
     queryFn: () => obtenerMapeoListas(idEleccion),
@@ -119,6 +123,12 @@ export const OfertaElectoralPanel = ({
   })
 
   const isEditable = eleccionQuery.data?.estado === 'BORRADOR'
+  const sinPadronCargado =
+    padronResumenQuery.isError &&
+    isAxiosError(padronResumenQuery.error) &&
+    padronResumenQuery.error.response?.status === 404
+  const tienePadronCargado =
+    Boolean(padronResumenQuery.data) && !sinPadronCargado
   const camposConfig = configQuery.data?.campos ?? []
   const candidatosEnComicio = useMemo(
     () => (listasQuery.data ?? []).flatMap((lista) => lista.candidatos ?? []),
@@ -299,7 +309,11 @@ export const OfertaElectoralPanel = ({
           {isEditable && (
             <Button
               onClick={() => setOficializarDialogOpen(true)}
-              disabled={oficializarMutation.isPending}
+              disabled={
+                oficializarMutation.isPending ||
+                padronResumenQuery.isLoading ||
+                !tienePadronCargado
+              }
               aria-haspopup='dialog'
               aria-label='Oficializar comicio'
             >
@@ -359,8 +373,28 @@ export const OfertaElectoralPanel = ({
       {preconditionError && (
         <Alert variant='destructive'>
           <AlertCircle className='size-4' />
-          <AlertTitle>Fallo de Precondición: Raíz de Merkle no detectada en la red descentralizada</AlertTitle>
+          <AlertTitle>
+            Fallo de Precondición: Raíz de Merkle no detectada en la red
+            descentralizada
+          </AlertTitle>
           <AlertDescription>{preconditionError}</AlertDescription>
+        </Alert>
+      )}
+
+      {isEditable && sinPadronCargado && !padronResumenQuery.isLoading && (
+        <Alert variant='destructive'>
+          <AlertCircle className='size-4' />
+          <AlertTitle>Padrón electoral requerido</AlertTitle>
+          <AlertDescription>
+            Debe cargar el padrón electoral antes de oficializar el comicio.{' '}
+            <Link
+              to='/comicios/$idEleccion/padron'
+              params={{ idEleccion: String(idEleccion) }}
+              className='font-medium underline underline-offset-4'
+            >
+              Ir a carga de padrón
+            </Link>
+          </AlertDescription>
         </Alert>
       )}
 
