@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { page, render } from 'vitest-browser-react'
-import { userEvent } from 'vitest/browser'
+import { render } from 'vitest-browser-react'
+import { page, userEvent } from 'vitest/browser'
 import * as eleccionApi from '@/features/eleccion/api/eleccion-api'
 import type { Eleccion } from '@/features/eleccion/data/schema'
 import { ComiciosList } from './comicios-list'
@@ -19,7 +19,6 @@ const mockElecciones: Eleccion[] = [
     fechaInicio: '2025-10-15T08:00:00Z',
     fechaFin: '2025-10-15T18:00:00Z',
     estado: 'CONFIGURADA',
-    configuracion: null,
   },
   {
     idEleccion: 2,
@@ -28,9 +27,8 @@ const mockElecciones: Eleccion[] = [
     fechaInicio: '2025-11-20T09:00:00Z',
     fechaFin: '2025-11-20T19:00:00Z',
     estado: 'BORRADOR',
-    configuracion: null,
   },
-]
+] as Eleccion[]
 
 describe('ComiciosList', () => {
   let queryClient: QueryClient

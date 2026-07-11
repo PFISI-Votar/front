@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { page, render } from 'vitest-browser-react'
-import { userEvent } from 'vitest/browser'
+import { render } from 'vitest-browser-react'
+import { page, userEvent } from 'vitest/browser'
 import * as eleccionApi from '@/features/eleccion/api/eleccion-api'
 import * as configuracionApi from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import type { Eleccion } from '@/features/eleccion/data/schema'
@@ -20,8 +20,7 @@ const mockEleccionConfigurada: Eleccion = {
   fechaInicio: '2025-10-15T08:00:00Z',
   fechaFin: '2025-10-15T18:00:00Z',
   estado: 'CONFIGURADA',
-  configuracion: null,
-}
+} as Eleccion
 
 describe('OfertaElectoralPanel - Abrir Comicio', () => {
   let queryClient: QueryClient
