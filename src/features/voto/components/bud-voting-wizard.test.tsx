@@ -39,15 +39,15 @@ const signVotePayloadMock = vi.fn().mockResolvedValue({
   signature: '0x' + 'e'.repeat(130),
 })
 
-const walletState = {
-  publicKeyHex: WALLET_PUBLIC_KEY as string | null,
-}
-
-const initializeMock = vi.fn().mockResolvedValue({
+const initializeWalletMock = vi.fn().mockResolvedValue({
   idEleccion: 7,
   publicKeyHex: WALLET_PUBLIC_KEY,
   createdAt: Date.now(),
 })
+
+const walletState = {
+  publicKeyHex: WALLET_PUBLIC_KEY as string | null,
+}
 
 vi.mock('@/features/voto/crypto/use-ephemeral-wallet', () => ({
   useEphemeralWallet: () => ({
@@ -61,7 +61,7 @@ vi.mock('@/features/voto/crypto/use-ephemeral-wallet', () => ({
       publicKeyHex: WALLET_PUBLIC_KEY,
       createdAt: Date.now(),
     },
-    initialize: initializeMock,
+    initialize: initializeWalletMock,
     signVotePayload: signVotePayloadMock,
     destroy: vi.fn(),
   }),
@@ -181,7 +181,12 @@ describe('BudVotingWizard', () => {
     walletState.publicKeyHex = WALLET_PUBLIC_KEY
     signVotePayloadMock.mockClear()
     transmitSignedVoteMock.mockClear()
-    initializeMock.mockClear()
+    initializeWalletMock.mockClear()
+    initializeWalletMock.mockResolvedValue({
+      idEleccion: 7,
+      publicKeyHex: WALLET_PUBLIC_KEY,
+      createdAt: Date.now(),
+    })
     signVotePayloadMock.mockResolvedValue({
       electionId: 7,
       nullifier: '0x' + 'b'.repeat(64),
@@ -389,8 +394,8 @@ describe('BudVotingWizard', () => {
       .not.toBeInTheDocument()
   })
 
-  it('muestra error cuando falta la clave pública de la billetera efímera', async () => {
-    initializeMock.mockRejectedValueOnce(new Error('wallet init failed'))
+  it('muestra error cuando falla la reinicialización de la billetera efímera', async () => {
+    initializeWalletMock.mockRejectedValueOnce(new Error('wallet init failed'))
     const screen = await renderWizard()
 
     await userEvent.click(
@@ -424,5 +429,35 @@ describe('BudVotingWizard', () => {
       .element(screen.getByText('No se pudo firmar el voto'))
       .toBeInTheDocument()
     expect(transmitSignedVoteMock).not.toHaveBeenCalled()
+  })
+
+  it('VOTAR-418: al modificar el voto regenera la billetera efímera', async () => {
+    const expectedTxHash = '0x' + 'f'.repeat(64)
+    const screen = await renderWizard()
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /Votar en blanco/i })
+    )
+    await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
+    await userEvent.click(
+      screen.getByRole('button', { name: /Firmar y confirmar/i })
+    )
+
+    await expect
+      .element(screen.getByText(/Voto registrado exitosamente/i))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByLabelText(`Hash de transacción ${expectedTxHash}`))
+      .toBeInTheDocument()
+
+    initializeWalletMock.mockClear()
+    await userEvent.click(
+      screen.getByRole('button', { name: /Modificar mi voto/i })
+    )
+
+    await expect
+      .element(screen.getByText('Opciones especiales'))
+      .toBeInTheDocument()
+    expect(initializeWalletMock).toHaveBeenCalledWith(boleta.idEleccion)
   })
 })

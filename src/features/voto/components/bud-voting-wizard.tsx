@@ -338,6 +338,20 @@ export const BudVotingWizard = ({
     setTxError(null)
   }
 
+  const handleModifyVote = async () => {
+    setSigningError(null)
+    try {
+      // VOTAR-418: post-sign destroy() cleared the key; mint a fresh wallet to re-sign.
+      await initializeEphemeralWallet(boleta.idEleccion)
+      resetVote()
+      goToSelection()
+    } catch {
+      setSigningError(
+        'No pudimos regenerar tu identidad criptográfica. Reintentá o cerrá sesión.'
+      )
+    }
+  }
+
   const handleSelectList = (listId: string | null) => {
     setSpecialVote(null)
     setSelectedListId(listId)
@@ -526,8 +540,7 @@ export const BudVotingWizard = ({
           <RegisteredVoteStep
             onLogout={handleLogout}
             onModify={() => {
-              resetVote()
-              goToSelection()
+              void handleModifyVote()
             }}
           />
         )}
@@ -597,10 +610,10 @@ export const BudVotingWizard = ({
             signedVote={signedVote}
             txHash={txHash}
             hasMerkleProof={Boolean(merkleProofData)}
+            signingError={signingError}
             onLogout={handleLogout}
             onModify={() => {
-              resetVote()
-              goToSelection()
+              void handleModifyVote()
             }}
           />
         )}
@@ -1153,12 +1166,14 @@ const SuccessStep = ({
   signedVote,
   txHash,
   hasMerkleProof,
+  signingError,
   onLogout,
   onModify,
 }: {
   signedVote: SignedVotePayload | null
   txHash: Hex | null
   hasMerkleProof: boolean
+  signingError: string | null
   onLogout: () => void
   onModify: () => void
 }) => {
@@ -1215,6 +1230,13 @@ const SuccessStep = ({
               )}
             </div>
           )}
+          {signingError && (
+            <Alert variant='destructive'>
+              <AlertTriangle className='size-4' />
+              <AlertTitle>No se pudo continuar</AlertTitle>
+              <AlertDescription>{signingError}</AlertDescription>
+            </Alert>
+          )}
         </CardContent>
         <CardFooter className='grid gap-3'>
           <Button
@@ -1222,6 +1244,7 @@ const SuccessStep = ({
             size='lg'
             className='h-12 w-full'
             onClick={onModify}
+            aria-label='Modificar mi voto'
           >
             <PenLine className='size-4' />
             Modificar mi voto
