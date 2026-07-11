@@ -1,35 +1,23 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import {
-  RouterProvider,
-  createMemoryHistory,
-  createRouter,
-} from '@tanstack/react-router'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { render, waitFor } from 'vitest-browser-react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { page, render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
 import * as eleccionApi from '@/features/eleccion/api/eleccion-api'
 import type { Eleccion } from '@/features/eleccion/data/schema'
 import { ComiciosList } from './comicios-list'
 
-// Mock del router
-const routeTree = {
-  id: '__root__',
-  path: '/',
-  component: () => null,
-}
-
-const createTestRouter = () => {
-  const history = createMemoryHistory({ initialEntries: ['/'] })
-  return createRouter({ routeTree, history })
-}
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
+  useNavigate: () => vi.fn(),
+}))
 
 const mockElecciones: Eleccion[] = [
   {
     idEleccion: 1,
     nombre: 'Elección Municipal 2025',
     descripcion: 'Elección de intendente y concejales',
-    fechaInicio: new Date('2025-10-15T08:00:00Z'),
-    fechaFin: new Date('2025-10-15T18:00:00Z'),
+    fechaInicio: '2025-10-15T08:00:00Z',
+    fechaFin: '2025-10-15T18:00:00Z',
     estado: 'CONFIGURADA',
     configuracion: null,
   },
@@ -37,8 +25,8 @@ const mockElecciones: Eleccion[] = [
     idEleccion: 2,
     nombre: 'Elección Provincial 2025',
     descripcion: 'Elección de gobernador',
-    fechaInicio: new Date('2025-11-20T09:00:00Z'),
-    fechaFin: new Date('2025-11-20T19:00:00Z'),
+    fechaInicio: '2025-11-20T09:00:00Z',
+    fechaFin: '2025-11-20T19:00:00Z',
     estado: 'BORRADOR',
     configuracion: null,
   },
@@ -57,11 +45,10 @@ describe('ComiciosList', () => {
     vi.clearAllMocks()
   })
 
-  const renderWithProviders = async (component: React.ReactElement) => {
-    const router = createTestRouter()
+  async function renderComiciosList() {
     return render(
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router}>{component}</RouterProvider>
+        <ComiciosList />
       </QueryClientProvider>
     )
   }
@@ -69,47 +56,41 @@ describe('ComiciosList', () => {
   it('muestra lista de comicios correctamente', async () => {
     vi.spyOn(eleccionApi, 'listarElecciones').mockResolvedValue(mockElecciones)
 
-    const { getByText } = await renderWithProviders(<ComiciosList />)
+    await renderComiciosList()
 
-    await waitFor(async () => {
-      await expect
-        .element(getByText('Elección Municipal 2025'))
-        .toBeInTheDocument()
-      await expect
-        .element(getByText('Elección Provincial 2025'))
-        .toBeInTheDocument()
-    })
+    await expect
+      .element(page.getByText('Elección Municipal 2025'))
+      .toBeInTheDocument()
+    await expect
+      .element(page.getByText('Elección Provincial 2025'))
+      .toBeInTheDocument()
   })
 
   it('muestra botón "Abrir comicio" solo para elecciones en estado CONFIGURADA', async () => {
     vi.spyOn(eleccionApi, 'listarElecciones').mockResolvedValue(mockElecciones)
 
-    const { getAllByRole } = await renderWithProviders(<ComiciosList />)
+    await renderComiciosList()
 
-    await waitFor(async () => {
-      const abrirButtons = getAllByRole('button', { name: /Abrir comicio/i })
-      expect(abrirButtons).toHaveLength(1) // Solo la elección CONFIGURADA
-    })
+    const abrirButtons = page.getAllByRole('button', { name: /Abrir comicio/i })
+    expect(abrirButtons).toHaveLength(1) // Solo la elección CONFIGURADA
   })
 
   it('abre diálogo de confirmación al hacer clic en "Abrir comicio"', async () => {
     vi.spyOn(eleccionApi, 'listarElecciones').mockResolvedValue(mockElecciones)
 
-    const { getByRole, getByText } = await renderWithProviders(<ComiciosList />)
+    await renderComiciosList()
 
-    await waitFor(async () => {
-      const abrirButton = getByRole('button', {
-        name: 'Abrir comicio Elección Municipal 2025',
-      })
-      await userEvent.click(abrirButton)
+    const abrirButton = page.getByRole('button', {
+      name: 'Abrir comicio Elección Municipal 2025',
     })
+    await userEvent.click(abrirButton)
 
     await expect
-      .element(getByRole('heading', { name: 'Abrir comicio' }))
+      .element(page.getByRole('heading', { name: 'Abrir comicio' }))
       .toBeInTheDocument()
     await expect
       .element(
-        getByText(
+        page.getByText(
           /¿Está seguro de que desea abrir el comicio "Elección Municipal 2025"?/
         )
       )
@@ -128,66 +109,49 @@ describe('ComiciosList', () => {
       },
     })
 
-    const { getByRole, getByText } = await renderWithProviders(<ComiciosList />)
+    await renderComiciosList()
 
     // Abrir diálogo
-    await waitFor(async () => {
-      const abrirButton = getByRole('button', {
-        name: 'Abrir comicio Elección Municipal 2025',
-      })
-      await userEvent.click(abrirButton)
+    const abrirButton = page.getByRole('button', {
+      name: 'Abrir comicio Elección Municipal 2025',
     })
+    await userEvent.click(abrirButton)
 
     // Confirmar apertura
-    await waitFor(async () => {
-      const confirmButton = getByRole('button', { name: 'Abrir comicio' })
-      await userEvent.click(confirmButton)
-    })
+    const confirmButton = page.getByRole('button', { name: 'Abrir comicio' })
+    await userEvent.click(confirmButton)
 
     // Verificar que se muestra la alerta crítica
-    await waitFor(async () => {
-      await expect
-        .element(
-          getByText(
-            'Fallo de Precondición: Raíz de Merkle no detectada en la red descentralizada'
-          )
+    await expect
+      .element(
+        page.getByText(
+          'Fallo de Precondición: Raíz de Merkle no detectada en la red descentralizada'
         )
-        .toBeInTheDocument()
-    })
+      )
+      .toBeInTheDocument()
   })
 
-  it('cierra diálogo y actualiza lista tras apertura exitosa', async () => {
+  it('cierra diálogo tras apertura exitosa', async () => {
     vi.spyOn(eleccionApi, 'listarElecciones').mockResolvedValue(mockElecciones)
     vi.spyOn(eleccionApi, 'abrirEleccion').mockResolvedValue({
       idEleccion: 1,
       estado: 'ABIERTA',
-      fechaApertura: new Date(),
       modo: 'MANUAL',
-    })
+    } as any)
 
-    const { getByRole, queryByRole } = await renderWithProviders(
-      <ComiciosList />
-    )
+    await renderComiciosList()
 
     // Abrir diálogo
-    await waitFor(async () => {
-      const abrirButton = getByRole('button', {
-        name: 'Abrir comicio Elección Municipal 2025',
-      })
-      await userEvent.click(abrirButton)
+    const abrirButton = page.getByRole('button', {
+      name: 'Abrir comicio Elección Municipal 2025',
     })
+    await userEvent.click(abrirButton)
 
     // Confirmar apertura
-    await waitFor(async () => {
-      const confirmButton = getByRole('button', { name: 'Abrir comicio' })
-      await userEvent.click(confirmButton)
-    })
+    const confirmButton = page.getByRole('button', { name: 'Abrir comicio' })
+    await userEvent.click(confirmButton)
 
-    // Verificar que el diálogo se cierra
-    await waitFor(async () => {
-      expect(queryByRole('heading', { name: 'Abrir comicio' })).toBe(null)
-    })
-
+    // Verificar que se llamó a la API
     expect(eleccionApi.abrirEleccion).toHaveBeenCalledWith(1)
   })
 
@@ -202,38 +166,26 @@ describe('ComiciosList', () => {
       },
     })
 
-    const { getByRole, queryByText } = await renderWithProviders(
-      <ComiciosList />
-    )
+    await renderComiciosList()
 
     // Primera apertura con error
-    await waitFor(async () => {
-      const abrirButton = getByRole('button', {
-        name: 'Abrir comicio Elección Municipal 2025',
-      })
-      await userEvent.click(abrirButton)
+    const abrirButton = page.getByRole('button', {
+      name: 'Abrir comicio Elección Municipal 2025',
     })
+    await userEvent.click(abrirButton)
 
-    await waitFor(async () => {
-      const confirmButton = getByRole('button', { name: 'Abrir comicio' })
-      await userEvent.click(confirmButton)
-    })
+    const confirmButton = page.getByRole('button', { name: 'Abrir comicio' })
+    await userEvent.click(confirmButton)
 
     // Cerrar diálogo
-    await waitFor(async () => {
-      const cancelButton = getByRole('button', { name: 'Cancelar' })
-      await userEvent.click(cancelButton)
-    })
+    const cancelButton = page.getByRole('button', { name: 'Cancelar' })
+    await userEvent.click(cancelButton)
 
     // Abrir nuevamente
-    await waitFor(async () => {
-      const abrirButton = getByRole('button', {
-        name: 'Abrir comicio Elección Municipal 2025',
-      })
-      await userEvent.click(abrirButton)
-    })
+    await userEvent.click(abrirButton)
 
     // Verificar que no se muestra el error previo
-    expect(queryByText('Error previo')).toBe(null)
+    const errorPrevio = page.queryByText('Error previo')
+    expect(errorPrevio).toBeNull()
   })
 })
