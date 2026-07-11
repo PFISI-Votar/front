@@ -7,8 +7,13 @@ interface EleccionAbiertaEvent {
   idEleccion: number
 }
 
+interface MerklePublicadoEvent {
+  idEleccion: number
+}
+
 interface UseEleccionWebSocketOptions {
   onEleccionAbierta?: (data: EleccionAbiertaEvent) => void
+  onMerklePublicado?: (data: MerklePublicadoEvent) => void
 }
 
 /**
@@ -18,7 +23,7 @@ interface UseEleccionWebSocketOptions {
 export function useEleccionWebSocket(
   options: UseEleccionWebSocketOptions = {}
 ) {
-  const { onEleccionAbierta } = options
+  const { onEleccionAbierta, onMerklePublicado } = options
   const socketRef = useRef<Socket | null>(null)
 
   useEffect(() => {
@@ -49,10 +54,15 @@ export function useEleccionWebSocket(
       onEleccionAbierta?.(data)
     })
 
+    // Escuchar evento de Merkle publicado
+    socket.on('eleccion:merkle-publicado', (data: MerklePublicadoEvent) => {
+      onMerklePublicado?.(data)
+    })
+
     // Cleanup al desmontar
     return () => {
       socket.disconnect()
       socketRef.current = null
     }
-  }, [onEleccionAbierta])
+  }, [onEleccionAbierta, onMerklePublicado])
 }

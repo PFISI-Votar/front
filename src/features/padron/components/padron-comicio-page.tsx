@@ -58,6 +58,7 @@ import {
 } from '@/components/ui/table'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
+import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
 import { eliminarPadron, obtenerReporteNovedades } from '../api/padron-api'
 import {
   PADRON_PAGE_SIZES,
@@ -92,6 +93,15 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
     queryClient.invalidateQueries({ queryKey: ['eleccion', idEleccion] })
     queryClient.invalidateQueries({ queryKey: ['elecciones'] })
   }
+
+  // Escuchar eventos WebSocket para actualizar en tiempo real
+  useEleccionWebSocket({
+    onMerklePublicado: (data) => {
+      if (data.idEleccion === idEleccion) {
+        invalidarPadron()
+      }
+    },
+  })
 
   const descargarReporteMutation = useMutation({
     mutationFn: () => obtenerReporteNovedades(idEleccion),
@@ -319,6 +329,11 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
                   )}
                   Publicar Raíz on-chain
                 </Button>
+              )}
+              {merkleQuery.data?.estado === 'PUBLICADO_ON_CHAIN' && (
+                <Badge variant='default' className='self-start'>
+                  ✓ Publicado on-chain
+                </Badge>
               )}
             </CardHeader>
             <CardContent className='grid gap-4'>

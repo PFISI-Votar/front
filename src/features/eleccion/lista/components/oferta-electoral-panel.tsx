@@ -46,6 +46,7 @@ import {
   obtenerEleccion,
   abrirEleccion,
 } from '@/features/eleccion/api/eleccion-api'
+import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
 import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import { CandidatoFormDialog } from '@/features/eleccion/candidato/components/candidato-form-dialog'
 import { ConfiguracionDatosCandidatoPanel } from '@/features/eleccion/candidato/components/configuracion-datos-candidato-panel'
@@ -122,6 +123,16 @@ export const OfertaElectoralPanel = ({
     await queryClient.invalidateQueries({ queryKey: ['listas', idEleccion] })
     await queryClient.invalidateQueries({ queryKey: ['eleccion', idEleccion] })
   }
+
+  // Escuchar eventos WebSocket para actualizar en tiempo real
+  useEleccionWebSocket({
+    onEleccionAbierta: (data) => {
+      if (data.idEleccion === idEleccion) {
+        invalidateOferta()
+        queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+      }
+    },
+  })
 
   const handleApiError = (error: unknown) => {
     if (isConflictError(error)) {
