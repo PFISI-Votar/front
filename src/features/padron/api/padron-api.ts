@@ -39,7 +39,10 @@ export interface ListarVotantesResponse {
 }
 
 export type MerkleTreeEstado =
-  'GENERADO' | 'ACTIVO' | 'PUBLICADO_ON_CHAIN' | 'OBSOLETO'
+  | 'GENERADO'
+  | 'ACTIVO'
+  | 'PUBLICADO_ON_CHAIN'
+  | 'OBSOLETO'
 
 export interface MerkleResumen {
   merkleRoot: string

@@ -46,13 +46,13 @@ import {
   obtenerEleccion,
   abrirEleccion,
 } from '@/features/eleccion/api/eleccion-api'
-import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
 import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import { CandidatoFormDialog } from '@/features/eleccion/candidato/components/candidato-form-dialog'
 import { ConfiguracionDatosCandidatoPanel } from '@/features/eleccion/candidato/components/configuracion-datos-candidato-panel'
 import type { Candidato } from '@/features/eleccion/candidato/data/schema'
 import { buildResumenDatosAdicionales } from '@/features/eleccion/candidato/utils/format-datos-adicionales'
 import { CategoriasPanel } from '@/features/eleccion/categoria/components/categorias-panel'
+import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
 import {
   actualizarLista,
   crearLista,
@@ -85,7 +85,9 @@ export const OfertaElectoralPanel = ({
   const [oficializacionBlockMessage, setOficializacionBlockMessage] = useState<
     string | null
   >(null)
-  const [preconditionError, setPreconditionError] = useState<string | null>(null)
+  const [preconditionError, setPreconditionError] = useState<string | null>(
+    null
+  )
   const [listaDialogOpen, setListaDialogOpen] = useState(false)
   const [editingLista, setEditingLista] = useState<Lista | null>(null)
   const [candidatoDialog, setCandidatoDialog] =

@@ -8,7 +8,11 @@ import {
 } from '@/features/eleccion/lista/data/schema'
 
 export type EleccionEstado =
-  'BORRADOR' | 'CONFIGURADA' | 'ABIERTA' | 'CERRADA' | 'ESCRUTADA'
+  | 'BORRADOR'
+  | 'CONFIGURADA'
+  | 'ABIERTA'
+  | 'CERRADA'
+  | 'ESCRUTADA'
 
 export type RolCandidato = {
   idCategoria: number

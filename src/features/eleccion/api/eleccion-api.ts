@@ -39,7 +39,7 @@ export const obtenerEleccion = async (
 }
 
 export const abrirEleccion = async (idEleccion: number): Promise<Eleccion> => {
-  const { data} = await apiClient.post<Eleccion>(
+  const { data } = await apiClient.post<Eleccion>(
     `/elecciones/${idEleccion}/abrir`
   )
   return data
