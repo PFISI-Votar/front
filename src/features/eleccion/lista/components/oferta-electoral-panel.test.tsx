@@ -2,11 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
-import * as eleccionApi from '@/features/eleccion/api/eleccion-api'
-import * as configuracionApi from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import type { ConfiguracionDatosCandidatoResponse } from '@/features/eleccion/candidato/data/schema'
 import type { Eleccion } from '@/features/eleccion/data/schema'
-import * as listaApi from '@/features/eleccion/lista/api/lista-api'
 import { OfertaElectoralPanel } from './oferta-electoral-panel'
 
 vi.mock('@tanstack/react-router', () => ({
@@ -15,6 +12,34 @@ vi.mock('@tanstack/react-router', () => ({
   ),
   useNavigate: () => vi.fn(),
 }))
+
+vi.mock('@/features/eleccion/api/eleccion-api', () => ({
+  obtenerEleccion: vi.fn(),
+  abrirEleccion: vi.fn(),
+}))
+
+vi.mock('@/features/eleccion/lista/api/lista-api', () => ({
+  listarListas: vi.fn(),
+  crearLista: vi.fn(),
+  actualizarLista: vi.fn(),
+  eliminarLista: vi.fn(),
+  subirLogoLista: vi.fn(),
+  eliminarLogoLista: vi.fn(),
+  oficializarEleccion: vi.fn(),
+  obtenerMapeoListas: vi.fn(),
+}))
+
+vi.mock('@/features/eleccion/candidato/api/configuracion-datos-candidato-api', () => ({
+  obtenerConfiguracionDatosCandidato: vi.fn(),
+  guardarConfiguracionDatosCandidato: vi.fn(),
+}))
+
+import {
+  obtenerEleccion,
+  abrirEleccion,
+} from '@/features/eleccion/api/eleccion-api'
+import { listarListas } from '@/features/eleccion/lista/api/lista-api'
+import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 
 const mockEleccionConfigurada: Eleccion = {
   idEleccion: 1,
@@ -38,14 +63,9 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     vi.clearAllMocks()
 
     // Mocks por defecto
-    vi.spyOn(eleccionApi, 'obtenerEleccion').mockResolvedValue(
-      mockEleccionConfigurada
-    )
-    vi.spyOn(listaApi, 'listarListas').mockResolvedValue([])
-    vi.spyOn(
-      configuracionApi,
-      'obtenerConfiguracionDatosCandidato'
-    ).mockResolvedValue({
+    vi.mocked(obtenerEleccion).mockResolvedValue(mockEleccionConfigurada)
+    vi.mocked(listarListas).mockResolvedValue([])
+    vi.mocked(obtenerConfiguracionDatosCandidato).mockResolvedValue({
       idEleccion: 1,
       campos: [],
       editable: false,
@@ -70,7 +90,7 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
   })
 
   it('no muestra botón "Abrir comicio" cuando estado es BORRADOR', async () => {
-    vi.spyOn(eleccionApi, 'obtenerEleccion').mockResolvedValue({
+    vi.mocked(obtenerEleccion).mockResolvedValue({
       ...mockEleccionConfigurada,
       estado: 'BORRADOR',
     })
@@ -94,7 +114,7 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
   })
 
   it('muestra alerta crítica UAT-02 cuando hay error 412', async () => {
-    vi.spyOn(eleccionApi, 'abrirEleccion').mockRejectedValue({
+    vi.mocked(abrirEleccion).mockRejectedValue({
       response: {
         status: 412,
         data: {
@@ -127,7 +147,7 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
   })
 
   it('limpia error 412 al confirmar nuevamente tras fallo', async () => {
-    vi.spyOn(eleccionApi, 'abrirEleccion')
+    vi.mocked(abrirEleccion)
       .mockRejectedValueOnce({
         response: {
           status: 412,
@@ -167,12 +187,10 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
   })
 
   it('actualiza estado tras apertura exitosa', async () => {
-    const abrirEleccionSpy = vi
-      .spyOn(eleccionApi, 'abrirEleccion')
-      .mockResolvedValue({
-        ...mockEleccionConfigurada,
-        estado: 'ABIERTA',
-      })
+    vi.mocked(abrirEleccion).mockResolvedValue({
+      ...mockEleccionConfigurada,
+      estado: 'ABIERTA',
+    })
 
     await renderPanel()
 
@@ -187,7 +205,7 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     await userEvent.click(confirmButton)
 
     // Verificar que se llamó a la API
-    expect(abrirEleccionSpy).toHaveBeenCalledWith(1)
+    expect(abrirEleccion).toHaveBeenCalledWith(1)
   })
 
   it('muestra texto de precondiciones en diálogo de confirmación', async () => {

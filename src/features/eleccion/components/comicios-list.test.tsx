@@ -2,7 +2,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
-import * as eleccionApi from '@/features/eleccion/api/eleccion-api'
 import type { Eleccion } from '@/features/eleccion/data/schema'
 import { ComiciosList } from './comicios-list'
 
@@ -12,6 +11,16 @@ vi.mock('@tanstack/react-router', () => ({
   ),
   useNavigate: () => vi.fn(),
 }))
+
+vi.mock('@/features/eleccion/api/eleccion-api', () => ({
+  listarElecciones: vi.fn(),
+  abrirEleccion: vi.fn(),
+}))
+
+import {
+  listarElecciones,
+  abrirEleccion,
+} from '@/features/eleccion/api/eleccion-api'
 
 const mockElecciones: Eleccion[] = [
   {
@@ -54,7 +63,7 @@ describe('ComiciosList', () => {
   }
 
   it('muestra lista de comicios correctamente', async () => {
-    vi.spyOn(eleccionApi, 'listarElecciones').mockResolvedValue(mockElecciones)
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
 
     await renderComiciosList()
 
@@ -67,7 +76,7 @@ describe('ComiciosList', () => {
   })
 
   it('muestra botón "Abrir comicio" solo para elecciones en estado CONFIGURADA', async () => {
-    vi.spyOn(eleccionApi, 'listarElecciones').mockResolvedValue(mockElecciones)
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
 
     await renderComiciosList()
 
@@ -82,7 +91,7 @@ describe('ComiciosList', () => {
   })
 
   it('abre diálogo de confirmación al hacer clic en "Abrir comicio"', async () => {
-    vi.spyOn(eleccionApi, 'listarElecciones').mockResolvedValue(mockElecciones)
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
 
     await renderComiciosList()
 
@@ -104,13 +113,13 @@ describe('ComiciosList', () => {
   })
 
   it('muestra alerta crítica cuando hay error 412 (Precondition Failed)', async () => {
-    vi.spyOn(eleccionApi, 'listarElecciones').mockResolvedValue(mockElecciones)
-    vi.spyOn(eleccionApi, 'abrirEleccion').mockRejectedValue({
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+    vi.mocked(abrirEleccion).mockRejectedValue({
       response: {
         status: 412,
         data: {
           message:
-            'Fallo de Precondición: Raíz de Merkle no detectada en la red descentralizada',
+            'Estado actual del árbol: CONSOLIDADO',
         },
       },
     })
@@ -127,19 +136,31 @@ describe('ComiciosList', () => {
     const confirmButton = page.getByRole('button', { name: 'Abrir comicio' })
     await userEvent.click(confirmButton)
 
-    // Verificar que se muestra la alerta crítica
+    // Esperar a que termine la mutación (el diálogo permanece abierto)
+    await expect
+      .poll(() => page.getByRole('button', { name: 'Abrir comicio' }).query())
+      .not.toBeNull()
+
+    // Cerrar el diálogo manualmente
+    const cancelButton = page.getByRole('button', { name: 'Cancelar' })
+    await userEvent.click(cancelButton)
+
+    // Verificar que se muestra la alerta crítica con el título
     await expect
       .element(
-        page.getByText(
-          'Fallo de Precondición: Raíz de Merkle no detectada en la red descentralizada'
-        )
+        page.getByText(/Fallo de Precondición.*Raíz de Merkle/)
       )
+      .toBeInTheDocument()
+
+    // Verificar que se muestra el mensaje del backend
+    await expect
+      .element(page.getByText(/Estado actual del árbol.*CONSOLIDADO/))
       .toBeInTheDocument()
   })
 
   it('cierra diálogo tras apertura exitosa', async () => {
-    vi.spyOn(eleccionApi, 'listarElecciones').mockResolvedValue(mockElecciones)
-    vi.spyOn(eleccionApi, 'abrirEleccion').mockResolvedValue({
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+    vi.mocked(abrirEleccion).mockResolvedValue({
       ...mockElecciones[0],
       estado: 'ABIERTA',
     })
@@ -157,12 +178,12 @@ describe('ComiciosList', () => {
     await userEvent.click(confirmButton)
 
     // Verificar que se llamó a la API
-    expect(eleccionApi.abrirEleccion).toHaveBeenCalledWith(1)
+    expect(abrirEleccion).toHaveBeenCalledWith(1)
   })
 
   it('limpia error previo al abrir diálogo nuevamente', async () => {
-    vi.spyOn(eleccionApi, 'listarElecciones').mockResolvedValue(mockElecciones)
-    vi.spyOn(eleccionApi, 'abrirEleccion').mockRejectedValueOnce({
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+    vi.mocked(abrirEleccion).mockRejectedValueOnce({
       response: {
         status: 412,
         data: {
