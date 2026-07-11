@@ -11,6 +11,7 @@ import {
   Link2,
   ListChecks,
   Loader2,
+  Lock,
   Trash2,
   Upload,
 } from 'lucide-react'
@@ -18,6 +19,7 @@ import { toast } from 'sonner'
 import { getApiErrorMessage } from '@/lib/api-client'
 import { formatDateTimeForDisplay } from '@/lib/datetime'
 import { cn } from '@/lib/utils'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -206,6 +208,21 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
           </Button>
         )}
       </div>
+
+      {eleccionQuery.data?.estado === 'ABIERTA' && (
+        <Alert className='border-amber-500/50 bg-amber-500/10'>
+          <Lock className='size-4 text-amber-600 dark:text-amber-500' />
+          <AlertTitle className='text-amber-900 dark:text-amber-200'>
+            Padrón Sellado Criptográficamente
+          </AlertTitle>
+          <AlertDescription className='text-amber-800 dark:text-amber-300'>
+            El padrón electoral se encuentra sellado y no admite alteraciones
+            mientras el comicio esté abierto. Esta medida garantiza la
+            integridad del proceso electoral según lo establecido en la Ley
+            25.326.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {resumenQuery.isLoading && (
         <Card>
