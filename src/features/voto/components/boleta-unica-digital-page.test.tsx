@@ -139,6 +139,7 @@ describe('BoletaUnicaDigitalPage', () => {
     mocks.solicitarMerkleProof.mockResolvedValue({
       merkleProof: ['0x' + '1'.repeat(64)],
       root: '0x' + 'a'.repeat(64),
+      hashHoja: 'b'.repeat(64),
     })
   })
 

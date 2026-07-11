@@ -9,13 +9,16 @@ import {
   CheckCircle2,
   Circle,
   Clock3,
+  ExternalLink,
   Fingerprint,
   Loader2,
   LogOut,
   PenLine,
+  RefreshCw,
   ShieldCheck,
   UserRoundCheck,
 } from 'lucide-react'
+import type { Hex } from 'viem'
 import budFingerprint from '@/assets/bud-fingerprint.png'
 import { resolveMediaUrl } from '@/lib/media-url'
 import { cn } from '@/lib/utils'
@@ -37,11 +40,20 @@ import {
   type TipoVotacion,
 } from '@/features/eleccion/lista/data/schema'
 import type { SignedVotePayload } from '@/features/voto/crypto'
+import { getExplorerTxUrl } from '@/features/voto/crypto/constants'
 import {
   calcularNullifier,
   CredencialNulificadorInvalidaError,
 } from '@/features/voto/crypto/nullifier'
 import { useEphemeralWallet } from '@/features/voto/crypto/use-ephemeral-wallet'
+import {
+  transmitSignedVote,
+  type TransmitProgressPhase,
+} from '@/features/voto/crypto/vote-transmitter'
+import {
+  mapVoteTxError,
+  type VoteTxError,
+} from '@/features/voto/crypto/vote-tx-errors'
 import type {
   BoletaDigital,
   CandidatoBoletaDigital,
@@ -52,7 +64,15 @@ import { buildWizardSelectionPayload } from '@/features/voto/utils/wizard-select
 
 type VotingVariant = 'lista-completa' | 'candidatos' | 'mixto'
 type SpecialVote = 'blank' | 'null' | null
-type WizardStep = 'identity' | 'registered' | 'selection' | 'review' | 'success'
+type WizardStep =
+  | 'identity'
+  | 'registered'
+  | 'selection'
+  | 'review'
+  | 'transmitting'
+  | 'success'
+
+type TransmitUiPhase = TransmitProgressPhase | 'error'
 
 type Candidate = {
   id: string
@@ -256,11 +276,15 @@ export const BudVotingWizard = ({
   const [signingError, setSigningError] = useState<string | null>(null)
   const [isSigning, setIsSigning] = useState(false)
   const [signedVote, setSignedVote] = useState<SignedVotePayload | null>(null)
+  const [transmitPhase, setTransmitPhase] = useState<TransmitUiPhase | null>(
+    null
+  )
+  const [txHash, setTxHash] = useState<Hex | null>(null)
+  const [txError, setTxError] = useState<VoteTxError | null>(null)
   const merkleProofMutation = useSolicitarMerkleProof(boleta.idEleccion)
   const {
-    publicKeyHex,
-    initialize: initializeEphemeralWallet,
     signVotePayload,
+    initialize: initializeEphemeralWallet,
     destroy: destroyEphemeralWallet,
   } = useEphemeralWallet()
 
@@ -309,6 +333,9 @@ export const BudVotingWizard = ({
     setCandidateSelections({})
     setSignedVote(null)
     setSigningError(null)
+    setTransmitPhase(null)
+    setTxHash(null)
+    setTxError(null)
   }
 
   const handleModifyVote = async () => {
@@ -333,6 +360,51 @@ export const BudVotingWizard = ({
       setCandidateSelections(
         listId ? getCandidateSelectionsForList(listId, roles, candidates) : {}
       )
+    }
+  }
+
+  const transmitVote = async (signed: SignedVotePayload) => {
+    if (!merkleProofData?.hashHoja) {
+      const missingProofError = mapVoteTxError(
+        new Error('Merkle proof or hashHoja is missing')
+      )
+      setTxError({
+        ...missingProofError,
+        message:
+          'Falta la prueba de padrón. Volvé a confirmar tu identidad e intentá de nuevo.',
+        canRetrySend: false,
+        canResign: true,
+      })
+      setTransmitPhase('error')
+      setStep('transmitting')
+      return
+    }
+
+    setTxError(null)
+    setTxHash(null)
+    setStep('transmitting')
+    setTransmitPhase('estimating')
+
+    try {
+      const result = await transmitSignedVote(
+        {
+          signed,
+          voterLeaf: merkleProofData.hashHoja as Hex,
+          merkleProof: merkleProofData.merkleProof as Hex[],
+        },
+        {
+          onProgress: (phase) => {
+            setTransmitPhase(phase)
+          },
+        }
+      )
+      setTxHash(result.txHash)
+      setTransmitPhase(null)
+      setStep('success')
+    } catch (error) {
+      const mapped = mapVoteTxError(error)
+      setTxError(mapped)
+      setTransmitPhase('error')
     }
   }
 
@@ -368,31 +440,28 @@ export const BudVotingWizard = ({
   const handleSignVote = async () => {
     setSigningError(null)
 
-    if (!publicKeyHex) {
-      setSigningError(
-        'No se pudo verificar tu identidad criptográfica efímera. Reintentá iniciar sesión.'
-      )
-      return
-    }
-
-    let nullifier: `0x${string}`
-    try {
-      // Calculado just-in-time en esta closure: no se expone en props ni en el DOM
-      // (VOTAR-353 UAT-04). Solo viaja al payload firmado en memoria.
-      nullifier = calcularNullifier(publicKeyHex, boleta.idEleccion)
-    } catch (error) {
-      if (error instanceof CredencialNulificadorInvalidaError) {
-        setSigningError(
-          'No se pudo calcular tu identificador anónimo de votación. Reintentá.'
-        )
-        return
-      }
-      throw error
-    }
-
     setIsSigning(true)
 
     try {
+      // After a successful sign the ephemeral key is zeroized (VOTAR-357).
+      // Re-initialize so retries / second attempts always have signing material.
+      const session = await initializeEphemeralWallet(boleta.idEleccion)
+      const signingPublicKey = session.publicKeyHex
+
+      let nullifier: `0x${string}`
+      try {
+        nullifier = calcularNullifier(signingPublicKey, boleta.idEleccion)
+      } catch (error) {
+        if (error instanceof CredencialNulificadorInvalidaError) {
+          setSigningError(
+            'No se pudo calcular tu identificador anónimo de votación. Reintentá.'
+          )
+          setIsSigning(false)
+          return
+        }
+        throw error
+      }
+
       const selection = buildWizardSelectionPayload({
         specialVote,
         candidateSelections,
@@ -402,13 +471,37 @@ export const BudVotingWizard = ({
       })
       const signed = await signVotePayload(selection, nullifier)
       setSignedVote(signed)
-      setStep('success')
+      setIsSigning(false)
+      await transmitVote(signed)
     } catch {
       setSigningError(
         'No pudimos firmar tu voto de forma local. Reintentá en unos segundos.'
       )
-    } finally {
       setIsSigning(false)
+    }
+  }
+
+  const handleRetryTransmit = async () => {
+    if (!signedVote) {
+      return
+    }
+    await transmitVote(signedVote)
+  }
+
+  const handleResignVote = async () => {
+    setTxError(null)
+    setTransmitPhase(null)
+    setTxHash(null)
+    setSignedVote(null)
+    setSigningError(null)
+    try {
+      await initializeEphemeralWallet(boleta.idEleccion)
+      setStep('review')
+    } catch {
+      setSigningError(
+        'No pudimos renovar tu identidad criptográfica. Reintentá iniciar sesión.'
+      )
+      setStep('review')
     }
   }
 
@@ -491,9 +584,31 @@ export const BudVotingWizard = ({
             }}
           />
         )}
+        {step === 'transmitting' && (
+          <TransmitStep
+            phase={transmitPhase}
+            txError={txError}
+            specialVote={specialVote}
+            selectedList={selectedList}
+            selectedCandidates={selectedCandidates}
+            onRetrySend={() => {
+              void handleRetryTransmit()
+            }}
+            onResign={() => {
+              void handleResignVote()
+            }}
+            onBackToSelection={() => {
+              setTransmitPhase(null)
+              setTxError(null)
+              setSignedVote(null)
+              goToSelection()
+            }}
+          />
+        )}
         {step === 'success' && (
           <SuccessStep
             signedVote={signedVote}
+            txHash={txHash}
             hasMerkleProof={Boolean(merkleProofData)}
             signingError={signingError}
             onLogout={handleLogout}
@@ -560,9 +675,13 @@ const WizardStepper = ({ currentStep }: { currentStep: WizardStep }) => {
     ['review', 'Confirmación'],
     ['success', 'Éxito'],
   ] as const
-  const activeIndex = steps.findIndex(([step]) =>
-    currentStep === 'registered' ? step === 'identity' : step === currentStep
-  )
+  const normalizedStep =
+    currentStep === 'registered'
+      ? 'identity'
+      : currentStep === 'transmitting'
+        ? 'review'
+        : currentStep
+  const activeIndex = steps.findIndex(([step]) => step === normalizedStep)
   const currentStepInfo = steps[Math.max(activeIndex, 0)]
 
   return (
@@ -1045,78 +1164,228 @@ const ReviewStep = ({
 
 const SuccessStep = ({
   signedVote,
+  txHash,
   hasMerkleProof,
   signingError,
   onLogout,
   onModify,
 }: {
   signedVote: SignedVotePayload | null
+  txHash: Hex | null
   hasMerkleProof: boolean
   signingError: string | null
   onLogout: () => void
   onModify: () => void
-}) => (
-  <div className='mx-auto grid w-full max-w-2xl gap-5'>
-    <Card className='border-[#d7eadf] bg-white/95 text-center shadow-[0_1.5rem_5rem_rgba(30,64,95,0.07)]'>
-      <CardHeader>
-        <div className='mx-auto grid size-16 place-items-center rounded-full bg-emerald-100 text-emerald-700'>
-          <CheckCircle2 className='size-9' />
-        </div>
-        <CardTitle className='text-2xl'>Voto Exitoso</CardTitle>
-        <CardDescription>Su voto ha sido firmado con éxito.</CardDescription>
-      </CardHeader>
-      <CardContent className='grid gap-4 text-left'>
-        {signedVote && (
-          <div className='rounded-2xl bg-slate-50 p-4'>
-            <p className='mb-2 text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase'>
-              Comprobante criptográfico
-            </p>
-            <p className='text-sm text-slate-700'>
-              Tu boleta quedó protegida con firma digital local. Cualquier
-              alteración posterior invalidará el sufragio.
-            </p>
-            {hasMerkleProof && (
-              <p className='mt-2 text-sm text-slate-600'>
-                Pertenencia al padrón verificada.
-              </p>
-            )}
-            <p className='mt-3 text-sm text-slate-500'>
-              El registro en blockchain se completará al confirmar el envío.
-            </p>
+}) => {
+  const explorerUrl = txHash ? getExplorerTxUrl(txHash) : null
+
+  return (
+    <div className='mx-auto grid w-full max-w-2xl gap-5'>
+      <Card className='border-[#d7eadf] bg-white/95 text-center shadow-[0_1.5rem_5rem_rgba(30,64,95,0.07)]'>
+        <CardHeader>
+          <div className='mx-auto grid size-16 place-items-center rounded-full bg-emerald-100 text-emerald-700'>
+            <CheckCircle2 className='size-9' />
           </div>
-        )}
-        {signingError && (
-          <Alert variant='destructive'>
-            <AlertTriangle className='size-4' />
-            <AlertTitle>No se pudo continuar</AlertTitle>
-            <AlertDescription>{signingError}</AlertDescription>
-          </Alert>
-        )}
-      </CardContent>
-      <CardFooter className='grid gap-3'>
-        <Button
-          variant='outline'
-          size='lg'
-          className='h-12 w-full'
-          onClick={onModify}
-          aria-label='Modificar mi voto'
-        >
-          <PenLine className='size-4' />
-          Modificar mi voto
-        </Button>
-        <Button
-          variant='ghost'
-          size='lg'
-          className='h-12 w-full'
-          onClick={onLogout}
-        >
-          <LogOut className='size-4' />
-          Cerrar sesión
-        </Button>
-      </CardFooter>
-    </Card>
-  </div>
-)
+          <CardTitle className='text-2xl'>Voto Exitoso</CardTitle>
+          <CardDescription>
+            {txHash
+              ? `Voto registrado exitosamente (hash: ${txHash}).`
+              : 'Su voto ha sido firmado con éxito.'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className='grid gap-4 text-left'>
+          {signedVote && (
+            <div className='rounded-2xl bg-slate-50 p-4'>
+              <p className='mb-2 text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase'>
+                Comprobante criptográfico
+              </p>
+              <p className='text-sm text-slate-700'>
+                Tu boleta quedó protegida con firma digital local y registrada
+                de forma inmutable en la blockchain.
+              </p>
+              {hasMerkleProof && (
+                <p className='mt-2 text-sm text-slate-600'>
+                  Pertenencia al padrón verificada.
+                </p>
+              )}
+              {txHash && (
+                <div className='mt-3 rounded-xl bg-white p-3 text-sm break-all text-slate-700'>
+                  <p className='mb-1 text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase'>
+                    Hash de transacción
+                  </p>
+                  <p aria-label={`Hash de transacción ${txHash}`}>{txHash}</p>
+                  {explorerUrl && (
+                    <a
+                      href={explorerUrl}
+                      target='_blank'
+                      rel='noreferrer'
+                      className='mt-2 inline-flex items-center gap-1 text-[#2f6f9f] underline-offset-2 hover:underline'
+                      aria-label='Ver transacción en el explorador de bloques'
+                    >
+                      Ver en explorador
+                      <ExternalLink className='size-3.5' />
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          {signingError && (
+            <Alert variant='destructive'>
+              <AlertTriangle className='size-4' />
+              <AlertTitle>No se pudo continuar</AlertTitle>
+              <AlertDescription>{signingError}</AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+        <CardFooter className='grid gap-3'>
+          <Button
+            variant='outline'
+            size='lg'
+            className='h-12 w-full'
+            onClick={onModify}
+            aria-label='Modificar mi voto'
+          >
+            <PenLine className='size-4' />
+            Modificar mi voto
+          </Button>
+          <Button
+            variant='ghost'
+            size='lg'
+            className='h-12 w-full'
+            onClick={onLogout}
+          >
+            <LogOut className='size-4' />
+            Cerrar sesión
+          </Button>
+        </CardFooter>
+      </Card>
+    </div>
+  )
+}
+
+const TransmitStep = ({
+  phase,
+  txError,
+  specialVote,
+  selectedList,
+  selectedCandidates,
+  onRetrySend,
+  onResign,
+  onBackToSelection,
+}: {
+  phase: TransmitUiPhase | null
+  txError: VoteTxError | null
+  specialVote: SpecialVote
+  selectedList?: PartyList
+  selectedCandidates: Candidate[]
+  onRetrySend: () => void
+  onResign: () => void
+  onBackToSelection: () => void
+}) => {
+  const isBusy = phase !== 'error' && phase !== null
+  const statusLabel =
+    phase === 'estimating' || phase === 'sending'
+      ? 'Enviando...'
+      : phase === 'confirming'
+        ? 'Esperando confirmación de red (minado)...'
+        : phase === 'error'
+          ? 'No se pudo completar el envío'
+          : 'Preparando envío...'
+
+  return (
+    <div className='mx-auto grid w-full max-w-2xl gap-5'>
+      <Card className='border-[#e4e7eb] bg-white/95 shadow-[0_1.5rem_5rem_rgba(30,64,95,0.07)]'>
+        <CardHeader className='text-center'>
+          <div
+            className={cn(
+              'mx-auto grid size-16 place-items-center rounded-full',
+              phase === 'error'
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-sky-100 text-[#2f6f9f]'
+            )}
+          >
+            {phase === 'error' ? (
+              <AlertTriangle className='size-9' />
+            ) : (
+              <Loader2 className='size-9 animate-spin' />
+            )}
+          </div>
+          <CardTitle className='text-2xl'>Registro en blockchain</CardTitle>
+          <CardDescription aria-live='polite'>{statusLabel}</CardDescription>
+        </CardHeader>
+        <CardContent className='grid gap-4'>
+          <div className='rounded-2xl bg-slate-50 p-4 text-sm text-slate-700'>
+            <p className='mb-2 text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase'>
+              Tu selección se conserva
+            </p>
+            {specialVote === 'blank' && <p>Voto en blanco</p>}
+            {specialVote === 'null' && <p>Voto nulo</p>}
+            {!specialVote && selectedList && <p>Lista: {selectedList.name}</p>}
+            {!specialVote && selectedCandidates.length > 0 && (
+              <ul className='mt-2 list-disc space-y-1 pl-5'>
+                {selectedCandidates.map((candidate) => (
+                  <li key={candidate.id}>{candidate.name}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {txError && (
+            <Alert variant='destructive'>
+              <AlertTriangle className='size-4' />
+              <AlertTitle>
+                {txError.code === 'already_registered'
+                  ? 'Voto ya registrado'
+                  : 'Error de transmisión'}
+              </AlertTitle>
+              <AlertDescription>{txError.message}</AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+        <CardFooter className='grid gap-3'>
+          {txError?.canRetrySend && (
+            <Button
+              size='lg'
+              className='h-12 bg-[#2f6f9f] font-semibold hover:bg-[#285f88]'
+              disabled={isBusy}
+              onClick={onRetrySend}
+              aria-label='Reintentar envío del voto'
+            >
+              <RefreshCw className='size-4' />
+              Reintentar envío
+            </Button>
+          )}
+          {txError?.canResign && (
+            <Button
+              variant='outline'
+              size='lg'
+              className='h-12'
+              disabled={isBusy}
+              onClick={onResign}
+              aria-label='Volver a firmar el voto'
+            >
+              <Fingerprint className='size-4' />
+              Re-firmar
+            </Button>
+          )}
+          {phase === 'error' && (
+            <Button
+              variant='ghost'
+              size='lg'
+              className='h-12'
+              disabled={isBusy}
+              onClick={onBackToSelection}
+            >
+              <ArrowLeft className='size-4' />
+              Volver a la selección
+            </Button>
+          )}
+        </CardFooter>
+      </Card>
+    </div>
+  )
+}
 
 const IdentityItem = ({ label, value }: { label: string; value: string }) => (
   <div className='rounded-xl bg-white p-3 shadow-sm'>
@@ -1563,5 +1832,6 @@ const getStepLabel = (step: WizardStep) => {
   if (step === 'identity') return 'Confirmación de identidad'
   if (step === 'selection') return 'Selección de voto'
   if (step === 'review') return 'Confirmación'
+  if (step === 'transmitting') return 'Envío a la red'
   return 'Voto exitoso'
 }
