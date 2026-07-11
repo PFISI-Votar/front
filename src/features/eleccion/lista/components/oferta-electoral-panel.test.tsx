@@ -2,8 +2,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
+import {
+  obtenerEleccion,
+  abrirEleccion,
+} from '@/features/eleccion/api/eleccion-api'
+import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import type { ConfiguracionDatosCandidatoResponse } from '@/features/eleccion/candidato/data/schema'
 import type { Eleccion } from '@/features/eleccion/data/schema'
+import { listarListas } from '@/features/eleccion/lista/api/lista-api'
 import { OfertaElectoralPanel } from './oferta-electoral-panel'
 
 vi.mock('@tanstack/react-router', () => ({
@@ -29,17 +35,13 @@ vi.mock('@/features/eleccion/lista/api/lista-api', () => ({
   obtenerMapeoListas: vi.fn(),
 }))
 
-vi.mock('@/features/eleccion/candidato/api/configuracion-datos-candidato-api', () => ({
-  obtenerConfiguracionDatosCandidato: vi.fn(),
-  guardarConfiguracionDatosCandidato: vi.fn(),
-}))
-
-import {
-  obtenerEleccion,
-  abrirEleccion,
-} from '@/features/eleccion/api/eleccion-api'
-import { listarListas } from '@/features/eleccion/lista/api/lista-api'
-import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
+vi.mock(
+  '@/features/eleccion/candidato/api/configuracion-datos-candidato-api',
+  () => ({
+    obtenerConfiguracionDatosCandidato: vi.fn(),
+    guardarConfiguracionDatosCandidato: vi.fn(),
+  })
+)
 
 const mockEleccionConfigurada: Eleccion = {
   idEleccion: 1,

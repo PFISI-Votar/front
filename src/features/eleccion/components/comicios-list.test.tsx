@@ -2,6 +2,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
+import {
+  listarElecciones,
+  abrirEleccion,
+} from '@/features/eleccion/api/eleccion-api'
 import type { Eleccion } from '@/features/eleccion/data/schema'
 import { ComiciosList } from './comicios-list'
 
@@ -16,11 +20,6 @@ vi.mock('@/features/eleccion/api/eleccion-api', () => ({
   listarElecciones: vi.fn(),
   abrirEleccion: vi.fn(),
 }))
-
-import {
-  listarElecciones,
-  abrirEleccion,
-} from '@/features/eleccion/api/eleccion-api'
 
 const mockElecciones: Eleccion[] = [
   {
@@ -118,8 +117,7 @@ describe('ComiciosList', () => {
       response: {
         status: 412,
         data: {
-          message:
-            'Estado actual del árbol: CONSOLIDADO',
+          message: 'Estado actual del árbol: CONSOLIDADO',
         },
       },
     })
@@ -147,9 +145,7 @@ describe('ComiciosList', () => {
 
     // Verificar que se muestra la alerta crítica con el título
     await expect
-      .element(
-        page.getByText(/Fallo de Precondición.*Raíz de Merkle/)
-      )
+      .element(page.getByText(/Fallo de Precondición.*Raíz de Merkle/))
       .toBeInTheDocument()
 
     // Verificar que se muestra el mensaje del backend
