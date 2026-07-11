@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   obtenerBoletaDigital: vi.fn(),
   obtenerConfiguracionBud: vi.fn(),
   solicitarMerkleProof: vi.fn(),
+  registrarVotoEmitidoAnonimo: vi.fn(),
   ensureVotanteSession: vi.fn(),
   clearVotanteSession: vi.fn(),
   walletIsReady: true,
@@ -18,6 +19,7 @@ vi.mock('@/features/voto/api/voto-api', () => ({
   obtenerBoletaDigital: mocks.obtenerBoletaDigital,
   obtenerConfiguracionBud: mocks.obtenerConfiguracionBud,
   solicitarMerkleProof: mocks.solicitarMerkleProof,
+  registrarVotoEmitidoAnonimo: mocks.registrarVotoEmitidoAnonimo,
 }))
 
 vi.mock('@/features/voto/services/votante-session', () => ({
@@ -97,11 +99,13 @@ describe('BoletaUnicaDigitalPage', () => {
     mocks.obtenerBoletaDigital.mockReset()
     mocks.obtenerConfiguracionBud.mockReset()
     mocks.solicitarMerkleProof.mockReset()
+    mocks.registrarVotoEmitidoAnonimo.mockReset()
     mocks.ensureVotanteSession.mockReset()
     mocks.clearVotanteSession.mockReset()
     mocks.walletIsReady = true
     mocks.ensureVotanteSession.mockResolvedValue(null)
     mocks.clearVotanteSession.mockResolvedValue(undefined)
+    mocks.registrarVotoEmitidoAnonimo.mockResolvedValue(undefined)
     mocks.obtenerConfiguracionBud.mockResolvedValue(budConfig)
     mocks.solicitarMerkleProof.mockResolvedValue({
       merkleProof: ['0x' + '1'.repeat(64)],
