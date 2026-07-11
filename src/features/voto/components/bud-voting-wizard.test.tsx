@@ -11,12 +11,16 @@ import { EphemeralWalletProvider } from '@/features/voto/crypto/ephemeral-wallet
 import { calcularNullifier } from '@/features/voto/crypto/nullifier'
 import type { BoletaDigital } from '@/features/voto/data/schema'
 
+const registrarVotoEmitidoAnonimoMock = vi.fn().mockResolvedValue(undefined)
+
 vi.mock('@/features/voto/api/voto-api', () => ({
   solicitarMerkleProof: vi.fn().mockResolvedValue({
     hashHoja: 'a'.repeat(64),
     merkleProof: ['0x' + '1'.repeat(64)],
     root: '0x' + 'a'.repeat(64),
   }),
+  registrarVotoEmitidoAnonimo: (...args: unknown[]) =>
+    registrarVotoEmitidoAnonimoMock(...args),
 }))
 
 const clearVotanteSessionMock = vi.fn().mockResolvedValue(undefined)
@@ -190,7 +194,9 @@ describe('BudVotingWizard', () => {
     transmitSignedVoteMock.mockClear()
     initializeWalletMock.mockClear()
     clearVotanteSessionMock.mockClear()
+    registrarVotoEmitidoAnonimoMock.mockClear()
     clearVotanteSessionMock.mockResolvedValue(undefined)
+    registrarVotoEmitidoAnonimoMock.mockResolvedValue(undefined)
     initializeWalletMock.mockResolvedValue({
       idEleccion: 7,
       publicKeyHex: WALLET_PUBLIC_KEY,
@@ -328,6 +334,9 @@ describe('BudVotingWizard', () => {
     expect(transmitSignedVoteMock).toHaveBeenCalledOnce()
     expect(document.body.innerHTML).not.toContain(expectedNullifier)
     expect(clearVotanteSessionMock).toHaveBeenCalledOnce()
+    expect(registrarVotoEmitidoAnonimoMock).toHaveBeenCalledWith(
+      boleta.idEleccion
+    )
   })
 
   it('VOTAR-379 UAT-03: tras el recibo limpia sesión SSO y no deja nullifier en storage', async () => {
@@ -350,6 +359,9 @@ describe('BudVotingWizard', () => {
       .element(screen.getByText(/Voto registrado exitosamente/i))
       .toBeInTheDocument()
     expect(clearVotanteSessionMock).toHaveBeenCalledOnce()
+    expect(registrarVotoEmitidoAnonimoMock).toHaveBeenCalledWith(
+      boleta.idEleccion
+    )
     expect(sessionStorage.getItem('nullifier')).toBeNull()
     expect(localStorage.getItem('nullifier')).toBeNull()
     expect(document.cookie).not.toContain('votar_voter_access_token')

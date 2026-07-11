@@ -39,6 +39,7 @@ import {
   TIPOS_VOTACION,
   type TipoVotacion,
 } from '@/features/eleccion/lista/data/schema'
+import { registrarVotoEmitidoAnonimo } from '@/features/voto/api/voto-api'
 import type { SignedVotePayload } from '@/features/voto/crypto'
 import { getExplorerTxUrl } from '@/features/voto/crypto/constants'
 import {
@@ -404,6 +405,10 @@ export const BudVotingWizard = ({
       )
       setTxHash(result.txHash)
       setTransmitPhase(null)
+      // VOTAR-379 UAT-05: anonymous audit before clearing SSO (no cookies on call).
+      void registrarVotoEmitidoAnonimo(boleta.idEleccion).catch(() => {
+        // Recibo on-chain ya confirmado; el audit no debe bloquear la UX.
+      })
       // VOTAR-379 UAT-03: drop identity-linked crypto material after receipt.
       setSignedVote(null)
       setMerkleProofData(null)

@@ -31,3 +31,24 @@ export const solicitarMerkleProof = async (
   )
   return data
 }
+
+/**
+ * VOTAR-379 UAT-05: fire-and-forget anonymous vote audit.
+ * Uses credentials:omit so SSO cookies are not sent with the cast notification.
+ */
+export const registrarVotoEmitidoAnonimo = async (
+  idEleccion: number
+): Promise<void> => {
+  const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+  const response = await fetch(
+    `${baseUrl}/elecciones/${idEleccion}/votos/emitido-anonimo`,
+    {
+      method: 'POST',
+      credentials: 'omit',
+      headers: { Accept: 'application/json' },
+    }
+  )
+  if (!response.ok) {
+    throw new Error(`Anonymous vote audit failed (${response.status})`)
+  }
+}
