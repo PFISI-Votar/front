@@ -18,6 +18,25 @@ describe('reconstruirCsv', () => {
     )
   })
 
+  it('descarta columnas adicionales: sólo envía dni+email al backend', () => {
+    const conPii: RegistroPreview[] = [
+      {
+        id: '1',
+        linea: 2,
+        dni: '12345678',
+        email: 'a@a.com',
+        adicionales: {
+          nombre: 'Ana',
+          apellido: 'Pérez',
+          direccion: 'Calle 1',
+        },
+      },
+    ]
+    const csv = reconstruirCsv(conPii)
+    expect(csv).toBe('dni,email\n12345678,a@a.com\n')
+    expect(csv).not.toMatch(/Ana|Pérez|Calle/)
+  })
+
   it('round-trip: parse -> reconstruct -> parse conserva dni/email', () => {
     const reparsado = parseCsvPadron(reconstruirCsv(registros))
     expect(reparsado.map((r) => [r.dni, r.email])).toEqual([

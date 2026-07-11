@@ -36,19 +36,60 @@ export class CsvColumnasError extends Error {
   }
 }
 
+/**
+ * Parsea una línea CSV RFC-4180 (comillas, comas dentro de campos, "" escapado).
+ * No soporta campos multilínea.
+ */
+export function parseCsvLinea(linea: string): string[] {
+  const celdas: string[] = []
+  let actual = ''
+  let enComillas = false
+  for (let i = 0; i < linea.length; i++) {
+    const char = linea[i]
+    if (enComillas) {
+      if (char === '"') {
+        if (linea[i + 1] === '"') {
+          actual += '"'
+          i++
+        } else {
+          enComillas = false
+        }
+      } else {
+        actual += char
+      }
+      continue
+    }
+    if (char === '"') {
+      enComillas = true
+      continue
+    }
+    if (char === ',') {
+      celdas.push(actual)
+      actual = ''
+      continue
+    }
+    actual += char
+  }
+  celdas.push(actual)
+  return celdas
+}
+
 export function parseCsvPadron(
   texto: string,
   camposEsperados: ClaveCampoPadron[] = ['dni', 'email']
 ): RegistroPreview[] {
-  const lineas = texto.split('\n').map((l) => l.replace(/\r$/, ''))
-  const cabecera = (lineas[0] ?? '')
-    .split(',')
-    .map((c) => c.trim().toLowerCase())
+  const lineas = texto
+    .replace(/^\uFEFF/, '')
+    .split('\n')
+    .map((l) => l.replace(/\r$/, ''))
+  const cabecera = parseCsvLinea(lineas[0] ?? '').map((c) =>
+    c.trim().toLowerCase()
+  )
   return parseFilasDesdeCabecera(
     cabecera,
     lineas.slice(1).map((linea, idx) => ({
       linea: idx + 2,
-      celdas: linea.trim() === '' ? null : linea.split(','),
+      celdas: linea.trim() === '' ? null : parseCsvLinea(linea),
     })),
     camposEsperados
   )

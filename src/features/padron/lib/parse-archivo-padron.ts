@@ -25,6 +25,7 @@ export function esExcel(file: File): boolean {
 /**
  * Lee CSV o Excel y valida que contenga las columnas seleccionadas.
  * Columnas extra en el archivo se ignoran.
+ * En Excel sólo se procesa la primera hoja del libro.
  */
 export async function parseArchivoPadron(
   file: File,
@@ -51,6 +52,7 @@ async function parseExcelPadron(
     )
   }
 
+  // Sólo la primera hoja del libro.
   const nombreHoja = workbook.SheetNames[0]
   if (!nombreHoja) {
     throw new CsvColumnasError(['dni', 'email'])

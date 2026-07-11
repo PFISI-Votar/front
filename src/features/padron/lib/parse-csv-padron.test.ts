@@ -85,4 +85,27 @@ describe('parseCsvPadron', () => {
       ])
     ).toThrow(/nombre/)
   })
+
+  it('parsea campos entrecomillados con comas internas', () => {
+    const r = parseCsvPadron(
+      'dni,nombre,email,direccion\n12345678,"Pérez, Ana",a@a.com,"San Martín 123, 4B"\n',
+      ['dni', 'email', 'nombre', 'direccion']
+    )
+    expect(r[0]).toMatchObject({
+      dni: '12345678',
+      email: 'a@a.com',
+      adicionales: {
+        nombre: 'Pérez, Ana',
+        direccion: 'San Martín 123, 4B',
+      },
+    })
+  })
+
+  it('soporta comillas escapadas "" dentro del campo', () => {
+    const r = parseCsvPadron(
+      'dni,email,direccion\n12345678,a@a.com,"Calle ""Principal"" 1"\n',
+      ['dni', 'email', 'direccion']
+    )
+    expect(r[0].adicionales.direccion).toBe('Calle "Principal" 1')
+  })
 })
