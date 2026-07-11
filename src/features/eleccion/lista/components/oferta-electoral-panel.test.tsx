@@ -1,13 +1,17 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  RouterProvider,
+  createMemoryHistory,
+  createRouter,
+} from '@tanstack/react-router'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { render, waitFor } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { RouterProvider, createMemoryHistory, createRouter } from '@tanstack/react-router'
-import { OfertaElectoralPanel } from './oferta-electoral-panel'
 import * as eleccionApi from '@/features/eleccion/api/eleccion-api'
-import * as listaApi from '@/features/eleccion/lista/api/lista-api'
 import * as configuracionApi from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import type { Eleccion } from '@/features/eleccion/data/schema'
+import * as listaApi from '@/features/eleccion/lista/api/lista-api'
+import { OfertaElectoralPanel } from './oferta-electoral-panel'
 
 const routeTree = {
   id: '__root__',
@@ -43,9 +47,14 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     vi.clearAllMocks()
 
     // Mocks por defecto
-    vi.spyOn(eleccionApi, 'obtenerEleccion').mockResolvedValue(mockEleccionConfigurada)
+    vi.spyOn(eleccionApi, 'obtenerEleccion').mockResolvedValue(
+      mockEleccionConfigurada
+    )
     vi.spyOn(listaApi, 'listarListas').mockResolvedValue([])
-    vi.spyOn(configuracionApi, 'obtenerConfiguracionDatosCandidato').mockResolvedValue({
+    vi.spyOn(
+      configuracionApi,
+      'obtenerConfiguracionDatosCandidato'
+    ).mockResolvedValue({
       idConfiguracion: 1,
       campos: [],
     })

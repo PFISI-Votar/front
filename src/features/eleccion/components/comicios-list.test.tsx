@@ -1,11 +1,15 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  RouterProvider,
+  createMemoryHistory,
+  createRouter,
+} from '@tanstack/react-router'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { render, waitFor } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { RouterProvider, createMemoryHistory, createRouter } from '@tanstack/react-router'
-import { ComiciosList } from './comicios-list'
 import * as eleccionApi from '@/features/eleccion/api/eleccion-api'
 import type { Eleccion } from '@/features/eleccion/data/schema'
+import { ComiciosList } from './comicios-list'
 
 // Mock del router
 const routeTree = {
@@ -68,8 +72,12 @@ describe('ComiciosList', () => {
     const { getByText } = await renderWithProviders(<ComiciosList />)
 
     await waitFor(async () => {
-      await expect.element(getByText('Elección Municipal 2025')).toBeInTheDocument()
-      await expect.element(getByText('Elección Provincial 2025')).toBeInTheDocument()
+      await expect
+        .element(getByText('Elección Municipal 2025'))
+        .toBeInTheDocument()
+      await expect
+        .element(getByText('Elección Provincial 2025'))
+        .toBeInTheDocument()
     })
   })
 
@@ -101,7 +109,9 @@ describe('ComiciosList', () => {
       .toBeInTheDocument()
     await expect
       .element(
-        getByText(/¿Está seguro de que desea abrir el comicio "Elección Municipal 2025"?/)
+        getByText(
+          /¿Está seguro de que desea abrir el comicio "Elección Municipal 2025"?/
+        )
       )
       .toBeInTheDocument()
   })
@@ -155,7 +165,9 @@ describe('ComiciosList', () => {
       modo: 'MANUAL',
     })
 
-    const { getByRole, queryByRole } = await renderWithProviders(<ComiciosList />)
+    const { getByRole, queryByRole } = await renderWithProviders(
+      <ComiciosList />
+    )
 
     // Abrir diálogo
     await waitFor(async () => {
@@ -190,7 +202,9 @@ describe('ComiciosList', () => {
       },
     })
 
-    const { getByRole, queryByText } = await renderWithProviders(<ComiciosList />)
+    const { getByRole, queryByText } = await renderWithProviders(
+      <ComiciosList />
+    )
 
     // Primera apertura con error
     await waitFor(async () => {

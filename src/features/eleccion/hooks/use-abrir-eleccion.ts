@@ -1,9 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import {
-  getApiErrorMessage,
-  isPreconditionFailedError,
-} from '@/lib/api-client'
+import { getApiErrorMessage, isPreconditionFailedError } from '@/lib/api-client'
 import { abrirEleccion } from '../api/eleccion-api'
 
 export const useAbrirEleccion = (
