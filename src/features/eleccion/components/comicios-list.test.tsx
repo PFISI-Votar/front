@@ -7,7 +7,9 @@ import type { Eleccion } from '@/features/eleccion/data/schema'
 import { ComiciosList } from './comicios-list'
 
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
+  Link: ({ children, ...props }: React.PropsWithChildren<unknown>) => (
+    <a {...props}>{children}</a>
+  ),
   useNavigate: () => vi.fn(),
 }))
 
@@ -136,10 +138,9 @@ describe('ComiciosList', () => {
   it('cierra diálogo tras apertura exitosa', async () => {
     vi.spyOn(eleccionApi, 'listarElecciones').mockResolvedValue(mockElecciones)
     vi.spyOn(eleccionApi, 'abrirEleccion').mockResolvedValue({
-      idEleccion: 1,
+      ...mockElecciones[0],
       estado: 'ABIERTA',
-      modo: 'MANUAL',
-    } as any)
+    })
 
     await renderComiciosList()
 

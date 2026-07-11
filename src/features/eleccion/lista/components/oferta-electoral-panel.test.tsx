@@ -4,12 +4,15 @@ import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
 import * as eleccionApi from '@/features/eleccion/api/eleccion-api'
 import * as configuracionApi from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
+import type { ConfiguracionDatosCandidatoResponse } from '@/features/eleccion/candidato/data/schema'
 import type { Eleccion } from '@/features/eleccion/data/schema'
 import * as listaApi from '@/features/eleccion/lista/api/lista-api'
 import { OfertaElectoralPanel } from './oferta-electoral-panel'
 
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
+  Link: ({ children, ...props }: React.PropsWithChildren<unknown>) => (
+    <a {...props}>{children}</a>
+  ),
   useNavigate: () => vi.fn(),
 }))
 
@@ -44,7 +47,7 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
       'obtenerConfiguracionDatosCandidato'
     ).mockResolvedValue({
       campos: [],
-    } as any)
+    } satisfies ConfiguracionDatosCandidatoResponse)
   })
 
   async function renderPanel() {
@@ -129,10 +132,9 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
         },
       })
       .mockResolvedValueOnce({
-        idEleccion: 1,
+        ...mockEleccionConfigurada,
         estado: 'ABIERTA',
-        modo: 'MANUAL',
-      } as any)
+      })
 
     await renderPanel()
 
@@ -163,10 +165,9 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     const abrirEleccionSpy = vi
       .spyOn(eleccionApi, 'abrirEleccion')
       .mockResolvedValue({
-        idEleccion: 1,
+        ...mockEleccionConfigurada,
         estado: 'ABIERTA',
-        modo: 'MANUAL',
-      } as any)
+      })
 
     await renderPanel()
 
