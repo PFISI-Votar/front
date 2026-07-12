@@ -9,7 +9,6 @@ import {
   Square,
   AlertCircle,
 } from 'lucide-react'
-import { formatDateTimeForDisplay } from '@/lib/datetime'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -29,17 +28,18 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { listarElecciones } from '@/features/eleccion/api/eleccion-api'
+import { ComicioVentanaElectoral } from '@/features/eleccion/components/comicio-ventana-electoral'
 import type { EleccionEstado } from '@/features/eleccion/data/schema'
 import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
 import { useCerrarEleccion } from '@/features/eleccion/hooks/use-cerrar-eleccion'
 import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
+import {
+  getEstadoEleccionBadgeVariant,
+  getEstadoEleccionLabel,
+} from '@/features/eleccion/lib/estado-eleccion'
 
-const estadoVariant = (estado: EleccionEstado) => {
-  if (estado === 'BORRADOR') return 'secondary' as const
-  if (estado === 'CONFIGURADA') return 'default' as const
-  if (estado === 'ABIERTA') return 'default' as const
-  return 'outline' as const
-}
+const estadoVariant = (estado: EleccionEstado) =>
+  getEstadoEleccionBadgeVariant(estado)
 
 interface AbrirComicioDialogProps {
   idEleccion: number
@@ -281,13 +281,14 @@ export const ComiciosList = () => {
               <CardHeader className='flex flex-row items-start justify-between gap-4 space-y-0'>
                 <div className='space-y-1'>
                   <CardTitle className='text-lg'>{comicio.nombre}</CardTitle>
-                  <CardDescription>
-                    ID {comicio.idEleccion} · Apertura{' '}
-                    {formatDateTimeForDisplay(comicio.fechaInicio)}
-                  </CardDescription>
+                  <CardDescription>ID {comicio.idEleccion}</CardDescription>
+                  <ComicioVentanaElectoral
+                    fechaInicio={comicio.fechaInicio}
+                    fechaFin={comicio.fechaFin}
+                  />
                 </div>
                 <Badge variant={estadoVariant(comicio.estado)}>
-                  {comicio.estado}
+                  {getEstadoEleccionLabel(comicio.estado)}
                 </Badge>
               </CardHeader>
               <CardContent className='flex flex-wrap gap-2'>

@@ -95,6 +95,15 @@ describe('ComiciosList', () => {
       .toBeInTheDocument()
   })
 
+  it('muestra ventana electoral y estado legible en cada comicio', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+
+    await renderComiciosList()
+
+    await expect.element(page.getByText('En preparación')).toBeInTheDocument()
+    await expect.element(page.getByText(/Apertura.*Cierre/)).toBeInTheDocument()
+  })
+
   it('muestra botón "Abrir comicio" solo para elecciones en estado CONFIGURADA', async () => {
     vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
 
