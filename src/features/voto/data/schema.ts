@@ -48,6 +48,8 @@ export type BudConfig = {
   estado: string
   tipoVotacion: string
   metodosAutenticacion: string[]
+  resultadosDefinitivos?: boolean
+  snapshotCongelado?: boolean
 }
 
 export type SeleccionVoto = {

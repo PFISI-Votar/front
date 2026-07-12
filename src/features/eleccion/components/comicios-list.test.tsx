@@ -20,6 +20,7 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('@/features/eleccion/api/eleccion-api', () => ({
   listarElecciones: vi.fn(),
   abrirEleccion: vi.fn(),
+  cerrarEleccion: vi.fn(),
 }))
 
 vi.mock('@/features/eleccion/hooks/use-eleccion-websocket', () => ({

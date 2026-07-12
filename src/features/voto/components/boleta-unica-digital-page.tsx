@@ -176,6 +176,23 @@ const BoletaUnicaDigitalPageContent = ({
   }
 
   if (!votanteSession) {
+    const estadoComicio = budConfigQuery.data?.estado
+    if (estadoComicio === 'CERRADA' || estadoComicio === 'ESCRUTADA') {
+      return (
+        <main className='grid min-h-svh place-items-center bg-[#fdfcfa] px-6'>
+          <Alert className='max-w-xl border-slate-300 bg-white'>
+            <AlertCircle className='size-4' aria-hidden='true' />
+            <AlertTitle>El período de votación ha concluido</AlertTitle>
+            <AlertDescription>
+              Este comicio está cerrado. La Boleta Única Digital ya no admite
+              nuevos sufragios. Podés consultar el Dashboard Público para ver
+              los resultados definitivos.
+            </AlertDescription>
+          </Alert>
+        </main>
+      )
+    }
+
     const metodosAutenticacion = (budConfigQuery.data?.metodosAutenticacion ??
       []) as MetodoAutenticacion[]
     const authMethod =
@@ -236,6 +253,24 @@ const BoletaUnicaDigitalPageContent = ({
     !boleta ||
     !budConfigQuery.data
   ) {
+    const status =
+      boletaQuery.error instanceof AxiosError
+        ? boletaQuery.error.response?.status
+        : undefined
+    if (status === 410) {
+      return (
+        <main className='grid min-h-svh place-items-center bg-[#fdfcfa] px-6'>
+          <Alert className='max-w-xl border-slate-300 bg-white'>
+            <AlertCircle className='size-4' aria-hidden='true' />
+            <AlertTitle>El período de votación ha concluido</AlertTitle>
+            <AlertDescription>
+              El comicio fue cerrado y ya no admite nuevos sufragios (HTTP 410).
+            </AlertDescription>
+          </Alert>
+        </main>
+      )
+    }
+
     return (
       <main className='grid min-h-svh place-items-center bg-[#fdfcfa] px-6'>
         <Alert variant='destructive' className='max-w-xl'>
@@ -244,6 +279,24 @@ const BoletaUnicaDigitalPageContent = ({
           <AlertDescription>
             No pudimos obtener la configuración del comicio. Reintentá en unos
             segundos.
+          </AlertDescription>
+        </Alert>
+      </main>
+    )
+  }
+
+  if (
+    budConfigQuery.data.estado === 'CERRADA' ||
+    budConfigQuery.data.estado === 'ESCRUTADA'
+  ) {
+    return (
+      <main className='grid min-h-svh place-items-center bg-[#fdfcfa] px-6'>
+        <Alert className='max-w-xl border-slate-300 bg-white'>
+          <AlertCircle className='size-4' aria-hidden='true' />
+          <AlertTitle>El período de votación ha concluido</AlertTitle>
+          <AlertDescription>
+            La Boleta Única Digital está deshabilitada de forma permanente para
+            este comicio.
           </AlertDescription>
         </Alert>
       </main>
