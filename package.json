@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -120,5 +120,10 @@
     "vitest": "^4.1.4",
     "vitest-axe": "^0.1.0",
     "vitest-browser-react": "^2.2.0"
+  },
+  "optionalDependencies": {
+    "@rolldown/binding-linux-x64-gnu": "^1.1.5",
+    "lightningcss-linux-x64-gnu": "^1.32.0",
+    "@tailwindcss/oxide-linux-x64-gnu": "^4.2.2"
   }
 }

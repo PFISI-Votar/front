@@ -41,15 +41,26 @@ const resolveChain = (chainId: number): Chain => {
 
 /**
  * Creates a read-only JSON-RPC client for gas estimation and receipt polling.
+ * Uses faster polling (1s) in development for instant Hardhat blocks.
  */
 export const createVotePublicClient = (
   rpcUrl = getRpcUrl(),
   chainId = getChainId()
-): VotePublicClient =>
-  createPublicClient({
+): VotePublicClient => {
+  const isDev =
+    chainId === hardhat.id ||
+    chainId === localhost.id ||
+    import.meta.env.DEV ||
+    import.meta.env.MODE === 'test'
+
+  return createPublicClient({
     chain: resolveChain(chainId),
     transport: http(rpcUrl),
+    // Polling más agresivo en desarrollo (1s vs 4s default)
+    // para respuesta instantánea con Hardhat
+    pollingInterval: isDev ? 1_000 : 4_000,
   })
+}
 
 /**
  * Creates a wallet client for the platform transmitter that pays gas.
