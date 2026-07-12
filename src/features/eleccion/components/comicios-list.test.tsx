@@ -101,7 +101,8 @@ describe('ComiciosList', () => {
     await renderComiciosList()
 
     await expect.element(page.getByText('En preparación')).toBeInTheDocument()
-    await expect.element(page.getByText(/Apertura.*Cierre/)).toBeInTheDocument()
+    await expect.element(page.getByText('Borrador')).toBeInTheDocument()
+    expect(page.getByText(/Apertura.*Cierre/).all()).toHaveLength(2)
   })
 
   it('muestra botón "Abrir comicio" solo para elecciones en estado CONFIGURADA', async () => {
