@@ -363,9 +363,7 @@ export const ComiciosList = () => {
             setAbrirDialog((prev) => ({
               ...prev,
               open,
-              ...(open
-                ? {}
-                : { idEleccion: null, nombreEleccion: '' }),
+              ...(open ? {} : { idEleccion: null, nombreEleccion: '' }),
             }))
           }
           onPreconditionError={(message) => {
@@ -388,9 +386,7 @@ export const ComiciosList = () => {
             setCerrarDialog((prev) => ({
               ...prev,
               open,
-              ...(open
-                ? {}
-                : { idEleccion: null, nombreEleccion: '' }),
+              ...(open ? {} : { idEleccion: null, nombreEleccion: '' }),
             }))
           }
         />
