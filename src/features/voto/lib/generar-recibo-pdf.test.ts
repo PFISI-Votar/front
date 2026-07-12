@@ -250,10 +250,7 @@ describe('generarReciboPDF - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
       const found = textCalls.some(
         (call) => typeof call === 'string' && call.includes(label),
       )
-      expect(found).toBe(
-        true,
-        `Label "${label}" no encontrado en el PDF`,
-      )
+      expect(found, `Label "${label}" no encontrado en el PDF`).toBe(true)
     })
   })
 
@@ -293,10 +290,7 @@ describe('generarReciboPDF - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
       const found = allCalls.some(
         (call) => typeof call === 'string' && call.includes(field),
       )
-      expect(found).toBe(
-        true,
-        `Campo requerido "${field}" no encontrado en el PDF`,
-      )
+      expect(found, `Campo requerido "${field}" no encontrado en el PDF`).toBe(true)
     })
   })
 
@@ -324,10 +318,7 @@ describe('generarReciboPDF - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
           typeof call === 'string' &&
           call.toLowerCase().includes(word.toLowerCase()),
       )
-      expect(found).toBe(
-        false,
-        `Palabra prohibida "${word}" encontrada en el PDF`,
-      )
+      expect(found, `Palabra prohibida "${word}" encontrada en el PDF`).toBe(false)
     })
   })
 
