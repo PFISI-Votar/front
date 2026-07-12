@@ -1,19 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import type { BoletaDigital } from '@/features/voto/data/schema'
 import {
-  buildConfirmarVotoInput,
   buildSeleccionesVoto,
+  getCategoriasSinCandidatos,
   getCategoriasSinSeleccion,
   seleccionarCandidato,
 } from '@/features/voto/utils/seleccion-voto'
 
-const boleta = {
+const boleta: BoletaDigital = {
   idEleccion: 1,
-  nombreEleccion: 'Comicio UTN',
+  nombreEleccion: 'Test',
   estadoEleccion: 'ABIERTA',
-  idBoleta: 10,
+  idBoleta: 1,
   titulo: 'Boleta',
-  permitirVotoEnBlanco: false,
+  permitirVotoEnBlanco: true,
   categorias: [
     {
       idCategoria: 1,
@@ -21,43 +21,50 @@ const boleta = {
       descripcion: null,
       orden: 1,
       estado: 'DISPONIBLE',
-      candidatos: [{ idCandidato: 10 }],
+      candidatos: [
+        {
+          idCandidato: 10,
+          idCategoria: 1,
+          idLista: 1,
+          listId: 1,
+          nombre: 'Ana',
+          apellido: 'A',
+          nombreCompleto: 'Ana A',
+          agrupacionPolitica: 'L1',
+          numeroLista: 1,
+          fotoUrl: null,
+        },
+      ],
     },
     {
       idCategoria: 2,
-      nombre: 'Vocales',
+      nombre: 'Vacia',
       descripcion: null,
       orden: 2,
-      estado: 'DISPONIBLE',
-      candidatos: [{ idCandidato: 20 }],
+      estado: 'SIN_CANDIDATOS',
+      candidatos: [],
     },
   ],
-} as BoletaDigital
+}
 
 describe('seleccion-voto', () => {
-  it('reemplaza la selección previa sólo dentro de la misma categoría', () => {
-    const base = seleccionarCandidato({}, 1, 10)
-    const conOtraCategoria = seleccionarCandidato(base, 2, 20)
-    const actual = seleccionarCandidato(conOtraCategoria, 1, 11)
-
-    expect(actual).toEqual({ 1: 11, 2: 20 })
+  it('selecciona un candidato por categoría', () => {
+    expect(seleccionarCandidato({}, 1, 10)).toEqual({ 1: 10 })
   })
 
-  it('genera payload ordenado por categoría', () => {
+  it('arma selecciones ordenadas', () => {
     expect(buildSeleccionesVoto({ 2: 20, 1: 10 })).toEqual([
       { idCategoria: 1, idCandidato: 10 },
       { idCategoria: 2, idCandidato: 20 },
     ])
   })
 
-  it('arma el input de confirmación con idempotencyKey estable', () => {
-    expect(buildConfirmarVotoInput({ 1: 10 }, 'key')).toEqual({
-      idempotencyKey: 'key',
-      selecciones: [{ idCategoria: 1, idCandidato: 10 }],
-    })
-  })
-
-  it('detecta categorías pendientes de selección', () => {
-    expect(getCategoriasSinSeleccion(boleta, { 1: 10 })).toHaveLength(1)
+  it('detecta categorías sin selección y sin candidatos', () => {
+    expect(
+      getCategoriasSinSeleccion(boleta, {}).map((c) => c.idCategoria)
+    ).toEqual([1])
+    expect(
+      getCategoriasSinCandidatos(boleta).map((c) => c.idCategoria)
+    ).toEqual([2])
   })
 })

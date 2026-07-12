@@ -55,21 +55,6 @@ export type SeleccionVoto = {
   idCandidato: number
 }
 
-export type ConfirmarVotoInput = {
-  idempotencyKey: string
-  selecciones: SeleccionVoto[]
-  votoEnBlanco?: boolean
-}
-
-export type ConfirmarVotoResponse = {
-  idEleccion: number
-  estado: string
-  comprobanteHash: string
-  payloadHash: string
-  recibidoEn: string
-  idempotente: boolean
-}
-
 export type SeleccionesPorCategoria = Record<number, number>
 
 export type VoterMerkleProof = {

@@ -39,6 +39,7 @@ import {
   TIPOS_VOTACION,
   type TipoVotacion,
 } from '@/features/eleccion/lista/data/schema'
+import { registrarVotoEmitidoAnonimo } from '@/features/voto/api/voto-api'
 import type { SignedVotePayload } from '@/features/voto/crypto'
 import { getExplorerTxUrl } from '@/features/voto/crypto/constants'
 import {
@@ -60,6 +61,7 @@ import type {
   VoterMerkleProof,
 } from '@/features/voto/data/schema'
 import { useSolicitarMerkleProof } from '@/features/voto/hooks/use-merkle-proof'
+import { clearVotanteSession } from '@/features/voto/services/votante-session'
 import { buildWizardSelectionPayload } from '@/features/voto/utils/wizard-selection'
 
 type VotingVariant = 'lista-completa' | 'candidatos' | 'mixto'
@@ -281,6 +283,8 @@ export const BudVotingWizard = ({
   )
   const [txHash, setTxHash] = useState<Hex | null>(null)
   const [txError, setTxError] = useState<VoteTxError | null>(null)
+  /** True once a vote was registered; survives clearing merkle/signed state (VOTAR-379). */
+  const [voteReceiptReady, setVoteReceiptReady] = useState(false)
   const merkleProofMutation = useSolicitarMerkleProof(boleta.idEleccion)
   const {
     signVotePayload,
@@ -336,6 +340,7 @@ export const BudVotingWizard = ({
     setTransmitPhase(null)
     setTxHash(null)
     setTxError(null)
+    setVoteReceiptReady(false)
   }
 
   const handleModifyVote = async () => {
@@ -400,7 +405,16 @@ export const BudVotingWizard = ({
       )
       setTxHash(result.txHash)
       setTransmitPhase(null)
+      // VOTAR-379 UAT-05: anonymous audit before clearing SSO (no cookies on call).
+      void registrarVotoEmitidoAnonimo(boleta.idEleccion).catch(() => {
+        // Recibo on-chain ya confirmado; el audit no debe bloquear la UX.
+      })
+      // VOTAR-379 UAT-03: drop identity-linked crypto material after receipt.
+      setSignedVote(null)
+      setMerkleProofData(null)
+      setVoteReceiptReady(true)
       setStep('success')
+      await clearVotanteSession()
     } catch (error) {
       const mapped = mapVoteTxError(error)
       setTxError(mapped)
@@ -607,14 +621,11 @@ export const BudVotingWizard = ({
         )}
         {step === 'success' && (
           <SuccessStep
-            signedVote={signedVote}
+            voteReceiptReady={voteReceiptReady}
             txHash={txHash}
-            hasMerkleProof={Boolean(merkleProofData)}
             signingError={signingError}
             onLogout={handleLogout}
-            onModify={() => {
-              void handleModifyVote()
-            }}
+            onModify={handleLogout}
           />
         )}
       </div>
@@ -1163,16 +1174,14 @@ const ReviewStep = ({
 )
 
 const SuccessStep = ({
-  signedVote,
+  voteReceiptReady,
   txHash,
-  hasMerkleProof,
   signingError,
   onLogout,
   onModify,
 }: {
-  signedVote: SignedVotePayload | null
+  voteReceiptReady: boolean
   txHash: Hex | null
-  hasMerkleProof: boolean
   signingError: string | null
   onLogout: () => void
   onModify: () => void
@@ -1194,20 +1203,17 @@ const SuccessStep = ({
           </CardDescription>
         </CardHeader>
         <CardContent className='grid gap-4 text-left'>
-          {signedVote && (
+          {voteReceiptReady && (
             <div className='rounded-2xl bg-slate-50 p-4'>
               <p className='mb-2 text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase'>
                 Comprobante criptográfico
               </p>
               <p className='text-sm text-slate-700'>
                 Tu boleta quedó protegida con firma digital local y registrada
-                de forma inmutable en la blockchain.
+                de forma inmutable en la blockchain. La sesión SSO y el material
+                criptográfico en memoria fueron eliminados tras emitir el
+                recibo.
               </p>
-              {hasMerkleProof && (
-                <p className='mt-2 text-sm text-slate-600'>
-                  Pertenencia al padrón verificada.
-                </p>
-              )}
               {txHash && (
                 <div className='mt-3 rounded-xl bg-white p-3 text-sm break-all text-slate-700'>
                   <p className='mb-1 text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase'>
