@@ -24,6 +24,18 @@ export const DashboardPublicoPage = ({
     queryKey: ['dashboard-publico-comicio', idEleccion],
     queryFn: () => obtenerConfiguracionBud(idEleccion),
     enabled: Number.isFinite(idEleccion) && idEleccion > 0,
+    refetchInterval: (query) => {
+      const data = query.state.data
+      if (
+        data?.resultadosDefinitivos ||
+        data?.snapshotCongelado ||
+        data?.estado === 'CERRADA' ||
+        data?.estado === 'ESCRUTADA'
+      ) {
+        return false
+      }
+      return 30_000
+    },
     retry: (failureCount, error) => {
       if (isAxiosError(error) && error.response?.status === 404) return false
       return failureCount < 2
@@ -76,7 +88,13 @@ export const DashboardPublicoPage = ({
     )
   }
 
-  const { nombre, estado } = comicioQuery.data
+  const { nombre, estado, resultadosDefinitivos, snapshotCongelado } =
+    comicioQuery.data
+  const isFrozen =
+    resultadosDefinitivos === true ||
+    snapshotCongelado === true ||
+    estado === 'CERRADA' ||
+    estado === 'ESCRUTADA'
 
   return (
     <DashboardShell>
@@ -98,6 +116,14 @@ export const DashboardPublicoPage = ({
           >
             {getEstadoEleccionLabel(estado)}
           </Badge>
+          {isFrozen ? (
+            <Badge
+              variant='outline'
+              className='border-slate-300 bg-slate-100 px-2.5 py-1 text-[0.7rem] font-semibold tracking-wide text-slate-800 uppercase'
+            >
+              Resultados Definitivos e Inmutables
+            </Badge>
+          ) : null}
         </div>
 
         <div className='space-y-2'>
@@ -108,8 +134,9 @@ export const DashboardPublicoPage = ({
             {nombre}
           </h1>
           <p className='max-w-2xl text-sm leading-relaxed text-[#5f6368] sm:text-base'>
-            Información de auditoría ciudadana del padrón electoral. El volumen
-            del electorado es público y permanece inmutable una vez consolidado.
+            {isFrozen
+              ? 'El comicio está cerrado. Los indicadores del Portal de Transparencia quedaron congelados y no se actualizan en tiempo real.'
+              : 'Información de auditoría ciudadana del padrón electoral. El volumen del electorado es público y permanece inmutable una vez consolidado.'}
           </p>
         </div>
       </header>
