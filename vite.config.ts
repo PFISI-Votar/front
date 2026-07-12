@@ -10,9 +10,20 @@ import { buildSecurityHeaders } from './src/config/security-headers'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiOrigin = env.VITE_API_URL ?? 'http://localhost:3000'
+  const rpcOrigin = env.VITE_RPC_URL ?? 'http://127.0.0.1:8545'
+  const isDev = mode === 'development'
+  const extraConnectSrc = isDev
+    ? [
+        rpcOrigin,
+        // Hardhat accepts both hostnames; CSP treats them as distinct origins.
+        'http://127.0.0.1:8545',
+        'http://localhost:8545',
+      ]
+    : []
   const devHeaders = buildSecurityHeaders({
     apiOrigin,
     isDev: true,
+    extraConnectSrc,
   })
   const previewHeaders = buildSecurityHeaders({
     apiOrigin,

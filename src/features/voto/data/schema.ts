@@ -79,6 +79,8 @@ export type ConfirmarVotoResponse = {
 export type SeleccionesPorCategoria = Record<number, number>
 
 export type VoterMerkleProof = {
+  /** Padron leaf hash (voterLeaf for castSignedVote). */
+  hashHoja: string
   merkleProof: string[]
   root: string
 }

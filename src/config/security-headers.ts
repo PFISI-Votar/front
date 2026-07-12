@@ -2,6 +2,8 @@ export type SecurityHeadersOptions = {
   apiOrigin: string
   isDev: boolean
   isHttps?: boolean
+  /** Extra origins allowed in connect-src (e.g. local Hardhat RPC in dev). */
+  extraConnectSrc?: readonly string[]
 }
 
 const PERMISSIONS_POLICY = 'camera=(), microphone=(), geolocation=()'
@@ -20,11 +22,26 @@ const normalizeOrigin = (apiOrigin: string): string => {
   }
 }
 
-export const buildContentSecurityPolicy = ({
+const buildConnectSrc = ({
   apiOrigin,
   isDev,
-  isHttps = !isDev,
+  extraConnectSrc = [],
 }: SecurityHeadersOptions): string => {
+  const origins = new Set<string>([normalizeOrigin(apiOrigin)])
+  for (const origin of extraConnectSrc) {
+    const normalized = normalizeOrigin(origin)
+    if (normalized) {
+      origins.add(normalized)
+    }
+  }
+  const extras = [...origins].join(' ')
+  return `connect-src 'self' ${extras}${isDev ? ' ws:' : ''}`
+}
+
+export const buildContentSecurityPolicy = (
+  options: SecurityHeadersOptions
+): string => {
+  const { apiOrigin, isDev, isHttps = !isDev } = options
   const api = normalizeOrigin(apiOrigin)
   const scriptSrc = isDev
     ? "script-src 'self' 'unsafe-inline'"
@@ -35,7 +52,7 @@ export const buildContentSecurityPolicy = ({
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self'",
     `img-src 'self' data: blob: ${api}`,
-    `connect-src 'self' ${api}${isDev ? ' ws:' : ''}`,
+    buildConnectSrc(options),
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

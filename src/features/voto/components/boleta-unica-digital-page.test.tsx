@@ -139,6 +139,18 @@ describe('BoletaUnicaDigitalPage', () => {
     mocks.solicitarMerkleProof.mockResolvedValue({
       merkleProof: ['0x' + '1'.repeat(64)],
       root: '0x' + 'a'.repeat(64),
+      hashHoja: 'b'.repeat(64),
+    })
+  })
+
+  it('aplica superficie clara en la boleta bajo tema oscuro global (VOTAR-412)', async () => {
+    document.documentElement.classList.add('dark')
+    mocks.obtenerBoletaDigital.mockResolvedValue(boleta)
+    await renderBud()
+
+    await vi.waitFor(() => {
+      const main = document.querySelector('main')
+      expect(main?.className).toContain('votar-light-surface')
     })
   })
 

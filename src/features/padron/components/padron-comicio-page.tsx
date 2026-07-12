@@ -11,6 +11,7 @@ import {
   Link2,
   ListChecks,
   Loader2,
+  Lock,
   Trash2,
   Upload,
 } from 'lucide-react'
@@ -18,6 +19,7 @@ import { toast } from 'sonner'
 import { getApiErrorMessage } from '@/lib/api-client'
 import { formatDateTimeForDisplay } from '@/lib/datetime'
 import { cn } from '@/lib/utils'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -58,6 +60,7 @@ import {
 } from '@/components/ui/table'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
+import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
 import { eliminarPadron, obtenerReporteNovedades } from '../api/padron-api'
 import {
   PADRON_PAGE_SIZES,
@@ -66,6 +69,7 @@ import {
   usePadronVotantes,
 } from '../hooks/use-padron'
 import { usePublicarMerkle } from '../hooks/use-publicar-merkle'
+import { claseAnchoModalPadron } from '../lib/campos-padron'
 import { descargarReporteNovedades } from '../lib/descargar-reporte'
 import { PadronUploadForm } from './padron-upload-form'
 
@@ -80,6 +84,7 @@ function esError404(error: unknown): boolean {
 export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
   const queryClient = useQueryClient()
   const [modalAbierto, setModalAbierto] = useState(false)
+  const [cantidadCamposModal, setCantidadCamposModal] = useState(2)
   const [tablaAbierta, setTablaAbierta] = useState(false)
   const [eliminarAbierto, setEliminarAbierto] = useState(false)
   const [publicarAbierto, setPublicarAbierto] = useState(false)
@@ -92,6 +97,23 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
     queryClient.invalidateQueries({ queryKey: ['eleccion', idEleccion] })
     queryClient.invalidateQueries({ queryKey: ['elecciones'] })
   }
+
+  // Escuchar eventos WebSocket para actualizar en tiempo real
+  useEleccionWebSocket({
+    onMerklePublicado: (data) => {
+      if (data.idEleccion === idEleccion) {
+        invalidarPadron()
+      }
+    },
+    onEleccionAbierta: (data) => {
+      if (data.idEleccion === idEleccion) {
+        invalidarPadron()
+        void queryClient.invalidateQueries({
+          queryKey: ['eleccion', idEleccion],
+        })
+      }
+    },
+  })
 
   const descargarReporteMutation = useMutation({
     mutationFn: () => obtenerReporteNovedades(idEleccion),
@@ -173,7 +195,12 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
                 Cargar padrón electoral
               </Button>
             </DialogTrigger>
-            <DialogContent className='max-h-[90vh] overflow-y-auto sm:max-w-2xl'>
+            <DialogContent
+              className={cn(
+                'max-h-[90vh] w-full overflow-y-auto transition-[max-width] duration-200',
+                claseAnchoModalPadron(cantidadCamposModal)
+              )}
+            >
               <DialogHeader>
                 <DialogTitle>Cargar padrón electoral</DialogTitle>
                 <DialogDescription>
@@ -181,7 +208,10 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
                   persiste el dato en texto plano.
                 </DialogDescription>
               </DialogHeader>
-              <PadronUploadForm idEleccionFijo={idEleccion} />
+              <PadronUploadForm
+                idEleccionFijo={idEleccion}
+                onCantidadCamposChange={setCantidadCamposModal}
+              />
             </DialogContent>
           </Dialog>
         )}
@@ -196,6 +226,21 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
           </Button>
         )}
       </div>
+
+      {eleccionQuery.data?.estado === 'ABIERTA' && (
+        <Alert className='border-amber-500/50 bg-amber-500/10'>
+          <Lock className='size-4 text-amber-600 dark:text-amber-500' />
+          <AlertTitle className='text-amber-900 dark:text-amber-200'>
+            Padrón Sellado Criptográficamente
+          </AlertTitle>
+          <AlertDescription className='text-amber-800 dark:text-amber-300'>
+            El padrón electoral se encuentra sellado y no admite alteraciones
+            mientras el comicio esté abierto. Esta medida garantiza la
+            integridad del proceso electoral según lo establecido en la Ley
+            25.326.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {resumenQuery.isLoading && (
         <Card>
@@ -319,6 +364,11 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
                   )}
                   Publicar Raíz on-chain
                 </Button>
+              )}
+              {merkleQuery.data?.estado === 'PUBLICADO_ON_CHAIN' && (
+                <Badge variant='default' className='self-start'>
+                  ✓ Publicado on-chain
+                </Badge>
               )}
             </CardHeader>
             <CardContent className='grid gap-4'>

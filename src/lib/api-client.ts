@@ -98,6 +98,12 @@ export const isValidationError = (error: unknown): error is AxiosError => {
   return status === 422 || status === 400
 }
 
+export const isPreconditionFailedError = (
+  error: unknown
+): error is AxiosError => {
+  return error instanceof AxiosError && error.response?.status === 412
+}
+
 export const getApiErrorMessage = (error: unknown): string => {
   if (error instanceof AxiosError) {
     const data = error.response?.data as
