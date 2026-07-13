@@ -266,7 +266,7 @@ export const BudVotingWizard = ({
   const [step, setStep] = useState<WizardStep>('identity')
 
   useEffect(() => {
-    console.log('[WIZARD] Step changed to:', step)
+    // console.log('[WIZARD] Step changed to:', step)
   }, [step])
 
   const variant = getVotingVariant(tipoVotacion)
@@ -287,7 +287,9 @@ export const BudVotingWizard = ({
   )
   const [txHash, setTxHash] = useState<Hex | null>(null)
   const [txError, setTxError] = useState<VoteTxError | null>(null)
-  const [codigoVerificacionE2E, setCodigoVerificacionE2E] = useState<string | null>(null)
+  const [codigoVerificacionE2E, setCodigoVerificacionE2E] = useState<
+    string | null
+  >(null)
   const merkleProofMutation = useSolicitarMerkleProof(boleta.idEleccion)
   const {
     signVotePayload,
@@ -393,7 +395,7 @@ export const BudVotingWizard = ({
     setTransmitPhase('estimating')
 
     try {
-      console.log('[WIZARD] Starting vote transmission...')
+      // console.log('[WIZARD] Starting vote transmission...')
       const result = await transmitSignedVote(
         {
           signed,
@@ -402,17 +404,18 @@ export const BudVotingWizard = ({
         },
         {
           onProgress: (phase) => {
-            console.log('[WIZARD] Transmit phase:', phase)
+            // console.log('[WIZARD] Transmit phase:', phase)
             setTransmitPhase(phase)
           },
         }
       )
-      console.log('[WIZARD] Vote transmitted successfully:', result)
+      // console.log('[WIZARD] Vote transmitted successfully:', result)
 
       // VOTAR-360: Registrar voto en backend para generar UUID E2E
-      console.log('[WIZARD] Registering vote in backend...')
+      // console.log('[WIZARD] Registering vote in backend...')
       try {
-        const { registrarVotoBlockchain } = await import('@/features/voto/api/voto-api')
+        const { registrarVotoBlockchain } =
+          await import('@/features/voto/api/voto-api')
 
         // Extraer IDs de categorías desde la selección
         const selection = buildWizardSelectionPayload({
@@ -422,7 +425,8 @@ export const BudVotingWizard = ({
           roles,
           candidates,
         })
-        const categorias = selection.selecciones?.map(s => s.idCategoria) ?? []
+        const categorias =
+          selection.selecciones?.map((s) => s.idCategoria) ?? []
 
         const registro = await registrarVotoBlockchain(boleta.idEleccion, {
           txHash: result.txHash as string,
@@ -433,16 +437,16 @@ export const BudVotingWizard = ({
           categorias,
         })
 
-        console.log('[WIZARD] Backend registration successful:', registro)
+        // console.log('[WIZARD] Backend registration successful:', registro)
         setCodigoVerificacionE2E(registro.codigoVerificacionE2E)
-      } catch (backendError) {
-        console.error('[WIZARD] Backend registration failed:', backendError)
+      } catch (_backendError) {
+        // console.error('[WIZARD] Backend registration failed:', _backendError)
         // No bloqueamos el flujo si falla el registro backend
         // El usuario aún tiene su recibo on-chain
       }
 
       // Update state to success
-      console.log('[WIZARD] Updating state to success...')
+      // console.log('[WIZARD] Updating state to success...')
       setTxHash(result.txHash)
       setTransmitPhase(null)
 
@@ -450,9 +454,9 @@ export const BudVotingWizard = ({
       await Promise.resolve()
 
       setStep('success')
-      console.log('[WIZARD] Step updated to success')
+      // console.log('[WIZARD] Step updated to success')
     } catch (error) {
-      console.error('[WIZARD] Vote transmission failed:', error)
+      // console.error('[WIZARD] Vote transmission failed:', error)
       const mapped = mapVoteTxError(error)
       setTxError(mapped)
       setTransmitPhase('error')
@@ -658,7 +662,7 @@ export const BudVotingWizard = ({
         )}
         {step === 'success' && (
           <>
-            {console.log('[WIZARD] Rendering SuccessStep with txHash:', txHash, 'codigoE2E:', codigoVerificacionE2E)}
+            {/* {console.log('[WIZARD] Rendering SuccessStep with txHash:', txHash, 'codigoE2E:', codigoVerificacionE2E)} */}
             <SuccessStep
               boleta={boleta}
               signedVote={signedVote}
@@ -1248,7 +1252,8 @@ const SuccessStep = ({
 
     setIsDownloadingPDF(true)
     try {
-      const { generarReciboPDF } = await import('@/features/voto/lib/generar-recibo-pdf')
+      const { generarReciboPDF } =
+        await import('@/features/voto/lib/generar-recibo-pdf')
 
       await generarReciboPDF({
         idEleccion: boleta.idEleccion,
@@ -1259,8 +1264,8 @@ const SuccessStep = ({
         codigoVerificacionE2E: (codigoVerificacionE2E ?? txHash) as string,
         comprobanteHash: signedVote.selectionHash,
       })
-    } catch (error) {
-      console.error('Error generando PDF:', error)
+    } catch (_error) {
+      // console.error('Error generando PDF:', _error)
       alert('Error al generar el PDF. Intente nuevamente.')
     } finally {
       setIsDownloadingPDF(false)

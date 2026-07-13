@@ -59,6 +59,7 @@ import type {
   ConfirmarVotoResponse,
   SeleccionesPorCategoria,
 } from '@/features/voto/data/schema'
+import { generarReciboPDF } from '@/features/voto/lib/generar-recibo-pdf'
 import {
   clearVotanteSession,
   ensureVotanteSession,
@@ -72,7 +73,6 @@ import {
   getTotalCandidatos,
   seleccionarCandidato,
 } from '@/features/voto/utils/seleccion-voto'
-import { generarReciboPDF } from '@/features/voto/lib/generar-recibo-pdf'
 
 type BoletaUnicaDigitalPageProps = {
   idEleccion: number
@@ -400,16 +400,20 @@ const BoletaUnicaDigitalPageContent = ({
   }
 
   if (showLogin && votanteSession) {
-    console.log('[BOLETA_PAGE] State check:', {
-      boletaLoading: boletaQuery.isLoading,
-      budConfigLoading: budConfigQuery.isLoading,
-      isReady,
-      wizardMounted,
-    })
+    // console.log('[BOLETA_PAGE] State check:', {
+    //   boletaLoading: boletaQuery.isLoading,
+    //   budConfigLoading: budConfigQuery.isLoading,
+    //   isReady,
+    //   wizardMounted,
+    // })
 
     // Only check isReady before wizard is mounted, not during voting flow
-    if (boletaQuery.isLoading || budConfigQuery.isLoading || (!wizardMounted && !isReady)) {
-      console.log('[BOLETA_PAGE] Showing intro splash due to loading/not ready')
+    if (
+      boletaQuery.isLoading ||
+      budConfigQuery.isLoading ||
+      (!wizardMounted && !isReady)
+    ) {
+      // console.log('[BOLETA_PAGE] Showing intro splash due to loading/not ready')
       return <BoletaIntroSplash />
     }
 
@@ -656,7 +660,7 @@ const BoletaSuccessScreen = ({
   const handleDescargarPDF = async () => {
     if (!comprobante.txHash || !comprobante.codigoVerificacionE2E) {
       alert(
-        'No se puede generar el PDF porque faltan datos blockchain. Contacte al administrador.',
+        'No se puede generar el PDF porque faltan datos blockchain. Contacte al administrador.'
       )
       return
     }
@@ -672,8 +676,8 @@ const BoletaSuccessScreen = ({
         blockNumber: comprobante.blockNumber,
         comprobanteHash: comprobante.comprobanteHash,
       })
-    } catch (error) {
-      console.error('Error generando PDF:', error)
+    } catch (_error) {
+      // console.error('Error generando PDF:', _error)
       alert('Error al generar el PDF. Intente nuevamente.')
     } finally {
       setDescargando(false)
@@ -703,8 +707,8 @@ const BoletaSuccessScreen = ({
         await navigator.clipboard.writeText(urlVerificacion)
         alert('URL de verificación copiada al portapapeles')
       }
-    } catch (error) {
-      console.log('Error compartiendo:', error)
+    } catch (_error) {
+      // console.log('Error compartiendo:', _error)
     }
   }
 

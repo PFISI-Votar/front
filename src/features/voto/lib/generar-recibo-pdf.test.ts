@@ -19,8 +19,8 @@ const mocks = vi.hoisted(() => {
   const mockGetHeight = vi.fn(() => 297) // A4 height in mm
   const mockToDataURL = vi.fn(() =>
     Promise.resolve(
-      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-    ),
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+    )
   )
 
   return {
@@ -115,14 +115,16 @@ describe('generarReciboPDF - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
       location: {
         origin: 'https://votar.utn.edu.ar',
       },
-    } as any
+    } as unknown as Window & typeof globalThis
   })
 
   it('UAT-PDF-A11Y-01: debe usar fuentes legibles (Helvetica 12pt mínimo)', async () => {
     await generarReciboPDF(datosMock)
 
     // Verificar que se usaron tamaños de fuente accesibles
-    const fontSizeCalls = mocks.mockSetFontSize.mock.calls.map((call) => call[0])
+    const fontSizeCalls = mocks.mockSetFontSize.mock.calls.map(
+      (call) => call[0]
+    )
 
     // Títulos deben ser >= 14pt
     expect(fontSizeCalls.some((size) => size >= 14)).toBe(true)
@@ -134,7 +136,7 @@ describe('generarReciboPDF - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
     // Verificar que se usó Helvetica (fuente sans-serif legible)
     const fontCalls = mocks.mockSetFont.mock.calls
     const helveticaUsed = fontCalls.some((call) =>
-      call[0]?.toLowerCase().includes('helvetica'),
+      call[0]?.toLowerCase().includes('helvetica')
     )
     expect(helveticaUsed).toBe(true)
   })
@@ -147,7 +149,7 @@ describe('generarReciboPDF - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
       expect.any(String),
       expect.objectContaining({
         errorCorrectionLevel: 'H',
-      }),
+      })
     )
   })
 
@@ -162,7 +164,7 @@ describe('generarReciboPDF - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
           dark: '#000000',
           light: '#FFFFFF',
         },
-      }),
+      })
     )
   })
 
@@ -179,7 +181,7 @@ describe('generarReciboPDF - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
 
     disclaimerTexts.forEach((text) => {
       const found = textCalls.some(
-        (call) => typeof call === 'string' && call.includes(text),
+        (call) => typeof call === 'string' && call.includes(text)
       )
       expect(found).toBe(true)
     })
@@ -193,7 +195,7 @@ describe('generarReciboPDF - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
     const footerFound = textCalls.some(
       (call) =>
         typeof call === 'string' &&
-        call.includes('No se ha almacenado copia en servidor'),
+        call.includes('No se ha almacenado copia en servidor')
     )
 
     expect(footerFound).toBe(true)
@@ -203,7 +205,9 @@ describe('generarReciboPDF - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
     await generarReciboPDF(datosMock)
 
     // Verificar que hay un título principal grande
-    const fontSizeCalls = mocks.mockSetFontSize.mock.calls.map((call) => call[0])
+    const fontSizeCalls = mocks.mockSetFontSize.mock.calls.map(
+      (call) => call[0]
+    )
     const titleSize = Math.max(...fontSizeCalls)
     expect(titleSize).toBeGreaterThanOrEqual(16) // Título >= 16pt
 
@@ -218,7 +222,7 @@ describe('generarReciboPDF - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
     // Verificar que se generó QR con URL completa
     expect(mocks.mockToDataURL).toHaveBeenCalledWith(
       expect.stringContaining('/verificar/'),
-      expect.any(Object),
+      expect.any(Object)
     )
 
     // Verificar que la URL está en el PDF (puede estar en splitTextToSize o en text)
@@ -226,8 +230,7 @@ describe('generarReciboPDF - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
     const splitCalls = mocks.mockSplitTextToSize.mock.calls.flat()
     const allCalls = [...textCalls, ...splitCalls]
     const urlFound = allCalls.some(
-      (call) =>
-        typeof call === 'string' && call.includes('/verificar/'),
+      (call) => typeof call === 'string' && call.includes('/verificar/')
     )
     expect(urlFound).toBe(true)
   })
@@ -248,7 +251,7 @@ describe('generarReciboPDF - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
 
     requiredLabels.forEach((label) => {
       const found = textCalls.some(
-        (call) => typeof call === 'string' && call.includes(label),
+        (call) => typeof call === 'string' && call.includes(label)
       )
       expect(found, `Label "${label}" no encontrado en el PDF`).toBe(true)
     })
@@ -267,7 +270,7 @@ describe('generarReciboPDF - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
 
     // Verificar que el nombre del archivo incluye ID elección y código
     expect(mocks.mockSave).toHaveBeenCalledWith(
-      expect.stringMatching(/recibo-votacion-\d+-[a-f0-9]{8}\.pdf/),
+      expect.stringMatching(/recibo-votacion-\d+-[a-f0-9]{8}\.pdf/)
     )
   })
 
@@ -288,9 +291,11 @@ describe('generarReciboPDF - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
 
     requiredFields.forEach((field) => {
       const found = allCalls.some(
-        (call) => typeof call === 'string' && call.includes(field),
+        (call) => typeof call === 'string' && call.includes(field)
       )
-      expect(found, `Campo requerido "${field}" no encontrado en el PDF`).toBe(true)
+      expect(found, `Campo requerido "${field}" no encontrado en el PDF`).toBe(
+        true
+      )
     })
   })
 
@@ -316,9 +321,11 @@ describe('generarReciboPDF - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
       const found = textCalls.some(
         (call) =>
           typeof call === 'string' &&
-          call.toLowerCase().includes(word.toLowerCase()),
+          call.toLowerCase().includes(word.toLowerCase())
       )
-      expect(found, `Palabra prohibida "${word}" encontrada en el PDF`).toBe(false)
+      expect(found, `Palabra prohibida "${word}" encontrada en el PDF`).toBe(
+        false
+      )
     })
   })
 
@@ -331,7 +338,7 @@ describe('generarReciboPDF - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
     const dateFound = textCalls.some(
       (call) =>
         typeof call === 'string' &&
-        (call.includes('2026') || call.includes('julio')),
+        (call.includes('2026') || call.includes('julio'))
     )
 
     expect(dateFound).toBe(true)
@@ -347,7 +354,7 @@ describe('generarReciboPDF - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
       expect.any(Number), // x
       expect.any(Number), // y
       50, // width (debe ser >= 50mm para escaneo fácil)
-      50, // height
+      50 // height
     )
   })
 
@@ -359,8 +366,7 @@ describe('generarReciboPDF - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
     // Verificar sección de certificado blockchain
     const blockchainSectionFound = textCalls.some(
       (call) =>
-        typeof call === 'string' &&
-        call.includes('Certificado Blockchain'),
+        typeof call === 'string' && call.includes('Certificado Blockchain')
     )
 
     expect(blockchainSectionFound).toBe(true)

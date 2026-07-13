@@ -225,6 +225,13 @@ export async function generarReciboPDF(datos: DatosReciboPDF): Promise<void> {
   const fechaGeneracion = new Date().toLocaleString('es-AR')
   yPos += 5
   doc.text(
+    'No se ha almacenado copia en servidor. Generado localmente en el navegador.',
+    pageWidth / 2,
+    yPos,
+    { align: 'center' }
+  )
+  yPos += 4
+  doc.text(
     `Fecha de generación del PDF: ${fechaGeneracion}`,
     pageWidth / 2,
     yPos,

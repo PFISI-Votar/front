@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { AxiosError } from 'axios'
 import { useMutation } from '@tanstack/react-query'
 import {
   AlertCircle,
@@ -7,7 +8,7 @@ import {
   Loader2,
   Search,
 } from 'lucide-react'
-import { AxiosError } from 'axios'
+import { getApiErrorMessage } from '@/lib/api-client'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -21,7 +22,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { verificarRecibo } from '@/features/voto/api/recibo-api'
 import type { VerificarReciboResponse } from '@/features/voto/data/schema'
-import { getApiErrorMessage } from '@/lib/api-client'
 
 /**
  * VOTAR-360: Portal público de verificación de recibos electorales.
@@ -43,19 +43,23 @@ export const VerificadorRecibo = ({
 
   const verificarMutation = useMutation({
     mutationFn: (codigo: string) => verificarRecibo(codigo),
-    onError: (error) => {
-      console.error('Error verificando recibo:', error)
+    onError: (_error) => {
+      // console.error('Error verificando recibo:', _error)
     },
   })
 
   // VOTAR-360 UAT-03: Autocarga y verificación desde URL (QR offline)
   useEffect(() => {
-    if (codigoInicial && !verificarMutation.data && !verificarMutation.isError) {
+    if (
+      codigoInicial &&
+      !verificarMutation.data &&
+      !verificarMutation.isError
+    ) {
       // Validar formato básico antes de llamar al backend
       const esFormatoValido =
         // UUID format
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-          codigoInicial,
+          codigoInicial
         ) ||
         // Ethereum txHash format (0x + 64 hex chars)
         /^0x[0-9a-fA-F]{64}$/i.test(codigoInicial)
@@ -85,7 +89,7 @@ export const VerificadorRecibo = ({
 
     if (!esFormatoValido) {
       alert(
-        'El código ingresado no tiene el formato correcto. Debe ser un UUID válido o un hash de transacción Ethereum (0x...).',
+        'El código ingresado no tiene el formato correcto. Debe ser un UUID válido o un hash de transacción Ethereum (0x...).'
       )
       return
     }
@@ -102,11 +106,11 @@ export const VerificadorRecibo = ({
     <main className='container mx-auto min-h-screen max-w-3xl px-4 py-12'>
       <div className='space-y-8'>
         {/* Encabezado */}
-        <div className='text-center space-y-3'>
+        <div className='space-y-3 text-center'>
           <h1 className='text-4xl font-bold text-slate-900'>
             Verificador de Participación Electoral
           </h1>
-          <p className='text-lg text-slate-600 max-w-2xl mx-auto'>
+          <p className='mx-auto max-w-2xl text-lg text-slate-600'>
             Ingrese el código de verificación E2E de su comprobante para
             confirmar que su participación fue registrada exitosamente en la
             blockchain.
@@ -165,11 +169,7 @@ export const VerificadorRecibo = ({
                   )}
                 </Button>
                 {verificarMutation.data && (
-                  <Button
-                    type='button'
-                    variant='outline'
-                    onClick={handleReset}
-                  >
+                  <Button type='button' variant='outline' onClick={handleReset}>
                     Nueva Búsqueda
                   </Button>
                 )}
@@ -207,10 +207,8 @@ export const VerificadorRecibo = ({
               Privacidad Garantizada
             </CardTitle>
           </CardHeader>
-          <CardContent className='text-sm text-slate-600 space-y-2'>
-            <p>
-              ✓ Este portal NO revela su voto ni su identidad personal.
-            </p>
+          <CardContent className='space-y-2 text-sm text-slate-600'>
+            <p>✓ Este portal NO revela su voto ni su identidad personal.</p>
             <p>
               ✓ Solo confirma que su participación fue registrada en la
               blockchain.
@@ -276,7 +274,7 @@ const ResultadoVerificacion = ({
           <div className='grid gap-3 text-sm'>
             <div className='flex justify-between'>
               <span className='text-slate-600'>Elección:</span>
-              <span className='font-semibold text-right'>
+              <span className='text-right font-semibold'>
                 {resultado.nombreEleccion}
               </span>
             </div>
@@ -301,7 +299,7 @@ const ResultadoVerificacion = ({
             </h3>
             <div className='grid gap-3 text-sm'>
               <div className='space-y-1'>
-                <span className='text-slate-600 block'>
+                <span className='block text-slate-600'>
                   Hash de Transacción:
                 </span>
                 <code className='block rounded-lg bg-slate-100 px-3 py-2 text-xs break-all'>
@@ -325,11 +323,7 @@ const ResultadoVerificacion = ({
             </div>
 
             {resultado.urlExploradorBlockchain && (
-              <Button
-                variant='outline'
-                className='w-full'
-                asChild
-              >
+              <Button variant='outline' className='w-full' asChild>
                 <a
                   href={resultado.urlExploradorBlockchain}
                   target='_blank'
@@ -345,9 +339,11 @@ const ResultadoVerificacion = ({
 
         {/* Hash del comprobante */}
         <div className='space-y-3'>
-          <h3 className='font-semibold text-slate-900'>Comprobante Off-Chain</h3>
+          <h3 className='font-semibold text-slate-900'>
+            Comprobante Off-Chain
+          </h3>
           <div className='space-y-1'>
-            <span className='text-sm text-slate-600 block'>
+            <span className='block text-sm text-slate-600'>
               Hash del Comprobante:
             </span>
             <code className='block rounded-lg bg-slate-100 px-3 py-2 text-xs break-all'>
