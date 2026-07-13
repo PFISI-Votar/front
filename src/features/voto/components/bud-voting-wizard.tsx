@@ -53,6 +53,7 @@ import {
   transmitSignedVote,
   type TransmitProgressPhase,
 } from '@/features/voto/crypto/vote-transmitter'
+import { resolveAuditCandidateId } from '@/features/voto/crypto/audit-candidate-id'
 import {
   mapVoteTxError,
   type VoteTxError,
@@ -397,11 +398,20 @@ export const BudVotingWizard = ({
     setTransmitPhase('estimating')
 
     try {
+      const selection = buildWizardSelectionPayload({
+        specialVote,
+        candidateSelections,
+        selectedListId,
+        roles,
+        candidates,
+      })
+      const candidateId = resolveAuditCandidateId(selection)
       const result = await transmitSignedVote(
         {
           signed,
           voterLeaf: merkleProofData.hashHoja as Hex,
           merkleProof: merkleProofData.merkleProof as Hex[],
+          candidateId,
         },
         {
           onProgress: (phase) => {

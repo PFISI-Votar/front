@@ -23,6 +23,8 @@ export type TransmitSignedVoteInput = {
   signed: SignedVotePayload
   voterLeaf: Hex
   merkleProof: readonly Hex[]
+  /** Audit candidate id for VoteCast (VOTAR-346), including reserved blanco/nulo. */
+  candidateId: bigint
 }
 
 export type TransmitSignedVoteResult = {
@@ -78,6 +80,7 @@ const buildCastArgs = (input: TransmitSignedVoteInput) => {
     BigInt(signed.timestamp),
     signed.expectedSigner,
     signed.signature,
+    input.candidateId,
   ] as const
 }
 

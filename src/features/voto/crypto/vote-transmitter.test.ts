@@ -25,6 +25,7 @@ const input: TransmitSignedVoteInput = {
   merkleProof: [
     '0x4444444444444444444444444444444444444444444444444444444444444444',
   ],
+  candidateId: 101n,
 }
 
 describe('vote-transmitter — VOTAR-358', () => {
