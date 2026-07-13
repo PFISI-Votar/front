@@ -97,3 +97,27 @@ export type VerificarReciboResponse = {
   contractAddress?: string
   comprobanteHash: string
 }
+
+// VOTAR-360: Registro de voto blockchain (wizard)
+export type RegistrarVotoBlockchainInput = {
+  txHash: string
+  blockNumber: number
+  nullifier: string
+  selectionHash: string
+  timestamp: number
+  contractAddress?: string
+  categorias: number[]
+}
+
+export type RegistrarVotoBlockchainResponse = {
+  idEleccion: number
+  estado: string
+  comprobanteHash: string
+  payloadHash: string
+  recibidoEn: string
+  codigoVerificacionE2E: string
+  txHash: string
+  blockNumber: number
+  txStatus: string
+  contractAddress?: string
+}
