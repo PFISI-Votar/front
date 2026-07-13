@@ -51,6 +51,16 @@ export {
   type VoteTxErrorCode,
 } from '@/features/voto/crypto/vote-tx-errors'
 export {
+  buildInclusionSuccessMessage,
+  getBlockchainNetworkName,
+  verificarInclusionVotoLocal,
+  VoteInclusionInvalidHashError,
+  VoteInclusionNotFoundError,
+  VOTO_NO_ENCONTRADO_MENSAJE,
+  type VerificarInclusionVotoOptions,
+  type VoteInclusionResult,
+} from '@/features/voto/crypto/verificar-voto-inclusion'
+export {
   calcularNullifier,
   CredencialNulificadorInvalidaError,
 } from '@/features/voto/crypto/nullifier'
