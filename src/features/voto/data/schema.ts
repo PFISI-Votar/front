@@ -65,3 +65,24 @@ export type VoterMerkleProof = {
   merkleProof: string[]
   root: string
 }
+
+/** VOTAR-360 public verification response (never includes vote content). */
+export type VerificarReciboResponse = {
+  confirmado: boolean
+  idEleccion: number
+  nombreEleccion: string
+  txHash: string
+  blockNumber: number
+  timestamp: string
+  contractAddress: string
+  explorerUrl: string
+  estadoTx: 'CONFIRMADA'
+  mensaje: string
+}
+
+export type FirmarReciboResponse = {
+  firmaDigital: string
+  algoritmo: string
+  clavePublica: string
+  payloadCanonico: string
+}

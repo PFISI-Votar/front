@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as VerificarIndexRouteImport } from './routes/verificar/index'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as VerificarTxHashRouteImport } from './routes/verificar/$txHash'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as errors500RouteImport } from './routes/(errors)/500'
 import { Route as errors404RouteImport } from './routes/(errors)/404'
@@ -48,10 +50,20 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VerificarIndexRoute = VerificarIndexRouteImport.update({
+  id: '/verificar/',
+  path: '/verificar/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const VerificarTxHashRoute = VerificarTxHashRouteImport.update({
+  id: '/verificar/$txHash',
+  path: '/verificar/$txHash',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const errors503Route = errors503RouteImport.update({
   id: '/(errors)/503',
@@ -245,6 +257,8 @@ export interface FileRoutesByFullPath {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/verificar/$txHash': typeof VerificarTxHashRoute
+  '/verificar/': typeof VerificarIndexRoute
   '/comicios/nuevo': typeof AuthenticatedComiciosNuevoRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
@@ -277,7 +291,9 @@ export interface FileRoutesByTo {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/verificar/$txHash': typeof VerificarTxHashRoute
   '/': typeof AuthenticatedIndexRoute
+  '/verificar': typeof VerificarIndexRoute
   '/comicios/nuevo': typeof AuthenticatedComiciosNuevoRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
@@ -314,7 +330,9 @@ export interface FileRoutesById {
   '/(errors)/404': typeof errors404Route
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
+  '/verificar/$txHash': typeof VerificarTxHashRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/verificar/': typeof VerificarIndexRoute
   '/_authenticated/comicios/nuevo': typeof AuthenticatedComiciosNuevoRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/_authenticated/settings/account': typeof AuthenticatedSettingsAccountRoute
@@ -352,6 +370,8 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/verificar/$txHash'
+    | '/verificar/'
     | '/comicios/nuevo'
     | '/errors/$error'
     | '/settings/account'
@@ -384,7 +404,9 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/verificar/$txHash'
     | '/'
+    | '/verificar'
     | '/comicios/nuevo'
     | '/errors/$error'
     | '/settings/account'
@@ -420,7 +442,9 @@ export interface FileRouteTypes {
     | '/(errors)/404'
     | '/(errors)/500'
     | '/(errors)/503'
+    | '/verificar/$txHash'
     | '/_authenticated/'
+    | '/verificar/'
     | '/_authenticated/comicios/nuevo'
     | '/_authenticated/errors/$error'
     | '/_authenticated/settings/account'
@@ -455,6 +479,8 @@ export interface RootRouteChildren {
   errors404Route: typeof errors404Route
   errors500Route: typeof errors500Route
   errors503Route: typeof errors503Route
+  VerificarTxHashRoute: typeof VerificarTxHashRoute
+  VerificarIndexRoute: typeof VerificarIndexRoute
   ComiciosIdEleccionDashboardRoute: typeof ComiciosIdEleccionDashboardRoute
   ComiciosIdEleccionVotarRoute: typeof ComiciosIdEleccionVotarRoute
 }
@@ -468,12 +494,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/verificar/': {
+      id: '/verificar/'
+      path: '/verificar'
+      fullPath: '/verificar/'
+      preLoaderRoute: typeof VerificarIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/': {
       id: '/_authenticated/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/verificar/$txHash': {
+      id: '/verificar/$txHash'
+      path: '/verificar/$txHash'
+      fullPath: '/verificar/$txHash'
+      preLoaderRoute: typeof VerificarTxHashRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/(errors)/503': {
       id: '/(errors)/503'
@@ -795,6 +835,8 @@ const rootRouteChildren: RootRouteChildren = {
   errors404Route: errors404Route,
   errors500Route: errors500Route,
   errors503Route: errors503Route,
+  VerificarTxHashRoute: VerificarTxHashRoute,
+  VerificarIndexRoute: VerificarIndexRoute,
   ComiciosIdEleccionDashboardRoute: ComiciosIdEleccionDashboardRoute,
   ComiciosIdEleccionVotarRoute: ComiciosIdEleccionVotarRoute,
 }
