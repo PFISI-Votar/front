@@ -66,7 +66,7 @@ const boleta: BoletaDigital = {
   nombreEleccion: 'Centro de Estudiantes',
   estadoEleccion: 'ABIERTA',
   idBoleta: 70,
-  titulo: 'Boleta — Centro de Estudiantes',
+  titulo: 'Boleta - Centro de Estudiantes',
   permitirVotoEnBlanco: true,
   categorias: [
     {
@@ -220,7 +220,7 @@ describe('BoletaUnicaDigitalPage', () => {
       .element(screen.getByText(/Preparando tu boleta/i))
       .not.toBeInTheDocument()
     await expect
-      .element(screen.getByText('Boleta — Centro de Estudiantes'))
+      .element(screen.getByText('Boleta - Centro de Estudiantes'))
       .toBeInTheDocument()
   })
 })
