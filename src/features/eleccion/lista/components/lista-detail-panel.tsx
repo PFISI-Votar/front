@@ -193,7 +193,7 @@ export const ListaDetailPanel = ({
             </h1>
             <p className='text-muted-foreground'>
               Comicio #{idEleccion}
-              {eleccionQuery.data ? ` — ${eleccionQuery.data.nombre}` : ''}
+              {eleccionQuery.data ? ` - ${eleccionQuery.data.nombre}` : ''}
             </p>
           </div>
         </div>
