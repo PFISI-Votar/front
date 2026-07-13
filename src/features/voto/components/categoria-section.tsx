@@ -66,6 +66,7 @@ export const CategoriaSection = ({
         <VotoEnBlancoOptionCard
           optionId={`voto-blanco-${categoria.idCategoria}`}
           selected={votoEnBlanco}
+          categoryName={categoria.nombre}
         />
       )}
     </RadioGroup>

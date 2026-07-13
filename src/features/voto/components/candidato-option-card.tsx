@@ -105,37 +105,46 @@ export const CandidatoOptionCard = ({
 export const VotoEnBlancoOptionCard = ({
   optionId,
   selected,
+  categoryName,
 }: {
   optionId: string
   selected: boolean
-}) => (
-  <Card
-    className={cn(
-      'relative overflow-hidden border p-0 shadow-sm transition-all',
-      selected
-        ? 'border-slate-700 bg-white shadow-md'
-        : 'border-slate-200 bg-white'
-    )}
-  >
-    <label
-      htmlFor={optionId}
-      className='flex h-full cursor-pointer items-center gap-4 p-4 pl-5'
+  categoryName?: string
+}) => {
+  const accessibleName = categoryName
+    ? `Voto en Blanco para ${categoryName}, no seleccionar ningún candidato`
+    : 'Voto en Blanco, no seleccionar ningún candidato'
+
+  return (
+    <Card
+      className={cn(
+        'relative overflow-hidden border border-dashed p-0 shadow-sm transition-all',
+        'focus-within:ring-3 focus-within:ring-slate-400/40',
+        selected
+          ? 'border-slate-700 bg-white shadow-md'
+          : 'border-slate-300 bg-slate-50'
+      )}
     >
-      <div className='grid size-20 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-100 text-slate-500'>
-        <CircleOff className='size-9' />
-      </div>
-      <div className='flex flex-1 flex-col gap-1'>
-        <h3 className='text-xl leading-tight font-bold'>Voto en Blanco</h3>
-        <p className='text-sm text-slate-600'>
-          No seleccionar ningún candidato
-        </p>
-      </div>
-      <RadioGroupItem
-        id={optionId}
-        value='__blank__'
-        aria-label='Voto en Blanco, no seleccionar ningún candidato'
-        className='size-7 border-2 border-slate-400'
-      />
-    </label>
-  </Card>
-)
+      <label
+        htmlFor={optionId}
+        className='flex h-full cursor-pointer items-center gap-4 p-4 pl-5'
+      >
+        <div className='grid size-20 place-items-center rounded-xl border border-dashed border-slate-300 bg-white text-slate-500'>
+          <CircleOff className='size-9' aria-hidden='true' />
+        </div>
+        <div className='flex flex-1 flex-col gap-1'>
+          <h3 className='text-xl leading-tight font-bold'>Voto en Blanco</h3>
+          <p className='text-sm text-slate-600'>
+            No seleccionar ningún candidato
+          </p>
+        </div>
+        <RadioGroupItem
+          id={optionId}
+          value='__blank__'
+          aria-label={accessibleName}
+          className='size-7 border-2 border-slate-400'
+        />
+      </label>
+    </Card>
+  )
+}
