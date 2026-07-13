@@ -46,8 +46,8 @@ export const DashboardPublicoPage = ({
     const previousTitle = document.title
     const nombre = comicioQuery.data?.nombre
     document.title = nombre
-      ? `VOTAR — Dashboard público · ${nombre}`
-      : 'VOTAR — Dashboard público'
+      ? `VOTAR - Dashboard público · ${nombre}`
+      : 'VOTAR - Dashboard público'
     return () => {
       document.title = previousTitle
     }

@@ -120,7 +120,7 @@ export const BudLoginScreen = ({
                 variant='outline'
                 className='h-12 w-full rounded-lg border-[#cfd3d7] bg-white text-sm font-semibold text-[#2f3337] shadow-none hover:bg-slate-50'
                 onClick={handleGoogleStub}
-                aria-label='Iniciar sesión con Google — próximamente'
+                aria-label='Iniciar sesión con Google - próximamente'
               >
                 <GoogleIcon className='size-5' />
                 Iniciar sesión con Google

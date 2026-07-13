@@ -315,7 +315,7 @@ export const OfertaElectoralPanel = ({
           </h1>
           <p className='text-muted-foreground'>
             Comicio #{idEleccion}
-            {eleccionQuery.data ? ` — ${eleccionQuery.data.nombre}` : ''}
+            {eleccionQuery.data ? ` - ${eleccionQuery.data.nombre}` : ''}
           </p>
           {eleccionQuery.data && eleccionQuery.data.estado !== 'BORRADOR' ? (
             <ComicioVentanaElectoral
