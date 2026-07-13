@@ -76,8 +76,10 @@ export const getVoteTransmitterPrivateKey = (): `0x${string}` => {
   )
 }
 
-export const getExplorerTxUrl = (txHash: `0x${string}`): string | null => {
-  const chainId = getChainId()
+export const getExplorerTxUrl = (
+  txHash: `0x${string}`,
+  chainId = getChainId()
+): string | null => {
   if (chainId === 11_155_111) {
     return `https://sepolia.etherscan.io/tx/${txHash}`
   }

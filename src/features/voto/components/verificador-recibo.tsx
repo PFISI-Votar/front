@@ -23,8 +23,13 @@ import {
   VOTAR_LIGHT_SURFACE_CLASS,
   VotarLoginBackground,
 } from '@/features/auth/sign-in/components/login-screen-shared'
-import { verificarRecibo } from '@/features/voto/api/recibo-api'
-import type { VerificarReciboResponse } from '@/features/voto/data/schema'
+import {
+  verificarInclusionVotoLocal,
+  VoteInclusionInvalidHashError,
+  VoteInclusionNotFoundError,
+  VOTO_NO_ENCONTRADO_MENSAJE,
+  type VoteInclusionResult,
+} from '@/features/voto/crypto/verificar-voto-inclusion'
 import { TX_HASH_REGEX } from '@/features/voto/lib/recibo-canonical'
 
 type VerificadorReciboProps = {
@@ -37,8 +42,9 @@ const normalizeInitialHash = (value: string): string => {
 }
 
 /**
- * VOTAR-360: public participation verification portal.
- * Confirms on-chain inclusion without revealing vote content (UAT-01/02/03).
+ * VOTAR-366: public individual vote verifier (E2E).
+ * Queries blockchain directly from the client without revealing vote content.
+ * UI aligned with BUD public surfaces (VOTAR-424).
  */
 export const VerificadorRecibo = ({
   initialTxHash = '',
@@ -50,8 +56,8 @@ export const VerificadorRecibo = ({
   const [validationError, setValidationError] = useState<string | null>(null)
 
   const verificarQuery = useQuery({
-    queryKey: ['verificar-recibo', submittedHash],
-    queryFn: () => verificarRecibo(submittedHash),
+    queryKey: ['verificar-voto-inclusion', submittedHash],
+    queryFn: () => verificarInclusionVotoLocal(submittedHash),
     enabled: Boolean(submittedHash),
     retry: false,
   })
@@ -79,6 +85,20 @@ export const VerificadorRecibo = ({
     setValidationError(null)
   }
 
+  const errorMessage = (() => {
+    if (!verificarQuery.error) return null
+    if (verificarQuery.error instanceof VoteInclusionNotFoundError) {
+      return VOTO_NO_ENCONTRADO_MENSAJE
+    }
+    if (verificarQuery.error instanceof VoteInclusionInvalidHashError) {
+      return verificarQuery.error.message
+    }
+    if (verificarQuery.error instanceof Error) {
+      return verificarQuery.error.message
+    }
+    return 'Error desconocido al verificar.'
+  })()
+
   return (
     <main
       className={`relative min-h-svh overflow-hidden bg-[#fdfcfa] ${VOTAR_LIGHT_SURFACE_CLASS}`}
@@ -101,23 +121,23 @@ export const VerificadorRecibo = ({
               Acceso público
             </div>
             <h1 className='text-3xl font-extrabold tracking-tight text-[#202124] sm:text-4xl'>
-              Verificador de Participación Electoral
+              Verificador de voto individual
             </h1>
             <p className='max-w-2xl text-sm leading-relaxed text-[#5f6368] sm:text-base'>
-              Ingrese el TransactionHash de su comprobante para confirmar que su
-              participación fue registrada en la blockchain, sin revelar el
-              contenido del sufragio.
+              Ingrese el hash de su recibo criptográfico para corroborar de
+              forma matemática que su sufragio está incluido en la urna
+              electrónica, sin revelar el candidato que eligió.
             </p>
           </header>
 
           <Card className='gap-0 rounded-2xl border-[#e4e7eb] bg-white/95 py-0 shadow-[0_1rem_3rem_rgba(30,64,95,0.08)] backdrop-blur-sm'>
             <CardHeader className='space-y-1.5 px-6 pt-6 pb-0 sm:px-8'>
               <CardTitle className='text-xl font-bold tracking-tight text-[#202124]'>
-                TransactionHash
+                Hash del recibo
               </CardTitle>
               <CardDescription className='text-sm leading-relaxed text-[#55575d]'>
-                Encontrará este hash en su comprobante PDF o en la pantalla de
-                confirmación de voto.
+                Encontrará este TransactionHash en su comprobante PDF o en la
+                pantalla de confirmación de voto.
               </CardDescription>
             </CardHeader>
             <CardContent className='px-6 pt-5 pb-6 sm:px-8 sm:pb-8'>
@@ -169,7 +189,7 @@ export const VerificadorRecibo = ({
                     ) : (
                       <>
                         <Search className='mr-2 size-4' />
-                        Verificar participación
+                        Verificar inclusión
                       </>
                     )}
                   </Button>
@@ -188,18 +208,15 @@ export const VerificadorRecibo = ({
             </CardContent>
           </Card>
 
-          {verificarQuery.isError && (
+          {errorMessage && (
             <Alert
               variant='destructive'
+              role='alert'
               className='rounded-2xl border-red-200 bg-white/95 shadow-[0_1rem_3rem_rgba(30,64,95,0.08)]'
             >
               <AlertCircle className='size-4' />
-              <AlertTitle>No se pudo verificar el comprobante</AlertTitle>
-              <AlertDescription>
-                {verificarQuery.error instanceof Error
-                  ? verificarQuery.error.message
-                  : 'Error desconocido al verificar.'}
-              </AlertDescription>
+              <AlertTitle>Registro no encontrado</AlertTitle>
+              <AlertDescription>{errorMessage}</AlertDescription>
             </Alert>
           )}
 
@@ -214,10 +231,13 @@ export const VerificadorRecibo = ({
               </CardTitle>
             </CardHeader>
             <CardContent className='space-y-2 px-6 pt-3 pb-5 text-sm leading-relaxed text-[#5f6368] sm:px-8 sm:pb-6'>
-              <p>Este portal no revela su voto ni su identidad personal.</p>
               <p>
-                Solo confirma que su participación fue registrada en la
-                blockchain.
+                La consulta se realiza de forma local contra la blockchain; no
+                se revela su voto ni su identidad personal.
+              </p>
+              <p>
+                Solo confirma que el hash de su recibo está incluido en el
+                registro de votos.
               </p>
               <p>Cumple con la Ley 25.326 de Protección de Datos Personales.</p>
             </CardContent>
@@ -231,7 +251,7 @@ export const VerificadorRecibo = ({
 const ResultadoVerificacion = ({
   resultado,
 }: {
-  resultado: VerificarReciboResponse
+  resultado: VoteInclusionResult
 }) => {
   const formatearFecha = (fecha: string) =>
     new Intl.DateTimeFormat('es-AR', {
@@ -240,7 +260,10 @@ const ResultadoVerificacion = ({
     }).format(new Date(fecha))
 
   return (
-    <Card className='gap-0 rounded-2xl border-[#b7d7c4] bg-white/95 py-0 shadow-[0_1rem_3rem_rgba(30,64,95,0.08)] backdrop-blur-sm'>
+    <Card
+      className='gap-0 rounded-2xl border-[#b7d7c4] bg-white/95 py-0 shadow-[0_1rem_3rem_rgba(30,64,95,0.08)] backdrop-blur-sm'
+      role='status'
+    >
       <CardHeader className='space-y-0 px-6 pt-6 pb-0 sm:px-8'>
         <div className='flex items-start gap-3'>
           <div className='rounded-full bg-[#e8f5ee] p-2'>
@@ -251,7 +274,7 @@ const ResultadoVerificacion = ({
           </div>
           <div>
             <CardTitle className='text-xl font-bold tracking-tight text-[#1b4332]'>
-              Participación confirmada
+              Inclusión confirmada
             </CardTitle>
             <CardDescription className='mt-1 text-sm leading-relaxed text-[#2d6a4f]'>
               {resultado.mensaje}
@@ -260,32 +283,6 @@ const ResultadoVerificacion = ({
         </div>
       </CardHeader>
       <CardContent className='space-y-6 px-6 pt-5 pb-6 sm:px-8 sm:pb-8'>
-        <div className='space-y-3'>
-          <h3 className='text-sm font-semibold tracking-wide text-[#2f6f9f] uppercase'>
-            Información de la elección
-          </h3>
-          <div className='grid gap-3 text-sm'>
-            <div className='flex justify-between gap-4'>
-              <span className='text-[#5f6368]'>Elección:</span>
-              <span className='text-right font-semibold text-[#202124]'>
-                {resultado.nombreEleccion}
-              </span>
-            </div>
-            <div className='flex justify-between gap-4'>
-              <span className='text-[#5f6368]'>ID Elección:</span>
-              <span className='font-mono text-[#202124]'>
-                #{resultado.idEleccion}
-              </span>
-            </div>
-            <div className='flex justify-between gap-4'>
-              <span className='text-[#5f6368]'>Fecha y hora:</span>
-              <span className='text-right text-[#202124]'>
-                {formatearFecha(resultado.timestamp)}
-              </span>
-            </div>
-          </div>
-        </div>
-
         <div className='space-y-3'>
           <h3 className='text-sm font-semibold tracking-wide text-[#2f6f9f] uppercase'>
             Certificación blockchain
@@ -304,28 +301,42 @@ const ResultadoVerificacion = ({
               </span>
             </div>
             <div className='flex justify-between gap-4'>
-              <span className='text-[#5f6368]'>Estado:</span>
+              <span className='text-[#5f6368]'>Red:</span>
               <span className='font-semibold text-[#1f7a4d]'>
-                {resultado.estadoTx}
+                {resultado.networkName}
+              </span>
+            </div>
+            <div className='flex justify-between gap-4'>
+              <span className='text-[#5f6368]'>ID Elección:</span>
+              <span className='font-mono text-[#202124]'>
+                #{resultado.idEleccion}
+              </span>
+            </div>
+            <div className='flex justify-between gap-4'>
+              <span className='text-[#5f6368]'>Fecha y hora:</span>
+              <span className='text-right text-[#202124]'>
+                {formatearFecha(resultado.timestamp)}
               </span>
             </div>
           </div>
 
-          <Button
-            variant='outline'
-            className='h-11 w-full rounded-lg border-[#cfd3d7] bg-white text-[#2f3337] shadow-none hover:bg-slate-50'
-            asChild
-          >
-            <a
-              href={resultado.explorerUrl}
-              target='_blank'
-              rel='noopener noreferrer'
-              aria-label='Ver transacción en el explorador de bloques'
+          {resultado.explorerUrl && (
+            <Button
+              variant='outline'
+              className='h-11 w-full rounded-lg border-[#cfd3d7] bg-white text-[#2f3337] shadow-none hover:bg-slate-50'
+              asChild
             >
-              <ExternalLink className='mr-2 size-4' />
-              Ver en explorador de bloques
-            </a>
-          </Button>
+              <a
+                href={resultado.explorerUrl}
+                target='_blank'
+                rel='noopener noreferrer'
+                aria-label='Ver transacción en el explorador de bloques'
+              >
+                <ExternalLink className='mr-2 size-4' />
+                Ver en explorador de bloques
+              </a>
+            </Button>
+          )}
         </div>
 
         <Alert className='rounded-xl border-[#d0e3f0] bg-[#2f6f9f]/5'>
@@ -334,8 +345,9 @@ const ResultadoVerificacion = ({
             Privacidad del sufragio garantizada
           </AlertTitle>
           <AlertDescription className='text-xs text-[#5f6368]'>
-            Esta verificación solo confirma la participación electoral. No
-            revela el contenido del voto ni la identidad del votante.
+            Esta verificación solo confirma la inclusión del hash en la urna
+            electrónica. No revela el contenido del voto ni la identidad del
+            votante.
           </AlertDescription>
         </Alert>
       </CardContent>
