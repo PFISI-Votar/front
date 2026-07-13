@@ -91,5 +91,10 @@ export const VOTE_TX_GAS_MARGIN = 1.1
 /** Max automatic retries for transient network errors. */
 export const VOTE_TX_MAX_ATTEMPTS = 3
 
-/** Default wait-for-receipt timeout in milliseconds. */
-export const VOTE_TX_CONFIRMATION_TIMEOUT_MS = 90_000
+/**
+ * Default wait-for-receipt timeout in milliseconds.
+ * - Development/Local (Hardhat): 30 segundos (bloques instantáneos)
+ * - Testnet (Sepolia): 90 segundos (bloques ~12s)
+ */
+export const VOTE_TX_CONFIRMATION_TIMEOUT_MS =
+  import.meta.env.DEV || import.meta.env.MODE === 'test' ? 30_000 : 90_000

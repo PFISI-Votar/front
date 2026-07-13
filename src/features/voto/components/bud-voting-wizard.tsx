@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Circle,
   Clock3,
+  Download,
   ExternalLink,
   Fingerprint,
   Loader2,
@@ -39,6 +40,7 @@ import {
   TIPOS_VOTACION,
   type TipoVotacion,
 } from '@/features/eleccion/lista/data/schema'
+import { firmarRecibo } from '@/features/voto/api/recibo-api'
 import { registrarVotoEmitidoAnonimo } from '@/features/voto/api/voto-api'
 import type { SignedVotePayload } from '@/features/voto/crypto'
 import { getExplorerTxUrl } from '@/features/voto/crypto/constants'
@@ -61,6 +63,7 @@ import type {
   VoterMerkleProof,
 } from '@/features/voto/data/schema'
 import { useSolicitarMerkleProof } from '@/features/voto/hooks/use-merkle-proof'
+import { generarReciboPDF } from '@/features/voto/lib/generar-recibo-pdf'
 import { clearVotanteSession } from '@/features/voto/services/votante-session'
 import { buildWizardSelectionPayload } from '@/features/voto/utils/wizard-selection'
 
@@ -282,6 +285,7 @@ export const BudVotingWizard = ({
     null
   )
   const [txHash, setTxHash] = useState<Hex | null>(null)
+  const [blockNumber, setBlockNumber] = useState<number | null>(null)
   const [txError, setTxError] = useState<VoteTxError | null>(null)
   /** True once a vote was registered; survives clearing merkle/signed state (VOTAR-379). */
   const [voteReceiptReady, setVoteReceiptReady] = useState(false)
@@ -339,6 +343,7 @@ export const BudVotingWizard = ({
     setSigningError(null)
     setTransmitPhase(null)
     setTxHash(null)
+    setBlockNumber(null)
     setTxError(null)
     setVoteReceiptReady(false)
   }
@@ -387,6 +392,7 @@ export const BudVotingWizard = ({
 
     setTxError(null)
     setTxHash(null)
+    setBlockNumber(null)
     setStep('transmitting')
     setTransmitPhase('estimating')
 
@@ -404,6 +410,7 @@ export const BudVotingWizard = ({
         }
       )
       setTxHash(result.txHash)
+      setBlockNumber(Number(result.blockNumber))
       setTransmitPhase(null)
       // VOTAR-379 UAT-05: anonymous audit before clearing SSO (no cookies on call).
       void registrarVotoEmitidoAnonimo(boleta.idEleccion).catch(() => {
@@ -506,6 +513,7 @@ export const BudVotingWizard = ({
     setTxError(null)
     setTransmitPhase(null)
     setTxHash(null)
+    setBlockNumber(null)
     setSignedVote(null)
     setSigningError(null)
     try {
@@ -623,6 +631,9 @@ export const BudVotingWizard = ({
           <SuccessStep
             voteReceiptReady={voteReceiptReady}
             txHash={txHash}
+            blockNumber={blockNumber}
+            idEleccion={boleta.idEleccion}
+            nombreEleccion={boleta.nombreEleccion}
             signingError={signingError}
             onLogout={handleLogout}
             onModify={handleLogout}
@@ -1176,17 +1187,62 @@ const ReviewStep = ({
 const SuccessStep = ({
   voteReceiptReady,
   txHash,
+  blockNumber,
+  idEleccion,
+  nombreEleccion,
   signingError,
   onLogout,
   onModify,
 }: {
   voteReceiptReady: boolean
   txHash: Hex | null
+  blockNumber: number | null
+  idEleccion: number
+  nombreEleccion: string
   signingError: string | null
   onLogout: () => void
   onModify: () => void
 }) => {
   const explorerUrl = txHash ? getExplorerTxUrl(txHash) : null
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
+  const [pdfError, setPdfError] = useState<string | null>(null)
+
+  const handleDownloadPdf = async () => {
+    if (!txHash || blockNumber === null) {
+      setPdfError(
+        'Falta el hash o el número de bloque para generar el comprobante.'
+      )
+      return
+    }
+
+    setIsDownloadingPdf(true)
+    setPdfError(null)
+    try {
+      const timestamp = new Date().toISOString()
+      const firma = await firmarRecibo({
+        idEleccion,
+        txHash,
+        blockNumber,
+        timestamp,
+      })
+      await generarReciboPDF({
+        idEleccion,
+        nombreEleccion,
+        txHash,
+        timestamp,
+        blockNumber,
+        firmaDigital: firma.firmaDigital,
+      })
+    } catch (error) {
+      setPdfError(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo generar el comprobante PDF.'
+      )
+    } finally {
+      setIsDownloadingPdf(false)
+    }
+  }
 
   return (
     <div className='mx-auto grid w-full max-w-2xl gap-5'>
@@ -1210,9 +1266,9 @@ const SuccessStep = ({
               </p>
               <p className='text-sm text-slate-700'>
                 Tu boleta quedó protegida con firma digital local y registrada
-                de forma inmutable en la blockchain. La sesión SSO y el material
-                criptográfico en memoria fueron eliminados tras emitir el
-                recibo.
+                de forma inmutable en la blockchain. Descargá el PDF firmado por
+                el sistema de auditoría; se genera solo en tu navegador y no se
+                almacena en el servidor.
               </p>
               {txHash && (
                 <div className='mt-3 rounded-xl bg-white p-3 text-sm break-all text-slate-700'>
@@ -1220,6 +1276,11 @@ const SuccessStep = ({
                     Hash de transacción
                   </p>
                   <p aria-label={`Hash de transacción ${txHash}`}>{txHash}</p>
+                  {blockNumber !== null && (
+                    <p className='mt-2 text-xs text-slate-500'>
+                      Bloque: {blockNumber}
+                    </p>
+                  )}
                   {explorerUrl && (
                     <a
                       href={explorerUrl}
@@ -1234,6 +1295,13 @@ const SuccessStep = ({
                   )}
                 </div>
               )}
+              {pdfError && (
+                <Alert variant='destructive' className='mt-3'>
+                  <AlertTriangle className='size-4' />
+                  <AlertTitle>No se pudo descargar el PDF</AlertTitle>
+                  <AlertDescription>{pdfError}</AlertDescription>
+                </Alert>
+              )}
             </div>
           )}
           {signingError && (
@@ -1245,6 +1313,30 @@ const SuccessStep = ({
           )}
         </CardContent>
         <CardFooter className='grid gap-3'>
+          {voteReceiptReady && txHash && (
+            <Button
+              size='lg'
+              className='h-12 w-full'
+              onClick={() => {
+                void handleDownloadPdf()
+              }}
+              disabled={isDownloadingPdf || blockNumber === null}
+              aria-busy={isDownloadingPdf}
+              aria-label='Descargar comprobante PDF de participación'
+            >
+              {isDownloadingPdf ? (
+                <>
+                  <Loader2 className='size-4 animate-spin' />
+                  Generando PDF...
+                </>
+              ) : (
+                <>
+                  <Download className='size-4' />
+                  Descargar comprobante PDF
+                </>
+              )}
+            </Button>
+          )}
           <Button
             variant='outline'
             size='lg'
