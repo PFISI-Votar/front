@@ -150,6 +150,7 @@ const BoletaUnicaDigitalPageContent = ({
     () => !showLogin
   )
   const [isWalletBootstrapping, setIsWalletBootstrapping] = useState(false)
+  const [wizardMounted, setWizardMounted] = useState(false)
   const [sessionExpiredMessage, setSessionExpiredMessage] = useState<
     string | null
   >(null)
@@ -399,7 +400,16 @@ const BoletaUnicaDigitalPageContent = ({
   }
 
   if (showLogin && votanteSession) {
-    if (boletaQuery.isLoading || budConfigQuery.isLoading || !isReady) {
+    console.log('[BOLETA_PAGE] State check:', {
+      boletaLoading: boletaQuery.isLoading,
+      budConfigLoading: budConfigQuery.isLoading,
+      isReady,
+      wizardMounted,
+    })
+
+    // Only check isReady before wizard is mounted, not during voting flow
+    if (boletaQuery.isLoading || budConfigQuery.isLoading || (!wizardMounted && !isReady)) {
+      console.log('[BOLETA_PAGE] Showing intro splash due to loading/not ready')
       return <BoletaIntroSplash />
     }
 
@@ -423,6 +433,11 @@ const BoletaUnicaDigitalPageContent = ({
       )
     }
 
+    // Mark wizard as mounted once we render it
+    if (!wizardMounted) {
+      setWizardMounted(true)
+    }
+
     return (
       <BudVotingWizard
         boleta={boleta}
@@ -430,6 +445,7 @@ const BoletaUnicaDigitalPageContent = ({
         cryptoReady={isReady}
         onLogout={() => {
           destroyWallet()
+          setWizardMounted(false)
           void clearVotanteSession().finally(() => {
             setVotanteSession(null)
             setSessionBootstrapComplete(true)
