@@ -182,10 +182,17 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
       '0x4444444444444444444444444444444444444444444444444444444444444444' as const
     const timestamp = 1_700_000_000
     const selectionHash = computeSelectionHash(selection)
-    const digest = hashVoteTypedData(357, selectionHash, nullifier, timestamp, {
-      chainId: 31_337,
-      verifyingContract: '0x0000000000000000000000000000000000000001',
-    })
+    const digest = hashVoteTypedData(
+      357,
+      selectionHash,
+      nullifier,
+      101n,
+      timestamp,
+      {
+        chainId: 31_337,
+        verifyingContract: '0x0000000000000000000000000000000000000001',
+      }
+    )
 
     const nobleSig = await signDigestWithSecp256k1(privateKeyBytes, digest)
     const viemSig = await account.signTypedData({
@@ -200,6 +207,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
           { name: 'electionId', type: 'uint256' },
           { name: 'nullifier', type: 'bytes32' },
           { name: 'selectionHash', type: 'bytes32' },
+          { name: 'candidateId', type: 'uint256' },
           { name: 'timestamp', type: 'uint256' },
         ],
       },
@@ -208,6 +216,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
         electionId: BigInt(357),
         nullifier,
         selectionHash,
+        candidateId: 101n,
         timestamp: BigInt(timestamp),
       },
     })
