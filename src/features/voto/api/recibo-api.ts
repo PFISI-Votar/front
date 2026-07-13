@@ -13,10 +13,10 @@ import type { VerificarReciboResponse } from '@/features/voto/data/schema'
  * @returns Datos del recibo sin revelar voto ni identidad
  */
 export async function verificarRecibo(
-  codigo: string,
+  codigo: string
 ): Promise<VerificarReciboResponse> {
   const response = await apiClient.get<VerificarReciboResponse>(
-    `/recibos/verificar/${codigo}`,
+    `/recibos/verificar/${codigo}`
   )
   return response.data
 }

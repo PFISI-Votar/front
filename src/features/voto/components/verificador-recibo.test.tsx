@@ -23,7 +23,8 @@ const reciboExitoso: VerificarReciboResponse = {
   urlExploradorBlockchain:
     'https://sepolia.etherscan.io/tx/0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
   contractAddress: '0xabcdef1234567890abcdef1234567890abcdef12',
-  comprobanteHash: 'a1b2c3d4e5f6789012345678901234567890123456789012345678901234',
+  comprobanteHash:
+    'a1b2c3d4e5f6789012345678901234567890123456789012345678901234',
 }
 
 describe('VerificadorRecibo - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
@@ -43,7 +44,7 @@ describe('VerificadorRecibo - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
     const screen = await render(
       <QueryClientProvider client={queryClient}>
         <VerificadorRecibo />
-      </QueryClientProvider>,
+      </QueryClientProvider>
     )
 
     await expect
@@ -55,7 +56,7 @@ describe('VerificadorRecibo - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
     const screen = await render(
       <QueryClientProvider client={queryClient}>
         <VerificadorRecibo />
-      </QueryClientProvider>,
+      </QueryClientProvider>
     )
 
     await expect
@@ -69,7 +70,7 @@ describe('VerificadorRecibo - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
     const screen = await render(
       <QueryClientProvider client={queryClient}>
         <VerificadorRecibo />
-      </QueryClientProvider>,
+      </QueryClientProvider>
     )
 
     const input = screen.getByLabelText(/Código de Verificación/i)
@@ -78,7 +79,9 @@ describe('VerificadorRecibo - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
     const button = screen.getByRole('button', { name: /Verificar/i })
     await userEvent.click(button)
 
-    await expect.element(screen.getByText(/Centro de Estudiantes 2026/i)).toBeInTheDocument()
+    await expect
+      .element(screen.getByText(/Centro de Estudiantes 2026/i))
+      .toBeInTheDocument()
   })
 
   it('UAT-A11Y-04: link de blockchain debe ser descriptivo', async () => {
@@ -87,7 +90,7 @@ describe('VerificadorRecibo - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
     const screen = await render(
       <QueryClientProvider client={queryClient}>
         <VerificadorRecibo />
-      </QueryClientProvider>,
+      </QueryClientProvider>
     )
 
     const input = screen.getByLabelText(/Código de Verificación/i)
@@ -107,7 +110,7 @@ describe('VerificadorRecibo - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
     const screen = await render(
       <QueryClientProvider client={queryClient}>
         <VerificadorRecibo />
-      </QueryClientProvider>,
+      </QueryClientProvider>
     )
 
     const input = screen.getByLabelText(/Código de Verificación/i)
@@ -116,7 +119,9 @@ describe('VerificadorRecibo - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
     const button = screen.getByRole('button', { name: /Verificar/i })
     await userEvent.click(button)
 
-    await expect.element(screen.getByText(reciboExitoso.txHash || '')).toBeInTheDocument()
+    await expect
+      .element(screen.getByText(reciboExitoso.txHash || ''))
+      .toBeInTheDocument()
   })
 
   it('UAT-A11Y-06: errores deben ser anunciados', async () => {
@@ -125,7 +130,7 @@ describe('VerificadorRecibo - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
     const screen = await render(
       <QueryClientProvider client={queryClient}>
         <VerificadorRecibo />
-      </QueryClientProvider>,
+      </QueryClientProvider>
     )
 
     const input = screen.getByLabelText(/Código de Verificación/i)
@@ -141,7 +146,7 @@ describe('VerificadorRecibo - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
     const screen = await render(
       <QueryClientProvider client={queryClient}>
         <VerificadorRecibo />
-      </QueryClientProvider>,
+      </QueryClientProvider>
     )
 
     const input = screen.getByLabelText(/Código de Verificación/i)
@@ -153,13 +158,14 @@ describe('VerificadorRecibo - VOTAR-360 Accesibilidad WCAG 2.1 AA', () => {
 
   it('UAT-A11Y-08: estado de carga debe ser accesible', async () => {
     mocks.verificarRecibo.mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve(reciboExitoso), 1000)),
+      () =>
+        new Promise((resolve) => setTimeout(() => resolve(reciboExitoso), 1000))
     )
 
     const screen = await render(
       <QueryClientProvider client={queryClient}>
         <VerificadorRecibo />
-      </QueryClientProvider>,
+      </QueryClientProvider>
     )
 
     const input = screen.getByLabelText(/Código de Verificación/i)
