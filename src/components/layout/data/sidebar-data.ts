@@ -28,7 +28,7 @@ export const sidebarData: SidebarData = {
     {
       name: 'VOTAR',
       logo: Command,
-      plan: 'Five Stack — UTN FRVM',
+      plan: 'Five Stack - UTN FRVM',
     },
   ],
   navGroups: [
