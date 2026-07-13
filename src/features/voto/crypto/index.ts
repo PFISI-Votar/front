@@ -27,6 +27,11 @@ export {
   type SelectionPayload,
 } from '@/features/voto/crypto/selection-hash'
 export {
+  resolveAuditCandidateId,
+  VOTO_BLANCO,
+  VOTO_NULO,
+} from '@/features/voto/crypto/audit-candidate-id'
+export {
   assembleSignedVotePayload,
   buildVoteTypedDataDomain,
   buildVoteTypedDataMessage,
