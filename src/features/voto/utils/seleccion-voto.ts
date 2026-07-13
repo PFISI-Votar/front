@@ -2,7 +2,6 @@ import type {
   BoletaDigital,
   CandidatoBoletaDigital,
   CategoriaBoletaDigital,
-  ConfirmarVotoInput,
   SeleccionesPorCategoria,
   SeleccionVoto,
 } from '@/features/voto/data/schema'
@@ -27,23 +26,6 @@ export const buildSeleccionesVoto = (
     .sort(
       (a, b) => a.idCategoria - b.idCategoria || a.idCandidato - b.idCandidato
     )
-
-export const buildConfirmarVotoInput = (
-  selecciones: SeleccionesPorCategoria,
-  idempotencyKey: string
-): ConfirmarVotoInput => ({
-  idempotencyKey,
-  selecciones: buildSeleccionesVoto(selecciones),
-})
-
-export const generarIdempotencyKey = (): string => {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID()
-  }
-  return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (char) =>
-    (Number(char) ^ ((Math.random() * 16) >> (Number(char) / 4))).toString(16)
-  )
-}
 
 export const getTotalCandidatos = (categorias: CategoriaBoletaDigital[]) =>
   categorias.reduce(

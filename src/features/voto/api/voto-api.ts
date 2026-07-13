@@ -2,10 +2,6 @@ import { votanteApiClient } from '@/lib/votante-api-client'
 import type {
   BoletaDigital,
   BudConfig,
-  ConfirmarVotoInput,
-  ConfirmarVotoResponse,
-  RegistrarVotoBlockchainInput,
-  RegistrarVotoBlockchainResponse,
   VoterMerkleProof,
 } from '@/features/voto/data/schema'
 
@@ -36,30 +32,23 @@ export const solicitarMerkleProof = async (
   return data
 }
 
-export const confirmarVoto = async (
-  idEleccion: number,
-  input: ConfirmarVotoInput
-): Promise<ConfirmarVotoResponse> => {
-  const { data } = await votanteApiClient.post<ConfirmarVotoResponse>(
-    `/elecciones/${idEleccion}/votos/confirmar`,
-    input
-  )
-  return data
-}
-
 /**
- * VOTAR-360: Registra un voto después de transmisión exitosa a blockchain.
- *
- * Llamado por bud-voting-wizard después de transmitir el voto firmado
- * a la blockchain. El backend genera el código de verificación E2E (UUID).
+ * VOTAR-379 UAT-05: fire-and-forget anonymous vote audit.
+ * Uses credentials:omit so SSO cookies are not sent with the cast notification.
  */
-export const registrarVotoBlockchain = async (
-  idEleccion: number,
-  input: RegistrarVotoBlockchainInput
-): Promise<RegistrarVotoBlockchainResponse> => {
-  const { data } = await votanteApiClient.post<RegistrarVotoBlockchainResponse>(
-    `/elecciones/${idEleccion}/votos/registrar-blockchain`,
-    input
+export const registrarVotoEmitidoAnonimo = async (
+  idEleccion: number
+): Promise<void> => {
+  const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+  const response = await fetch(
+    `${baseUrl}/elecciones/${idEleccion}/votos/emitido-anonimo`,
+    {
+      method: 'POST',
+      credentials: 'omit',
+      headers: { Accept: 'application/json' },
+    }
   )
-  return data
+  if (!response.ok) {
+    throw new Error(`Anonymous vote audit failed (${response.status})`)
+  }
 }

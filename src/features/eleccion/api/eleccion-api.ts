@@ -44,3 +44,10 @@ export const abrirEleccion = async (idEleccion: number): Promise<Eleccion> => {
   )
   return data
 }
+
+export const cerrarEleccion = async (idEleccion: number): Promise<Eleccion> => {
+  const { data } = await apiClient.post<Eleccion>(
+    `/elecciones/${idEleccion}/cerrar`
+  )
+  return data
+}

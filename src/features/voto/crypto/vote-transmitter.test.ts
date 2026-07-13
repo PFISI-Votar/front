@@ -122,6 +122,31 @@ describe('vote-transmitter — VOTAR-358', () => {
     expect(writeContract).not.toHaveBeenCalled()
   })
 
+  it('VOTAR-379 UAT-04: castSignedVote no envía Authorization ni cookie SSO', async () => {
+    estimateContractGas.mockResolvedValue(100_000n)
+    writeContract.mockResolvedValue('0x' + 'f'.repeat(64))
+    waitForTransactionReceipt.mockResolvedValue({
+      status: 'success',
+      blockNumber: 42n,
+    })
+
+    await transmitSignedVote(input, {
+      publicClient: publicClient as never,
+      walletClient: walletClient as never,
+      contractAddress: '0x0000000000000000000000000000000000000001',
+    })
+
+    const writeArgs = writeContract.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >
+    expect(writeArgs).not.toHaveProperty('Authorization')
+    expect(writeArgs).not.toHaveProperty('headers')
+    expect(Object.keys(writeArgs)).not.toContain('authorization')
+    expect(String(writeArgs.abi)).not.toMatch(/Bearer|votar_voter/i)
+    expect(writeArgs.functionName).toBe('castSignedVote')
+  })
+
   it('applies ceil gas margin correctly', () => {
     expect(applyGasMargin(100n, 1.1)).toBe(110n)
     expect(applyGasMargin(101n, 1.1)).toBe(112n)

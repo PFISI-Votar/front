@@ -48,32 +48,13 @@ export type BudConfig = {
   estado: string
   tipoVotacion: string
   metodosAutenticacion: string[]
+  resultadosDefinitivos?: boolean
+  snapshotCongelado?: boolean
 }
 
 export type SeleccionVoto = {
   idCategoria: number
   idCandidato: number
-}
-
-export type ConfirmarVotoInput = {
-  idempotencyKey: string
-  selecciones: SeleccionVoto[]
-  votoEnBlanco?: boolean
-}
-
-export type ConfirmarVotoResponse = {
-  idEleccion: number
-  estado: string
-  comprobanteHash: string
-  payloadHash: string
-  recibidoEn: string
-  idempotente: boolean
-  // VOTAR-360: Campos de recibo blockchain
-  txHash?: string
-  blockNumber?: number
-  contractAddress?: string
-  codigoVerificacionE2E: string
-  txStatus?: string
 }
 
 export type SeleccionesPorCategoria = Record<number, number>
@@ -83,41 +64,4 @@ export type VoterMerkleProof = {
   hashHoja: string
   merkleProof: string[]
   root: string
-}
-
-// VOTAR-360: Respuesta de verificación de recibo electoral
-export type VerificarReciboResponse = {
-  idEleccion: number
-  nombreEleccion: string
-  recibidoEn: string
-  txHash?: string
-  blockNumber?: number
-  estadoTx?: string
-  urlExploradorBlockchain?: string
-  contractAddress?: string
-  comprobanteHash: string
-}
-
-// VOTAR-360: Registro de voto blockchain (wizard)
-export type RegistrarVotoBlockchainInput = {
-  txHash: string
-  blockNumber: number
-  nullifier: string
-  selectionHash: string
-  timestamp: number
-  contractAddress?: string
-  categorias: number[]
-}
-
-export type RegistrarVotoBlockchainResponse = {
-  idEleccion: number
-  estado: string
-  comprobanteHash: string
-  payloadHash: string
-  recibidoEn: string
-  codigoVerificacionE2E: string
-  txHash: string
-  blockNumber: number
-  txStatus: string
-  contractAddress?: string
 }

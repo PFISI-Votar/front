@@ -6,9 +6,9 @@ import {
   FileSpreadsheet,
   Vote,
   Play,
+  Square,
   AlertCircle,
 } from 'lucide-react'
-import { formatDateTimeForDisplay } from '@/lib/datetime'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -28,16 +28,18 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { listarElecciones } from '@/features/eleccion/api/eleccion-api'
+import { ComicioVentanaElectoral } from '@/features/eleccion/components/comicio-ventana-electoral'
 import type { EleccionEstado } from '@/features/eleccion/data/schema'
 import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
+import { useCerrarEleccion } from '@/features/eleccion/hooks/use-cerrar-eleccion'
 import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
+import {
+  getEstadoEleccionBadgeVariant,
+  getEstadoEleccionLabel,
+} from '@/features/eleccion/lib/estado-eleccion'
 
-const estadoVariant = (estado: EleccionEstado) => {
-  if (estado === 'BORRADOR') return 'secondary' as const
-  if (estado === 'CONFIGURADA') return 'default' as const
-  if (estado === 'ABIERTA') return 'default' as const
-  return 'outline' as const
-}
+const estadoVariant = (estado: EleccionEstado) =>
+  getEstadoEleccionBadgeVariant(estado)
 
 interface AbrirComicioDialogProps {
   idEleccion: number
@@ -104,9 +106,78 @@ const AbrirComicioDialog = ({
   )
 }
 
+interface CerrarComicioDialogProps {
+  idEleccion: number
+  nombreEleccion: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+const CerrarComicioDialog = ({
+  idEleccion,
+  nombreEleccion,
+  open,
+  onOpenChange,
+}: CerrarComicioDialogProps) => {
+  const { mutate: cerrarEleccion, isPending } = useCerrarEleccion(idEleccion)
+
+  const handleConfirm = () => {
+    cerrarEleccion(undefined, {
+      onSuccess: () => {
+        onOpenChange(false)
+      },
+    })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Cerrar comicio</DialogTitle>
+          <DialogDescription asChild>
+            <div>
+              ¿Está seguro de que desea cerrar el comicio "{nombreEleccion}"?
+              <br />
+              <br />
+              Esta acción bloqueará la urna on-chain (estado CLOSED), responderá
+              HTTP 410 ante nuevos sufragios y congelará el Dashboard Público
+              con resultados definitivos.
+            </div>
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button
+            variant='outline'
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant='destructive'
+            onClick={handleConfirm}
+            disabled={isPending}
+          >
+            {isPending ? 'Cerrando...' : 'Cerrar comicio'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export const ComiciosList = () => {
   const queryClient = useQueryClient()
-  const [dialogState, setDialogState] = useState<{
+  const [abrirDialog, setAbrirDialog] = useState<{
+    open: boolean
+    idEleccion: number | null
+    nombreEleccion: string
+  }>({
+    open: false,
+    idEleccion: null,
+    nombreEleccion: '',
+  })
+  const [cerrarDialog, setCerrarDialog] = useState<{
     open: boolean
     idEleccion: number | null
     nombreEleccion: string
@@ -128,26 +199,28 @@ export const ComiciosList = () => {
     queryFn: listarElecciones,
   })
 
-  // Conectar WebSocket y actualizar lista cuando se abre un comicio
   useEleccionWebSocket({
     onEleccionAbierta: () => {
-      // Invalidar cache para refrescar lista de elecciones
+      queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+    },
+    onEleccionCerrada: () => {
       queryClient.invalidateQueries({ queryKey: ['elecciones'] })
     },
   })
 
-  const handleOpenDialog = (idEleccion: number, nombreEleccion: string) => {
-    setDialogState({ open: true, idEleccion, nombreEleccion })
-    setPreconditionError(null) // Limpiar error anterior
+  const handleOpenAbrirDialog = (
+    idEleccion: number,
+    nombreEleccion: string
+  ) => {
+    setAbrirDialog({ open: true, idEleccion, nombreEleccion })
+    setPreconditionError(null)
   }
 
-  const handleCloseDialog = () => {
-    setDialogState({ open: false, idEleccion: null, nombreEleccion: '' })
-  }
-
-  const handlePreconditionError = (message: string) => {
-    setPreconditionError(message)
-    handleCloseDialog()
+  const handleOpenCerrarDialog = (
+    idEleccion: number,
+    nombreEleccion: string
+  ) => {
+    setCerrarDialog({ open: true, idEleccion, nombreEleccion })
   }
 
   if (isLoading) {
@@ -208,13 +281,14 @@ export const ComiciosList = () => {
               <CardHeader className='flex flex-row items-start justify-between gap-4 space-y-0'>
                 <div className='space-y-1'>
                   <CardTitle className='text-lg'>{comicio.nombre}</CardTitle>
-                  <CardDescription>
-                    ID {comicio.idEleccion} · Apertura{' '}
-                    {formatDateTimeForDisplay(comicio.fechaInicio)}
-                  </CardDescription>
+                  <CardDescription>ID {comicio.idEleccion}</CardDescription>
+                  <ComicioVentanaElectoral
+                    fechaInicio={comicio.fechaInicio}
+                    fechaFin={comicio.fechaFin}
+                  />
                 </div>
                 <Badge variant={estadoVariant(comicio.estado)}>
-                  {comicio.estado}
+                  {getEstadoEleccionLabel(comicio.estado)}
                 </Badge>
               </CardHeader>
               <CardContent className='flex flex-wrap gap-2'>
@@ -239,29 +313,40 @@ export const ComiciosList = () => {
                   </Link>
                 </Button>
                 {comicio.estado === 'BORRADOR' && (
-                  <>
-                    <Button asChild variant='outline' size='sm'>
-                      <Link
-                        to='/comicios/$idEleccion/editar'
-                        params={{ idEleccion: String(comicio.idEleccion) }}
-                        aria-label={`Editar ${comicio.nombre}`}
-                      >
-                        Editar
-                      </Link>
-                    </Button>
-                  </>
+                  <Button asChild variant='outline' size='sm'>
+                    <Link
+                      to='/comicios/$idEleccion/editar'
+                      params={{ idEleccion: String(comicio.idEleccion) }}
+                      aria-label={`Editar ${comicio.nombre}`}
+                    >
+                      Editar
+                    </Link>
+                  </Button>
                 )}
                 {comicio.estado === 'CONFIGURADA' && (
                   <Button
                     variant='default'
                     size='sm'
                     onClick={() =>
-                      handleOpenDialog(comicio.idEleccion, comicio.nombre)
+                      handleOpenAbrirDialog(comicio.idEleccion, comicio.nombre)
                     }
                     aria-label={`Abrir comicio ${comicio.nombre}`}
                   >
                     <Play className='me-2 size-4' />
                     Abrir comicio
+                  </Button>
+                )}
+                {comicio.estado === 'ABIERTA' && (
+                  <Button
+                    variant='destructive'
+                    size='sm'
+                    onClick={() =>
+                      handleOpenCerrarDialog(comicio.idEleccion, comicio.nombre)
+                    }
+                    aria-label={`Cerrar comicio ${comicio.nombre}`}
+                  >
+                    <Square className='me-2 size-4' />
+                    Cerrar comicio
                   </Button>
                 )}
               </CardContent>
@@ -270,13 +355,41 @@ export const ComiciosList = () => {
         ))}
       </ul>
 
-      {dialogState.idEleccion !== null && (
+      {abrirDialog.idEleccion !== null && (
         <AbrirComicioDialog
-          idEleccion={dialogState.idEleccion}
-          nombreEleccion={dialogState.nombreEleccion}
-          open={dialogState.open}
-          onOpenChange={handleCloseDialog}
-          onPreconditionError={handlePreconditionError}
+          idEleccion={abrirDialog.idEleccion}
+          nombreEleccion={abrirDialog.nombreEleccion}
+          open={abrirDialog.open}
+          onOpenChange={(open) =>
+            setAbrirDialog((prev) => ({
+              ...prev,
+              open,
+              ...(open ? {} : { idEleccion: null, nombreEleccion: '' }),
+            }))
+          }
+          onPreconditionError={(message) => {
+            setPreconditionError(message)
+            setAbrirDialog({
+              open: false,
+              idEleccion: null,
+              nombreEleccion: '',
+            })
+          }}
+        />
+      )}
+
+      {cerrarDialog.idEleccion !== null && (
+        <CerrarComicioDialog
+          idEleccion={cerrarDialog.idEleccion}
+          nombreEleccion={cerrarDialog.nombreEleccion}
+          open={cerrarDialog.open}
+          onOpenChange={(open) =>
+            setCerrarDialog((prev) => ({
+              ...prev,
+              open,
+              ...(open ? {} : { idEleccion: null, nombreEleccion: '' }),
+            }))
+          }
         />
       )}
     </>

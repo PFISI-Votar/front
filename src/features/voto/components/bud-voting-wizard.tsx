@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   Circle,
   Clock3,
-  Download,
   ExternalLink,
   Fingerprint,
   Loader2,
@@ -40,6 +39,7 @@ import {
   TIPOS_VOTACION,
   type TipoVotacion,
 } from '@/features/eleccion/lista/data/schema'
+import { registrarVotoEmitidoAnonimo } from '@/features/voto/api/voto-api'
 import type { SignedVotePayload } from '@/features/voto/crypto'
 import { getExplorerTxUrl } from '@/features/voto/crypto/constants'
 import {
@@ -61,6 +61,7 @@ import type {
   VoterMerkleProof,
 } from '@/features/voto/data/schema'
 import { useSolicitarMerkleProof } from '@/features/voto/hooks/use-merkle-proof'
+import { clearVotanteSession } from '@/features/voto/services/votante-session'
 import { buildWizardSelectionPayload } from '@/features/voto/utils/wizard-selection'
 
 type VotingVariant = 'lista-completa' | 'candidatos' | 'mixto'
@@ -264,11 +265,6 @@ export const BudVotingWizard = ({
   onLogout,
 }: BudVotingWizardProps) => {
   const [step, setStep] = useState<WizardStep>('identity')
-
-  useEffect(() => {
-    // console.log('[WIZARD] Step changed to:', step)
-  }, [step])
-
   const variant = getVotingVariant(tipoVotacion)
   const [returningVoter, setReturningVoter] = useState(false)
   const [selectedListId, setSelectedListId] = useState<string | null>(null)
@@ -287,9 +283,8 @@ export const BudVotingWizard = ({
   )
   const [txHash, setTxHash] = useState<Hex | null>(null)
   const [txError, setTxError] = useState<VoteTxError | null>(null)
-  const [codigoVerificacionE2E, setCodigoVerificacionE2E] = useState<
-    string | null
-  >(null)
+  /** True once a vote was registered; survives clearing merkle/signed state (VOTAR-379). */
+  const [voteReceiptReady, setVoteReceiptReady] = useState(false)
   const merkleProofMutation = useSolicitarMerkleProof(boleta.idEleccion)
   const {
     signVotePayload,
@@ -345,6 +340,7 @@ export const BudVotingWizard = ({
     setTransmitPhase(null)
     setTxHash(null)
     setTxError(null)
+    setVoteReceiptReady(false)
   }
 
   const handleModifyVote = async () => {
@@ -395,7 +391,6 @@ export const BudVotingWizard = ({
     setTransmitPhase('estimating')
 
     try {
-      // console.log('[WIZARD] Starting vote transmission...')
       const result = await transmitSignedVote(
         {
           signed,
@@ -404,59 +399,23 @@ export const BudVotingWizard = ({
         },
         {
           onProgress: (phase) => {
-            // console.log('[WIZARD] Transmit phase:', phase)
             setTransmitPhase(phase)
           },
         }
       )
-      // console.log('[WIZARD] Vote transmitted successfully:', result)
-
-      // VOTAR-360: Registrar voto en backend para generar UUID E2E
-      // console.log('[WIZARD] Registering vote in backend...')
-      try {
-        const { registrarVotoBlockchain } =
-          await import('@/features/voto/api/voto-api')
-
-        // Extraer IDs de categorías desde la selección
-        const selection = buildWizardSelectionPayload({
-          specialVote,
-          candidateSelections,
-          selectedListId,
-          roles,
-          candidates,
-        })
-        const categorias =
-          selection.selecciones?.map((s) => s.idCategoria) ?? []
-
-        const registro = await registrarVotoBlockchain(boleta.idEleccion, {
-          txHash: result.txHash as string,
-          blockNumber: Number(result.blockNumber),
-          nullifier: signed.nullifier as string,
-          selectionHash: signed.selectionHash as string,
-          timestamp: signed.timestamp,
-          categorias,
-        })
-
-        // console.log('[WIZARD] Backend registration successful:', registro)
-        setCodigoVerificacionE2E(registro.codigoVerificacionE2E)
-      } catch (_backendError) {
-        // console.error('[WIZARD] Backend registration failed:', _backendError)
-        // No bloqueamos el flujo si falla el registro backend
-        // El usuario aún tiene su recibo on-chain
-      }
-
-      // Update state to success
-      // console.log('[WIZARD] Updating state to success...')
       setTxHash(result.txHash)
       setTransmitPhase(null)
-
-      // Force state update with a microtask delay
-      await Promise.resolve()
-
+      // VOTAR-379 UAT-05: anonymous audit before clearing SSO (no cookies on call).
+      void registrarVotoEmitidoAnonimo(boleta.idEleccion).catch(() => {
+        // Recibo on-chain ya confirmado; el audit no debe bloquear la UX.
+      })
+      // VOTAR-379 UAT-03: drop identity-linked crypto material after receipt.
+      setSignedVote(null)
+      setMerkleProofData(null)
+      setVoteReceiptReady(true)
       setStep('success')
-      // console.log('[WIZARD] Step updated to success')
+      await clearVotanteSession()
     } catch (error) {
-      // console.error('[WIZARD] Vote transmission failed:', error)
       const mapped = mapVoteTxError(error)
       setTxError(mapped)
       setTransmitPhase('error')
@@ -661,21 +620,13 @@ export const BudVotingWizard = ({
           />
         )}
         {step === 'success' && (
-          <>
-            {/* {console.log('[WIZARD] Rendering SuccessStep with txHash:', txHash, 'codigoE2E:', codigoVerificacionE2E)} */}
-            <SuccessStep
-              boleta={boleta}
-              signedVote={signedVote}
-              txHash={txHash}
-              codigoVerificacionE2E={codigoVerificacionE2E}
-              hasMerkleProof={Boolean(merkleProofData)}
-              signingError={signingError}
-              onLogout={handleLogout}
-              onModify={() => {
-                void handleModifyVote()
-              }}
-            />
-          </>
+          <SuccessStep
+            voteReceiptReady={voteReceiptReady}
+            txHash={txHash}
+            signingError={signingError}
+            onLogout={handleLogout}
+            onModify={handleLogout}
+          />
         )}
       </div>
     </BudWizardShell>
@@ -1223,54 +1174,19 @@ const ReviewStep = ({
 )
 
 const SuccessStep = ({
-  boleta,
-  signedVote,
+  voteReceiptReady,
   txHash,
-  codigoVerificacionE2E,
-  hasMerkleProof,
   signingError,
   onLogout,
   onModify,
 }: {
-  boleta: BoletaDigital
-  signedVote: SignedVotePayload | null
+  voteReceiptReady: boolean
   txHash: Hex | null
-  codigoVerificacionE2E: string | null
-  hasMerkleProof: boolean
   signingError: string | null
   onLogout: () => void
   onModify: () => void
 }) => {
-  const [isDownloadingPDF, setIsDownloadingPDF] = useState(false)
   const explorerUrl = txHash ? getExplorerTxUrl(txHash) : null
-
-  const handleDownloadPDF = async () => {
-    if (!txHash || !signedVote) {
-      alert('No se puede generar el PDF. Faltan datos de la votación.')
-      return
-    }
-
-    setIsDownloadingPDF(true)
-    try {
-      const { generarReciboPDF } =
-        await import('@/features/voto/lib/generar-recibo-pdf')
-
-      await generarReciboPDF({
-        idEleccion: boleta.idEleccion,
-        nombreEleccion: boleta.nombreEleccion,
-        txHash: txHash as string, // Cast Hex → string para PDF
-        timestamp: new Date(signedVote.timestamp).toISOString(),
-        // VOTAR-360: Usar UUID del backend si está disponible, sino fallback a txHash
-        codigoVerificacionE2E: (codigoVerificacionE2E ?? txHash) as string,
-        comprobanteHash: signedVote.selectionHash,
-      })
-    } catch (_error) {
-      // console.error('Error generando PDF:', _error)
-      alert('Error al generar el PDF. Intente nuevamente.')
-    } finally {
-      setIsDownloadingPDF(false)
-    }
-  }
 
   return (
     <div className='mx-auto grid w-full max-w-2xl gap-5'>
@@ -1287,20 +1203,17 @@ const SuccessStep = ({
           </CardDescription>
         </CardHeader>
         <CardContent className='grid gap-4 text-left'>
-          {signedVote && (
+          {voteReceiptReady && (
             <div className='rounded-2xl bg-slate-50 p-4'>
               <p className='mb-2 text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase'>
                 Comprobante criptográfico
               </p>
               <p className='text-sm text-slate-700'>
                 Tu boleta quedó protegida con firma digital local y registrada
-                de forma inmutable en la blockchain.
+                de forma inmutable en la blockchain. La sesión SSO y el material
+                criptográfico en memoria fueron eliminados tras emitir el
+                recibo.
               </p>
-              {hasMerkleProof && (
-                <p className='mt-2 text-sm text-slate-600'>
-                  Pertenencia al padrón verificada.
-                </p>
-              )}
               {txHash && (
                 <div className='mt-3 rounded-xl bg-white p-3 text-sm break-all text-slate-700'>
                   <p className='mb-1 text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase'>
@@ -1332,25 +1245,6 @@ const SuccessStep = ({
           )}
         </CardContent>
         <CardFooter className='grid gap-3'>
-          <Button
-            size='lg'
-            className='h-12 w-full bg-[#2f6f9f] font-semibold hover:bg-[#285f88]'
-            onClick={handleDownloadPDF}
-            disabled={isDownloadingPDF || !txHash}
-            aria-label='Descargar comprobante PDF'
-          >
-            {isDownloadingPDF ? (
-              <>
-                <Loader2 className='size-4 animate-spin' />
-                Generando PDF...
-              </>
-            ) : (
-              <>
-                <Download className='size-4' />
-                Descargar Comprobante PDF
-              </>
-            )}
-          </Button>
           <Button
             variant='outline'
             size='lg'

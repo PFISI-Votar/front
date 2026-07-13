@@ -6,6 +6,7 @@ import { page, userEvent } from 'vitest/browser'
 import {
   obtenerEleccion,
   abrirEleccion,
+  cerrarEleccion,
 } from '@/features/eleccion/api/eleccion-api'
 import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import type { ConfiguracionDatosCandidatoResponse } from '@/features/eleccion/candidato/data/schema'
@@ -30,6 +31,7 @@ vi.mock('@/features/eleccion/api/eleccion-api', () => ({
   listarElecciones: vi.fn(),
   obtenerEleccion: vi.fn(),
   abrirEleccion: vi.fn(),
+  cerrarEleccion: vi.fn(),
 }))
 
 vi.mock('@/features/eleccion/lista/api/lista-api', () => ({
@@ -219,6 +221,64 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     await userEvent.click(confirmButton)
 
     expect(abrirEleccion).toHaveBeenCalledWith(1)
+  })
+
+  it('muestra ventana electoral cuando el comicio está configurado', async () => {
+    await renderPanel()
+
+    await expect.element(page.getByText(/Apertura.*Cierre/)).toBeInTheDocument()
+  })
+
+  it('muestra botón "Cerrar comicio" cuando estado es ABIERTA', async () => {
+    vi.mocked(obtenerEleccion).mockResolvedValue({
+      ...mockEleccionConfigurada,
+      estado: 'ABIERTA',
+    })
+
+    await renderPanel()
+
+    await expect
+      .element(page.getByRole('button', { name: 'Cerrar comicio' }))
+      .toBeInTheDocument()
+  })
+
+  it('abre diálogo de confirmación al hacer clic en "Cerrar comicio"', async () => {
+    vi.mocked(obtenerEleccion).mockResolvedValue({
+      ...mockEleccionConfigurada,
+      estado: 'ABIERTA',
+    })
+
+    await renderPanel()
+
+    const cerrarButton = page.getByRole('button', { name: 'Cerrar comicio' })
+    await userEvent.click(cerrarButton)
+
+    await expect
+      .element(page.getByRole('heading', { name: '¿Cerrar el comicio?' }))
+      .toBeInTheDocument()
+  })
+
+  it('actualiza estado tras cierre exitoso', async () => {
+    vi.mocked(obtenerEleccion).mockResolvedValue({
+      ...mockEleccionConfigurada,
+      estado: 'ABIERTA',
+    })
+    vi.mocked(cerrarEleccion).mockResolvedValue({
+      ...mockEleccionConfigurada,
+      estado: 'CERRADA',
+    })
+
+    await renderPanel()
+
+    const cerrarButton = page.getByRole('button', { name: 'Cerrar comicio' })
+    await userEvent.click(cerrarButton)
+
+    const confirmButton = page.getByRole('button', {
+      name: 'Sí, cerrar comicio',
+    })
+    await userEvent.click(confirmButton)
+
+    expect(cerrarEleccion).toHaveBeenCalledWith(1)
   })
 
   it('muestra texto de precondiciones en diálogo de confirmación', async () => {

@@ -20,6 +20,7 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('@/features/eleccion/api/eleccion-api', () => ({
   listarElecciones: vi.fn(),
   abrirEleccion: vi.fn(),
+  cerrarEleccion: vi.fn(),
 }))
 
 vi.mock('@/features/eleccion/hooks/use-eleccion-websocket', () => ({
@@ -92,6 +93,16 @@ describe('ComiciosList', () => {
     await expect
       .element(page.getByText('Elección Provincial 2025'))
       .toBeInTheDocument()
+  })
+
+  it('muestra ventana electoral y estado legible en cada comicio', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+
+    await renderComiciosList()
+
+    await expect.element(page.getByText('En preparación')).toBeInTheDocument()
+    await expect.element(page.getByText('Borrador')).toBeInTheDocument()
+    expect(page.getByText(/Apertura.*Cierre/).all()).toHaveLength(2)
   })
 
   it('muestra botón "Abrir comicio" solo para elecciones en estado CONFIGURADA', async () => {

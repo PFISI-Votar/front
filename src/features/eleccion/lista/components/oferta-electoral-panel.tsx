@@ -10,6 +10,7 @@ import {
   Lock,
   Pencil,
   Plus,
+  Square,
   Trash2,
   UserPen,
   Vote,
@@ -46,6 +47,7 @@ import {
   eliminarEleccion,
   obtenerEleccion,
   abrirEleccion,
+  cerrarEleccion,
 } from '@/features/eleccion/api/eleccion-api'
 import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import { CandidatoFormDialog } from '@/features/eleccion/candidato/components/candidato-form-dialog'
@@ -53,7 +55,12 @@ import { ConfiguracionDatosCandidatoPanel } from '@/features/eleccion/candidato/
 import type { Candidato } from '@/features/eleccion/candidato/data/schema'
 import { buildResumenDatosAdicionales } from '@/features/eleccion/candidato/utils/format-datos-adicionales'
 import { CategoriasPanel } from '@/features/eleccion/categoria/components/categorias-panel'
+import { ComicioVentanaElectoral } from '@/features/eleccion/components/comicio-ventana-electoral'
 import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
+import {
+  getEstadoEleccionBadgeVariant,
+  getEstadoEleccionLabel,
+} from '@/features/eleccion/lib/estado-eleccion'
 import {
   actualizarLista,
   crearLista,
@@ -96,6 +103,7 @@ export const OfertaElectoralPanel = ({
     useState<CandidatoDialogState | null>(null)
   const [oficializarDialogOpen, setOficializarDialogOpen] = useState(false)
   const [abrirDialogOpen, setAbrirDialogOpen] = useState(false)
+  const [cerrarDialogOpen, setCerrarDialogOpen] = useState(false)
   const [eliminarDialogOpen, setEliminarDialogOpen] = useState(false)
 
   const eleccionQuery = useQuery({
@@ -143,6 +151,12 @@ export const OfertaElectoralPanel = ({
   // Escuchar eventos WebSocket para actualizar en tiempo real
   useEleccionWebSocket({
     onEleccionAbierta: (data) => {
+      if (data.idEleccion === idEleccion) {
+        invalidateOferta()
+        queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+      }
+    },
+    onEleccionCerrada: (data) => {
       if (data.idEleccion === idEleccion) {
         invalidateOferta()
         queryClient.invalidateQueries({ queryKey: ['elecciones'] })
@@ -262,6 +276,21 @@ export const OfertaElectoralPanel = ({
     abrirComicioMutation.mutate()
   }
 
+  const cerrarComicioMutation = useMutation({
+    mutationFn: () => cerrarEleccion(idEleccion),
+    onSuccess: async () => {
+      setCerrarDialogOpen(false)
+      toast.success('Comicio cerrado exitosamente')
+      await invalidateOferta()
+      await queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+    },
+    onError: handleApiError,
+  })
+
+  const handleConfirmCerrar = () => {
+    cerrarComicioMutation.mutate()
+  }
+
   const eliminarComicioMutation = useMutation({
     mutationFn: () => eliminarEleccion(idEleccion),
     onSuccess: async () => {
@@ -288,11 +317,19 @@ export const OfertaElectoralPanel = ({
             Comicio #{idEleccion}
             {eleccionQuery.data ? ` — ${eleccionQuery.data.nombre}` : ''}
           </p>
+          {eleccionQuery.data && eleccionQuery.data.estado !== 'BORRADOR' ? (
+            <ComicioVentanaElectoral
+              fechaInicio={eleccionQuery.data.fechaInicio}
+              fechaFin={eleccionQuery.data.fechaFin}
+            />
+          ) : null}
         </div>
         <div className='flex flex-wrap items-center gap-3'>
           {eleccionQuery.data && (
-            <Badge variant={isEditable ? 'secondary' : 'default'}>
-              {eleccionQuery.data.estado}
+            <Badge
+              variant={getEstadoEleccionBadgeVariant(eleccionQuery.data.estado)}
+            >
+              {getEstadoEleccionLabel(eleccionQuery.data.estado)}
             </Badge>
           )}
           <Button asChild variant='outline'>
@@ -330,6 +367,18 @@ export const OfertaElectoralPanel = ({
             >
               <Vote className='me-2 size-4' />
               Abrir comicio
+            </Button>
+          )}
+          {eleccionQuery.data?.estado === 'ABIERTA' && (
+            <Button
+              variant='destructive'
+              onClick={() => setCerrarDialogOpen(true)}
+              disabled={cerrarComicioMutation.isPending}
+              aria-haspopup='dialog'
+              aria-label='Cerrar comicio'
+            >
+              <Square className='me-2 size-4' />
+              Cerrar comicio
             </Button>
           )}
         </div>
@@ -711,6 +760,24 @@ export const OfertaElectoralPanel = ({
         confirmText='Sí, abrir comicio'
         isLoading={abrirComicioMutation.isPending}
         handleConfirm={handleConfirmAbrir}
+      />
+
+      <ConfirmDialog
+        open={cerrarDialogOpen}
+        onOpenChange={setCerrarDialogOpen}
+        title='¿Cerrar el comicio?'
+        desc={
+          <>
+            Esta operación transicionará el comicio al estado{' '}
+            <strong>CERRADA</strong>, bloqueará nuevos sufragios (HTTP 410) y
+            congelará el Dashboard Público con resultados definitivos.
+          </>
+        }
+        cancelBtnText='Cancelar'
+        confirmText='Sí, cerrar comicio'
+        destructive
+        isLoading={cerrarComicioMutation.isPending}
+        handleConfirm={handleConfirmCerrar}
       />
 
       <ConfirmDialog
