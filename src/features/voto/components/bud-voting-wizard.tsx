@@ -1040,9 +1040,8 @@ const SelectionStep = ({
               </CardTitle>
               <CardDescription>
                 Elegí un candidato por cargo
-                {permitirVotoEnBlanco
-                  ? ' o voto en blanco'
-                  : ''}. Podés combinar partidos diferentes entre cargos.
+                {permitirVotoEnBlanco ? ' o voto en blanco' : ''}. Podés
+                combinar partidos diferentes entre cargos.
               </CardDescription>
             </CardHeader>
             <CardContent className='grid gap-5'>
@@ -1158,9 +1157,7 @@ const ReviewStep = ({
           {(specialVote === 'blank' || wholeBallotBlank) && (
             <SpecialVoteSummary specialVote='blank' />
           )}
-          {specialVote === 'null' && (
-            <SpecialVoteSummary specialVote='null' />
-          )}
+          {specialVote === 'null' && <SpecialVoteSummary specialVote='null' />}
 
           {selectedList && variant !== 'mixto' && !specialVote && (
             <div className='rounded-2xl border border-[#dbe3ea] p-4'>
@@ -1522,9 +1519,7 @@ const TransmitStep = ({
                     <li key={candidate.id}>{candidate.name}</li>
                   ))}
                   {blankRoles.map((role) => (
-                    <li key={role.id}>
-                      {role.name}: Voto en blanco
-                    </li>
+                    <li key={role.id}>{role.name}: Voto en blanco</li>
                   ))}
                 </ul>
               )}

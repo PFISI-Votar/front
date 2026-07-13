@@ -92,11 +92,7 @@ export const buildWizardSelectionPayload = (
   }
 
   if (
-    areAllRolesBlank(
-      input.candidateSelections,
-      input.roles,
-      input.candidates
-    )
+    areAllRolesBlank(input.candidateSelections, input.roles, input.candidates)
   ) {
     return { votoEnBlanco: true, selecciones: [] }
   }

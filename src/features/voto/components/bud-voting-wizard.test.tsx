@@ -266,9 +266,7 @@ describe('BudVotingWizard', () => {
     })
     const ana = screen.getByRole('button', { name: /Ana Lopez/i })
 
-    expect(blankPresidente.element().getAttribute('aria-pressed')).toBe(
-      'false'
-    )
+    expect(blankPresidente.element().getAttribute('aria-pressed')).toBe('false')
     expect(blankVocales.element().getAttribute('aria-pressed')).toBe('false')
     expect(ana.element().getAttribute('aria-pressed')).toBe('false')
   })
@@ -278,7 +276,10 @@ describe('BudVotingWizard', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /Ana Lopez/i }))
     expect(
-      screen.getByRole('button', { name: /Ana Lopez/i }).element().getAttribute('aria-pressed')
+      screen
+        .getByRole('button', { name: /Ana Lopez/i })
+        .element()
+        .getAttribute('aria-pressed')
     ).toBe('true')
 
     await userEvent.click(
@@ -344,7 +345,10 @@ describe('BudVotingWizard', () => {
 
   it('VOTAR-356: no renderiza casilleros de blanco si permitirVotoEnBlanco es false', async () => {
     const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
     })
     const screen = await render(
       <QueryClientProvider client={queryClient}>
