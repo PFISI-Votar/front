@@ -43,7 +43,6 @@ import {
 import { firmarRecibo } from '@/features/voto/api/recibo-api'
 import { registrarVotoEmitidoAnonimo } from '@/features/voto/api/voto-api'
 import type { SignedVotePayload } from '@/features/voto/crypto'
-import { resolveAuditCandidateId } from '@/features/voto/crypto/audit-candidate-id'
 import { getExplorerTxUrl } from '@/features/voto/crypto/constants'
 import {
   calcularNullifier,
@@ -398,20 +397,11 @@ export const BudVotingWizard = ({
     setTransmitPhase('estimating')
 
     try {
-      const selection = buildWizardSelectionPayload({
-        specialVote,
-        candidateSelections,
-        selectedListId,
-        roles,
-        candidates,
-      })
-      const candidateId = resolveAuditCandidateId(selection)
       const result = await transmitSignedVote(
         {
           signed,
           voterLeaf: merkleProofData.hashHoja as Hex,
           merkleProof: merkleProofData.merkleProof as Hex[],
-          candidateId,
         },
         {
           onProgress: (phase) => {

@@ -11,7 +11,7 @@ const TEST_NULLIFIER =
   '0x1111111111111111111111111111111111111111111111111111111111111111' as const
 
 describe('vote-signer', () => {
-  it('signs an EIP-712 vote payload with electionId, nullifier, selectionHash and timestamp', async () => {
+  it('signs an EIP-712 vote payload with electionId, nullifier, selectionHash, candidateId and timestamp', async () => {
     const account = privateKeyToAccount(generatePrivateKey())
     const selection = {
       selecciones: [
@@ -32,6 +32,7 @@ describe('vote-signer', () => {
     expect(signed.expectedSigner).toBe(account.address)
     expect(signed.nullifier).toBe(TEST_NULLIFIER)
     expect(signed.selectionHash).toBe(computeSelectionHash(selection))
+    expect(signed.candidateId).toBe(101n)
     expect(signed.signature).toMatch(/^0x[0-9a-f]+$/i)
   })
 
@@ -41,7 +42,7 @@ describe('vote-signer', () => {
       signVotePayload(
         account,
         357,
-        { selecciones: [] },
+        { selecciones: [{ idCategoria: 1, idCandidato: 101 }] },
         { nullifier: '0xdead' as `0x${string}` }
       )
     ).rejects.toThrow(/nullifier must be a 32-byte hex value/)
