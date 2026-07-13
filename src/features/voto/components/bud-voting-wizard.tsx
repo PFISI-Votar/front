@@ -43,6 +43,7 @@ import {
 import { firmarRecibo } from '@/features/voto/api/recibo-api'
 import { registrarVotoEmitidoAnonimo } from '@/features/voto/api/voto-api'
 import type { SignedVotePayload } from '@/features/voto/crypto'
+import { resolveAuditCandidateId } from '@/features/voto/crypto/audit-candidate-id'
 import { getExplorerTxUrl } from '@/features/voto/crypto/constants'
 import {
   calcularNullifier,
@@ -53,7 +54,6 @@ import {
   transmitSignedVote,
   type TransmitProgressPhase,
 } from '@/features/voto/crypto/vote-transmitter'
-import { resolveAuditCandidateId } from '@/features/voto/crypto/audit-candidate-id'
 import {
   mapVoteTxError,
   type VoteTxError,

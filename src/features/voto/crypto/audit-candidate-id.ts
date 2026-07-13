@@ -24,9 +24,7 @@ export const resolveAuditCandidateId = (payload: SelectionPayload): bigint => {
     (a, b) => a.idCategoria - b.idCategoria || a.idCandidato - b.idCandidato
   )[0]
   if (!first) {
-    throw new Error(
-      'Selection payload has no candidate and is not blank/null'
-    )
+    throw new Error('Selection payload has no candidate and is not blank/null')
   }
   return BigInt(first.idCandidato)
 }
