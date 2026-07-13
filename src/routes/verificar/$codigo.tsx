@@ -16,5 +16,6 @@ export const Route = createFileRoute('/verificar/$codigo')({
 })
 
 function VerificadorReciboPage() {
-  return <VerificadorRecibo />
+  const { codigo } = Route.useParams()
+  return <VerificadorRecibo codigoInicial={codigo} />
 }

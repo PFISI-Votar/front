@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import {
   AlertCircle,
@@ -31,9 +31,15 @@ import { getApiErrorMessage } from '@/lib/api-client'
  * la identidad del votante.
  *
  * Cumple UAT-01, UAT-02 y UAT-03 de VOTAR-360.
+ *
+ * @param codigoInicial - Código opcional desde URL para autocarga (UAT-03)
  */
-export const VerificadorRecibo = () => {
-  const [codigo, setCodigo] = useState('')
+export const VerificadorRecibo = ({
+  codigoInicial,
+}: {
+  codigoInicial?: string
+}) => {
+  const [codigo, setCodigo] = useState(codigoInicial ?? '')
 
   const verificarMutation = useMutation({
     mutationFn: (codigo: string) => verificarRecibo(codigo),
@@ -41,6 +47,24 @@ export const VerificadorRecibo = () => {
       console.error('Error verificando recibo:', error)
     },
   })
+
+  // VOTAR-360 UAT-03: Autocarga y verificación desde URL (QR offline)
+  useEffect(() => {
+    if (codigoInicial && !verificarMutation.data && !verificarMutation.isError) {
+      // Validar formato básico antes de llamar al backend
+      const esFormatoValido =
+        // UUID format
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          codigoInicial,
+        ) ||
+        // Ethereum txHash format (0x + 64 hex chars)
+        /^0x[0-9a-fA-F]{64}$/i.test(codigoInicial)
+
+      if (esFormatoValido) {
+        verificarMutation.mutate(codigoInicial)
+      }
+    }
+  }, [codigoInicial]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -51,12 +75,17 @@ export const VerificadorRecibo = () => {
       return
     }
 
-    // Validar formato UUID básico
+    // Validar formato: UUID o Ethereum txHash
     const uuidRegex =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-    if (!uuidRegex.test(codigoLimpio)) {
+    const txHashRegex = /^0x[0-9a-fA-F]{64}$/i
+
+    const esFormatoValido =
+      uuidRegex.test(codigoLimpio) || txHashRegex.test(codigoLimpio)
+
+    if (!esFormatoValido) {
       alert(
-        'El código ingresado no tiene el formato correcto. Debe ser un UUID válido.',
+        'El código ingresado no tiene el formato correcto. Debe ser un UUID válido o un hash de transacción Ethereum (0x...).',
       )
       return
     }
@@ -97,12 +126,12 @@ export const VerificadorRecibo = () => {
             <form onSubmit={handleSubmit} className='space-y-4'>
               <div className='space-y-2'>
                 <Label htmlFor='codigo-verificacion'>
-                  Código de Verificación (UUID)
+                  Código de Verificación E2E
                 </Label>
                 <Input
                   id='codigo-verificacion'
                   type='text'
-                  placeholder='xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
+                  placeholder='UUID o txHash (0x...)'
                   value={codigo}
                   onChange={(e) => setCodigo(e.target.value)}
                   className='font-mono text-sm'
@@ -111,7 +140,9 @@ export const VerificadorRecibo = () => {
                   disabled={verificarMutation.isPending}
                 />
                 <p id='codigo-help' className='text-xs text-slate-500'>
-                  Ejemplo: a1b2c3d4-5678-90ab-cdef-1234567890ab
+                  Ejemplo UUID: a1b2c3d4-5678-90ab-cdef-1234567890ab
+                  <br />
+                  Ejemplo txHash: 0x1234...abcd (66 caracteres)
                 </p>
               </div>
 
@@ -183,9 +214,6 @@ export const VerificadorRecibo = () => {
             <p>
               ✓ Solo confirma que su participación fue registrada en la
               blockchain.
-            </p>
-            <p>
-              ✓ Cumple con la Ley 25.326 de Protección de Datos Personales.
             </p>
           </CardContent>
         </Card>
@@ -336,8 +364,7 @@ const ResultadoVerificacion = ({
           </AlertTitle>
           <AlertDescription className='text-xs'>
             Esta verificación solo confirma la participación electoral. NO
-            revela el contenido del voto ni la identidad del votante,
-            cumpliendo con la Ley 25.326 de Protección de Datos Personales.
+            revela el contenido del voto ni la identidad del votante.
           </AlertDescription>
         </Alert>
       </CardContent>
