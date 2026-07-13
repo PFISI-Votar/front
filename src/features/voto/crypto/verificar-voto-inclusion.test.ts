@@ -24,7 +24,6 @@ const buildSignedVoteCastLog = (electionId: number): Log => {
     eventName: 'SignedVoteCast',
     args: {
       electionId: BigInt(electionId),
-      voterLeaf: `0x${'11'.repeat(32)}`,
       nullifier: `0x${'22'.repeat(32)}`,
     },
   }).filter((topic): topic is Hex => typeof topic === 'string')
