@@ -1,17 +1,17 @@
-import { jsPDF } from 'jspdf';
-import QRCode from 'qrcode';
+import { jsPDF } from 'jspdf'
+import QRCode from 'qrcode'
 
 /**
  * VOTAR-360: Interfaz de datos para generar recibo de participación electoral
  */
 export interface DatosReciboPDF {
-  idEleccion: number;
-  nombreEleccion: string;
-  txHash: string;
-  timestamp: string; // ISO 8601
-  codigoVerificacionE2E: string;
-  blockNumber?: number;
-  comprobanteHash: string;
+  idEleccion: number
+  nombreEleccion: string
+  txHash: string
+  timestamp: string // ISO 8601
+  codigoVerificacionE2E: string
+  blockNumber?: number
+  comprobanteHash: string
 }
 
 /**
@@ -28,133 +28,140 @@ export interface DatosReciboPDF {
  *
  * @param datos - Datos del recibo (sin información del voto)
  */
-export async function generarReciboPDF(
-  datos: DatosReciboPDF,
-): Promise<void> {
+export async function generarReciboPDF(datos: DatosReciboPDF): Promise<void> {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
     format: 'a4',
-  });
+  })
 
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const marginLeft = 20;
-  const marginRight = 20;
-  const contentWidth = pageWidth - marginLeft - marginRight;
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const marginLeft = 20
+  const marginRight = 20
+  const contentWidth = pageWidth - marginLeft - marginRight
 
   // --- ENCABEZADO ---
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18)
+  doc.setFont('helvetica', 'bold')
   doc.text('COMPROBANTE DE PARTICIPACIÓN ELECTORAL', pageWidth / 2, 25, {
     align: 'center',
-  });
+  })
 
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Sistema de Votación Electrónica Descentralizada', pageWidth / 2, 33, {
-    align: 'center',
-  });
+  doc.setFontSize(12)
+  doc.setFont('helvetica', 'normal')
+  doc.text(
+    'Sistema de Votación Electrónica Descentralizada',
+    pageWidth / 2,
+    33,
+    {
+      align: 'center',
+    }
+  )
 
   // Línea separadora
-  doc.setLineWidth(0.5);
-  doc.line(marginLeft, 38, pageWidth - marginRight, 38);
+  doc.setLineWidth(0.5)
+  doc.line(marginLeft, 38, pageWidth - marginRight, 38)
 
   // --- INFORMACIÓN DE LA ELECCIÓN ---
-  let yPos = 50;
+  let yPos = 50
 
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Elección:', marginLeft, yPos);
+  doc.setFontSize(14)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Elección:', marginLeft, yPos)
 
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('helvetica', 'normal')
   const nombreEleccionLines = doc.splitTextToSize(
     datos.nombreEleccion,
-    contentWidth - 30,
-  );
-  doc.text(nombreEleccionLines, marginLeft + 30, yPos);
-  yPos += nombreEleccionLines.length * 6 + 5;
+    contentWidth - 30
+  )
+  doc.text(nombreEleccionLines, marginLeft + 30, yPos)
+  yPos += nombreEleccionLines.length * 6 + 5
 
-  doc.setFont('helvetica', 'bold');
-  doc.text('ID Elección:', marginLeft, yPos);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`${datos.idEleccion}`, marginLeft + 30, yPos);
-  yPos += 8;
+  doc.setFont('helvetica', 'bold')
+  doc.text('ID Elección:', marginLeft, yPos)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`${datos.idEleccion}`, marginLeft + 30, yPos)
+  yPos += 8
 
-  doc.setFont('helvetica', 'bold');
-  doc.text('Fecha y Hora:', marginLeft, yPos);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont('helvetica', 'bold')
+  doc.text('Fecha y Hora:', marginLeft, yPos)
+  doc.setFont('helvetica', 'normal')
   const fechaFormateada = new Date(datos.timestamp).toLocaleString('es-AR', {
     dateStyle: 'full',
     timeStyle: 'long',
-  });
-  const fechaLines = doc.splitTextToSize(fechaFormateada, contentWidth - 35);
-  doc.text(fechaLines, marginLeft + 35, yPos);
-  yPos += fechaLines.length * 6 + 10;
+  })
+  const fechaLines = doc.splitTextToSize(fechaFormateada, contentWidth - 35)
+  doc.text(fechaLines, marginLeft + 35, yPos)
+  yPos += fechaLines.length * 6 + 10
 
   // --- DATOS BLOCKCHAIN ---
-  doc.setLineWidth(0.3);
-  doc.line(marginLeft, yPos, pageWidth - marginRight, yPos);
-  yPos += 8;
+  doc.setLineWidth(0.3)
+  doc.line(marginLeft, yPos, pageWidth - marginRight, yPos)
+  yPos += 8
 
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Certificado Blockchain', marginLeft, yPos);
-  yPos += 8;
+  doc.setFontSize(14)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Certificado Blockchain', marginLeft, yPos)
+  yPos += 8
 
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Hash de Transacción:', marginLeft, yPos);
-  yPos += 5;
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Hash de Transacción:', marginLeft, yPos)
+  yPos += 5
 
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(9);
-  const txHashLines = doc.splitTextToSize(datos.txHash, contentWidth);
-  doc.text(txHashLines, marginLeft, yPos);
-  yPos += txHashLines.length * 4 + 5;
+  doc.setFont('courier', 'normal')
+  doc.setFontSize(9)
+  const txHashLines = doc.splitTextToSize(datos.txHash, contentWidth)
+  doc.text(txHashLines, marginLeft, yPos)
+  yPos += txHashLines.length * 4 + 5
 
   if (datos.blockNumber) {
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
-    doc.text(`Bloque: ${datos.blockNumber}`, marginLeft, yPos);
-    yPos += 6;
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(11)
+    doc.text(`Bloque: ${datos.blockNumber}`, marginLeft, yPos)
+    yPos += 6
   }
 
-  yPos += 5;
-  doc.setFont('helvetica', 'bold');
-  doc.text('Código de Verificación E2E:', marginLeft, yPos);
-  yPos += 5;
+  yPos += 5
+  doc.setFont('helvetica', 'bold')
+  doc.text('Código de Verificación E2E:', marginLeft, yPos)
+  yPos += 5
 
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(10);
-  doc.text(datos.codigoVerificacionE2E, marginLeft, yPos);
-  yPos += 8;
+  doc.setFont('courier', 'normal')
+  doc.setFontSize(10)
+  doc.text(datos.codigoVerificacionE2E, marginLeft, yPos)
+  yPos += 8
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text(`Hash del Comprobante: ${datos.comprobanteHash.substring(0, 16)}...`, marginLeft, yPos);
-  yPos += 10;
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+  doc.text(
+    `Hash del Comprobante: ${datos.comprobanteHash.substring(0, 16)}...`,
+    marginLeft,
+    yPos
+  )
+  yPos += 10
 
   // --- CÓDIGO QR ---
-  doc.setLineWidth(0.3);
-  doc.line(marginLeft, yPos, pageWidth - marginRight, yPos);
-  yPos += 8;
+  doc.setLineWidth(0.3)
+  doc.line(marginLeft, yPos, pageWidth - marginRight, yPos)
+  yPos += 8
 
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Verificación Rápida', marginLeft, yPos);
-  yPos += 6;
+  doc.setFontSize(12)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Verificación Rápida', marginLeft, yPos)
+  yPos += 6
 
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
   doc.text(
     'Escanee el código QR para verificar este comprobante:',
     marginLeft,
-    yPos,
-  );
-  yPos += 8;
+    yPos
+  )
+  yPos += 8
 
   // Generar QR con URL de verificación
-  const urlVerificacion = `${window.location.origin}/verificar/${datos.codigoVerificacionE2E}`;
+  const urlVerificacion = `${window.location.origin}/verificar/${datos.codigoVerificacionE2E}`
   const qrDataUrl = await QRCode.toDataURL(urlVerificacion, {
     errorCorrectionLevel: 'H', // 30% error correction (WCAG compliance)
     width: 512,
@@ -163,39 +170,39 @@ export async function generarReciboPDF(
       dark: '#000000',
       light: '#FFFFFF',
     },
-  });
+  })
 
-  const qrSize = 50; // mm
-  const qrXPos = pageWidth / 2 - qrSize / 2;
-  doc.addImage(qrDataUrl, 'PNG', qrXPos, yPos, qrSize, qrSize);
-  yPos += qrSize + 5;
+  const qrSize = 50 // mm
+  const qrXPos = pageWidth / 2 - qrSize / 2
+  doc.addImage(qrDataUrl, 'PNG', qrXPos, yPos, qrSize, qrSize)
+  yPos += qrSize + 5
 
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'italic')
   doc.text('Código QR para verificación', pageWidth / 2, yPos, {
     align: 'center',
-  });
-  yPos += 6;
+  })
+  yPos += 6
 
-  doc.setFont('helvetica', 'normal');
-  const urlLines = doc.splitTextToSize(urlVerificacion, contentWidth);
-  doc.text(urlLines, pageWidth / 2, yPos, { align: 'center' });
-  yPos += urlLines.length * 4 + 15;
+  doc.setFont('helvetica', 'normal')
+  const urlLines = doc.splitTextToSize(urlVerificacion, contentWidth)
+  doc.text(urlLines, pageWidth / 2, yPos, { align: 'center' })
+  yPos += urlLines.length * 4 + 15
 
   // --- DISCLAIMER DE PRIVACIDAD ---
-  doc.setLineWidth(0.3);
-  doc.line(marginLeft, yPos, pageWidth - marginRight, yPos);
-  yPos += 8;
+  doc.setLineWidth(0.3)
+  doc.line(marginLeft, yPos, pageWidth - marginRight, yPos)
+  yPos += 8
 
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'bold')
   doc.text('IMPORTANTE - Garantía de Privacidad', pageWidth / 2, yPos, {
     align: 'center',
-  });
-  yPos += 6;
+  })
+  yPos += 6
 
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
   const disclaimer = [
     'Este comprobante certifica únicamente su participación en la elección.',
     'NO contiene información sobre su voto ni su identidad personal.',
@@ -204,35 +211,27 @@ export async function generarReciboPDF(
     'Puede verificar la autenticidad de este documento en cualquier momento',
     'escaneando el código QR o ingresando el código de verificación E2E',
     'en el portal público de auditoría electoral.',
-  ];
+  ]
 
   disclaimer.forEach((line) => {
-    doc.text(line, pageWidth / 2, yPos, { align: 'center', maxWidth: contentWidth });
-    yPos += 5;
-  });
+    doc.text(line, pageWidth / 2, yPos, {
+      align: 'center',
+      maxWidth: contentWidth,
+    })
+    yPos += 5
+  })
 
-  // --- FOOTER ---
-  const footerY = doc.internal.pageSize.getHeight() - 15;
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'italic');
-  doc.setTextColor(100, 100, 100);
-  doc.text(
-    'Generado localmente en su navegador • No se ha almacenado copia en servidor',
-    pageWidth / 2,
-    footerY,
-    { align: 'center' },
-  );
-
-  doc.setFontSize(7);
-  const fechaGeneracion = new Date().toLocaleString('es-AR');
+  doc.setFontSize(7)
+  const fechaGeneracion = new Date().toLocaleString('es-AR')
+  yPos += 5
   doc.text(
     `Fecha de generación del PDF: ${fechaGeneracion}`,
     pageWidth / 2,
-    footerY + 4,
-    { align: 'center' },
-  );
+    yPos,
+    { align: 'center' }
+  )
 
   // --- DESCARGAR PDF ---
-  const nombreArchivo = `recibo-votacion-${datos.idEleccion}-${datos.codigoVerificacionE2E.substring(0, 8)}.pdf`;
-  doc.save(nombreArchivo);
+  const nombreArchivo = `recibo-votacion-${datos.idEleccion}-${datos.codigoVerificacionE2E.substring(0, 8)}.pdf`
+  doc.save(nombreArchivo)
 }
