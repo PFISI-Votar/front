@@ -19,7 +19,7 @@ const BALLOT = '0x5FbDB2315678afecb367f032d93F642f64180aa3' as Hex
 const TX_HASH = `0x${'ab'.repeat(32)}` as Hex
 
 const buildSignedVoteCastLog = (electionId: number): Log => {
-  const topics = encodeEventTopics({
+  const encodedTopics = encodeEventTopics({
     abi: BALLOT_CONTRACT_ABI,
     eventName: 'SignedVoteCast',
     args: {
@@ -27,7 +27,9 @@ const buildSignedVoteCastLog = (electionId: number): Log => {
       voterLeaf: `0x${'11'.repeat(32)}`,
       nullifier: `0x${'22'.repeat(32)}`,
     },
-  })
+  }).filter((topic): topic is Hex => typeof topic === 'string')
+
+  const topics = encodedTopics as [`0x${string}`, ...`0x${string}`[]]
 
   const data = encodeAbiParameters(
     [
