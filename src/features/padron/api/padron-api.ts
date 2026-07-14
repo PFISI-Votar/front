@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api-client'
+import { publicApiClient } from '@/lib/public-api-client'
 
 export interface PadronResumen {
   idPadron: number
@@ -126,11 +127,11 @@ export const publicarMerkleOnChain = async (
   return data
 }
 
-/** Total de votantes habilitados del padrón consolidado, acceso público (VOTAR-333). */
+/** Total de votantes habilitados del padrón consolidado, acceso público (VOTAR-333/315). */
 export const obtenerTotalVotantesPublico = async (
   idEleccion: number
 ): Promise<TotalVotantesResponse> => {
-  const { data } = await apiClient.get<TotalVotantesResponse>(
+  const { data } = await publicApiClient.get<TotalVotantesResponse>(
     `/elecciones/${idEleccion}/padron/total-votantes`
   )
   return data
