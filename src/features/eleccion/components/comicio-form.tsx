@@ -215,10 +215,7 @@ export const ComicioForm = ({
             )}
           </section>
 
-          <section
-            className='space-y-6'
-            aria-labelledby='comicio-auth-heading'
-          >
+          <section className='space-y-6' aria-labelledby='comicio-auth-heading'>
             <h2 id='comicio-auth-heading' className='text-lg font-semibold'>
               Acceso de votantes
             </h2>
