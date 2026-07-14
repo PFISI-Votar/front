@@ -307,6 +307,11 @@ export const BudVotingWizard = ({
 
   const intentosAgotados =
     Boolean(estadoRevoto) && estadoRevoto?.puedeVotar === false
+  // Derive UI step when attempts are exhausted (avoids setState-in-effect).
+  const effectiveStep: WizardStep =
+    intentosAgotados && step !== 'success' && step !== 'transmitting'
+      ? 'limit-reached'
+      : step
 
   const lists = useMemo(() => buildListsFromBoleta(boleta), [boleta])
   const roles = useMemo(() => buildRolesFromBoleta(boleta), [boleta])
@@ -563,28 +568,22 @@ export const BudVotingWizard = ({
     setSpecialVote((current) => (current === value ? null : value))
   }
 
-  useEffect(() => {
-    if (intentosAgotados && step === 'identity') {
-      setStep('limit-reached')
-    }
-  }, [intentosAgotados, step])
-
   return (
-    <BudWizardShell step={step} estadoRevoto={estadoRevoto}>
-      {step !== 'limit-reached' ? (
-        <WizardStepper currentStep={step} />
+    <BudWizardShell step={effectiveStep} estadoRevoto={estadoRevoto}>
+      {effectiveStep !== 'limit-reached' ? (
+        <WizardStepper currentStep={effectiveStep} />
       ) : null}
       <div
-        key={step}
+        key={effectiveStep}
         className='animate-in duration-300 fade-in-0 slide-in-from-bottom-3'
       >
-        {step === 'limit-reached' && (
+        {effectiveStep === 'limit-reached' && (
           <MaxVotesReachedPanel
             maxVotos={estadoRevoto?.maxVotosPorVotante ?? 1}
             onLogout={handleLogout}
           />
         )}
-        {step === 'identity' && (
+        {effectiveStep === 'identity' && (
           <IdentityStep
             boleta={boleta}
             identityError={identityError}
@@ -598,7 +597,7 @@ export const BudVotingWizard = ({
             }}
           />
         )}
-        {step === 'registered' && (
+        {effectiveStep === 'registered' && (
           <RegisteredVoteStep
             votosConsumidos={estadoRevoto?.votosConsumidos ?? 0}
             intentosRestantes={estadoRevoto?.intentosRestantes ?? 0}
@@ -609,7 +608,7 @@ export const BudVotingWizard = ({
             }}
           />
         )}
-        {step === 'selection' && (
+        {effectiveStep === 'selection' && (
           <SelectionStep
             variant={variant}
             selectedListId={selectedListId}
@@ -633,7 +632,7 @@ export const BudVotingWizard = ({
             onContinue={() => setStep('review')}
           />
         )}
-        {step === 'review' && (
+        {effectiveStep === 'review' && (
           <ReviewStep
             variant={variant}
             selectedList={selectedList}
@@ -649,7 +648,7 @@ export const BudVotingWizard = ({
             }}
           />
         )}
-        {step === 'transmitting' && (
+        {effectiveStep === 'transmitting' && (
           <TransmitStep
             phase={transmitPhase}
             txError={txError}
@@ -670,7 +669,7 @@ export const BudVotingWizard = ({
             }}
           />
         )}
-        {step === 'success' && (
+        {effectiveStep === 'success' && (
           <SuccessStep
             voteReceiptReady={voteReceiptReady}
             txHash={txHash}
