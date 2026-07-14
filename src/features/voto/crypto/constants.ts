@@ -1,10 +1,11 @@
 /**
- * Cross-repo EIP-712 contract for VOTAR-357 (must match BallotContract.sol).
+ * Cross-repo EIP-712 contract for VOTAR-357 / VOTAR-346 (must match BallotContract.sol).
  *
  * Domain: name "VOTAR", version "1", chainId, verifyingContract
- * Type: Vote(uint256 electionId, bytes32 nullifier, bytes32 selectionHash, uint256 timestamp)
+ * Type: Vote(uint256 electionId, bytes32 nullifier, bytes32 selectionHash, uint256 candidateId, uint256 timestamp)
  * Nullifier: opaque bytes32 produced by VOTAR-353 (not derived in this module)
  * selectionHash: keccak256(JSON.stringify(normalizedPayload))
+ * candidateId: audit id (or reserved blanco/nulo), bound in the digest for tally integrity
  */
 export const VOTE_EIP712_DOMAIN_NAME = 'VOTAR' as const
 export const VOTE_EIP712_DOMAIN_VERSION = '1' as const
@@ -14,6 +15,7 @@ export const VOTE_EIP712_TYPES = {
     { name: 'electionId', type: 'uint256' },
     { name: 'nullifier', type: 'bytes32' },
     { name: 'selectionHash', type: 'bytes32' },
+    { name: 'candidateId', type: 'uint256' },
     { name: 'timestamp', type: 'uint256' },
   ],
 } as const
@@ -74,8 +76,10 @@ export const getVoteTransmitterPrivateKey = (): `0x${string}` => {
   )
 }
 
-export const getExplorerTxUrl = (txHash: `0x${string}`): string | null => {
-  const chainId = getChainId()
+export const getExplorerTxUrl = (
+  txHash: `0x${string}`,
+  chainId = getChainId()
+): string | null => {
   if (chainId === 11_155_111) {
     return `https://sepolia.etherscan.io/tx/${txHash}`
   }

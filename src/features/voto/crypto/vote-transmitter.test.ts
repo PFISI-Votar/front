@@ -13,6 +13,7 @@ const signed: SignedVotePayload = {
     '0x1111111111111111111111111111111111111111111111111111111111111111',
   selectionHash:
     '0x2222222222222222222222222222222222222222222222222222222222222222',
+  candidateId: 101n,
   timestamp: 1_700_000_000,
   expectedSigner: '0x00000000000000000000000000000000000000aa',
   signature: `0x${'ab'.repeat(65)}`,
@@ -67,9 +68,18 @@ describe('vote-transmitter — VOTAR-358', () => {
     })
 
     expect(estimateContractGas).toHaveBeenCalledOnce()
+    const estimateArgs = estimateContractGas.mock.calls[0]?.[0] as {
+      args: unknown[]
+    }
+    expect(estimateArgs.args[estimateArgs.args.length - 1]).toBe(101n)
     expect(writeContract).toHaveBeenCalledWith(
-      expect.objectContaining({ gas: 110_000n })
+      expect.objectContaining({
+        gas: 110_000n,
+        args: expect.arrayContaining([101n]),
+      })
     )
+    const writeArgs = writeContract.mock.calls[0]?.[0] as { args: unknown[] }
+    expect(writeArgs.args[writeArgs.args.length - 1]).toBe(101n)
     expect(result.txHash).toBe('0x' + 'f'.repeat(64))
     expect(result.blockNumber).toBe(42n)
     expect(onProgress.mock.calls.map((call) => call[0])).toEqual([

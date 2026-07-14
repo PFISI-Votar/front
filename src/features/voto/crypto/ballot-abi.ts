@@ -1,6 +1,7 @@
 /**
  * Minimal BallotContract ABI for VOTAR-358 castSignedVote transmission.
- * Must stay aligned with votar.btc/contracts/ballot/BallotContract.sol.
+ * Must stay aligned with blockchain/contracts/ballot/BallotContract.sol.
+ * VOTAR-346 adds candidateId for VoteRegistry audit VoteCast emission.
  */
 export const BALLOT_CONTRACT_ABI = [
   {
@@ -16,6 +17,7 @@ export const BALLOT_CONTRACT_ABI = [
       { name: 'timestamp', type: 'uint256' },
       { name: 'expectedSigner', type: 'address' },
       { name: 'signature', type: 'bytes' },
+      { name: 'candidateId', type: 'uint256' },
     ],
     outputs: [],
   },
@@ -34,7 +36,6 @@ export const BALLOT_CONTRACT_ABI = [
     name: 'SignedVoteCast',
     inputs: [
       { name: 'electionId', type: 'uint256', indexed: true },
-      { name: 'voterLeaf', type: 'bytes32', indexed: true },
       { name: 'nullifier', type: 'bytes32', indexed: true },
       { name: 'selectionHash', type: 'bytes32', indexed: false },
       { name: 'signer', type: 'address', indexed: false },

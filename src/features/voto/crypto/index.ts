@@ -27,6 +27,11 @@ export {
   type SelectionPayload,
 } from '@/features/voto/crypto/selection-hash'
 export {
+  resolveAuditCandidateId,
+  VOTO_BLANCO,
+  VOTO_NULO,
+} from '@/features/voto/crypto/audit-candidate-id'
+export {
   assembleSignedVotePayload,
   buildVoteTypedDataDomain,
   buildVoteTypedDataMessage,
@@ -50,6 +55,16 @@ export {
   type VoteTxError,
   type VoteTxErrorCode,
 } from '@/features/voto/crypto/vote-tx-errors'
+export {
+  buildInclusionSuccessMessage,
+  getBlockchainNetworkName,
+  verificarInclusionVotoLocal,
+  VoteInclusionInvalidHashError,
+  VoteInclusionNotFoundError,
+  VOTO_NO_ENCONTRADO_MENSAJE,
+  type VerificarInclusionVotoOptions,
+  type VoteInclusionResult,
+} from '@/features/voto/crypto/verificar-voto-inclusion'
 export {
   calcularNullifier,
   CredencialNulificadorInvalidaError,
