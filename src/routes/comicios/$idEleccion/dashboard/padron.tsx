@@ -8,5 +8,7 @@ export const Route = createFileRoute('/comicios/$idEleccion/dashboard/padron')({
 function DashboardPublicoPadronRoute() {
   const { idEleccion } = Route.useParams()
 
-  return <DashboardPublicoPage idEleccion={Number(idEleccion)} section='padron' />
+  return (
+    <DashboardPublicoPage idEleccion={Number(idEleccion)} section='padron' />
+  )
 }
