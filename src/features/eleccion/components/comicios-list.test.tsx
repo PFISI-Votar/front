@@ -193,16 +193,68 @@ describe('ComiciosList', () => {
         })
       )
       .toBeInTheDocument()
+    await expect
+      .element(
+        page.getByRole('link', {
+          name: 'Editar Elección Provincial 2025',
+        })
+      )
+      .toBeInTheDocument()
     expect(
-      page.getByRole('button', {
-        name: 'Oficializar comicio Elección Municipal 2025',
-      }).query()
+      page
+        .getByRole('button', {
+          name: 'Oficializar comicio Elección Municipal 2025',
+        })
+        .query()
     ).toBeNull()
     expect(
-      page.getByRole('button', {
-        name: 'Eliminar comicio Elección Municipal 2025',
-      }).query()
+      page
+        .getByRole('button', {
+          name: 'Eliminar comicio Elección Municipal 2025',
+        })
+        .query()
     ).toBeNull()
+  })
+
+  it('ordena Ver padrón, Dashboard, BUD y luego Oficializar en BORRADOR', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue([mockElecciones[1]])
+
+    await renderComiciosList()
+
+    const padron = page.getByRole('link', {
+      name: 'Ver padrón de Elección Provincial 2025',
+    })
+    const dashboard = page.getByRole('link', {
+      name: 'Ver dashboard público de Elección Provincial 2025',
+    })
+    const bud = page.getByRole('link', {
+      name: 'Abrir BUD de Elección Provincial 2025',
+    })
+    const oficializar = page.getByRole('button', {
+      name: 'Oficializar comicio Elección Provincial 2025',
+    })
+
+    await expect.element(padron).toBeInTheDocument()
+    await expect.element(dashboard).toBeInTheDocument()
+    await expect.element(bud).toBeInTheDocument()
+    await expect.element(oficializar).toBeInTheDocument()
+
+    const padronNode = padron.element()
+    const dashboardNode = dashboard.element()
+    const budNode = bud.element()
+    const oficializarNode = oficializar.element()
+    expect(
+      padronNode.compareDocumentPosition(dashboardNode) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(
+      dashboardNode.compareDocumentPosition(budNode) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(
+      budNode.compareDocumentPosition(oficializarNode) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
   })
 
   it('expone enlace Abrir BUD y dashboard público de cada comicio', async () => {

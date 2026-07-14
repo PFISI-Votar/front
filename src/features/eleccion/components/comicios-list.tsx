@@ -14,7 +14,6 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getApiErrorMessage } from '@/lib/api-client'
-import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -33,6 +32,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   eliminarEleccion,
   listarElecciones,
@@ -227,7 +227,9 @@ export const ComiciosList = () => {
       setOficializarDialog(emptyActionTarget())
       toast.success('Comicio oficializado')
       await queryClient.invalidateQueries({ queryKey: ['elecciones'] })
-      await queryClient.invalidateQueries({ queryKey: ['eleccion', idEleccion] })
+      await queryClient.invalidateQueries({
+        queryKey: ['eleccion', idEleccion],
+      })
     },
     onError: (error) => {
       toast.error(getApiErrorMessage(error))
@@ -337,7 +339,7 @@ export const ComiciosList = () => {
         {comicios.map((comicio) => (
           <li key={comicio.idEleccion}>
             <Card
-              className='cursor-pointer transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+              className='cursor-pointer transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none'
               role='link'
               tabIndex={0}
               aria-label={`Ver oferta de ${comicio.nombre}`}
@@ -363,66 +365,92 @@ export const ComiciosList = () => {
                 </Badge>
               </CardHeader>
               <CardContent
-                className='flex flex-wrap gap-2'
+                className='flex flex-wrap items-end justify-between gap-3'
                 onClick={(event) => event.stopPropagation()}
                 onKeyDown={(event) => event.stopPropagation()}
               >
+                <div className='flex flex-wrap gap-2'>
+                  <Button asChild variant='outline' size='sm'>
+                    <Link
+                      to='/comicios/$idEleccion/padron'
+                      params={{ idEleccion: String(comicio.idEleccion) }}
+                      aria-label={`Ver padrón de ${comicio.nombre}`}
+                    >
+                      <FileSpreadsheet className='me-2 size-4' />
+                      Ver padrón
+                    </Link>
+                  </Button>
+                  <Button asChild variant='outline' size='sm'>
+                    <Link
+                      to='/comicios/$idEleccion/dashboard'
+                      params={{ idEleccion: String(comicio.idEleccion) }}
+                      aria-label={`Ver dashboard público de ${comicio.nombre}`}
+                    >
+                      <Eye className='me-2 size-4' />
+                      Dashboard público
+                    </Link>
+                  </Button>
+                  <Button asChild variant='outline' size='sm'>
+                    <Link
+                      to='/comicios/$idEleccion/votar'
+                      params={{ idEleccion: String(comicio.idEleccion) }}
+                      target='_blank'
+                      rel='noopener noreferrer'
+                      aria-label={`Abrir BUD de ${comicio.nombre}`}
+                    >
+                      <Vote className='me-2 size-4' />
+                      Abrir BUD
+                    </Link>
+                  </Button>
+                  {comicio.estado === 'BORRADOR' && (
+                    <Button
+                      size='sm'
+                      onClick={() =>
+                        handleOpenOficializarDialog(
+                          comicio.idEleccion,
+                          comicio.nombre
+                        )
+                      }
+                      aria-label={`Oficializar comicio ${comicio.nombre}`}
+                    >
+                      <BadgeCheck className='me-2 size-4' />
+                      Oficializar comicio
+                    </Button>
+                  )}
+                  {comicio.estado === 'CONFIGURADA' && (
+                    <Button
+                      size='sm'
+                      onClick={() =>
+                        handleOpenAbrirDialog(
+                          comicio.idEleccion,
+                          comicio.nombre
+                        )
+                      }
+                      aria-label={`Abrir comicio ${comicio.nombre}`}
+                    >
+                      <Play className='me-2 size-4' />
+                      Abrir comicio
+                    </Button>
+                  )}
+                  {comicio.estado === 'ABIERTA' && (
+                    <Button
+                      variant='destructive'
+                      size='sm'
+                      onClick={() =>
+                        handleOpenCerrarDialog(
+                          comicio.idEleccion,
+                          comicio.nombre
+                        )
+                      }
+                      aria-label={`Cerrar comicio ${comicio.nombre}`}
+                    >
+                      <Square className='me-2 size-4' />
+                      Cerrar comicio
+                    </Button>
+                  )}
+                </div>
                 {comicio.estado === 'BORRADOR' && (
-                  <Button
-                    size='sm'
-                    onClick={() =>
-                      handleOpenOficializarDialog(
-                        comicio.idEleccion,
-                        comicio.nombre
-                      )
-                    }
-                    aria-label={`Oficializar comicio ${comicio.nombre}`}
-                  >
-                    <BadgeCheck className='me-2 size-4' />
-                    Oficializar comicio
-                  </Button>
-                )}
-                {comicio.estado === 'CONFIGURADA' && (
-                  <Button
-                    size='sm'
-                    onClick={() =>
-                      handleOpenAbrirDialog(comicio.idEleccion, comicio.nombre)
-                    }
-                    aria-label={`Abrir comicio ${comicio.nombre}`}
-                  >
-                    <Play className='me-2 size-4' />
-                    Abrir comicio
-                  </Button>
-                )}
-                {comicio.estado === 'ABIERTA' && (
-                  <Button
-                    variant='destructive'
-                    size='sm'
-                    onClick={() =>
-                      handleOpenCerrarDialog(comicio.idEleccion, comicio.nombre)
-                    }
-                    aria-label={`Cerrar comicio ${comicio.nombre}`}
-                  >
-                    <Square className='me-2 size-4' />
-                    Cerrar comicio
-                  </Button>
-                )}
-
-                <Button asChild variant='outline' size='sm'>
-                  <Link
-                    to='/comicios/$idEleccion/votar'
-                    params={{ idEleccion: String(comicio.idEleccion) }}
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    aria-label={`Abrir BUD de ${comicio.nombre}`}
-                  >
-                    <Vote className='me-2 size-4' />
-                    Abrir BUD
-                  </Link>
-                </Button>
-
-                {comicio.estado === 'BORRADOR' && (
-                  <>
+                  <div className='ms-auto flex flex-wrap justify-end gap-2'>
                     <Button asChild variant='outline' size='sm'>
                       <Link
                         to='/comicios/$idEleccion/editar'
@@ -447,29 +475,8 @@ export const ComiciosList = () => {
                       <Trash2 className='me-2 size-4 text-destructive' />
                       Eliminar
                     </Button>
-                  </>
+                  </div>
                 )}
-
-                <Button asChild variant='outline' size='sm'>
-                  <Link
-                    to='/comicios/$idEleccion/padron'
-                    params={{ idEleccion: String(comicio.idEleccion) }}
-                    aria-label={`Ver padrón de ${comicio.nombre}`}
-                  >
-                    <FileSpreadsheet className='me-2 size-4' />
-                    Ver padrón
-                  </Link>
-                </Button>
-                <Button asChild variant='outline' size='sm'>
-                  <Link
-                    to='/comicios/$idEleccion/dashboard'
-                    params={{ idEleccion: String(comicio.idEleccion) }}
-                    aria-label={`Ver dashboard público de ${comicio.nombre}`}
-                  >
-                    <Eye className='me-2 size-4' />
-                    Dashboard público
-                  </Link>
-                </Button>
               </CardContent>
             </Card>
           </li>
