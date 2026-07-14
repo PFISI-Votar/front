@@ -957,8 +957,9 @@ const MaxVotesReachedPanel = ({
         <div className='space-y-1'>
           <CardTitle>Alcanzaste el límite máximo de votos</CardTitle>
           <CardDescription>
-            Ya utilizaste los {maxVotos} intentos de sufragio admitidos para este
-            comicio institucional. La boleta interactiva no está disponible.
+            Ya utilizaste los {maxVotos} intentos de sufragio admitidos para
+            este comicio institucional. La boleta interactiva no está
+            disponible.
           </CardDescription>
         </div>
       </CardHeader>

@@ -33,8 +33,7 @@ vi.mock('@/features/voto/api/voto-api', () => ({
   }),
   registrarVotoEmitidoAnonimo: (...args: unknown[]) =>
     registrarVotoEmitidoAnonimoMock(...args),
-  obtenerEstadoRevoto: (...args: unknown[]) =>
-    obtenerEstadoRevotoMock(...args),
+  obtenerEstadoRevoto: (...args: unknown[]) => obtenerEstadoRevotoMock(...args),
   registrarConsumoIntento: (...args: unknown[]) =>
     registrarConsumoIntentoMock(...args),
 }))
@@ -542,7 +541,10 @@ describe('BudVotingWizard', () => {
     })
 
     const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
     })
     const screen = await render(
       <QueryClientProvider client={queryClient}>
@@ -585,7 +587,10 @@ describe('BudVotingWizard', () => {
     })
 
     const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
     })
     const screen = await render(
       <QueryClientProvider client={queryClient}>
