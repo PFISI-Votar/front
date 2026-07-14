@@ -60,8 +60,13 @@ import {
 import type {
   BoletaDigital,
   CandidatoBoletaDigital,
+  EstadoRevoto,
   VoterMerkleProof,
 } from '@/features/voto/data/schema'
+import {
+  useEstadoRevoto,
+  useRegistrarConsumoIntento,
+} from '@/features/voto/hooks/use-estado-revoto'
 import { useSolicitarMerkleProof } from '@/features/voto/hooks/use-merkle-proof'
 import { generarReciboPDF } from '@/features/voto/lib/generar-recibo-pdf'
 import { clearVotanteSession } from '@/features/voto/services/votante-session'
@@ -76,6 +81,7 @@ type WizardStep =
   | 'review'
   | 'transmitting'
   | 'success'
+  | 'limit-reached'
 
 type TransmitUiPhase = TransmitProgressPhase | 'error'
 
@@ -114,8 +120,6 @@ type BudVotingWizardProps = {
   cryptoReady?: boolean
   onLogout: () => void
 }
-
-const PREVIOUS_VOTE_DATE = '23/06/2026, 10:42 hs'
 
 const BACKGROUND_FINGERPRINTS = [
   { top: '7%', left: '13%', width: '7rem', opacity: 0.04, rotate: '-18deg' },
@@ -269,7 +273,6 @@ export const BudVotingWizard = ({
 }: BudVotingWizardProps) => {
   const [step, setStep] = useState<WizardStep>('identity')
   const variant = getVotingVariant(tipoVotacion)
-  const [returningVoter, setReturningVoter] = useState(false)
   const [selectedListId, setSelectedListId] = useState<string | null>(null)
   const [specialVote, setSpecialVote] = useState<SpecialVote>(null)
   const [candidateSelections, setCandidateSelections] = useState<
@@ -291,10 +294,19 @@ export const BudVotingWizard = ({
   const [voteReceiptReady, setVoteReceiptReady] = useState(false)
   const merkleProofMutation = useSolicitarMerkleProof(boleta.idEleccion)
   const {
+    data: estadoRevoto,
+    isLoading: isLoadingEstadoRevoto,
+    isError: isEstadoRevotoError,
+  } = useEstadoRevoto(boleta.idEleccion)
+  const registrarConsumoMutation = useRegistrarConsumoIntento(boleta.idEleccion)
+  const {
     signVotePayload,
     initialize: initializeEphemeralWallet,
     destroy: destroyEphemeralWallet,
   } = useEphemeralWallet()
+
+  const intentosAgotados =
+    Boolean(estadoRevoto) && estadoRevoto?.puedeVotar === false
 
   const lists = useMemo(() => buildListsFromBoleta(boleta), [boleta])
   const roles = useMemo(() => buildRolesFromBoleta(boleta), [boleta])
@@ -412,6 +424,12 @@ export const BudVotingWizard = ({
       setTxHash(result.txHash)
       setBlockNumber(Number(result.blockNumber))
       setTransmitPhase(null)
+      // VOTAR-328: consumir intento mientras la sesión JWT sigue activa.
+      try {
+        await registrarConsumoMutation.mutateAsync()
+      } catch {
+        // El cast on-chain ya confirmó; no bloquear el recibo por el contador.
+      }
       // VOTAR-379 UAT-05: anonymous audit before clearing SSO (no cookies on call).
       void registrarVotoEmitidoAnonimo(boleta.idEleccion).catch(() => {
         // Recibo on-chain ya confirmado; el audit no debe bloquear la UX.
@@ -432,9 +450,16 @@ export const BudVotingWizard = ({
   const handleIdentityConfirm = async () => {
     setIdentityError(null)
     try {
+      if (intentosAgotados) {
+        setStep('limit-reached')
+        return
+      }
       const proof = await merkleProofMutation.mutateAsync()
       setMerkleProofData(proof)
-      setStep(returningVoter ? 'registered' : 'selection')
+      const returning =
+        (estadoRevoto?.votosConsumidos ?? 0) > 0 &&
+        (estadoRevoto?.puedeVotar ?? true)
+      setStep(returning ? 'registered' : 'selection')
     } catch (error) {
       if (error instanceof AxiosError) {
         if (error.response?.status === 401) {
@@ -538,21 +563,36 @@ export const BudVotingWizard = ({
     setSpecialVote((current) => (current === value ? null : value))
   }
 
+  useEffect(() => {
+    if (intentosAgotados && step === 'identity') {
+      setStep('limit-reached')
+    }
+  }, [intentosAgotados, step])
+
   return (
-    <BudWizardShell step={step}>
-      <WizardStepper currentStep={step} />
+    <BudWizardShell step={step} estadoRevoto={estadoRevoto}>
+      {step !== 'limit-reached' ? (
+        <WizardStepper currentStep={step} />
+      ) : null}
       <div
         key={step}
         className='animate-in duration-300 fade-in-0 slide-in-from-bottom-3'
       >
+        {step === 'limit-reached' && (
+          <MaxVotesReachedPanel
+            maxVotos={estadoRevoto?.maxVotosPorVotante ?? 1}
+            onLogout={handleLogout}
+          />
+        )}
         {step === 'identity' && (
           <IdentityStep
             boleta={boleta}
-            returningVoter={returningVoter}
             identityError={identityError}
             cryptoReady={cryptoReady}
-            isLoadingProof={merkleProofMutation.isPending}
-            onReturningVoterChange={setReturningVoter}
+            isLoadingProof={
+              merkleProofMutation.isPending || isLoadingEstadoRevoto
+            }
+            isEstadoRevotoError={isEstadoRevotoError}
             onConfirm={() => {
               void handleIdentityConfirm()
             }}
@@ -560,6 +600,9 @@ export const BudVotingWizard = ({
         )}
         {step === 'registered' && (
           <RegisteredVoteStep
+            votosConsumidos={estadoRevoto?.votosConsumidos ?? 0}
+            intentosRestantes={estadoRevoto?.intentosRestantes ?? 0}
+            ultimoIntentoLabel={null}
             onLogout={handleLogout}
             onModify={() => {
               void handleModifyVote()
@@ -647,9 +690,11 @@ export const BudVotingWizard = ({
 const BudWizardShell = ({
   children,
   step,
+  estadoRevoto,
 }: {
   children: ReactNode
   step: WizardStep
+  estadoRevoto?: EstadoRevoto
 }) => (
   <main className='votar-light-surface relative min-h-svh overflow-hidden bg-[#fdfcfa] text-[#202124]'>
     <div className='pointer-events-none absolute inset-0' aria-hidden='true'>
@@ -677,13 +722,25 @@ const BudWizardShell = ({
           </p>
           <p className='mt-2 text-sm text-slate-600'>Boleta Única Digital</p>
         </div>
-        <Badge
-          variant='outline'
-          className='rounded-full border-[#2f6f9f]/30 bg-white/80 px-3 py-1 text-[#2f6f9f]'
-        >
-          <ShieldCheck className='size-3.5' />
-          {getStepLabel(step)}
-        </Badge>
+        <div className='flex flex-wrap items-center gap-2'>
+          {estadoRevoto ? (
+            <Badge
+              variant='outline'
+              className='rounded-full border-emerald-300/70 bg-emerald-50/90 px-3 py-1 font-semibold text-emerald-900'
+              aria-live='polite'
+              data-testid='intentos-restantes'
+            >
+              Intentos restantes: {estadoRevoto.intentosRestantes}
+            </Badge>
+          ) : null}
+          <Badge
+            variant='outline'
+            className='rounded-full border-[#2f6f9f]/30 bg-white/80 px-3 py-1 text-[#2f6f9f]'
+          >
+            <ShieldCheck className='size-3.5' />
+            {getStepLabel(step)}
+          </Badge>
+        </div>
       </header>
       {children}
     </section>
@@ -786,19 +843,17 @@ const WizardStepper = ({ currentStep }: { currentStep: WizardStep }) => {
 
 const IdentityStep = ({
   boleta,
-  returningVoter,
   identityError,
   cryptoReady,
   isLoadingProof,
-  onReturningVoterChange,
+  isEstadoRevotoError,
   onConfirm,
 }: {
   boleta: BoletaDigital
-  returningVoter: boolean
   identityError: string | null
   cryptoReady: boolean
   isLoadingProof: boolean
-  onReturningVoterChange: (value: boolean) => void
+  isEstadoRevotoError: boolean
   onConfirm: () => void
 }) => (
   <div className='mx-auto grid w-full max-w-3xl gap-5'>
@@ -842,6 +897,16 @@ const IdentityStep = ({
             identidad para preservar el secreto del voto.
           </AlertDescription>
         </Alert>
+        {isEstadoRevotoError ? (
+          <Alert className='border-amber-200 bg-amber-50 text-amber-950'>
+            <AlertTriangle className='size-4' />
+            <AlertTitle>No se pudo consultar los intentos restantes</AlertTitle>
+            <AlertDescription>
+              Podés continuar con la votación; el contador se actualizará cuando
+              el servicio esté disponible.
+            </AlertDescription>
+          </Alert>
+        ) : null}
         {identityError && (
           <Alert variant='destructive'>
             <AlertTriangle className='size-4' />
@@ -849,33 +914,6 @@ const IdentityStep = ({
             <AlertDescription>{identityError}</AlertDescription>
           </Alert>
         )}
-        <div className='rounded-2xl border border-dashed border-[#2f6f9f]/30 bg-white p-3'>
-          <p className='mb-3 text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase'>
-            Simulación temporal
-          </p>
-          <div className='grid gap-2 sm:grid-cols-2'>
-            <Button
-              type='button'
-              variant={!returningVoter ? 'default' : 'outline'}
-              className={cn(
-                !returningVoter && 'bg-[#2f6f9f] hover:bg-[#285f88]'
-              )}
-              onClick={() => onReturningVoterChange(false)}
-            >
-              Usuario nuevo
-            </Button>
-            <Button
-              type='button'
-              variant={returningVoter ? 'default' : 'outline'}
-              className={cn(
-                returningVoter && 'bg-[#2f6f9f] hover:bg-[#285f88]'
-              )}
-              onClick={() => onReturningVoterChange(true)}
-            >
-              Usuario que ya votó
-            </Button>
-          </div>
-        </div>
       </CardContent>
       <CardFooter>
         <Button
@@ -887,7 +925,7 @@ const IdentityStep = ({
           {isLoadingProof ? (
             <>
               <Loader2 className='size-5 animate-spin' />
-              Obteniendo prueba Merkle...
+              Validando sesión...
             </>
           ) : (
             <>
@@ -901,10 +939,65 @@ const IdentityStep = ({
   </div>
 )
 
+const MaxVotesReachedPanel = ({
+  maxVotos,
+  onLogout,
+}: {
+  maxVotos: number
+  onLogout: () => void
+}) => (
+  <div className='mx-auto grid w-full max-w-2xl gap-5'>
+    <Card
+      className='border-slate-200 bg-white/95 shadow-[0_1.5rem_5rem_rgba(30,64,95,0.07)]'
+      data-testid='max-votes-reached-panel'
+    >
+      <CardHeader className='flex flex-row items-start gap-4 space-y-0'>
+        <div className='grid size-14 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-700 ring-8 ring-slate-50'>
+          <Ban className='size-6' />
+        </div>
+        <div className='space-y-1'>
+          <CardTitle>Alcanzaste el límite máximo de votos</CardTitle>
+          <CardDescription>
+            Ya utilizaste los {maxVotos} intentos de sufragio admitidos para este
+            comicio institucional. La boleta interactiva no está disponible.
+          </CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Alert className='border-[#2f6f9f]/20 bg-[#f7fbfd] text-slate-800'>
+          <ShieldCheck className='size-4 text-[#2f6f9f]' />
+          <AlertTitle>Política de re-voto</AlertTitle>
+          <AlertDescription>
+            Solo se computa el último voto válido emitido dentro del límite
+            configurado por la autoridad electoral.
+          </AlertDescription>
+        </Alert>
+      </CardContent>
+      <CardFooter>
+        <Button
+          variant='outline'
+          size='lg'
+          className='h-12 w-full'
+          onClick={onLogout}
+        >
+          <LogOut className='size-4' />
+          Cerrar sesión
+        </Button>
+      </CardFooter>
+    </Card>
+  </div>
+)
+
 const RegisteredVoteStep = ({
+  votosConsumidos,
+  intentosRestantes,
+  ultimoIntentoLabel,
   onLogout,
   onModify,
 }: {
+  votosConsumidos: number
+  intentosRestantes: number
+  ultimoIntentoLabel: string | null
   onLogout: () => void
   onModify: () => void
 }) => (
@@ -917,16 +1010,21 @@ const RegisteredVoteStep = ({
         <div className='space-y-1'>
           <CardTitle>Ya tienes un voto registrado en este comicio.</CardTitle>
           <CardDescription>
-            Detectamos una emisión previa asociada a esta sesión electoral.
+            Detectamos {votosConsumidos} emisión
+            {votosConsumidos === 1 ? '' : 'es'} previa
+            {votosConsumidos === 1 ? '' : 's'}. Todavía te quedan{' '}
+            {intentosRestantes} intento{intentosRestantes === 1 ? '' : 's'}.
           </CardDescription>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className='rounded-2xl bg-amber-50 p-4 text-sm text-amber-950'>
-          <span className='font-semibold'>Fecha/hora del voto anterior:</span>{' '}
-          {PREVIOUS_VOTE_DATE}
-        </div>
-      </CardContent>
+      {ultimoIntentoLabel ? (
+        <CardContent>
+          <div className='rounded-2xl bg-amber-50 p-4 text-sm text-amber-950'>
+            <span className='font-semibold'>Fecha/hora del voto anterior:</span>{' '}
+            {ultimoIntentoLabel}
+          </div>
+        </CardContent>
+      ) : null}
       <CardFooter className='grid gap-3 sm:grid-cols-2'>
         <Button variant='outline' size='lg' className='h-12' onClick={onLogout}>
           <LogOut className='size-4' />
@@ -1926,6 +2024,7 @@ const ListLogo = ({
 }
 
 const getStepLabel = (step: WizardStep) => {
+  if (step === 'limit-reached') return 'Límite de intentos'
   if (step === 'registered') return 'Voto registrado'
   if (step === 'identity') return 'Confirmación de identidad'
   if (step === 'selection') return 'Selección de voto'
