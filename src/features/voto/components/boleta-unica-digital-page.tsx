@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AxiosError } from 'axios'
 import { useQuery } from '@tanstack/react-query'
-import { AlertCircle } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { AlertCircle, Eye } from 'lucide-react'
 import budFingerprint from '@/assets/bud-fingerprint.png'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import {
   METODOS_AUTENTICACION,
   type MetodoAutenticacion,
@@ -179,17 +181,10 @@ const BoletaUnicaDigitalPageContent = ({
     const estadoComicio = budConfigQuery.data?.estado
     if (estadoComicio === 'CERRADA' || estadoComicio === 'ESCRUTADA') {
       return (
-        <main className='grid min-h-svh place-items-center bg-[#fdfcfa] px-6'>
-          <Alert className='max-w-xl border-slate-300 bg-white'>
-            <AlertCircle className='size-4' aria-hidden='true' />
-            <AlertTitle>El período de votación ha concluido</AlertTitle>
-            <AlertDescription>
-              Este comicio está cerrado. La Boleta Única Digital ya no admite
-              nuevos sufragios. Podés consultar el Dashboard Público para ver
-              los resultados definitivos.
-            </AlertDescription>
-          </Alert>
-        </main>
+        <ComicioCerradoPanel
+          idEleccion={idEleccion}
+          description='Este comicio está cerrado. La Boleta Única Digital ya no admite nuevos sufragios. Podés consultar el Dashboard Público para ver los resultados definitivos.'
+        />
       )
     }
 
@@ -259,15 +254,10 @@ const BoletaUnicaDigitalPageContent = ({
         : undefined
     if (status === 410) {
       return (
-        <main className='grid min-h-svh place-items-center bg-[#fdfcfa] px-6'>
-          <Alert className='max-w-xl border-slate-300 bg-white'>
-            <AlertCircle className='size-4' aria-hidden='true' />
-            <AlertTitle>El período de votación ha concluido</AlertTitle>
-            <AlertDescription>
-              El comicio fue cerrado y ya no admite nuevos sufragios (HTTP 410).
-            </AlertDescription>
-          </Alert>
-        </main>
+        <ComicioCerradoPanel
+          idEleccion={idEleccion}
+          description='El comicio fue cerrado y ya no admite nuevos sufragios. Podés consultar el Dashboard Público para ver los resultados definitivos.'
+        />
       )
     }
 
@@ -290,16 +280,10 @@ const BoletaUnicaDigitalPageContent = ({
     budConfigQuery.data.estado === 'ESCRUTADA'
   ) {
     return (
-      <main className='grid min-h-svh place-items-center bg-[#fdfcfa] px-6'>
-        <Alert className='max-w-xl border-slate-300 bg-white'>
-          <AlertCircle className='size-4' aria-hidden='true' />
-          <AlertTitle>El período de votación ha concluido</AlertTitle>
-          <AlertDescription>
-            La Boleta Única Digital está deshabilitada de forma permanente para
-            este comicio.
-          </AlertDescription>
-        </Alert>
-      </main>
+      <ComicioCerradoPanel
+        idEleccion={idEleccion}
+        description='La Boleta Única Digital está deshabilitada de forma permanente para este comicio. Podés consultar el Dashboard Público para ver los resultados definitivos.'
+      />
     )
   }
 
@@ -318,6 +302,33 @@ const BoletaUnicaDigitalPageContent = ({
     />
   )
 }
+
+const ComicioCerradoPanel = ({
+  idEleccion,
+  description,
+}: {
+  idEleccion: number
+  description: string
+}) => (
+  <main className='grid min-h-svh place-items-center bg-[#fdfcfa] px-6'>
+    <div className='flex w-full max-w-xl flex-col gap-4'>
+      <Alert className='border-slate-300 bg-white'>
+        <AlertCircle className='size-4' aria-hidden='true' />
+        <AlertTitle>El período de votación ha concluido</AlertTitle>
+        <AlertDescription>{description}</AlertDescription>
+      </Alert>
+      <Button asChild className='bg-[#2f6f9f] hover:bg-[#265d86]'>
+        <Link
+          to='/comicios/$idEleccion/dashboard'
+          params={{ idEleccion: String(idEleccion) }}
+        >
+          <Eye className='me-2 size-4' aria-hidden='true' />
+          Ir al Dashboard Público
+        </Link>
+      </Button>
+    </div>
+  </main>
+)
 
 const BoletaIntroSplash = () => (
   <main className='votar-light-surface relative grid min-h-svh place-items-center overflow-hidden bg-[#fdfcfa]'>

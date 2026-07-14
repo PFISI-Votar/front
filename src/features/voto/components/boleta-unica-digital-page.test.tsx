@@ -15,6 +15,22 @@ const mocks = vi.hoisted(() => ({
   walletIsReady: true,
 }))
 
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({
+    children,
+    ...props
+  }: {
+    children: React.ReactNode
+    to?: string
+    params?: Record<string, string>
+    className?: string
+  }) => (
+    <a href={props.to ?? '#'} className={props.className}>
+      {children}
+    </a>
+  ),
+}))
+
 vi.mock('@/features/voto/api/voto-api', () => ({
   obtenerBoletaDigital: mocks.obtenerBoletaDigital,
   obtenerConfiguracionBud: mocks.obtenerConfiguracionBud,
@@ -197,6 +213,32 @@ describe('BoletaUnicaDigitalPage', () => {
       .element(screen.getByRole('button', { name: /Ingresar/i }))
       .toBeInTheDocument()
     expect(mocks.obtenerBoletaDigital).not.toHaveBeenCalled()
+  })
+
+  it('con comicio cerrado ofrece enlace al Dashboard Público', async () => {
+    mocks.ensureVotanteSession.mockResolvedValue(null)
+    mocks.obtenerConfiguracionBud.mockResolvedValue({
+      ...budConfig,
+      estado: 'CERRADA',
+    })
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <BoletaUnicaDigitalPage idEleccion={7} showIntro={false} />
+      </QueryClientProvider>
+    )
+
+    await expect
+      .element(screen.getByText(/El período de votación ha concluido/i))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByRole('link', { name: /Ir al Dashboard Público/i }))
+      .toBeInTheDocument()
   })
 
   it('VOTAR-379/418: tras zeroizar la wallet sigue mostrando el wizard (no el splash)', async () => {
