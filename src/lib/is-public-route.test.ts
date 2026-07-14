@@ -7,6 +7,7 @@ describe('isPublicRoute', () => {
     expect(isPublicRoute('/comicios/6/dashboard/')).toBe(true)
     expect(isPublicRoute('/comicios/6/dashboard/padron')).toBe(true)
     expect(isPublicRoute('/comicios/12/dashboard/estado')).toBe(true)
+    expect(isPublicRoute('/comicios/12/dashboard/resultados')).toBe(true)
   })
 
   it('reconoce la BUD y el verificador público', () => {

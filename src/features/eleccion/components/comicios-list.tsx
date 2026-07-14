@@ -315,7 +315,7 @@ export const ComiciosList = () => {
                 </Button>
                 <Button asChild variant='outline' size='sm'>
                   <Link
-                    to='/comicios/$idEleccion/dashboard/'
+                    to='/comicios/$idEleccion/dashboard'
                     params={{ idEleccion: String(comicio.idEleccion) }}
                     aria-label={`Ver dashboard público de ${comicio.nombre}`}
                   >
