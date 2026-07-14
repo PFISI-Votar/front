@@ -95,6 +95,26 @@ describe('ComiciosList', () => {
       .toBeInTheDocument()
   })
 
+  it('alinea iconos a la izquierda en el conjunto de botones de acción', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+
+    await renderComiciosList()
+
+    await expect
+      .element(page.getByText('Elección Provincial 2025'))
+      .toBeInTheDocument()
+
+    const actionLabels = ['Ver oferta', 'Ver padrón', 'Editar', 'Abrir comicio']
+    for (const label of actionLabels) {
+      const control = page.getByText(label, { exact: true }).first()
+      await expect.element(control).toBeInTheDocument()
+      const el = control.element().closest('a,button')
+      expect(el).not.toBeNull()
+      expect(el?.querySelector('svg')).not.toBeNull()
+      expect(el?.firstElementChild?.tagName.toLowerCase()).toBe('svg')
+    }
+  })
+
   it('muestra ventana electoral y estado legible en cada comicio', async () => {
     vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
 

@@ -1,5 +1,6 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Check, X } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   getApiErrorMessage,
@@ -32,6 +33,7 @@ type ComicioFormProps = {
   defaultValues?: Eleccion
   submitLabel: string
   onSubmit: (values: CreateComicioInput) => Promise<void>
+  onCancel: () => void
 }
 
 const mapApiErrorsToForm = (
@@ -78,6 +80,7 @@ export const ComicioForm = ({
   defaultValues,
   submitLabel,
   onSubmit,
+  onCancel,
 }: ComicioFormProps) => {
   const form = useForm<CreateComicioInput>({
     resolver: zodResolver(createComicioSchema),
@@ -102,7 +105,7 @@ export const ComicioForm = ({
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(handleSubmit)}
-        className='space-y-10'
+        className='space-y-8'
         aria-label={
           mode === 'create'
             ? 'Formulario de creación de comicio'
@@ -113,37 +116,41 @@ export const ComicioForm = ({
           <h2 id='comicio-datos-heading' className='text-lg font-semibold'>
             Datos generales
           </h2>
-          <FormField
-            control={form.control}
-            name='nombre'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nombre</FormLabel>
-                <FormControl>
-                  <Input
-                    className='h-10'
-                    placeholder='Elección CEUTI 2026'
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name='descripcion'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Descripción (opcional)</FormLabel>
-                <FormControl>
-                  <Textarea rows={3} className='min-h-24 resize-y' {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
           <div className='grid gap-6 lg:grid-cols-2'>
+            <FormField
+              control={form.control}
+              name='nombre'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nombre</FormLabel>
+                  <FormControl>
+                    <Input
+                      className='h-10'
+                      placeholder='Elección CEUTI 2026'
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name='descripcion'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Descripción (opcional)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      rows={3}
+                      className='min-h-24 resize-y'
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name='fechaInicio'
@@ -188,32 +195,52 @@ export const ComicioForm = ({
           </div>
         </section>
 
-        <section
-          className='space-y-6'
-          aria-labelledby='comicio-modalidad-heading'
-        >
-          <h2 id='comicio-modalidad-heading' className='text-lg font-semibold'>
-            Modalidad electoral
-          </h2>
-          <CreateComicioTipoVotacionField control={form.control} />
-          {mode === 'create' && (
-            <p className='text-sm text-muted-foreground'>
-              Las categorías electorales (cargos a cubrir) se configuran en la
-              oferta electoral después de crear el comicio.
-            </p>
-          )}
-        </section>
+        <div className='grid gap-8 lg:grid-cols-2'>
+          <section
+            className='space-y-6'
+            aria-labelledby='comicio-modalidad-heading'
+          >
+            <h2
+              id='comicio-modalidad-heading'
+              className='text-lg font-semibold'
+            >
+              Modalidad electoral
+            </h2>
+            <CreateComicioTipoVotacionField control={form.control} />
+            {mode === 'create' && (
+              <p className='text-sm text-muted-foreground'>
+                Las categorías electorales (cargos a cubrir) se configuran en la
+                oferta electoral después de crear el comicio.
+              </p>
+            )}
+          </section>
 
-        <section className='space-y-6' aria-labelledby='comicio-auth-heading'>
-          <h2 id='comicio-auth-heading' className='text-lg font-semibold'>
-            Acceso de votantes
-          </h2>
-          <MetodosAutenticacionField control={form.control} />
-        </section>
+          <section
+            className='space-y-6'
+            aria-labelledby='comicio-auth-heading'
+          >
+            <h2 id='comicio-auth-heading' className='text-lg font-semibold'>
+              Acceso de votantes
+            </h2>
+            <MetodosAutenticacionField control={form.control} />
+          </section>
+        </div>
 
-        <Button type='submit' disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? 'Guardando…' : submitLabel}
-        </Button>
+        <div className='flex flex-wrap gap-2'>
+          <Button
+            type='button'
+            variant='outline'
+            onClick={onCancel}
+            disabled={form.formState.isSubmitting}
+          >
+            <X />
+            Cancelar
+          </Button>
+          <Button type='submit' disabled={form.formState.isSubmitting}>
+            <Check />
+            {form.formState.isSubmitting ? 'Guardando…' : submitLabel}
+          </Button>
+        </div>
       </form>
     </Form>
   )
