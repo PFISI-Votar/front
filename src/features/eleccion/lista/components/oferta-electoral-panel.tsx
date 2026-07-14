@@ -842,8 +842,8 @@ export const OfertaElectoralPanel = ({
         desc={
           listaAEliminar ? (
             <>
-              Esta acción es <strong>irreversible</strong>. Se eliminará la lista{' '}
-              <strong>{listaAEliminar.nombre}</strong>
+              Esta acción es <strong>irreversible</strong>. Se eliminará la
+              lista <strong>{listaAEliminar.nombre}</strong>
               {listaAEliminar.sigla ? ` (${listaAEliminar.sigla})` : ''} y todos
               sus candidatos asociados.
             </>
