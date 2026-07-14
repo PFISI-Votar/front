@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
   ArrowRight,
+  Eye,
   FileSpreadsheet,
   Vote,
   Play,
@@ -310,6 +311,16 @@ export const ComiciosList = () => {
                   >
                     <FileSpreadsheet className='me-2 size-4' />
                     Ver padrón
+                  </Link>
+                </Button>
+                <Button asChild variant='outline' size='sm'>
+                  <Link
+                    to='/comicios/$idEleccion/dashboard/'
+                    params={{ idEleccion: String(comicio.idEleccion) }}
+                    aria-label={`Ver dashboard público de ${comicio.nombre}`}
+                  >
+                    <Eye className='me-2 size-4' />
+                    Dashboard público
                   </Link>
                 </Button>
                 {comicio.estado === 'BORRADOR' && (

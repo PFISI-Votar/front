@@ -119,6 +119,20 @@ describe('ComiciosList', () => {
       .toBeInTheDocument()
   })
 
+  it('expone enlace al dashboard público anónimo de cada comicio', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+
+    await renderComiciosList()
+
+    await expect
+      .element(page.getByText('Elección Municipal 2025'))
+      .toBeInTheDocument()
+    await expect
+      .element(page.getByText('Dashboard público').first())
+      .toBeInTheDocument()
+    expect(page.getByText('Dashboard público').all()).toHaveLength(2)
+  })
+
   it('abre diálogo de confirmación al hacer clic en "Abrir comicio"', async () => {
     vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
 
