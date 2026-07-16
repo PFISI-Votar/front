@@ -39,7 +39,7 @@ export const MetodosAutenticacionField = ({
           <FormItem>
             <FormLabel>Métodos de inicio de sesión</FormLabel>
             <div
-              className='space-y-3'
+              className='flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-3'
               role='group'
               aria-label='Métodos de inicio de sesión para votantes'
             >

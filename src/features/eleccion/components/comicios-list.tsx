@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
-  ArrowRight,
   FileSpreadsheet,
+  LayoutList,
   Vote,
   Play,
   Square,
+  Pencil,
   AlertCircle,
+  X,
 } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -95,9 +97,11 @@ const AbrirComicioDialog = ({
             onClick={() => onOpenChange(false)}
             disabled={isPending}
           >
+            <X />
             Cancelar
           </Button>
           <Button onClick={handleConfirm} disabled={isPending}>
+            <Play />
             {isPending ? 'Abriendo...' : 'Abrir comicio'}
           </Button>
         </DialogFooter>
@@ -151,6 +155,7 @@ const CerrarComicioDialog = ({
             onClick={() => onOpenChange(false)}
             disabled={isPending}
           >
+            <X />
             Cancelar
           </Button>
           <Button
@@ -158,6 +163,7 @@ const CerrarComicioDialog = ({
             onClick={handleConfirm}
             disabled={isPending}
           >
+            <Square />
             {isPending ? 'Cerrando...' : 'Cerrar comicio'}
           </Button>
         </DialogFooter>
@@ -255,7 +261,10 @@ export const ComiciosList = () => {
         </CardHeader>
         <CardContent>
           <Button asChild>
-            <Link to='/comicios/nuevo'>Crear comicio</Link>
+            <Link to='/comicios/nuevo'>
+              <Vote />
+              Crear comicio
+            </Link>
           </Button>
         </CardContent>
       </Card>
@@ -298,8 +307,8 @@ export const ComiciosList = () => {
                     params={{ idEleccion: String(comicio.idEleccion) }}
                     aria-label={`Ver oferta de ${comicio.nombre}`}
                   >
+                    <LayoutList />
                     Ver oferta
-                    <ArrowRight className='ms-2 size-4' />
                   </Link>
                 </Button>
                 <Button asChild variant='outline' size='sm'>
@@ -308,7 +317,7 @@ export const ComiciosList = () => {
                     params={{ idEleccion: String(comicio.idEleccion) }}
                     aria-label={`Ver padrón de ${comicio.nombre}`}
                   >
-                    <FileSpreadsheet className='me-2 size-4' />
+                    <FileSpreadsheet />
                     Ver padrón
                   </Link>
                 </Button>
@@ -319,6 +328,7 @@ export const ComiciosList = () => {
                       params={{ idEleccion: String(comicio.idEleccion) }}
                       aria-label={`Editar ${comicio.nombre}`}
                     >
+                      <Pencil />
                       Editar
                     </Link>
                   </Button>
@@ -332,7 +342,7 @@ export const ComiciosList = () => {
                     }
                     aria-label={`Abrir comicio ${comicio.nombre}`}
                   >
-                    <Play className='me-2 size-4' />
+                    <Play />
                     Abrir comicio
                   </Button>
                 )}
@@ -345,7 +355,7 @@ export const ComiciosList = () => {
                     }
                     aria-label={`Cerrar comicio ${comicio.nombre}`}
                   >
-                    <Square className='me-2 size-4' />
+                    <Square />
                     Cerrar comicio
                   </Button>
                 )}
