@@ -9,9 +9,21 @@ import {
 import { BudVotingWizard } from '@/features/voto/components/bud-voting-wizard'
 import { EphemeralWalletProvider } from '@/features/voto/crypto/ephemeral-wallet-context'
 import { calcularNullifier } from '@/features/voto/crypto/nullifier'
-import type { BoletaDigital } from '@/features/voto/data/schema'
+import type { BoletaDigital, EstadoRevoto } from '@/features/voto/data/schema'
 
 const registrarVotoEmitidoAnonimoMock = vi.fn().mockResolvedValue(undefined)
+const registrarConsumoIntentoMock = vi.fn()
+const obtenerEstadoRevotoMock = vi.fn()
+
+const defaultEstadoRevoto: EstadoRevoto = {
+  revoteHabilitado: true,
+  maxVotosPorVotante: 3,
+  votosConsumidos: 0,
+  intentosRestantes: 3,
+  puedeVotar: true,
+  minIntervaloSegundos: 0,
+  politicaRevoto: 'LAST_VOTE_WINS',
+}
 
 vi.mock('@/features/voto/api/voto-api', () => ({
   solicitarMerkleProof: vi.fn().mockResolvedValue({
@@ -21,6 +33,9 @@ vi.mock('@/features/voto/api/voto-api', () => ({
   }),
   registrarVotoEmitidoAnonimo: (...args: unknown[]) =>
     registrarVotoEmitidoAnonimoMock(...args),
+  obtenerEstadoRevoto: (...args: unknown[]) => obtenerEstadoRevotoMock(...args),
+  registrarConsumoIntento: (...args: unknown[]) =>
+    registrarConsumoIntentoMock(...args),
 }))
 
 const clearVotanteSessionMock = vi.fn().mockResolvedValue(undefined)
@@ -196,8 +211,16 @@ describe('BudVotingWizard', () => {
     initializeWalletMock.mockClear()
     clearVotanteSessionMock.mockClear()
     registrarVotoEmitidoAnonimoMock.mockClear()
+    registrarConsumoIntentoMock.mockClear()
+    obtenerEstadoRevotoMock.mockReset()
     clearVotanteSessionMock.mockResolvedValue(undefined)
     registrarVotoEmitidoAnonimoMock.mockResolvedValue(undefined)
+    obtenerEstadoRevotoMock.mockResolvedValue({ ...defaultEstadoRevoto })
+    registrarConsumoIntentoMock.mockResolvedValue({
+      ...defaultEstadoRevoto,
+      votosConsumidos: 1,
+      intentosRestantes: 2,
+    })
     initializeWalletMock.mockResolvedValue({
       idEleccion: 7,
       publicKeyHex: WALLET_PUBLIC_KEY,
@@ -255,6 +278,130 @@ describe('BudVotingWizard', () => {
     await expect
       .element(screen.getByText('Candidatos por rol'))
       .not.toBeInTheDocument()
+  })
+
+  it('VOTAR-356 UAT-03: inicia sin preseleccionar candidatos ni voto en blanco', async () => {
+    const screen = await renderWizard()
+
+    const blankPresidente = screen.getByRole('button', {
+      name: /Voto en Blanco para Presidente/i,
+    })
+    const blankVocales = screen.getByRole('button', {
+      name: /Voto en Blanco para Vocales/i,
+    })
+    const ana = screen.getByRole('button', { name: /Ana Lopez/i })
+
+    expect(blankPresidente.element().getAttribute('aria-pressed')).toBe('false')
+    expect(blankVocales.element().getAttribute('aria-pressed')).toBe('false')
+    expect(ana.element().getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('VOTAR-356 UAT-01: voto en blanco por categoría desmarca candidatos y permite confirmar', async () => {
+    const screen = await renderWizard()
+
+    await userEvent.click(screen.getByRole('button', { name: /Ana Lopez/i }))
+    expect(
+      screen
+        .getByRole('button', { name: /Ana Lopez/i })
+        .element()
+        .getAttribute('aria-pressed')
+    ).toBe('true')
+
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: /Voto en Blanco para Presidente/i,
+      })
+    )
+
+    expect(
+      screen
+        .getByRole('button', { name: /Ana Lopez/i })
+        .element()
+        .getAttribute('aria-pressed')
+    ).toBe('false')
+    expect(
+      screen
+        .getByRole('button', { name: /Voto en Blanco para Presidente/i })
+        .element()
+        .getAttribute('aria-pressed')
+    ).toBe('true')
+
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: /Voto en Blanco para Vocales/i,
+      })
+    )
+    await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
+
+    await expect.element(screen.getByText('Voto en blanco')).toBeInTheDocument()
+    await expect.element(screen.getByText('Ana Lopez')).not.toBeInTheDocument()
+  })
+
+  it('VOTAR-356 UAT-02: elegir un candidato desmarca el voto en blanco de esa categoría', async () => {
+    const screen = await renderWizard()
+
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: /Voto en Blanco para Presidente/i,
+      })
+    )
+    expect(
+      screen
+        .getByRole('button', { name: /Voto en Blanco para Presidente/i })
+        .element()
+        .getAttribute('aria-pressed')
+    ).toBe('true')
+
+    await userEvent.click(screen.getByRole('button', { name: /Bruno Paz/i }))
+
+    expect(
+      screen
+        .getByRole('button', { name: /Voto en Blanco para Presidente/i })
+        .element()
+        .getAttribute('aria-pressed')
+    ).toBe('false')
+    expect(
+      screen
+        .getByRole('button', { name: /Bruno Paz/i })
+        .element()
+        .getAttribute('aria-pressed')
+    ).toBe('true')
+  })
+
+  it('VOTAR-356: no renderiza casilleros de blanco si permitirVotoEnBlanco es false', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <EphemeralWalletProvider>
+          <BudVotingWizard
+            boleta={{ ...boleta, permitirVotoEnBlanco: false }}
+            tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            onLogout={vi.fn()}
+          />
+        </EphemeralWalletProvider>
+      </QueryClientProvider>
+    )
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /Confirmar Identidad y Comenzar/i })
+    )
+
+    await expect
+      .element(
+        screen.getByRole('button', { name: /Voto en Blanco para Presidente/i })
+      )
+      .not.toBeInTheDocument()
+    await expect
+      .element(screen.getByRole('button', { name: /Votar en blanco/i }))
+      .not.toBeInTheDocument()
+    await expect
+      .element(screen.getByRole('button', { name: /Anular voto/i }))
+      .toBeInTheDocument()
   })
 
   it('permite un solo candidato seleccionado por rol', async () => {
@@ -335,6 +482,7 @@ describe('BudVotingWizard', () => {
     )
     expect(transmitSignedVoteMock).toHaveBeenCalledOnce()
     expect(document.body.innerHTML).not.toContain(expectedNullifier)
+    expect(registrarConsumoIntentoMock).toHaveBeenCalledOnce()
     expect(clearVotanteSessionMock).toHaveBeenCalledOnce()
     expect(registrarVotoEmitidoAnonimoMock).toHaveBeenCalledWith(
       boleta.idEleccion
@@ -506,5 +654,91 @@ describe('BudVotingWizard', () => {
     )
 
     expect(onLogout).toHaveBeenCalled()
+  })
+
+  it('VOTAR-328 UAT-01: con maxVotesPerVoter=3 y 1 voto consumido muestra Intentos restantes: 2', async () => {
+    obtenerEstadoRevotoMock.mockResolvedValue({
+      ...defaultEstadoRevoto,
+      votosConsumidos: 1,
+      intentosRestantes: 2,
+      puedeVotar: true,
+    })
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <EphemeralWalletProvider>
+          <BudVotingWizard
+            boleta={boleta}
+            tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            onLogout={vi.fn()}
+          />
+        </EphemeralWalletProvider>
+      </QueryClientProvider>
+    )
+
+    await expect
+      .element(screen.getByText('Intentos restantes: 2'))
+      .toBeInTheDocument()
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /Confirmar Identidad y Comenzar/i })
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: /Modificar mi voto/i })
+    )
+
+    await expect
+      .element(screen.getByText('Intentos restantes: 2'))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByText('Opciones especiales'))
+      .toBeInTheDocument()
+  })
+
+  it('VOTAR-328 UAT-02: con intentos agotados oculta la boleta y muestra panel de límite', async () => {
+    obtenerEstadoRevotoMock.mockResolvedValue({
+      ...defaultEstadoRevoto,
+      maxVotosPorVotante: 3,
+      votosConsumidos: 3,
+      intentosRestantes: 0,
+      puedeVotar: false,
+    })
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <EphemeralWalletProvider>
+          <BudVotingWizard
+            boleta={boleta}
+            tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            onLogout={vi.fn()}
+          />
+        </EphemeralWalletProvider>
+      </QueryClientProvider>
+    )
+
+    await expect
+      .element(screen.getByText('Intentos restantes: 0'))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByTestId('max-votes-reached-panel'))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByText(/Alcanzaste el límite máximo de votos/i))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByText('Opciones especiales'))
+      .not.toBeInTheDocument()
   })
 })
