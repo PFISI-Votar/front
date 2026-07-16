@@ -7,7 +7,7 @@ import {
   Ban,
   Check,
   CheckCircle2,
-  Circle,
+  CircleOff,
   Clock3,
   Download,
   ExternalLink,
@@ -60,12 +60,23 @@ import {
 import type {
   BoletaDigital,
   CandidatoBoletaDigital,
+  EstadoRevoto,
   VoterMerkleProof,
 } from '@/features/voto/data/schema'
+import {
+  useEstadoRevoto,
+  useRegistrarConsumoIntento,
+} from '@/features/voto/hooks/use-estado-revoto'
 import { useSolicitarMerkleProof } from '@/features/voto/hooks/use-merkle-proof'
 import { generarReciboPDF } from '@/features/voto/lib/generar-recibo-pdf'
 import { clearVotanteSession } from '@/features/voto/services/votante-session'
-import { buildWizardSelectionPayload } from '@/features/voto/utils/wizard-selection'
+import {
+  areAllRolesBlank,
+  BLANK_SELECTION_ID,
+  buildWizardSelectionPayload,
+  isBlankSelection,
+  roleHasBlankSelection,
+} from '@/features/voto/utils/wizard-selection'
 
 type VotingVariant = 'lista-completa' | 'candidatos' | 'mixto'
 type SpecialVote = 'blank' | 'null' | null
@@ -76,6 +87,7 @@ type WizardStep =
   | 'review'
   | 'transmitting'
   | 'success'
+  | 'limit-reached'
 
 type TransmitUiPhase = TransmitProgressPhase | 'error'
 
@@ -114,8 +126,6 @@ type BudVotingWizardProps = {
   cryptoReady?: boolean
   onLogout: () => void
 }
-
-const PREVIOUS_VOTE_DATE = '23/06/2026, 10:42 hs'
 
 const BACKGROUND_FINGERPRINTS = [
   { top: '7%', left: '13%', width: '7rem', opacity: 0.04, rotate: '-18deg' },
@@ -269,7 +279,6 @@ export const BudVotingWizard = ({
 }: BudVotingWizardProps) => {
   const [step, setStep] = useState<WizardStep>('identity')
   const variant = getVotingVariant(tipoVotacion)
-  const [returningVoter, setReturningVoter] = useState(false)
   const [selectedListId, setSelectedListId] = useState<string | null>(null)
   const [specialVote, setSpecialVote] = useState<SpecialVote>(null)
   const [candidateSelections, setCandidateSelections] = useState<
@@ -291,10 +300,24 @@ export const BudVotingWizard = ({
   const [voteReceiptReady, setVoteReceiptReady] = useState(false)
   const merkleProofMutation = useSolicitarMerkleProof(boleta.idEleccion)
   const {
+    data: estadoRevoto,
+    isLoading: isLoadingEstadoRevoto,
+    isError: isEstadoRevotoError,
+  } = useEstadoRevoto(boleta.idEleccion)
+  const registrarConsumoMutation = useRegistrarConsumoIntento(boleta.idEleccion)
+  const {
     signVotePayload,
     initialize: initializeEphemeralWallet,
     destroy: destroyEphemeralWallet,
   } = useEphemeralWallet()
+
+  const intentosAgotados =
+    Boolean(estadoRevoto) && estadoRevoto?.puedeVotar === false
+  // Derive UI step when attempts are exhausted (avoids setState-in-effect).
+  const effectiveStep: WizardStep =
+    intentosAgotados && step !== 'success' && step !== 'transmitting'
+      ? 'limit-reached'
+      : step
 
   const lists = useMemo(() => buildListsFromBoleta(boleta), [boleta])
   const roles = useMemo(() => buildRolesFromBoleta(boleta), [boleta])
@@ -304,6 +327,7 @@ export const BudVotingWizard = ({
     () =>
       roles.flatMap((role) =>
         (candidateSelections[role.id] ?? [])
+          .filter((candidateId) => !isBlankSelection(candidateId))
           .map((candidateId) =>
             candidates.find((candidate) => candidate.id === candidateId)
           )
@@ -314,18 +338,19 @@ export const BudVotingWizard = ({
   const rolesWithCandidates = roles.filter((role) =>
     candidates.some((candidate) => candidate.roleId === role.id)
   )
+  const roleSelectionComplete = (roleId: string) =>
+    (candidateSelections[roleId] ?? []).length > 0
+  const allRolesSelected = rolesWithCandidates.every((role) =>
+    roleSelectionComplete(role.id)
+  )
+  const wholeBallotBlank =
+    specialVote === 'blank' ||
+    areAllRolesBlank(candidateSelections, roles, candidates)
   const canContinueSelection =
     Boolean(specialVote) ||
     (variant === 'lista-completa' && Boolean(selectedList)) ||
-    (variant === 'candidatos' &&
-      rolesWithCandidates.every(
-        (role) => (candidateSelections[role.id] ?? []).length > 0
-      )) ||
-    (variant === 'mixto' &&
-      (Boolean(selectedList) ||
-        rolesWithCandidates.every(
-          (role) => (candidateSelections[role.id] ?? []).length > 0
-        )))
+    (variant === 'candidatos' && allRolesSelected) ||
+    (variant === 'mixto' && (Boolean(selectedList) || allRolesSelected))
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -412,6 +437,12 @@ export const BudVotingWizard = ({
       setTxHash(result.txHash)
       setBlockNumber(Number(result.blockNumber))
       setTransmitPhase(null)
+      // VOTAR-328: consumir intento mientras la sesión JWT sigue activa.
+      try {
+        await registrarConsumoMutation.mutateAsync()
+      } catch {
+        // El cast on-chain ya confirmó; no bloquear el recibo por el contador.
+      }
       // VOTAR-379 UAT-05: anonymous audit before clearing SSO (no cookies on call).
       void registrarVotoEmitidoAnonimo(boleta.idEleccion).catch(() => {
         // Recibo on-chain ya confirmado; el audit no debe bloquear la UX.
@@ -432,9 +463,16 @@ export const BudVotingWizard = ({
   const handleIdentityConfirm = async () => {
     setIdentityError(null)
     try {
+      if (intentosAgotados) {
+        setStep('limit-reached')
+        return
+      }
       const proof = await merkleProofMutation.mutateAsync()
       setMerkleProofData(proof)
-      setStep(returningVoter ? 'registered' : 'selection')
+      const returning =
+        (estadoRevoto?.votosConsumidos ?? 0) > 0 &&
+        (estadoRevoto?.puedeVotar ?? true)
+      setStep(returning ? 'registered' : 'selection')
     } catch (error) {
       if (error instanceof AxiosError) {
         if (error.response?.status === 401) {
@@ -539,40 +577,53 @@ export const BudVotingWizard = ({
   }
 
   return (
-    <BudWizardShell step={step}>
-      <WizardStepper currentStep={step} />
+    <BudWizardShell step={effectiveStep} estadoRevoto={estadoRevoto}>
+      {effectiveStep !== 'limit-reached' ? (
+        <WizardStepper currentStep={effectiveStep} />
+      ) : null}
       <div
-        key={step}
+        key={effectiveStep}
         className='animate-in duration-300 fade-in-0 slide-in-from-bottom-3'
       >
-        {step === 'identity' && (
+        {effectiveStep === 'limit-reached' && (
+          <MaxVotesReachedPanel
+            maxVotos={estadoRevoto?.maxVotosPorVotante ?? 1}
+            onLogout={handleLogout}
+          />
+        )}
+        {effectiveStep === 'identity' && (
           <IdentityStep
             boleta={boleta}
-            returningVoter={returningVoter}
             identityError={identityError}
             cryptoReady={cryptoReady}
-            isLoadingProof={merkleProofMutation.isPending}
-            onReturningVoterChange={setReturningVoter}
+            isLoadingProof={
+              merkleProofMutation.isPending || isLoadingEstadoRevoto
+            }
+            isEstadoRevotoError={isEstadoRevotoError}
             onConfirm={() => {
               void handleIdentityConfirm()
             }}
           />
         )}
-        {step === 'registered' && (
+        {effectiveStep === 'registered' && (
           <RegisteredVoteStep
+            votosConsumidos={estadoRevoto?.votosConsumidos ?? 0}
+            intentosRestantes={estadoRevoto?.intentosRestantes ?? 0}
+            ultimoIntentoLabel={null}
             onLogout={handleLogout}
             onModify={() => {
               void handleModifyVote()
             }}
           />
         )}
-        {step === 'selection' && (
+        {effectiveStep === 'selection' && (
           <SelectionStep
             variant={variant}
             selectedListId={selectedListId}
             specialVote={specialVote}
             candidateSelections={candidateSelections}
             canContinue={canContinueSelection}
+            permitirVotoEnBlanco={boleta.permitirVotoEnBlanco}
             lists={lists}
             roles={roles}
             candidates={candidates}
@@ -587,15 +638,25 @@ export const BudVotingWizard = ({
                 }
               })
             }}
+            onSelectBlank={(roleId) => {
+              setSpecialVote(null)
+              setSelectedListId(null)
+              setCandidateSelections((current) => ({
+                ...current,
+                [roleId]: [BLANK_SELECTION_ID],
+              }))
+            }}
             onContinue={() => setStep('review')}
           />
         )}
-        {step === 'review' && (
+        {effectiveStep === 'review' && (
           <ReviewStep
             variant={variant}
             selectedList={selectedList}
             selectedCandidates={selectedCandidates}
+            candidateSelections={candidateSelections}
             specialVote={specialVote}
+            wholeBallotBlank={wholeBallotBlank}
             roles={roles}
             candidates={candidates}
             signingError={signingError}
@@ -606,13 +667,16 @@ export const BudVotingWizard = ({
             }}
           />
         )}
-        {step === 'transmitting' && (
+        {effectiveStep === 'transmitting' && (
           <TransmitStep
             phase={transmitPhase}
             txError={txError}
             specialVote={specialVote}
+            wholeBallotBlank={wholeBallotBlank}
+            candidateSelections={candidateSelections}
             selectedList={selectedList}
             selectedCandidates={selectedCandidates}
+            roles={roles}
             onRetrySend={() => {
               void handleRetryTransmit()
             }}
@@ -627,7 +691,7 @@ export const BudVotingWizard = ({
             }}
           />
         )}
-        {step === 'success' && (
+        {effectiveStep === 'success' && (
           <SuccessStep
             voteReceiptReady={voteReceiptReady}
             txHash={txHash}
@@ -647,9 +711,11 @@ export const BudVotingWizard = ({
 const BudWizardShell = ({
   children,
   step,
+  estadoRevoto,
 }: {
   children: ReactNode
   step: WizardStep
+  estadoRevoto?: EstadoRevoto
 }) => (
   <main className='votar-light-surface relative min-h-svh overflow-hidden bg-[#fdfcfa] text-[#202124]'>
     <div className='pointer-events-none absolute inset-0' aria-hidden='true'>
@@ -677,13 +743,25 @@ const BudWizardShell = ({
           </p>
           <p className='mt-2 text-sm text-slate-600'>Boleta Única Digital</p>
         </div>
-        <Badge
-          variant='outline'
-          className='rounded-full border-[#2f6f9f]/30 bg-white/80 px-3 py-1 text-[#2f6f9f]'
-        >
-          <ShieldCheck className='size-3.5' />
-          {getStepLabel(step)}
-        </Badge>
+        <div className='flex flex-wrap items-center gap-2'>
+          {estadoRevoto ? (
+            <Badge
+              variant='outline'
+              className='rounded-full border-emerald-300/70 bg-emerald-50/90 px-3 py-1 font-semibold text-emerald-900'
+              aria-live='polite'
+              data-testid='intentos-restantes'
+            >
+              Intentos restantes: {estadoRevoto.intentosRestantes}
+            </Badge>
+          ) : null}
+          <Badge
+            variant='outline'
+            className='rounded-full border-[#2f6f9f]/30 bg-white/80 px-3 py-1 text-[#2f6f9f]'
+          >
+            <ShieldCheck className='size-3.5' />
+            {getStepLabel(step)}
+          </Badge>
+        </div>
       </header>
       {children}
     </section>
@@ -786,19 +864,17 @@ const WizardStepper = ({ currentStep }: { currentStep: WizardStep }) => {
 
 const IdentityStep = ({
   boleta,
-  returningVoter,
   identityError,
   cryptoReady,
   isLoadingProof,
-  onReturningVoterChange,
+  isEstadoRevotoError,
   onConfirm,
 }: {
   boleta: BoletaDigital
-  returningVoter: boolean
   identityError: string | null
   cryptoReady: boolean
   isLoadingProof: boolean
-  onReturningVoterChange: (value: boolean) => void
+  isEstadoRevotoError: boolean
   onConfirm: () => void
 }) => (
   <div className='mx-auto grid w-full max-w-3xl gap-5'>
@@ -842,6 +918,16 @@ const IdentityStep = ({
             identidad para preservar el secreto del voto.
           </AlertDescription>
         </Alert>
+        {isEstadoRevotoError ? (
+          <Alert className='border-amber-200 bg-amber-50 text-amber-950'>
+            <AlertTriangle className='size-4' />
+            <AlertTitle>No se pudo consultar los intentos restantes</AlertTitle>
+            <AlertDescription>
+              Podés continuar con la votación; el contador se actualizará cuando
+              el servicio esté disponible.
+            </AlertDescription>
+          </Alert>
+        ) : null}
         {identityError && (
           <Alert variant='destructive'>
             <AlertTriangle className='size-4' />
@@ -849,33 +935,6 @@ const IdentityStep = ({
             <AlertDescription>{identityError}</AlertDescription>
           </Alert>
         )}
-        <div className='rounded-2xl border border-dashed border-[#2f6f9f]/30 bg-white p-3'>
-          <p className='mb-3 text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase'>
-            Simulación temporal
-          </p>
-          <div className='grid gap-2 sm:grid-cols-2'>
-            <Button
-              type='button'
-              variant={!returningVoter ? 'default' : 'outline'}
-              className={cn(
-                !returningVoter && 'bg-[#2f6f9f] hover:bg-[#285f88]'
-              )}
-              onClick={() => onReturningVoterChange(false)}
-            >
-              Usuario nuevo
-            </Button>
-            <Button
-              type='button'
-              variant={returningVoter ? 'default' : 'outline'}
-              className={cn(
-                returningVoter && 'bg-[#2f6f9f] hover:bg-[#285f88]'
-              )}
-              onClick={() => onReturningVoterChange(true)}
-            >
-              Usuario que ya votó
-            </Button>
-          </div>
-        </div>
       </CardContent>
       <CardFooter>
         <Button
@@ -887,7 +946,7 @@ const IdentityStep = ({
           {isLoadingProof ? (
             <>
               <Loader2 className='size-5 animate-spin' />
-              Obteniendo prueba Merkle...
+              Validando sesión...
             </>
           ) : (
             <>
@@ -901,10 +960,66 @@ const IdentityStep = ({
   </div>
 )
 
+const MaxVotesReachedPanel = ({
+  maxVotos,
+  onLogout,
+}: {
+  maxVotos: number
+  onLogout: () => void
+}) => (
+  <div className='mx-auto grid w-full max-w-2xl gap-5'>
+    <Card
+      className='border-slate-200 bg-white/95 shadow-[0_1.5rem_5rem_rgba(30,64,95,0.07)]'
+      data-testid='max-votes-reached-panel'
+    >
+      <CardHeader className='flex flex-row items-start gap-4 space-y-0'>
+        <div className='grid size-14 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-700 ring-8 ring-slate-50'>
+          <Ban className='size-6' />
+        </div>
+        <div className='space-y-1'>
+          <CardTitle>Alcanzaste el límite máximo de votos</CardTitle>
+          <CardDescription>
+            Ya utilizaste los {maxVotos} intentos de sufragio admitidos para
+            este comicio institucional. La boleta interactiva no está
+            disponible.
+          </CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Alert className='border-[#2f6f9f]/20 bg-[#f7fbfd] text-slate-800'>
+          <ShieldCheck className='size-4 text-[#2f6f9f]' />
+          <AlertTitle>Política de re-voto</AlertTitle>
+          <AlertDescription>
+            Solo se computa el último voto válido emitido dentro del límite
+            configurado por la autoridad electoral.
+          </AlertDescription>
+        </Alert>
+      </CardContent>
+      <CardFooter>
+        <Button
+          variant='outline'
+          size='lg'
+          className='h-12 w-full'
+          onClick={onLogout}
+        >
+          <LogOut className='size-4' />
+          Cerrar sesión
+        </Button>
+      </CardFooter>
+    </Card>
+  </div>
+)
+
 const RegisteredVoteStep = ({
+  votosConsumidos,
+  intentosRestantes,
+  ultimoIntentoLabel,
   onLogout,
   onModify,
 }: {
+  votosConsumidos: number
+  intentosRestantes: number
+  ultimoIntentoLabel: string | null
   onLogout: () => void
   onModify: () => void
 }) => (
@@ -917,16 +1032,21 @@ const RegisteredVoteStep = ({
         <div className='space-y-1'>
           <CardTitle>Ya tienes un voto registrado en este comicio.</CardTitle>
           <CardDescription>
-            Detectamos una emisión previa asociada a esta sesión electoral.
+            Detectamos {votosConsumidos} emisión
+            {votosConsumidos === 1 ? '' : 'es'} previa
+            {votosConsumidos === 1 ? '' : 's'}. Todavía te quedan{' '}
+            {intentosRestantes} intento{intentosRestantes === 1 ? '' : 's'}.
           </CardDescription>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className='rounded-2xl bg-amber-50 p-4 text-sm text-amber-950'>
-          <span className='font-semibold'>Fecha/hora del voto anterior:</span>{' '}
-          {PREVIOUS_VOTE_DATE}
-        </div>
-      </CardContent>
+      {ultimoIntentoLabel ? (
+        <CardContent>
+          <div className='rounded-2xl bg-amber-50 p-4 text-sm text-amber-950'>
+            <span className='font-semibold'>Fecha/hora del voto anterior:</span>{' '}
+            {ultimoIntentoLabel}
+          </div>
+        </CardContent>
+      ) : null}
       <CardFooter className='grid gap-3 sm:grid-cols-2'>
         <Button variant='outline' size='lg' className='h-12' onClick={onLogout}>
           <LogOut className='size-4' />
@@ -951,12 +1071,14 @@ const SelectionStep = ({
   specialVote,
   candidateSelections,
   canContinue,
+  permitirVotoEnBlanco,
   lists,
   roles,
   candidates,
   onSpecialVote,
   onSelectList,
   onSelectCandidate,
+  onSelectBlank,
   onContinue,
 }: {
   variant: VotingVariant
@@ -964,114 +1086,132 @@ const SelectionStep = ({
   specialVote: SpecialVote
   candidateSelections: Record<string, string[]>
   canContinue: boolean
+  permitirVotoEnBlanco: boolean
   lists: PartyList[]
   roles: CandidateRole[]
   candidates: Candidate[]
   onSpecialVote: (value: Exclude<SpecialVote, null>) => void
   onSelectList: (listId: string | null) => void
   onSelectCandidate: (roleId: string, candidateId: string) => void
+  onSelectBlank: (roleId: string) => void
   onContinue: () => void
-}) => (
-  <div className='grid gap-5'>
-    {(variant === 'lista-completa' || variant === 'mixto') && (
-      <Card className='border-[#e4e7eb] bg-white/95'>
-        <CardHeader>
-          <CardTitle>
-            {variant === 'mixto' ? 'Boleta completa' : 'Listas completas'}
-          </CardTitle>
-          <CardDescription>
-            Elegí una lista para tomar toda la boleta como base.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className='grid gap-4'>
-          {lists.map((list) => (
-            <ListCard
-              key={list.id}
-              list={list}
-              roles={roles}
-              candidates={candidates}
-              selected={selectedListId === list.id}
-              onSelect={() =>
-                onSelectList(selectedListId === list.id ? null : list.id)
-              }
-            />
-          ))}
-        </CardContent>
-      </Card>
-    )}
+}) => {
+  const specialDescription = permitirVotoEnBlanco
+    ? 'También podés emitir tu voto en blanco o anularlo.'
+    : 'También podés anular tu voto para este comicio.'
 
-    {(!specialVote || variant === 'mixto') &&
-      (variant === 'candidatos' || variant === 'mixto') && (
+  return (
+    <div className='grid gap-5'>
+      {(variant === 'lista-completa' || variant === 'mixto') && (
         <Card className='border-[#e4e7eb] bg-white/95'>
           <CardHeader>
             <CardTitle>
-              {variant === 'mixto' ? 'Corte de boleta' : 'Candidatos por rol'}
+              {variant === 'mixto' ? 'Boleta completa' : 'Listas completas'}
             </CardTitle>
             <CardDescription>
-              Elegí un candidato por cargo. Podés combinar partidos diferentes
-              entre cargos.
+              Elegí una lista para tomar toda la boleta como base.
             </CardDescription>
           </CardHeader>
-          <CardContent className='grid gap-5'>
-            {roles.map((role) => (
-              <CandidateRoleSection
-                key={role.id}
-                roleId={role.id}
-                roleName={role.name}
+          <CardContent className='grid gap-4'>
+            {lists.map((list) => (
+              <ListCard
+                key={list.id}
+                list={list}
+                roles={roles}
                 candidates={candidates}
-                selectedCandidateIds={candidateSelections[role.id] ?? []}
-                groupByParty={variant === 'candidatos'}
-                onSelectCandidate={onSelectCandidate}
+                selected={selectedListId === list.id}
+                onSelect={() =>
+                  onSelectList(selectedListId === list.id ? null : list.id)
+                }
               />
             ))}
           </CardContent>
         </Card>
       )}
 
-    <Card className='border-[#e4e7eb] bg-white/95'>
-      <CardHeader>
-        <CardTitle>Opciones especiales</CardTitle>
-        <CardDescription>
-          También podés emitir tu voto en blanco o anularlo.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className='grid gap-3 md:grid-cols-2'>
-        <SpecialVoteCard
-          title='Votar en blanco'
-          description='No selecciona listas ni candidatos.'
-          icon={<Circle className='size-20' />}
-          selected={specialVote === 'blank'}
-          onSelect={() => onSpecialVote('blank')}
-        />
-        <SpecialVoteCard
-          title='Anular voto'
-          description='Registra una boleta anulada para este comicio.'
-          icon={<Ban className='size-20' />}
-          selected={specialVote === 'null'}
-          onSelect={() => onSpecialVote('null')}
-        />
-      </CardContent>
-    </Card>
+      {(!specialVote || variant === 'mixto') &&
+        (variant === 'candidatos' || variant === 'mixto') && (
+          <Card className='border-[#e4e7eb] bg-white/95'>
+            <CardHeader>
+              <CardTitle>
+                {variant === 'mixto' ? 'Corte de boleta' : 'Candidatos por rol'}
+              </CardTitle>
+              <CardDescription>
+                Elegí un candidato por cargo
+                {permitirVotoEnBlanco ? ' o voto en blanco' : ''}. Podés
+                combinar partidos diferentes entre cargos.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className='grid gap-5'>
+              {roles.map((role) => (
+                <CandidateRoleSection
+                  key={role.id}
+                  roleId={role.id}
+                  roleName={role.name}
+                  candidates={candidates}
+                  selectedCandidateIds={candidateSelections[role.id] ?? []}
+                  groupByParty={variant === 'candidatos'}
+                  permitirVotoEnBlanco={permitirVotoEnBlanco}
+                  onSelectCandidate={onSelectCandidate}
+                  onSelectBlank={onSelectBlank}
+                />
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
-    <div className='sticky bottom-4 z-10 flex justify-end'>
-      <Button
-        size='lg'
-        className='h-12 rounded-xl bg-[#2f6f9f] px-8 font-semibold shadow-lg shadow-slate-900/10 hover:bg-[#285f88]'
-        disabled={!canContinue}
-        onClick={onContinue}
-      >
-        Continuar
-        <ArrowRight className='size-5' />
-      </Button>
+      <Card className='border-[#e4e7eb] bg-white/95'>
+        <CardHeader>
+          <CardTitle>Opciones especiales</CardTitle>
+          <CardDescription>{specialDescription}</CardDescription>
+        </CardHeader>
+        <CardContent
+          className={cn(
+            'grid gap-3',
+            permitirVotoEnBlanco ? 'md:grid-cols-2' : 'md:grid-cols-1'
+          )}
+        >
+          {permitirVotoEnBlanco && (
+            <SpecialVoteCard
+              title='Votar en blanco'
+              description='No selecciona listas ni candidatos.'
+              icon={<CircleOff className='size-20' />}
+              selected={specialVote === 'blank'}
+              onSelect={() => onSpecialVote('blank')}
+            />
+          )}
+          <SpecialVoteCard
+            title='Anular voto'
+            description='Registra una boleta anulada para este comicio.'
+            icon={<Ban className='size-20' />}
+            selected={specialVote === 'null'}
+            onSelect={() => onSpecialVote('null')}
+          />
+        </CardContent>
+      </Card>
+
+      <div className='sticky bottom-4 z-10 flex justify-end'>
+        <Button
+          size='lg'
+          className='h-12 rounded-xl bg-[#2f6f9f] px-8 font-semibold shadow-lg shadow-slate-900/10 hover:bg-[#285f88]'
+          disabled={!canContinue}
+          onClick={onContinue}
+        >
+          Continuar
+          <ArrowRight className='size-5' />
+        </Button>
+      </div>
     </div>
-  </div>
-)
+  )
+}
 
 const ReviewStep = ({
   variant,
   selectedList,
   selectedCandidates,
+  candidateSelections,
   specialVote,
+  wholeBallotBlank,
   roles,
   candidates,
   signingError,
@@ -1082,107 +1222,143 @@ const ReviewStep = ({
   variant: VotingVariant
   selectedList?: PartyList
   selectedCandidates: Candidate[]
+  candidateSelections: Record<string, string[]>
   specialVote: SpecialVote
+  wholeBallotBlank: boolean
   roles: CandidateRole[]
   candidates: Candidate[]
   signingError: string | null
   isSigning: boolean
   onBack: () => void
   onSign: () => void
-}) => (
-  <div className='mx-auto grid w-full max-w-4xl gap-5'>
-    <Card className='border-[#e4e7eb] bg-white/95 shadow-[0_1.5rem_5rem_rgba(30,64,95,0.07)]'>
-      <CardHeader>
-        <CardTitle>Confirmar Voto</CardTitle>
-        <CardDescription>
-          Revisá el resumen antes de firmar la boleta de forma local.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className='grid gap-5'>
-        {specialVote && <SpecialVoteSummary specialVote={specialVote} />}
+}) => {
+  const rolesWithCandidates = roles.filter((role) =>
+    candidates.some((candidate) => candidate.roleId === role.id)
+  )
+  const showPerRoleSummary =
+    !specialVote &&
+    !wholeBallotBlank &&
+    (variant === 'candidatos' ||
+      variant === 'mixto' ||
+      selectedCandidates.length > 0)
 
-        {selectedList && variant !== 'mixto' && (
-          <div className='rounded-2xl border border-[#dbe3ea] p-4'>
-            <p className='mb-3 text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase'>
-              Lista seleccionada
-            </p>
-            <div className='flex items-center gap-3'>
-              <ListLogo list={selectedList} />
-              <div>
-                <p className='font-semibold'>{selectedList.name}</p>
-                <p className='text-sm text-slate-500'>
-                  Lista {selectedList.initials}
-                </p>
+  return (
+    <div className='mx-auto grid w-full max-w-4xl gap-5'>
+      <Card className='border-[#e4e7eb] bg-white/95 shadow-[0_1.5rem_5rem_rgba(30,64,95,0.07)]'>
+        <CardHeader>
+          <CardTitle>Confirmar Voto</CardTitle>
+          <CardDescription>
+            Revisá el resumen antes de firmar la boleta de forma local.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className='grid gap-5'>
+          {(specialVote === 'blank' || wholeBallotBlank) && (
+            <SpecialVoteSummary specialVote='blank' />
+          )}
+          {specialVote === 'null' && <SpecialVoteSummary specialVote='null' />}
+
+          {selectedList && variant !== 'mixto' && !specialVote && (
+            <div className='rounded-2xl border border-[#dbe3ea] p-4'>
+              <p className='mb-3 text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase'>
+                Lista seleccionada
+              </p>
+              <div className='flex items-center gap-3'>
+                <ListLogo list={selectedList} />
+                <div>
+                  <p className='font-semibold'>{selectedList.name}</p>
+                  <p className='text-sm text-slate-500'>
+                    Lista {selectedList.initials}
+                  </p>
+                </div>
               </div>
+              <ListCandidatesOverview
+                list={selectedList}
+                roles={roles}
+                candidates={candidates}
+              />
             </div>
-            <ListCandidatesOverview
-              list={selectedList}
-              roles={roles}
-              candidates={candidates}
-            />
-          </div>
-        )}
+          )}
 
-        {!specialVote &&
-          (variant === 'candidatos' ||
-            variant === 'mixto' ||
-            selectedCandidates.length > 0) && (
+          {showPerRoleSummary && (
             <div className='overflow-hidden rounded-2xl border border-[#dbe3ea]'>
               <div className='bg-[#f7fbfd] px-4 py-3 text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase'>
                 Candidatos por rol
               </div>
               <div className='divide-y'>
-                {selectedCandidates.map((candidate) => (
-                  <div key={candidate.id} className='px-4 py-3'>
-                    <CandidateReviewItem candidate={candidate} />
-                  </div>
-                ))}
+                {rolesWithCandidates.map((role) => {
+                  if (roleHasBlankSelection(candidateSelections, role.id)) {
+                    return (
+                      <div key={role.id} className='px-4 py-3'>
+                        <p className='text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase'>
+                          {role.name}
+                        </p>
+                        <p className='mt-1 font-semibold text-slate-700'>
+                          Voto en blanco
+                        </p>
+                      </div>
+                    )
+                  }
+
+                  const roleCandidate = selectedCandidates.find(
+                    (candidate) => candidate.roleId === role.id
+                  )
+                  if (!roleCandidate) {
+                    return null
+                  }
+
+                  return (
+                    <div key={role.id} className='px-4 py-3'>
+                      <CandidateReviewItem candidate={roleCandidate} />
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
 
-        {signingError && (
-          <Alert variant='destructive'>
-            <AlertTriangle className='size-4' />
-            <AlertTitle>No se pudo firmar el voto</AlertTitle>
-            <AlertDescription>{signingError}</AlertDescription>
-          </Alert>
-        )}
-      </CardContent>
-      <CardFooter className='grid gap-3 sm:grid-cols-[1fr_1.5fr]'>
-        <Button
-          variant='outline'
-          size='lg'
-          className='h-12'
-          disabled={isSigning}
-          onClick={onBack}
-        >
-          <ArrowLeft className='size-4' />
-          Volver
-        </Button>
-        <Button
-          size='lg'
-          className='h-12 bg-[#2f6f9f] font-semibold hover:bg-[#285f88]'
-          disabled={isSigning}
-          onClick={onSign}
-          aria-label='Firmar y confirmar voto'
-        >
-          {isSigning ? (
-            <>
-              <Loader2 className='size-5 animate-spin' />
-              Firmando voto...
-            </>
-          ) : (
-            <>
-              <Fingerprint className='size-5' />
-              Firmar y confirmar
-            </>
+          {signingError && (
+            <Alert variant='destructive'>
+              <AlertTriangle className='size-4' />
+              <AlertTitle>No se pudo firmar el voto</AlertTitle>
+              <AlertDescription>{signingError}</AlertDescription>
+            </Alert>
           )}
-        </Button>
-      </CardFooter>
-    </Card>
-  </div>
-)
+        </CardContent>
+        <CardFooter className='grid gap-3 sm:grid-cols-[1fr_1.5fr]'>
+          <Button
+            variant='outline'
+            size='lg'
+            className='h-12'
+            disabled={isSigning}
+            onClick={onBack}
+          >
+            <ArrowLeft className='size-4' />
+            Volver
+          </Button>
+          <Button
+            size='lg'
+            className='h-12 bg-[#2f6f9f] font-semibold hover:bg-[#285f88]'
+            disabled={isSigning}
+            onClick={onSign}
+            aria-label='Firmar y confirmar voto'
+          >
+            {isSigning ? (
+              <>
+                <Loader2 className='size-5 animate-spin' />
+                Firmando voto...
+              </>
+            ) : (
+              <>
+                <Fingerprint className='size-5' />
+                Firmar y confirmar
+              </>
+            )}
+          </Button>
+        </CardFooter>
+      </Card>
+    </div>
+  )
+}
 
 const SuccessStep = ({
   voteReceiptReady,
@@ -1366,8 +1542,11 @@ const TransmitStep = ({
   phase,
   txError,
   specialVote,
+  wholeBallotBlank,
+  candidateSelections,
   selectedList,
   selectedCandidates,
+  roles,
   onRetrySend,
   onResign,
   onBackToSelection,
@@ -1375,8 +1554,11 @@ const TransmitStep = ({
   phase: TransmitUiPhase | null
   txError: VoteTxError | null
   specialVote: SpecialVote
+  wholeBallotBlank: boolean
+  candidateSelections: Record<string, string[]>
   selectedList?: PartyList
   selectedCandidates: Candidate[]
+  roles: CandidateRole[]
   onRetrySend: () => void
   onResign: () => void
   onBackToSelection: () => void
@@ -1390,6 +1572,9 @@ const TransmitStep = ({
         : phase === 'error'
           ? 'No se pudo completar el envío'
           : 'Preparando envío...'
+  const blankRoles = roles.filter((role) =>
+    roleHasBlankSelection(candidateSelections, role.id)
+  )
 
   return (
     <div className='mx-auto grid w-full max-w-2xl gap-5'>
@@ -1417,16 +1602,25 @@ const TransmitStep = ({
             <p className='mb-2 text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase'>
               Tu selección se conserva
             </p>
-            {specialVote === 'blank' && <p>Voto en blanco</p>}
-            {specialVote === 'null' && <p>Voto nulo</p>}
-            {!specialVote && selectedList && <p>Lista: {selectedList.name}</p>}
-            {!specialVote && selectedCandidates.length > 0 && (
-              <ul className='mt-2 list-disc space-y-1 pl-5'>
-                {selectedCandidates.map((candidate) => (
-                  <li key={candidate.id}>{candidate.name}</li>
-                ))}
-              </ul>
+            {(specialVote === 'blank' || wholeBallotBlank) && (
+              <p>Voto en blanco</p>
             )}
+            {specialVote === 'null' && <p>Voto nulo</p>}
+            {!specialVote && !wholeBallotBlank && selectedList && (
+              <p>Lista: {selectedList.name}</p>
+            )}
+            {!specialVote &&
+              !wholeBallotBlank &&
+              (selectedCandidates.length > 0 || blankRoles.length > 0) && (
+                <ul className='mt-2 list-disc space-y-1 pl-5'>
+                  {selectedCandidates.map((candidate) => (
+                    <li key={candidate.id}>{candidate.name}</li>
+                  ))}
+                  {blankRoles.map((role) => (
+                    <li key={role.id}>{role.name}: Voto en blanco</li>
+                  ))}
+                </ul>
+              )}
           </div>
 
           {txError && (
@@ -1509,15 +1703,17 @@ const SpecialVoteCard = ({
 }) => (
   <button
     type='button'
+    aria-pressed={selected}
+    aria-label={`${title}. ${description}`}
     className={cn(
       'relative overflow-hidden rounded-2xl border bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/20 focus-visible:outline-none',
       selected
-        ? 'border-[#2f6f9f] shadow-md shadow-[#2f6f9f]/10'
+        ? 'border-slate-700 shadow-md shadow-slate-900/10'
         : 'border-[#dbe3ea]'
     )}
     onClick={onSelect}
   >
-    <span className='pointer-events-none absolute -right-3 -bottom-5 text-[#2f6f9f]/10'>
+    <span className='pointer-events-none absolute -right-3 -bottom-5 text-slate-400/20'>
       {icon}
     </span>
     <div className='flex items-start justify-between gap-3'>
@@ -1526,7 +1722,7 @@ const SpecialVoteCard = ({
         <p className='mt-1 text-sm text-slate-500'>{description}</p>
       </div>
       {selected && (
-        <span className='grid size-7 shrink-0 place-items-center rounded-full bg-[#2f6f9f] text-white'>
+        <span className='grid size-7 shrink-0 place-items-center rounded-full bg-slate-700 text-white'>
           <Check className='size-4' />
         </span>
       )}
@@ -1538,12 +1734,26 @@ const SpecialVoteSummary = ({ specialVote }: { specialVote: SpecialVote }) => {
   const isBlankVote = specialVote === 'blank'
 
   return (
-    <div className='relative overflow-hidden rounded-2xl border border-[#2f6f9f] bg-white p-5 shadow-md shadow-[#2f6f9f]/10'>
-      <span className='pointer-events-none absolute -right-3 -bottom-5 text-[#2f6f9f]/10'>
+    <div
+      className={cn(
+        'relative overflow-hidden rounded-2xl border bg-white p-5 shadow-md',
+        isBlankVote
+          ? 'border-slate-700 shadow-slate-900/10'
+          : 'border-[#2f6f9f] shadow-[#2f6f9f]/10'
+      )}
+      role='status'
+      aria-live='polite'
+    >
+      <span
+        className={cn(
+          'pointer-events-none absolute -right-3 -bottom-5',
+          isBlankVote ? 'text-slate-400/20' : 'text-[#2f6f9f]/10'
+        )}
+      >
         {isBlankVote ? (
-          <Circle className='size-24' />
+          <CircleOff className='size-24' aria-hidden='true' />
         ) : (
-          <Ban className='size-24' />
+          <Ban className='size-24' aria-hidden='true' />
         )}
       </span>
       <p className='text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase'>
@@ -1730,18 +1940,23 @@ const CandidateRoleSection = ({
   candidates,
   selectedCandidateIds,
   groupByParty,
+  permitirVotoEnBlanco,
   onSelectCandidate,
+  onSelectBlank,
 }: {
   roleId: string
   roleName: string
   candidates: Candidate[]
   selectedCandidateIds: string[]
   groupByParty: boolean
+  permitirVotoEnBlanco: boolean
   onSelectCandidate: (roleId: string, candidateId: string) => void
+  onSelectBlank: (roleId: string) => void
 }) => {
   const roleCandidates = candidates.filter(
     (candidate) => candidate.roleId === roleId
   )
+  const isBlankSelected = selectedCandidateIds.includes(BLANK_SELECTION_ID)
   const groupedCandidates = groupByParty
     ? groupCandidatesByParty(roleCandidates)
     : [
@@ -1754,6 +1969,11 @@ const CandidateRoleSection = ({
           candidates: roleCandidates,
         },
       ]
+  const selectionBadge = isBlankSelected
+    ? 'Voto en blanco'
+    : selectedCandidateIds.length > 0
+      ? '1 seleccionado'
+      : 'Elegí una opción'
   const groupsContent = (
     <div className='grid gap-4'>
       {groupedCandidates.map((group) => (
@@ -1818,18 +2038,44 @@ const CandidateRoleSection = ({
           </div>
         </div>
       ))}
+
+      {permitirVotoEnBlanco && (
+        <button
+          type='button'
+          aria-pressed={isBlankSelected}
+          aria-label={`Voto en Blanco para ${roleName}, no seleccionar ningún candidato`}
+          className={cn(
+            'flex w-full items-center gap-4 rounded-2xl border border-dashed bg-slate-50 p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-slate-400/40 focus-visible:outline-none',
+            isBlankSelected
+              ? 'border-slate-700 bg-white shadow-md shadow-slate-900/10'
+              : 'border-slate-300'
+          )}
+          onClick={() => onSelectBlank(roleId)}
+        >
+          <div className='grid size-14 place-items-center rounded-xl border border-dashed border-slate-300 bg-white text-slate-500'>
+            <CircleOff className='size-7' aria-hidden='true' />
+          </div>
+          <div className='min-w-0 flex-1'>
+            <p className='font-semibold text-slate-900'>Voto en Blanco</p>
+            <p className='text-sm text-slate-600'>
+              Abstención explícita para {roleName}
+            </p>
+          </div>
+          {isBlankSelected && (
+            <span className='grid size-7 shrink-0 place-items-center rounded-full bg-slate-700 text-white'>
+              <Check className='size-4' aria-hidden='true' />
+            </span>
+          )}
+        </button>
+      )}
     </div>
   )
 
   return (
-    <section className='grid gap-3'>
+    <section className='grid gap-3' aria-label={roleName}>
       <div className='flex items-center justify-between gap-3'>
         <h3 className='font-semibold'>{roleName}</h3>
-        <Badge variant='outline'>
-          {selectedCandidateIds.length > 0
-            ? '1 seleccionado'
-            : 'Elegí un candidato'}
-        </Badge>
+        <Badge variant='outline'>{selectionBadge}</Badge>
       </div>
       {roleCandidates.length > 20 ? (
         <ScrollArea className='max-h-[65vh] pe-3'>{groupsContent}</ScrollArea>
@@ -1926,6 +2172,7 @@ const ListLogo = ({
 }
 
 const getStepLabel = (step: WizardStep) => {
+  if (step === 'limit-reached') return 'Límite de intentos'
   if (step === 'registered') return 'Voto registrado'
   if (step === 'identity') return 'Confirmación de identidad'
   if (step === 'selection') return 'Selección de voto'

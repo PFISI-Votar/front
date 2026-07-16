@@ -11,6 +11,7 @@ import {
   Square,
   Trash2,
   Vote,
+  X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getApiErrorMessage } from '@/lib/api-client'
@@ -105,9 +106,11 @@ const AbrirComicioDialog = ({
             onClick={() => onOpenChange(false)}
             disabled={isPending}
           >
+            <X />
             Cancelar
           </Button>
           <Button onClick={handleConfirm} disabled={isPending}>
+            <Play />
             {isPending ? 'Abriendo...' : 'Abrir comicio'}
           </Button>
         </DialogFooter>
@@ -161,6 +164,7 @@ const CerrarComicioDialog = ({
             onClick={() => onOpenChange(false)}
             disabled={isPending}
           >
+            <X />
             Cancelar
           </Button>
           <Button
@@ -168,6 +172,7 @@ const CerrarComicioDialog = ({
             onClick={handleConfirm}
             disabled={isPending}
           >
+            <Square />
             {isPending ? 'Cerrando...' : 'Cerrar comicio'}
           </Button>
         </DialogFooter>
@@ -316,7 +321,10 @@ export const ComiciosList = () => {
         </CardHeader>
         <CardContent>
           <Button asChild>
-            <Link to='/comicios/nuevo'>Crear comicio</Link>
+            <Link to='/comicios/nuevo'>
+              <Vote />
+              Crear comicio
+            </Link>
           </Button>
         </CardContent>
       </Card>
@@ -376,7 +384,7 @@ export const ComiciosList = () => {
                       params={{ idEleccion: String(comicio.idEleccion) }}
                       aria-label={`Ver padrón de ${comicio.nombre}`}
                     >
-                      <FileSpreadsheet className='me-2 size-4' />
+                      <FileSpreadsheet />
                       Ver padrón
                     </Link>
                   </Button>
@@ -386,7 +394,7 @@ export const ComiciosList = () => {
                       params={{ idEleccion: String(comicio.idEleccion) }}
                       aria-label={`Ver dashboard público de ${comicio.nombre}`}
                     >
-                      <Eye className='me-2 size-4' />
+                      <Eye />
                       Dashboard público
                     </Link>
                   </Button>
@@ -398,7 +406,7 @@ export const ComiciosList = () => {
                       rel='noopener noreferrer'
                       aria-label={`Abrir BUD de ${comicio.nombre}`}
                     >
-                      <Vote className='me-2 size-4' />
+                      <Vote />
                       Abrir BUD
                     </Link>
                   </Button>
@@ -413,7 +421,7 @@ export const ComiciosList = () => {
                       }
                       aria-label={`Oficializar comicio ${comicio.nombre}`}
                     >
-                      <BadgeCheck className='me-2 size-4' />
+                      <BadgeCheck />
                       Oficializar comicio
                     </Button>
                   )}
@@ -428,7 +436,7 @@ export const ComiciosList = () => {
                       }
                       aria-label={`Abrir comicio ${comicio.nombre}`}
                     >
-                      <Play className='me-2 size-4' />
+                      <Play />
                       Abrir comicio
                     </Button>
                   )}
@@ -444,7 +452,7 @@ export const ComiciosList = () => {
                       }
                       aria-label={`Cerrar comicio ${comicio.nombre}`}
                     >
-                      <Square className='me-2 size-4' />
+                      <Square />
                       Cerrar comicio
                     </Button>
                   )}
@@ -457,7 +465,7 @@ export const ComiciosList = () => {
                         params={{ idEleccion: String(comicio.idEleccion) }}
                         aria-label={`Editar ${comicio.nombre}`}
                       >
-                        <Pencil className='me-2 size-4' />
+                        <Pencil />
                         Editar
                       </Link>
                     </Button>
@@ -472,7 +480,7 @@ export const ComiciosList = () => {
                       }
                       aria-label={`Eliminar comicio ${comicio.nombre}`}
                     >
-                      <Trash2 className='me-2 size-4 text-destructive' />
+                      <Trash2 className='text-destructive' />
                       Eliminar
                     </Button>
                   </div>

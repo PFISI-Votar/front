@@ -2,6 +2,7 @@ import { votanteApiClient } from '@/lib/votante-api-client'
 import type {
   BoletaDigital,
   BudConfig,
+  EstadoRevoto,
   VoterMerkleProof,
 } from '@/features/voto/data/schema'
 
@@ -28,6 +29,26 @@ export const solicitarMerkleProof = async (
 ): Promise<VoterMerkleProof> => {
   const { data } = await votanteApiClient.get<VoterMerkleProof>(
     `/elecciones/${idEleccion}/merkle-proof`
+  )
+  return data
+}
+
+/** VOTAR-328: consulta transparente a revotePolicyService. */
+export const obtenerEstadoRevoto = async (
+  idEleccion: number
+): Promise<EstadoRevoto> => {
+  const { data } = await votanteApiClient.get<EstadoRevoto>(
+    `/elecciones/${idEleccion}/estado-revoto`
+  )
+  return data
+}
+
+/** VOTAR-328: registra consumo de intento tras cast on-chain (antes del logout). */
+export const registrarConsumoIntento = async (
+  idEleccion: number
+): Promise<EstadoRevoto> => {
+  const { data } = await votanteApiClient.post<EstadoRevoto>(
+    `/elecciones/${idEleccion}/estado-revoto/consumo`
   )
   return data
 }
