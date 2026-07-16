@@ -280,6 +280,130 @@ describe('BudVotingWizard', () => {
       .not.toBeInTheDocument()
   })
 
+  it('VOTAR-356 UAT-03: inicia sin preseleccionar candidatos ni voto en blanco', async () => {
+    const screen = await renderWizard()
+
+    const blankPresidente = screen.getByRole('button', {
+      name: /Voto en Blanco para Presidente/i,
+    })
+    const blankVocales = screen.getByRole('button', {
+      name: /Voto en Blanco para Vocales/i,
+    })
+    const ana = screen.getByRole('button', { name: /Ana Lopez/i })
+
+    expect(blankPresidente.element().getAttribute('aria-pressed')).toBe('false')
+    expect(blankVocales.element().getAttribute('aria-pressed')).toBe('false')
+    expect(ana.element().getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('VOTAR-356 UAT-01: voto en blanco por categoría desmarca candidatos y permite confirmar', async () => {
+    const screen = await renderWizard()
+
+    await userEvent.click(screen.getByRole('button', { name: /Ana Lopez/i }))
+    expect(
+      screen
+        .getByRole('button', { name: /Ana Lopez/i })
+        .element()
+        .getAttribute('aria-pressed')
+    ).toBe('true')
+
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: /Voto en Blanco para Presidente/i,
+      })
+    )
+
+    expect(
+      screen
+        .getByRole('button', { name: /Ana Lopez/i })
+        .element()
+        .getAttribute('aria-pressed')
+    ).toBe('false')
+    expect(
+      screen
+        .getByRole('button', { name: /Voto en Blanco para Presidente/i })
+        .element()
+        .getAttribute('aria-pressed')
+    ).toBe('true')
+
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: /Voto en Blanco para Vocales/i,
+      })
+    )
+    await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
+
+    await expect.element(screen.getByText('Voto en blanco')).toBeInTheDocument()
+    await expect.element(screen.getByText('Ana Lopez')).not.toBeInTheDocument()
+  })
+
+  it('VOTAR-356 UAT-02: elegir un candidato desmarca el voto en blanco de esa categoría', async () => {
+    const screen = await renderWizard()
+
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: /Voto en Blanco para Presidente/i,
+      })
+    )
+    expect(
+      screen
+        .getByRole('button', { name: /Voto en Blanco para Presidente/i })
+        .element()
+        .getAttribute('aria-pressed')
+    ).toBe('true')
+
+    await userEvent.click(screen.getByRole('button', { name: /Bruno Paz/i }))
+
+    expect(
+      screen
+        .getByRole('button', { name: /Voto en Blanco para Presidente/i })
+        .element()
+        .getAttribute('aria-pressed')
+    ).toBe('false')
+    expect(
+      screen
+        .getByRole('button', { name: /Bruno Paz/i })
+        .element()
+        .getAttribute('aria-pressed')
+    ).toBe('true')
+  })
+
+  it('VOTAR-356: no renderiza casilleros de blanco si permitirVotoEnBlanco es false', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <EphemeralWalletProvider>
+          <BudVotingWizard
+            boleta={{ ...boleta, permitirVotoEnBlanco: false }}
+            tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            onLogout={vi.fn()}
+          />
+        </EphemeralWalletProvider>
+      </QueryClientProvider>
+    )
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /Confirmar Identidad y Comenzar/i })
+    )
+
+    await expect
+      .element(
+        screen.getByRole('button', { name: /Voto en Blanco para Presidente/i })
+      )
+      .not.toBeInTheDocument()
+    await expect
+      .element(screen.getByRole('button', { name: /Votar en blanco/i }))
+      .not.toBeInTheDocument()
+    await expect
+      .element(screen.getByRole('button', { name: /Anular voto/i }))
+      .toBeInTheDocument()
+  })
+
   it('permite un solo candidato seleccionado por rol', async () => {
     const screen = await renderWizard()
 
