@@ -57,8 +57,6 @@ export type SeleccionVoto = {
   idCandidato: number
 }
 
-export type SeleccionesPorCategoria = Record<number, number>
-
 export type VoterMerkleProof = {
   /** Padron leaf hash (voterLeaf for castSignedVote). */
   hashHoja: string
