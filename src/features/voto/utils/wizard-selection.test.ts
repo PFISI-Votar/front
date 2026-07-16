@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buildWizardSelectionPayload } from '@/features/voto/utils/wizard-selection'
+import {
+  areAllRolesBlank,
+  BLANK_SELECTION_ID,
+  buildWizardSelectionPayload,
+} from '@/features/voto/utils/wizard-selection'
 
 const roles = [{ id: '1' }, { id: '2' }]
 const candidates = [
@@ -29,6 +33,38 @@ describe('buildWizardSelectionPayload', () => {
         candidates,
       })
     ).toEqual({ votoNulo: true, selecciones: [] })
+  })
+
+  it('maps all per-category blank selections to votoEnBlanco', () => {
+    expect(
+      buildWizardSelectionPayload({
+        specialVote: null,
+        candidateSelections: {
+          '1': [BLANK_SELECTION_ID],
+          '2': [BLANK_SELECTION_ID],
+        },
+        selectedListId: null,
+        roles,
+        candidates,
+      })
+    ).toEqual({ votoEnBlanco: true, selecciones: [] })
+  })
+
+  it('omits blank categories and keeps partisan selections', () => {
+    expect(
+      buildWizardSelectionPayload({
+        specialVote: null,
+        candidateSelections: {
+          '1': [BLANK_SELECTION_ID],
+          '2': ['201'],
+        },
+        selectedListId: null,
+        roles,
+        candidates,
+      })
+    ).toEqual({
+      selecciones: [{ idCategoria: 2, idCandidato: 201 }],
+    })
   })
 
   it('builds selections from explicit candidate choices', () => {
@@ -63,5 +99,25 @@ describe('buildWizardSelectionPayload', () => {
         { idCategoria: 2, idCandidato: 201 },
       ],
     })
+  })
+})
+
+describe('areAllRolesBlank', () => {
+  it('returns true only when every role with candidates is blank', () => {
+    expect(
+      areAllRolesBlank(
+        { '1': [BLANK_SELECTION_ID], '2': [BLANK_SELECTION_ID] },
+        roles,
+        candidates
+      )
+    ).toBe(true)
+
+    expect(
+      areAllRolesBlank(
+        { '1': [BLANK_SELECTION_ID], '2': ['201'] },
+        roles,
+        candidates
+      )
+    ).toBe(false)
   })
 })

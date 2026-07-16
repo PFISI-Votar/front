@@ -1,6 +1,9 @@
 import type { SelectionPayload } from '@/features/voto/crypto/selection-hash'
 import type { SeleccionVoto } from '@/features/voto/data/schema'
 
+/** Sentinel stored in candidateSelections when the voter blanks a role/category. */
+export const BLANK_SELECTION_ID = '__blank__'
+
 type WizardSelectionInput = {
   specialVote: 'blank' | 'null' | null
   candidateSelections: Record<string, string[]>
@@ -13,15 +16,25 @@ type WizardSelectionInput = {
   }>
 }
 
+export const isBlankSelection = (candidateId: string | undefined): boolean =>
+  candidateId === BLANK_SELECTION_ID
+
+export const roleHasBlankSelection = (
+  candidateSelections: Record<string, string[]>,
+  roleId: string
+): boolean => isBlankSelection(candidateSelections[roleId]?.[0])
+
 const buildSeleccionesFromCandidates = (
   candidateSelections: Record<string, string[]>,
   roles: WizardSelectionInput['roles']
 ): SeleccionVoto[] =>
   roles.flatMap((role) =>
-    (candidateSelections[role.id] ?? []).map((candidateId) => ({
-      idCategoria: Number(role.id),
-      idCandidato: Number(candidateId),
-    }))
+    (candidateSelections[role.id] ?? [])
+      .filter((candidateId) => !isBlankSelection(candidateId))
+      .map((candidateId) => ({
+        idCategoria: Number(role.id),
+        idCandidato: Number(candidateId),
+      }))
   )
 
 const buildSeleccionesForList = (
@@ -44,6 +57,29 @@ const buildSeleccionesForList = (
     ]
   })
 
+const rolesWithCandidates = (
+  roles: WizardSelectionInput['roles'],
+  candidates: WizardSelectionInput['candidates']
+) =>
+  roles.filter((role) =>
+    candidates.some((candidate) => candidate.roleId === role.id)
+  )
+
+/** True when every role with candidates is explicitly marked blank. */
+export const areAllRolesBlank = (
+  candidateSelections: Record<string, string[]>,
+  roles: WizardSelectionInput['roles'],
+  candidates: WizardSelectionInput['candidates']
+): boolean => {
+  const applicableRoles = rolesWithCandidates(roles, candidates)
+  return (
+    applicableRoles.length > 0 &&
+    applicableRoles.every((role) =>
+      roleHasBlankSelection(candidateSelections, role.id)
+    )
+  )
+}
+
 export const buildWizardSelectionPayload = (
   input: WizardSelectionInput
 ): SelectionPayload => {
@@ -53,6 +89,12 @@ export const buildWizardSelectionPayload = (
 
   if (input.specialVote === 'null') {
     return { votoNulo: true, selecciones: [] }
+  }
+
+  if (
+    areAllRolesBlank(input.candidateSelections, input.roles, input.candidates)
+  ) {
+    return { votoEnBlanco: true, selecciones: [] }
   }
 
   const explicitSelecciones = buildSeleccionesFromCandidates(
