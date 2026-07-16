@@ -6,21 +6,49 @@ import { page, userEvent } from 'vitest/browser'
 import {
   listarElecciones,
   abrirEleccion,
+  eliminarEleccion,
 } from '@/features/eleccion/api/eleccion-api'
 import type { Eleccion } from '@/features/eleccion/data/schema'
+import { oficializarEleccion } from '@/features/eleccion/lista/api/lista-api'
 import { ComiciosList } from './comicios-list'
 
+const navigateMock = vi.fn()
+
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ children, ...props }: React.PropsWithChildren<unknown>) => (
-    <a {...props}>{children}</a>
+  Link: ({
+    children,
+    to,
+    params,
+    ...props
+  }: React.PropsWithChildren<
+    Record<string, unknown> & {
+      to?: string
+      params?: { idEleccion?: string }
+    }
+  >) => (
+    <a
+      href={
+        typeof to === 'string' && params?.idEleccion
+          ? String(to).replace('$idEleccion', params.idEleccion)
+          : '#'
+      }
+      {...props}
+    >
+      {children}
+    </a>
   ),
-  useNavigate: () => vi.fn(),
+  useNavigate: () => navigateMock,
 }))
 
 vi.mock('@/features/eleccion/api/eleccion-api', () => ({
   listarElecciones: vi.fn(),
   abrirEleccion: vi.fn(),
   cerrarEleccion: vi.fn(),
+  eliminarEleccion: vi.fn(),
+}))
+
+vi.mock('@/features/eleccion/lista/api/lista-api', () => ({
+  oficializarEleccion: vi.fn(),
 }))
 
 vi.mock('@/features/eleccion/hooks/use-eleccion-websocket', () => ({
@@ -104,7 +132,13 @@ describe('ComiciosList', () => {
       .element(page.getByText('Elección Provincial 2025'))
       .toBeInTheDocument()
 
-    const actionLabels = ['Ver oferta', 'Ver padrón', 'Editar', 'Abrir comicio']
+    const actionLabels = [
+      'Ver padrón',
+      'Dashboard público',
+      'Abrir BUD',
+      'Editar',
+      'Abrir comicio',
+    ]
     for (const label of actionLabels) {
       const control = page.getByText(label, { exact: true }).first()
       await expect.element(control).toBeInTheDocument()
@@ -125,6 +159,33 @@ describe('ComiciosList', () => {
     expect(page.getByText(/Apertura.*Cierre/).all()).toHaveLength(2)
   })
 
+  it('no muestra el botón "Ver oferta" porque la card navega a la oferta', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+
+    await renderComiciosList()
+
+    await expect
+      .element(page.getByText('Elección Municipal 2025'))
+      .toBeInTheDocument()
+    expect(page.getByText('Ver oferta').query()).toBeNull()
+  })
+
+  it('navega a la oferta al hacer clic en la card', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+
+    await renderComiciosList()
+
+    const card = page.getByRole('link', {
+      name: 'Ver oferta de Elección Municipal 2025',
+    })
+    await userEvent.click(card)
+
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: '/comicios/$idEleccion/oferta',
+      params: { idEleccion: '1' },
+    })
+  })
+
   it('muestra botón "Abrir comicio" solo para elecciones en estado CONFIGURADA', async () => {
     vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
 
@@ -137,6 +198,101 @@ describe('ComiciosList', () => {
         })
       )
       .toBeInTheDocument()
+  })
+
+  it('muestra "Oficializar" y "Eliminar" solo en BORRADOR', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+
+    await renderComiciosList()
+
+    await expect
+      .element(
+        page.getByRole('button', {
+          name: 'Oficializar comicio Elección Provincial 2025',
+        })
+      )
+      .toBeInTheDocument()
+    await expect
+      .element(
+        page.getByRole('button', {
+          name: 'Eliminar comicio Elección Provincial 2025',
+        })
+      )
+      .toBeInTheDocument()
+    await expect
+      .element(
+        page.getByRole('link', {
+          name: 'Editar Elección Provincial 2025',
+        })
+      )
+      .toBeInTheDocument()
+    expect(
+      page
+        .getByRole('button', {
+          name: 'Oficializar comicio Elección Municipal 2025',
+        })
+        .query()
+    ).toBeNull()
+    expect(
+      page
+        .getByRole('button', {
+          name: 'Eliminar comicio Elección Municipal 2025',
+        })
+        .query()
+    ).toBeNull()
+  })
+
+  it('ordena Ver padrón, Dashboard, BUD y luego Oficializar en BORRADOR', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue([mockElecciones[1]])
+
+    await renderComiciosList()
+
+    const padron = page.getByRole('link', {
+      name: 'Ver padrón de Elección Provincial 2025',
+    })
+    const dashboard = page.getByRole('link', {
+      name: 'Ver dashboard público de Elección Provincial 2025',
+    })
+    const bud = page.getByRole('link', {
+      name: 'Abrir BUD de Elección Provincial 2025',
+    })
+    const oficializar = page.getByRole('button', {
+      name: 'Oficializar comicio Elección Provincial 2025',
+    })
+
+    await expect.element(padron).toBeInTheDocument()
+    await expect.element(dashboard).toBeInTheDocument()
+    await expect.element(bud).toBeInTheDocument()
+    await expect.element(oficializar).toBeInTheDocument()
+
+    const padronNode = padron.element()
+    const dashboardNode = dashboard.element()
+    const budNode = bud.element()
+    const oficializarNode = oficializar.element()
+    expect(
+      padronNode.compareDocumentPosition(dashboardNode) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(
+      dashboardNode.compareDocumentPosition(budNode) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(
+      budNode.compareDocumentPosition(oficializarNode) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+  })
+
+  it('expone enlace Abrir BUD y dashboard público de cada comicio', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+
+    await renderComiciosList()
+
+    await expect
+      .element(page.getByText('Elección Municipal 2025'))
+      .toBeInTheDocument()
+    expect(page.getByText('Abrir BUD').all()).toHaveLength(2)
+    expect(page.getByText('Dashboard público').all()).toHaveLength(2)
   })
 
   it('abre diálogo de confirmación al hacer clic en "Abrir comicio"', async () => {
@@ -159,6 +315,50 @@ describe('ComiciosList', () => {
         )
       )
       .toBeInTheDocument()
+  })
+
+  it('oficializa un comicio en BORRADOR tras confirmar', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+    vi.mocked(oficializarEleccion).mockResolvedValue({
+      idEleccion: 2,
+      estado: 'CONFIGURADA',
+      mapeoListas: [],
+    } as never)
+
+    await renderComiciosList()
+
+    await userEvent.click(
+      page.getByRole('button', {
+        name: 'Oficializar comicio Elección Provincial 2025',
+      })
+    )
+    await userEvent.click(
+      page.getByRole('button', { name: 'Sí, oficializar comicio' })
+    )
+
+    await vi.waitFor(() => {
+      expect(oficializarEleccion).toHaveBeenCalledWith(2)
+    })
+  })
+
+  it('elimina un comicio en BORRADOR tras confirmar', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+    vi.mocked(eliminarEleccion).mockResolvedValue(undefined)
+
+    await renderComiciosList()
+
+    await userEvent.click(
+      page.getByRole('button', {
+        name: 'Eliminar comicio Elección Provincial 2025',
+      })
+    )
+    await userEvent.click(
+      page.getByRole('button', { name: 'Sí, eliminar comicio' })
+    )
+
+    await vi.waitFor(() => {
+      expect(eliminarEleccion).toHaveBeenCalledWith(2)
+    })
   })
 
   it('muestra alerta crítica cuando hay error 412 (Precondition Failed)', async () => {
@@ -233,5 +433,22 @@ describe('ComiciosList', () => {
     await userEvent.click(abrirButton)
 
     await expect.poll(() => page.getByText('Error previo').query()).toBeNull()
+  })
+
+  it('no navega a la oferta al hacer clic en un botón de acción', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+
+    await renderComiciosList()
+
+    await userEvent.click(
+      page.getByRole('button', {
+        name: 'Abrir comicio Elección Municipal 2025',
+      })
+    )
+
+    expect(navigateMock).not.toHaveBeenCalled()
+    await expect
+      .element(page.getByRole('heading', { name: 'Abrir comicio' }))
+      .toBeInTheDocument()
   })
 })
