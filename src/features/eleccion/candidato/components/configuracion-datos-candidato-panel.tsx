@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useFieldArray, useForm } from 'react-hook-form'
+import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, Lock, Plus, Trash2 } from 'lucide-react'
@@ -92,6 +92,11 @@ export const ConfiguracionDatosCandidatoPanel = ({
   })
 
   const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: 'campos',
+  })
+
+  const camposWatched = useWatch({
     control: form.control,
     name: 'campos',
   })
@@ -226,7 +231,7 @@ export const ConfiguracionDatosCandidatoPanel = ({
                 )}
 
                 {fields.map((field, index) => {
-                  const tipo = form.watch(`campos.${index}.tipo`)
+                  const tipo = camposWatched?.[index]?.tipo
                   const showTextValidation =
                     tipo === 'texto' || tipo === 'email'
                   const showNumberValidation = tipo === 'numero'

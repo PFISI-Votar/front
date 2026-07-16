@@ -39,6 +39,7 @@ import {
   listarElecciones,
 } from '@/features/eleccion/api/eleccion-api'
 import { ComicioVentanaElectoral } from '@/features/eleccion/components/comicio-ventana-electoral'
+import { EliminarComicioDialog } from '@/features/eleccion/components/eliminar-comicio-dialog'
 import type { EleccionEstado } from '@/features/eleccion/data/schema'
 import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
 import { useCerrarEleccion } from '@/features/eleccion/hooks/use-cerrar-eleccion'
@@ -552,26 +553,16 @@ export const ComiciosList = () => {
         }}
       />
 
-      <ConfirmDialog
+      <EliminarComicioDialog
         open={eliminarDialog.open}
         onOpenChange={(open) =>
           setEliminarDialog((prev) =>
             open ? { ...prev, open } : emptyActionTarget()
           )
         }
-        title='¿Eliminar el comicio?'
-        desc={
-          <>
-            Esta acción es <strong>irreversible</strong>. Se eliminarán todas
-            las listas, candidatos y configuraciones asociadas al comicio{' '}
-            <strong>{eliminarDialog.nombreEleccion}</strong>.
-          </>
-        }
-        cancelBtnText='Cancelar'
-        confirmText='Sí, eliminar comicio'
-        destructive
+        nombreEleccion={eliminarDialog.nombreEleccion}
         isLoading={eliminarMutation.isPending}
-        handleConfirm={() => {
+        onConfirm={() => {
           if (eliminarDialog.idEleccion !== null) {
             eliminarMutation.mutate(eliminarDialog.idEleccion)
           }
