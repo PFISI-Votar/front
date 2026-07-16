@@ -12,9 +12,11 @@ import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidat
 import type { ConfiguracionDatosCandidatoResponse } from '@/features/eleccion/candidato/data/schema'
 import type { Eleccion } from '@/features/eleccion/data/schema'
 import {
+  eliminarLista,
   listarListas,
   obtenerMapeoListas,
 } from '@/features/eleccion/lista/api/lista-api'
+import type { Lista } from '@/features/eleccion/lista/data/schema'
 import { OfertaElectoralPanel } from './oferta-electoral-panel'
 
 vi.mock('@tanstack/react-router', () => ({
@@ -293,5 +295,114 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     await expect
       .element(page.getByText(/padrón cargado, Merkle publicado on-chain/))
       .toBeInTheDocument()
+  })
+})
+
+const mockLista: Lista = {
+  idLista: 42,
+  idBoleta: 7,
+  nombre: 'Lista Azul',
+  sigla: 'LA',
+  color: '#2563eb',
+  logoUrl: null,
+  estado: 'BORRADOR',
+  listId: null,
+  fechaOficializacion: null,
+  candidatos: [],
+}
+
+describe('OfertaElectoralPanel - Eliminar lista', () => {
+  let queryClient: QueryClient
+
+  beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    vi.clearAllMocks()
+
+    vi.mocked(obtenerEleccion).mockResolvedValue({
+      ...mockEleccionConfigurada,
+      estado: 'BORRADOR',
+    })
+    vi.mocked(listarListas).mockResolvedValue([mockLista])
+    vi.mocked(obtenerMapeoListas).mockResolvedValue([])
+    vi.mocked(obtenerConfiguracionDatosCandidato).mockResolvedValue({
+      idEleccion: 1,
+      campos: [],
+      editable: true,
+      cantidadCandidatos: 0,
+    } satisfies ConfiguracionDatosCandidatoResponse)
+  })
+
+  async function renderPanel() {
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <OfertaElectoralPanel idEleccion={1} />
+      </QueryClientProvider>
+    )
+  }
+
+  it('abre diálogo de confirmación al eliminar una lista', async () => {
+    await renderPanel()
+
+    const eliminarButton = page.getByRole('button', {
+      name: 'Eliminar lista Lista Azul',
+    })
+    await userEvent.click(eliminarButton)
+
+    const dialog = page.getByRole('alertdialog')
+    await expect
+      .element(page.getByRole('heading', { name: '¿Eliminar la lista?' }))
+      .toBeInTheDocument()
+    await expect
+      .element(dialog.getByText(/Se eliminará la lista/))
+      .toBeInTheDocument()
+    await expect
+      .element(dialog.getByText('Lista Azul', { exact: true }))
+      .toBeInTheDocument()
+    expect(eliminarLista).not.toHaveBeenCalled()
+  })
+
+  it('no elimina la lista si se cancela la confirmación', async () => {
+    await renderPanel()
+
+    const eliminarButton = page.getByRole('button', {
+      name: 'Eliminar lista Lista Azul',
+    })
+    await userEvent.click(eliminarButton)
+
+    const cancelButton = page.getByRole('button', { name: 'Cancelar' })
+    await userEvent.click(cancelButton)
+
+    expect(eliminarLista).not.toHaveBeenCalled()
+    await expect
+      .poll(() =>
+        page.getByRole('heading', { name: '¿Eliminar la lista?' }).query()
+      )
+      .toBeNull()
+  })
+
+  it('elimina la lista solo tras confirmar en el diálogo', async () => {
+    vi.mocked(eliminarLista).mockResolvedValue(undefined)
+
+    await renderPanel()
+
+    const eliminarButton = page.getByRole('button', {
+      name: 'Eliminar lista Lista Azul',
+    })
+    await userEvent.click(eliminarButton)
+
+    const confirmButton = page.getByRole('button', {
+      name: 'Sí, eliminar lista',
+    })
+    await userEvent.click(confirmButton)
+
+    await vi.waitFor(() => {
+      expect(eliminarLista).toHaveBeenCalled()
+      expect(vi.mocked(eliminarLista).mock.calls[0]?.[0]).toBe(42)
+    })
   })
 })
