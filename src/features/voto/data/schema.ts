@@ -52,6 +52,18 @@ export type BudConfig = {
   snapshotCongelado?: boolean
 }
 
+/** VOTAR-328 — respuesta de revotePolicyService para feedback en BUD. */
+export type EstadoRevoto = {
+  revoteHabilitado: boolean
+  maxVotosPorVotante: number
+  votosConsumidos: number
+  intentosRestantes: number
+  puedeVotar: boolean
+  minIntervaloSegundos: number
+  proximoReintentoEnSegundos?: number
+  politicaRevoto: 'LAST_VOTE_WINS' | 'DISABLED'
+}
+
 export type SeleccionVoto = {
   idCategoria: number
   idCandidato: number
