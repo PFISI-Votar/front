@@ -574,8 +574,8 @@ export const OfertaElectoralPanel = ({
                         }}
                         aria-label={`Ver detalle de ${lista.nombre}`}
                       >
+                        <ArrowRight />
                         Ver detalle
-                        <ArrowRight className='ms-2 size-4' />
                       </Link>
                     </Button>
                     {isEditable && (
