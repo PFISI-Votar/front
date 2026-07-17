@@ -7,6 +7,7 @@ import {
   obtenerEleccion,
   abrirEleccion,
   cerrarEleccion,
+  eliminarEleccion,
 } from '@/features/eleccion/api/eleccion-api'
 import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import type { ConfiguracionDatosCandidatoResponse } from '@/features/eleccion/candidato/data/schema'
@@ -404,5 +405,92 @@ describe('OfertaElectoralPanel - Eliminar lista', () => {
       expect(eliminarLista).toHaveBeenCalled()
       expect(vi.mocked(eliminarLista).mock.calls[0]?.[0]).toBe(42)
     })
+  })
+})
+
+describe('OfertaElectoralPanel - Eliminar Comicio', () => {
+  let queryClient: QueryClient
+
+  const mockEleccionBorrador: Eleccion = {
+    ...mockEleccionConfigurada,
+    estado: 'BORRADOR',
+  } as Eleccion
+
+  beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    vi.clearAllMocks()
+
+    vi.mocked(obtenerEleccion).mockResolvedValue(mockEleccionBorrador)
+    vi.mocked(listarListas).mockResolvedValue([])
+    vi.mocked(obtenerMapeoListas).mockResolvedValue([])
+    vi.mocked(obtenerConfiguracionDatosCandidato).mockResolvedValue({
+      idEleccion: 1,
+      campos: [],
+      editable: true,
+      cantidadCandidatos: 0,
+    } satisfies ConfiguracionDatosCandidatoResponse)
+  })
+
+  async function renderPanel() {
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <OfertaElectoralPanel idEleccion={1} />
+      </QueryClientProvider>
+    )
+  }
+
+  it('elimina el comicio tras confirmar con el nombre exacto', async () => {
+    vi.mocked(eliminarEleccion).mockResolvedValue(undefined)
+
+    await renderPanel()
+
+    await userEvent.click(
+      page.getByRole('button', { name: 'Eliminar comicio' })
+    )
+
+    const confirmButton = page.getByRole('button', {
+      name: 'Sí, eliminar comicio',
+    })
+    await expect.element(confirmButton).toBeDisabled()
+
+    await userEvent.fill(
+      page.getByRole('textbox', {
+        name: 'Escribí Elección Municipal 2025 para confirmar',
+      }),
+      'Elección Municipal 2025'
+    )
+    await expect.element(confirmButton).toBeEnabled()
+    await userEvent.click(confirmButton)
+
+    await vi.waitFor(() => {
+      expect(eliminarEleccion).toHaveBeenCalledWith(1)
+    })
+  })
+
+  it('no elimina el comicio si el nombre de confirmación no coincide', async () => {
+    vi.mocked(eliminarEleccion).mockResolvedValue(undefined)
+
+    await renderPanel()
+
+    await userEvent.click(
+      page.getByRole('button', { name: 'Eliminar comicio' })
+    )
+
+    await userEvent.fill(
+      page.getByRole('textbox', {
+        name: 'Escribí Elección Municipal 2025 para confirmar',
+      }),
+      'nombre incorrecto'
+    )
+
+    await expect
+      .element(page.getByRole('button', { name: 'Sí, eliminar comicio' }))
+      .toBeDisabled()
+    expect(eliminarEleccion).not.toHaveBeenCalled()
   })
 })

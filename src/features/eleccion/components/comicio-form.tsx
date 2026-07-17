@@ -1,4 +1,4 @@
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Check, X } from 'lucide-react'
 import { toast } from 'sonner'
@@ -87,6 +87,11 @@ export const ComicioForm = ({
     defaultValues: buildFormDefaults(mode, defaultValues),
   })
 
+  const fechaInicio = useWatch({
+    control: form.control,
+    name: 'fechaInicio',
+  })
+
   const handleSubmit = async (values: CreateComicioInput) => {
     try {
       await onSubmit(values)
@@ -173,7 +178,6 @@ export const ComicioForm = ({
               control={form.control}
               name='fechaFin'
               render={({ field }) => {
-                const fechaInicio = form.watch('fechaInicio')
                 const minDate = fechaInicio ? new Date(fechaInicio) : undefined
 
                 return (

@@ -56,6 +56,7 @@ import type { Candidato } from '@/features/eleccion/candidato/data/schema'
 import { buildResumenDatosAdicionales } from '@/features/eleccion/candidato/utils/format-datos-adicionales'
 import { CategoriasPanel } from '@/features/eleccion/categoria/components/categorias-panel'
 import { ComicioVentanaElectoral } from '@/features/eleccion/components/comicio-ventana-electoral'
+import { EliminarComicioDialog } from '@/features/eleccion/components/eliminar-comicio-dialog'
 import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
 import {
   getEstadoEleccionBadgeVariant,
@@ -813,22 +814,12 @@ export const OfertaElectoralPanel = ({
         handleConfirm={handleConfirmOficializar}
       />
 
-      <ConfirmDialog
+      <EliminarComicioDialog
         open={eliminarDialogOpen}
         onOpenChange={setEliminarDialogOpen}
-        title='¿Eliminar el comicio?'
-        desc={
-          <>
-            Esta acción es <strong>irreversible</strong>. Se eliminarán todas
-            las listas, candidatos y configuraciones asociadas al comicio{' '}
-            <strong>{eleccionQuery.data?.nombre}</strong>.
-          </>
-        }
-        cancelBtnText='Cancelar'
-        confirmText='Sí, eliminar comicio'
-        destructive
+        nombreEleccion={eleccionQuery.data?.nombre ?? ''}
         isLoading={eliminarComicioMutation.isPending}
-        handleConfirm={handleConfirmEliminarComicio}
+        onConfirm={handleConfirmEliminarComicio}
       />
 
       <ConfirmDialog
