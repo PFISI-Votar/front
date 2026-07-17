@@ -105,6 +105,7 @@ export const OfertaElectoralPanel = ({
   const [abrirDialogOpen, setAbrirDialogOpen] = useState(false)
   const [cerrarDialogOpen, setCerrarDialogOpen] = useState(false)
   const [eliminarDialogOpen, setEliminarDialogOpen] = useState(false)
+  const [listaAEliminar, setListaAEliminar] = useState<Lista | null>(null)
 
   const eleccionQuery = useQuery({
     queryKey: ['eleccion', idEleccion],
@@ -204,11 +205,18 @@ export const OfertaElectoralPanel = ({
   const eliminarListaMutation = useMutation({
     mutationFn: eliminarLista,
     onSuccess: async () => {
+      setListaAEliminar(null)
       toast.success('Lista eliminada')
       await invalidateOferta()
     },
     onError: handleApiError,
   })
+
+  const handleConfirmEliminarLista = () => {
+    if (listaAEliminar) {
+      eliminarListaMutation.mutate(listaAEliminar.idLista)
+    }
+  }
 
   const oficializarMutation = useMutation({
     mutationFn: () => oficializarEleccion(idEleccion),
@@ -566,8 +574,8 @@ export const OfertaElectoralPanel = ({
                         }}
                         aria-label={`Ver detalle de ${lista.nombre}`}
                       >
+                        <ArrowRight />
                         Ver detalle
-                        <ArrowRight className='ms-2 size-4' />
                       </Link>
                     </Button>
                     {isEditable && (
@@ -586,9 +594,7 @@ export const OfertaElectoralPanel = ({
                         <Button
                           size='sm'
                           variant='ghost'
-                          onClick={() =>
-                            eliminarListaMutation.mutate(lista.idLista)
-                          }
+                          onClick={() => setListaAEliminar(lista)}
                           aria-label={`Eliminar lista ${lista.nombre}`}
                         >
                           <Trash2 className='size-4 text-destructive' />
@@ -823,6 +829,33 @@ export const OfertaElectoralPanel = ({
         destructive
         isLoading={eliminarComicioMutation.isPending}
         handleConfirm={handleConfirmEliminarComicio}
+      />
+
+      <ConfirmDialog
+        open={listaAEliminar !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setListaAEliminar(null)
+          }
+        }}
+        title='¿Eliminar la lista?'
+        desc={
+          listaAEliminar ? (
+            <>
+              Esta acción es <strong>irreversible</strong>. Se eliminará la
+              lista <strong>{listaAEliminar.nombre}</strong>
+              {listaAEliminar.sigla ? ` (${listaAEliminar.sigla})` : ''} y todos
+              sus candidatos asociados.
+            </>
+          ) : (
+            ''
+          )
+        }
+        cancelBtnText='Cancelar'
+        confirmText='Sí, eliminar lista'
+        destructive
+        isLoading={eliminarListaMutation.isPending}
+        handleConfirm={handleConfirmEliminarLista}
       />
     </div>
   )

@@ -16,6 +16,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
 import {
   eliminarCandidato,
@@ -49,6 +50,7 @@ export const ListaDetailPanel = ({
   const [editingCandidato, setEditingCandidato] = useState<Candidato | null>(
     null
   )
+  const [eliminarListaDialogOpen, setEliminarListaDialogOpen] = useState(false)
 
   const eleccionQuery = useQuery({
     queryKey: ['eleccion', idEleccion],
@@ -118,6 +120,7 @@ export const ListaDetailPanel = ({
   const eliminarListaMutation = useMutation({
     mutationFn: eliminarLista,
     onSuccess: async () => {
+      setEliminarListaDialogOpen(false)
       toast.success('Lista eliminada')
       await queryClient.invalidateQueries({ queryKey: ['listas', idEleccion] })
       navigate({
@@ -302,15 +305,8 @@ export const ListaDetailPanel = ({
             <Button
               variant='outline'
               disabled={eliminarListaMutation.isPending}
-              onClick={() => {
-                if (
-                  window.confirm(
-                    `¿Eliminar la lista ${lista.nombre}? Esta acción no se puede deshacer.`
-                  )
-                ) {
-                  eliminarListaMutation.mutate(idLista)
-                }
-              }}
+              onClick={() => setEliminarListaDialogOpen(true)}
+              aria-label={`Eliminar lista ${lista.nombre}`}
             >
               <Trash2 className='me-2 size-4 text-destructive' />
               Eliminar lista
@@ -441,6 +437,25 @@ export const ListaDetailPanel = ({
         candidatosEnLista={candidatos}
         candidatosEnComicio={candidatosEnComicio}
         candidato={editingCandidato}
+      />
+
+      <ConfirmDialog
+        open={eliminarListaDialogOpen}
+        onOpenChange={setEliminarListaDialogOpen}
+        title='¿Eliminar la lista?'
+        desc={
+          <>
+            Esta acción es <strong>irreversible</strong>. Se eliminará la lista{' '}
+            <strong>{lista.nombre}</strong>
+            {lista.sigla ? ` (${lista.sigla})` : ''} y todos sus candidatos
+            asociados.
+          </>
+        }
+        cancelBtnText='Cancelar'
+        confirmText='Sí, eliminar lista'
+        destructive
+        isLoading={eliminarListaMutation.isPending}
+        handleConfirm={() => eliminarListaMutation.mutate(idLista)}
       />
     </div>
   )

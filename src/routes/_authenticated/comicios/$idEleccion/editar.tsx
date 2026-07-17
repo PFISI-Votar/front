@@ -83,6 +83,7 @@ function EditarComicioPage() {
         <ContentSection
           title='Configuración del comicio'
           desc='Modifique los datos generales, la modalidad electoral y los métodos de acceso. Las categorías se gestionan en la oferta electoral.'
+          contentWidth='wide'
         >
           <ComicioForm
             mode='edit'
@@ -91,6 +92,7 @@ function EditarComicioPage() {
             onSubmit={async (values) => {
               await actualizarMutation.mutateAsync(values)
             }}
+            onCancel={() => navigate({ to: '/comicios' })}
           />
         </ContentSection>
       </div>

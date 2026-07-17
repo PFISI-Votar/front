@@ -16,6 +16,10 @@ function NuevoComicioPage() {
     })
   }
 
+  const handleCancel = () => {
+    navigate({ to: '/comicios' })
+  }
+
   return (
     <>
       <div className='flex flex-col gap-0.5'>
@@ -32,8 +36,12 @@ function NuevoComicioPage() {
         <ContentSection
           title='Configuración inicial'
           desc='Complete todos los campos obligatorios. El comicio se guardará en borrador sin impactar la blockchain.'
+          contentWidth='wide'
         >
-          <CreateComicioForm onCreated={handleCreated} />
+          <CreateComicioForm
+            onCreated={handleCreated}
+            onCancel={handleCancel}
+          />
         </ContentSection>
       </div>
     </>
