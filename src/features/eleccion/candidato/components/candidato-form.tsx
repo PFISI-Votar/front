@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
 import {
@@ -93,10 +93,10 @@ export const CandidatoForm = ({
   onSubmit,
   onConflictError,
 }: CandidatoFormProps) => {
-  const [fotoPreview, setFotoPreview] = useState<string | undefined>(
-    resolveMediaUrl(currentFotoUrl)
-  )
+  const [localFotoPreview, setLocalFotoPreview] = useState<string | null>(null)
+  const [hasRemovedFoto, setHasRemovedFoto] = useState(false)
   const [fotoError, setFotoError] = useState<string | null>(null)
+  const [syncedFotoUrl, setSyncedFotoUrl] = useState(currentFotoUrl)
   const categoriasDisponibles = useMemo(
     () =>
       getCategoriasDisponibles(categorias, candidatosEnLista, {
@@ -134,26 +134,41 @@ export const CandidatoForm = ({
     },
   })
 
-  useEffect(() => {
-    setFotoPreview(resolveMediaUrl(currentFotoUrl))
+  const idCategoria = useWatch({
+    control: form.control,
+    name: 'idCategoria',
+  })
+
+  if (currentFotoUrl !== syncedFotoUrl) {
+    if (localFotoPreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(localFotoPreview)
+    }
+    setSyncedFotoUrl(currentFotoUrl)
+    setLocalFotoPreview(null)
+    setHasRemovedFoto(false)
     setFotoError(null)
-  }, [currentFotoUrl])
+  }
+
+  const fotoPreview =
+    localFotoPreview ??
+    (hasRemovedFoto ? undefined : resolveMediaUrl(currentFotoUrl))
 
   useEffect(() => {
     return () => {
-      if (fotoPreview?.startsWith('blob:')) {
-        URL.revokeObjectURL(fotoPreview)
+      if (localFotoPreview?.startsWith('blob:')) {
+        URL.revokeObjectURL(localFotoPreview)
       }
     }
-  }, [fotoPreview])
+  }, [localFotoPreview])
 
   const handleFotoChange = (file?: File) => {
-    if (fotoPreview?.startsWith('blob:')) {
-      URL.revokeObjectURL(fotoPreview)
+    if (localFotoPreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(localFotoPreview)
     }
     if (!file) {
       form.setValue('fotoFile', null)
-      setFotoPreview(resolveMediaUrl(currentFotoUrl))
+      setLocalFotoPreview(null)
+      setHasRemovedFoto(false)
       setFotoError(null)
       return
     }
@@ -161,24 +176,27 @@ export const CandidatoForm = ({
     const validationError = validateElectoralImageFile(file)
     if (validationError) {
       form.setValue('fotoFile', null)
-      setFotoPreview(resolveMediaUrl(currentFotoUrl))
+      setLocalFotoPreview(null)
+      setHasRemovedFoto(false)
       setFotoError(validationError)
       return
     }
 
     form.setValue('fotoFile', file)
     form.setValue('removeFoto', false)
-    setFotoPreview(URL.createObjectURL(file))
+    setHasRemovedFoto(false)
+    setLocalFotoPreview(URL.createObjectURL(file))
     setFotoError(null)
   }
 
   const handleRemoveFoto = () => {
-    if (fotoPreview?.startsWith('blob:')) {
-      URL.revokeObjectURL(fotoPreview)
+    if (localFotoPreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(localFotoPreview)
     }
     form.setValue('fotoFile', null)
     form.setValue('removeFoto', Boolean(currentFotoUrl))
-    setFotoPreview(undefined)
+    setLocalFotoPreview(null)
+    setHasRemovedFoto(true)
     setFotoError(null)
   }
 
@@ -219,7 +237,7 @@ export const CandidatoForm = ({
   const canSubmit =
     categorias.length > 0 &&
     categoriasDisponibles.length > 0 &&
-    Boolean(form.watch('idCategoria')) &&
+    Boolean(idCategoria) &&
     !fotoError
 
   return (

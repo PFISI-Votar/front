@@ -341,7 +341,7 @@ describe('ComiciosList', () => {
     })
   })
 
-  it('elimina un comicio en BORRADOR tras confirmar', async () => {
+  it('elimina un comicio en BORRADOR tras confirmar con el nombre exacto', async () => {
     vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
     vi.mocked(eliminarEleccion).mockResolvedValue(undefined)
 
@@ -352,13 +352,49 @@ describe('ComiciosList', () => {
         name: 'Eliminar comicio Elección Provincial 2025',
       })
     )
-    await userEvent.click(
-      page.getByRole('button', { name: 'Sí, eliminar comicio' })
+
+    const confirmButton = page.getByRole('button', {
+      name: 'Sí, eliminar comicio',
+    })
+    await expect.element(confirmButton).toBeDisabled()
+
+    await userEvent.fill(
+      page.getByRole('textbox', {
+        name: 'Escribí Elección Provincial 2025 para confirmar',
+      }),
+      'Elección Provincial 2025'
     )
+    await expect.element(confirmButton).toBeEnabled()
+    await userEvent.click(confirmButton)
 
     await vi.waitFor(() => {
       expect(eliminarEleccion).toHaveBeenCalledWith(2)
     })
+  })
+
+  it('no elimina el comicio si el nombre de confirmación no coincide', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+    vi.mocked(eliminarEleccion).mockResolvedValue(undefined)
+
+    await renderComiciosList()
+
+    await userEvent.click(
+      page.getByRole('button', {
+        name: 'Eliminar comicio Elección Provincial 2025',
+      })
+    )
+
+    await userEvent.fill(
+      page.getByRole('textbox', {
+        name: 'Escribí Elección Provincial 2025 para confirmar',
+      }),
+      'nombre incorrecto'
+    )
+
+    await expect
+      .element(page.getByRole('button', { name: 'Sí, eliminar comicio' }))
+      .toBeDisabled()
+    expect(eliminarEleccion).not.toHaveBeenCalled()
   })
 
   it('muestra alerta crítica cuando hay error 412 (Precondition Failed)', async () => {
