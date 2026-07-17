@@ -10,8 +10,15 @@ type ExportedAbiPayload = {
 }
 
 /**
+ * Curated-only names kept for decoding legacy Sepolia deployments
+ * (VOTAR-341). They are intentionally absent from the current export.
+ */
+const CURATED_LEGACY_ONLY_NAMES = new Set(['NullifierAlreadyUsed'])
+
+/**
  * VOTAR-385 — When a full BallotContract ABI was exported by the blockchain
- * pipeline, the curated frontend subset must remain a subset of that interface.
+ * pipeline, the curated frontend subset must remain a subset of that interface
+ * (except documented legacy decode entries).
  */
 describe('VOTAR-385 exported BallotContract ABI alignment', () => {
   const exportedPath = resolve(__dirname, 'abis/BallotContract.json')
@@ -23,12 +30,8 @@ describe('VOTAR-385 exported BallotContract ABI alignment', () => {
     expect(cast).toBeDefined()
   })
 
-  it('aligns curated function names with exported full ABI when present', () => {
-    if (!existsSync(exportedPath)) {
-      // Fresh clones without running export:abis still pass via curated ABI check above.
-      expect(true).toBe(true)
-      return
-    }
+  it('aligns curated names with exported full ABI when present', () => {
+    expect(existsSync(exportedPath)).toBe(true)
 
     const payload = JSON.parse(
       readFileSync(exportedPath, 'utf8')
@@ -45,10 +48,12 @@ describe('VOTAR-385 exported BallotContract ABI alignment', () => {
         .filter(Boolean)
     )
 
+    expect(exportedNames.has('RevoteDisabled')).toBe(true)
+
     for (const entry of BALLOT_CONTRACT_ABI) {
-      if (entry.name) {
-        expect(exportedNames.has(entry.name)).toBe(true)
-      }
+      if (!entry.name) continue
+      if (CURATED_LEGACY_ONLY_NAMES.has(entry.name)) continue
+      expect(exportedNames.has(entry.name)).toBe(true)
     }
   })
 })

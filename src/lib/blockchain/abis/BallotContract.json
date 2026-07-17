@@ -1,6 +1,6 @@
 {
   "contractName": "BallotContract",
-  "abiHash": "0xc138582a4389bad41fca440e3ade211f59933a8c89e56b86081a66385511c3fd",
+  "abiHash": "0xaab8e750e67b185449b5841f4e43b7775f9baab6c1a240336ad8460c38596519",
   "abi": [
     {
       "inputs": [
@@ -129,14 +129,8 @@
       "type": "error"
     },
     {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "nullifier",
-          "type": "bytes32"
-        }
-      ],
-      "name": "NullifierAlreadyUsed",
+      "inputs": [],
+      "name": "RevoteDisabled",
       "type": "error"
     },
     {
@@ -708,6 +702,6 @@
       "type": "function"
     }
   ],
-  "exportedAt": "2026-07-17T15:01:42.472Z",
+  "exportedAt": "2026-07-17T22:57:14.807Z",
   "source": "blockchain/scripts/lib/export-abis.ts (VOTAR-385)"
 }
