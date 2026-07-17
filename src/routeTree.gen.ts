@@ -33,13 +33,16 @@ import { Route as AuthenticatedComiciosIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedChatsIndexRouteImport } from './routes/_authenticated/chats/index'
 import { Route as AuthenticatedAppsIndexRouteImport } from './routes/_authenticated/apps/index'
 import { Route as ComiciosIdEleccionVotarRouteImport } from './routes/comicios/$idEleccion/votar'
-import { Route as ComiciosIdEleccionDashboardRouteImport } from './routes/comicios/$idEleccion/dashboard'
 import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes/_authenticated/settings/notifications'
 import { Route as AuthenticatedSettingsDisplayRouteImport } from './routes/_authenticated/settings/display'
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
 import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_authenticated/settings/account'
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
 import { Route as AuthenticatedComiciosNuevoRouteImport } from './routes/_authenticated/comicios/nuevo'
+import { Route as ComiciosIdEleccionDashboardRouteRouteImport } from './routes/comicios/$idEleccion/dashboard/route'
+import { Route as ComiciosIdEleccionDashboardIndexRouteImport } from './routes/comicios/$idEleccion/dashboard/index'
+import { Route as ComiciosIdEleccionDashboardPadronRouteImport } from './routes/comicios/$idEleccion/dashboard/padron'
+import { Route as ComiciosIdEleccionDashboardEstadoRouteImport } from './routes/comicios/$idEleccion/dashboard/estado'
 import { Route as AuthenticatedComiciosIdEleccionPadronRouteImport } from './routes/_authenticated/comicios/$idEleccion/padron'
 import { Route as AuthenticatedComiciosIdEleccionOfertaRouteImport } from './routes/_authenticated/comicios/$idEleccion/oferta'
 import { Route as AuthenticatedComiciosIdEleccionEditarRouteImport } from './routes/_authenticated/comicios/$idEleccion/editar'
@@ -170,12 +173,6 @@ const ComiciosIdEleccionVotarRoute = ComiciosIdEleccionVotarRouteImport.update({
   path: '/comicios/$idEleccion/votar',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ComiciosIdEleccionDashboardRoute =
-  ComiciosIdEleccionDashboardRouteImport.update({
-    id: '/comicios/$idEleccion/dashboard',
-    path: '/comicios/$idEleccion/dashboard',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const AuthenticatedSettingsNotificationsRoute =
   AuthenticatedSettingsNotificationsRouteImport.update({
     id: '/notifications',
@@ -211,6 +208,30 @@ const AuthenticatedComiciosNuevoRoute =
     id: '/nuevo',
     path: '/nuevo',
     getParentRoute: () => AuthenticatedComiciosRouteRoute,
+  } as any)
+const ComiciosIdEleccionDashboardRouteRoute =
+  ComiciosIdEleccionDashboardRouteRouteImport.update({
+    id: '/comicios/$idEleccion/dashboard',
+    path: '/comicios/$idEleccion/dashboard',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ComiciosIdEleccionDashboardIndexRoute =
+  ComiciosIdEleccionDashboardIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => ComiciosIdEleccionDashboardRouteRoute,
+  } as any)
+const ComiciosIdEleccionDashboardPadronRoute =
+  ComiciosIdEleccionDashboardPadronRouteImport.update({
+    id: '/padron',
+    path: '/padron',
+    getParentRoute: () => ComiciosIdEleccionDashboardRouteRoute,
+  } as any)
+const ComiciosIdEleccionDashboardEstadoRoute =
+  ComiciosIdEleccionDashboardEstadoRouteImport.update({
+    id: '/estado',
+    path: '/estado',
+    getParentRoute: () => ComiciosIdEleccionDashboardRouteRoute,
   } as any)
 const AuthenticatedComiciosIdEleccionPadronRoute =
   AuthenticatedComiciosIdEleccionPadronRouteImport.update({
@@ -259,13 +280,13 @@ export interface FileRoutesByFullPath {
   '/503': typeof errors503Route
   '/verificar/$txHash': typeof VerificarTxHashRoute
   '/verificar/': typeof VerificarIndexRoute
+  '/comicios/$idEleccion/dashboard': typeof ComiciosIdEleccionDashboardRouteRouteWithChildren
   '/comicios/nuevo': typeof AuthenticatedComiciosNuevoRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/settings/display': typeof AuthenticatedSettingsDisplayRoute
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
-  '/comicios/$idEleccion/dashboard': typeof ComiciosIdEleccionDashboardRoute
   '/comicios/$idEleccion/votar': typeof ComiciosIdEleccionVotarRoute
   '/apps/': typeof AuthenticatedAppsIndexRoute
   '/chats/': typeof AuthenticatedChatsIndexRoute
@@ -277,6 +298,9 @@ export interface FileRoutesByFullPath {
   '/comicios/$idEleccion/editar': typeof AuthenticatedComiciosIdEleccionEditarRoute
   '/comicios/$idEleccion/oferta': typeof AuthenticatedComiciosIdEleccionOfertaRoute
   '/comicios/$idEleccion/padron': typeof AuthenticatedComiciosIdEleccionPadronRoute
+  '/comicios/$idEleccion/dashboard/estado': typeof ComiciosIdEleccionDashboardEstadoRoute
+  '/comicios/$idEleccion/dashboard/padron': typeof ComiciosIdEleccionDashboardPadronRoute
+  '/comicios/$idEleccion/dashboard/': typeof ComiciosIdEleccionDashboardIndexRoute
   '/comicios/$idEleccion/padron/preview': typeof AuthenticatedComiciosIdEleccionPadronPreviewRoute
   '/comicios/$idEleccion/listas/$idLista/': typeof AuthenticatedComiciosIdEleccionListasIdListaIndexRoute
 }
@@ -300,7 +324,6 @@ export interface FileRoutesByTo {
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/settings/display': typeof AuthenticatedSettingsDisplayRoute
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
-  '/comicios/$idEleccion/dashboard': typeof ComiciosIdEleccionDashboardRoute
   '/comicios/$idEleccion/votar': typeof ComiciosIdEleccionVotarRoute
   '/apps': typeof AuthenticatedAppsIndexRoute
   '/chats': typeof AuthenticatedChatsIndexRoute
@@ -312,6 +335,9 @@ export interface FileRoutesByTo {
   '/comicios/$idEleccion/editar': typeof AuthenticatedComiciosIdEleccionEditarRoute
   '/comicios/$idEleccion/oferta': typeof AuthenticatedComiciosIdEleccionOfertaRoute
   '/comicios/$idEleccion/padron': typeof AuthenticatedComiciosIdEleccionPadronRoute
+  '/comicios/$idEleccion/dashboard/estado': typeof ComiciosIdEleccionDashboardEstadoRoute
+  '/comicios/$idEleccion/dashboard/padron': typeof ComiciosIdEleccionDashboardPadronRoute
+  '/comicios/$idEleccion/dashboard': typeof ComiciosIdEleccionDashboardIndexRoute
   '/comicios/$idEleccion/padron/preview': typeof AuthenticatedComiciosIdEleccionPadronPreviewRoute
   '/comicios/$idEleccion/listas/$idLista': typeof AuthenticatedComiciosIdEleccionListasIdListaIndexRoute
 }
@@ -333,13 +359,13 @@ export interface FileRoutesById {
   '/verificar/$txHash': typeof VerificarTxHashRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/verificar/': typeof VerificarIndexRoute
+  '/comicios/$idEleccion/dashboard': typeof ComiciosIdEleccionDashboardRouteRouteWithChildren
   '/_authenticated/comicios/nuevo': typeof AuthenticatedComiciosNuevoRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/_authenticated/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/_authenticated/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
   '/_authenticated/settings/display': typeof AuthenticatedSettingsDisplayRoute
   '/_authenticated/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
-  '/comicios/$idEleccion/dashboard': typeof ComiciosIdEleccionDashboardRoute
   '/comicios/$idEleccion/votar': typeof ComiciosIdEleccionVotarRoute
   '/_authenticated/apps/': typeof AuthenticatedAppsIndexRoute
   '/_authenticated/chats/': typeof AuthenticatedChatsIndexRoute
@@ -351,6 +377,9 @@ export interface FileRoutesById {
   '/_authenticated/comicios/$idEleccion/editar': typeof AuthenticatedComiciosIdEleccionEditarRoute
   '/_authenticated/comicios/$idEleccion/oferta': typeof AuthenticatedComiciosIdEleccionOfertaRoute
   '/_authenticated/comicios/$idEleccion/padron': typeof AuthenticatedComiciosIdEleccionPadronRoute
+  '/comicios/$idEleccion/dashboard/estado': typeof ComiciosIdEleccionDashboardEstadoRoute
+  '/comicios/$idEleccion/dashboard/padron': typeof ComiciosIdEleccionDashboardPadronRoute
+  '/comicios/$idEleccion/dashboard/': typeof ComiciosIdEleccionDashboardIndexRoute
   '/_authenticated/comicios/$idEleccion/padron_/preview': typeof AuthenticatedComiciosIdEleccionPadronPreviewRoute
   '/_authenticated/comicios/$idEleccion/listas/$idLista/': typeof AuthenticatedComiciosIdEleccionListasIdListaIndexRoute
 }
@@ -372,13 +401,13 @@ export interface FileRouteTypes {
     | '/503'
     | '/verificar/$txHash'
     | '/verificar/'
+    | '/comicios/$idEleccion/dashboard'
     | '/comicios/nuevo'
     | '/errors/$error'
     | '/settings/account'
     | '/settings/appearance'
     | '/settings/display'
     | '/settings/notifications'
-    | '/comicios/$idEleccion/dashboard'
     | '/comicios/$idEleccion/votar'
     | '/apps/'
     | '/chats/'
@@ -390,6 +419,9 @@ export interface FileRouteTypes {
     | '/comicios/$idEleccion/editar'
     | '/comicios/$idEleccion/oferta'
     | '/comicios/$idEleccion/padron'
+    | '/comicios/$idEleccion/dashboard/estado'
+    | '/comicios/$idEleccion/dashboard/padron'
+    | '/comicios/$idEleccion/dashboard/'
     | '/comicios/$idEleccion/padron/preview'
     | '/comicios/$idEleccion/listas/$idLista/'
   fileRoutesByTo: FileRoutesByTo
@@ -413,7 +445,6 @@ export interface FileRouteTypes {
     | '/settings/appearance'
     | '/settings/display'
     | '/settings/notifications'
-    | '/comicios/$idEleccion/dashboard'
     | '/comicios/$idEleccion/votar'
     | '/apps'
     | '/chats'
@@ -425,6 +456,9 @@ export interface FileRouteTypes {
     | '/comicios/$idEleccion/editar'
     | '/comicios/$idEleccion/oferta'
     | '/comicios/$idEleccion/padron'
+    | '/comicios/$idEleccion/dashboard/estado'
+    | '/comicios/$idEleccion/dashboard/padron'
+    | '/comicios/$idEleccion/dashboard'
     | '/comicios/$idEleccion/padron/preview'
     | '/comicios/$idEleccion/listas/$idLista'
   id:
@@ -445,13 +479,13 @@ export interface FileRouteTypes {
     | '/verificar/$txHash'
     | '/_authenticated/'
     | '/verificar/'
+    | '/comicios/$idEleccion/dashboard'
     | '/_authenticated/comicios/nuevo'
     | '/_authenticated/errors/$error'
     | '/_authenticated/settings/account'
     | '/_authenticated/settings/appearance'
     | '/_authenticated/settings/display'
     | '/_authenticated/settings/notifications'
-    | '/comicios/$idEleccion/dashboard'
     | '/comicios/$idEleccion/votar'
     | '/_authenticated/apps/'
     | '/_authenticated/chats/'
@@ -463,6 +497,9 @@ export interface FileRouteTypes {
     | '/_authenticated/comicios/$idEleccion/editar'
     | '/_authenticated/comicios/$idEleccion/oferta'
     | '/_authenticated/comicios/$idEleccion/padron'
+    | '/comicios/$idEleccion/dashboard/estado'
+    | '/comicios/$idEleccion/dashboard/padron'
+    | '/comicios/$idEleccion/dashboard/'
     | '/_authenticated/comicios/$idEleccion/padron_/preview'
     | '/_authenticated/comicios/$idEleccion/listas/$idLista/'
   fileRoutesById: FileRoutesById
@@ -481,7 +518,7 @@ export interface RootRouteChildren {
   errors503Route: typeof errors503Route
   VerificarTxHashRoute: typeof VerificarTxHashRoute
   VerificarIndexRoute: typeof VerificarIndexRoute
-  ComiciosIdEleccionDashboardRoute: typeof ComiciosIdEleccionDashboardRoute
+  ComiciosIdEleccionDashboardRouteRoute: typeof ComiciosIdEleccionDashboardRouteRouteWithChildren
   ComiciosIdEleccionVotarRoute: typeof ComiciosIdEleccionVotarRoute
 }
 
@@ -655,13 +692,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ComiciosIdEleccionVotarRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/comicios/$idEleccion/dashboard': {
-      id: '/comicios/$idEleccion/dashboard'
-      path: '/comicios/$idEleccion/dashboard'
-      fullPath: '/comicios/$idEleccion/dashboard'
-      preLoaderRoute: typeof ComiciosIdEleccionDashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_authenticated/settings/notifications': {
       id: '/_authenticated/settings/notifications'
       path: '/notifications'
@@ -703,6 +733,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/comicios/nuevo'
       preLoaderRoute: typeof AuthenticatedComiciosNuevoRouteImport
       parentRoute: typeof AuthenticatedComiciosRouteRoute
+    }
+    '/comicios/$idEleccion/dashboard': {
+      id: '/comicios/$idEleccion/dashboard'
+      path: '/comicios/$idEleccion/dashboard'
+      fullPath: '/comicios/$idEleccion/dashboard'
+      preLoaderRoute: typeof ComiciosIdEleccionDashboardRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/comicios/$idEleccion/dashboard/': {
+      id: '/comicios/$idEleccion/dashboard/'
+      path: '/'
+      fullPath: '/comicios/$idEleccion/dashboard/'
+      preLoaderRoute: typeof ComiciosIdEleccionDashboardIndexRouteImport
+      parentRoute: typeof ComiciosIdEleccionDashboardRouteRoute
+    }
+    '/comicios/$idEleccion/dashboard/padron': {
+      id: '/comicios/$idEleccion/dashboard/padron'
+      path: '/padron'
+      fullPath: '/comicios/$idEleccion/dashboard/padron'
+      preLoaderRoute: typeof ComiciosIdEleccionDashboardPadronRouteImport
+      parentRoute: typeof ComiciosIdEleccionDashboardRouteRoute
+    }
+    '/comicios/$idEleccion/dashboard/estado': {
+      id: '/comicios/$idEleccion/dashboard/estado'
+      path: '/estado'
+      fullPath: '/comicios/$idEleccion/dashboard/estado'
+      preLoaderRoute: typeof ComiciosIdEleccionDashboardEstadoRouteImport
+      parentRoute: typeof ComiciosIdEleccionDashboardRouteRoute
     }
     '/_authenticated/comicios/$idEleccion/padron': {
       id: '/_authenticated/comicios/$idEleccion/padron'
@@ -823,6 +881,27 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface ComiciosIdEleccionDashboardRouteRouteChildren {
+  ComiciosIdEleccionDashboardEstadoRoute: typeof ComiciosIdEleccionDashboardEstadoRoute
+  ComiciosIdEleccionDashboardPadronRoute: typeof ComiciosIdEleccionDashboardPadronRoute
+  ComiciosIdEleccionDashboardIndexRoute: typeof ComiciosIdEleccionDashboardIndexRoute
+}
+
+const ComiciosIdEleccionDashboardRouteRouteChildren: ComiciosIdEleccionDashboardRouteRouteChildren =
+  {
+    ComiciosIdEleccionDashboardEstadoRoute:
+      ComiciosIdEleccionDashboardEstadoRoute,
+    ComiciosIdEleccionDashboardPadronRoute:
+      ComiciosIdEleccionDashboardPadronRoute,
+    ComiciosIdEleccionDashboardIndexRoute:
+      ComiciosIdEleccionDashboardIndexRoute,
+  }
+
+const ComiciosIdEleccionDashboardRouteRouteWithChildren =
+  ComiciosIdEleccionDashboardRouteRoute._addFileChildren(
+    ComiciosIdEleccionDashboardRouteRouteChildren,
+  )
+
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   authForgotPasswordRoute: authForgotPasswordRoute,
@@ -837,7 +916,8 @@ const rootRouteChildren: RootRouteChildren = {
   errors503Route: errors503Route,
   VerificarTxHashRoute: VerificarTxHashRoute,
   VerificarIndexRoute: VerificarIndexRoute,
-  ComiciosIdEleccionDashboardRoute: ComiciosIdEleccionDashboardRoute,
+  ComiciosIdEleccionDashboardRouteRoute:
+    ComiciosIdEleccionDashboardRouteRouteWithChildren,
   ComiciosIdEleccionVotarRoute: ComiciosIdEleccionVotarRoute,
 }
 export const routeTree = rootRouteImport
