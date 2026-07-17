@@ -14,14 +14,11 @@ type ExportedAbiPayload = {
  * pipeline, the curated frontend subset must remain a subset of that interface.
  */
 describe('VOTAR-385 exported BallotContract ABI alignment', () => {
-  const exportedPath = resolve(
-    __dirname,
-    'abis/BallotContract.json',
-  )
+  const exportedPath = resolve(__dirname, 'abis/BallotContract.json')
 
   it('keeps castSignedVote in the curated runtime ABI', () => {
     const cast = BALLOT_CONTRACT_ABI.find(
-      (entry) => entry.type === 'function' && entry.name === 'castSignedVote',
+      (entry) => entry.type === 'function' && entry.name === 'castSignedVote'
     )
     expect(cast).toBeDefined()
   })
@@ -34,15 +31,18 @@ describe('VOTAR-385 exported BallotContract ABI alignment', () => {
     }
 
     const payload = JSON.parse(
-      readFileSync(exportedPath, 'utf8'),
+      readFileSync(exportedPath, 'utf8')
     ) as ExportedAbiPayload
     expect(payload.contractName).toBe('BallotContract')
 
     const exportedNames = new Set(
       payload.abi
-        .filter((e) => e.type === 'function' || e.type === 'error' || e.type === 'event')
+        .filter(
+          (e) =>
+            e.type === 'function' || e.type === 'error' || e.type === 'event'
+        )
         .map((e) => e.name)
-        .filter(Boolean),
+        .filter(Boolean)
     )
 
     for (const entry of BALLOT_CONTRACT_ABI) {
