@@ -2,6 +2,7 @@
  * Minimal BallotContract ABI for VOTAR-358 castSignedVote transmission.
  * Must stay aligned with blockchain/contracts/ballot/BallotContract.sol.
  * VOTAR-346 adds candidateId for VoteRegistry audit VoteCast emission.
+ * VOTAR-341 replaces NullifierAlreadyUsed with RevoteDisabled when revote is off.
  */
 export const BALLOT_CONTRACT_ABI = [
   {
@@ -53,8 +54,8 @@ export const BALLOT_CONTRACT_ABI = [
   },
   {
     type: 'error',
-    name: 'NullifierAlreadyUsed',
-    inputs: [{ name: 'nullifier', type: 'bytes32' }],
+    name: 'RevoteDisabled',
+    inputs: [],
   },
   {
     type: 'error',

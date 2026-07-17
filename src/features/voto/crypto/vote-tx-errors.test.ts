@@ -2,8 +2,33 @@ import { BaseError, ContractFunctionRevertedError, TimeoutError } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { mapVoteTxError } from '@/features/voto/crypto/vote-tx-errors'
 
-describe('mapVoteTxError — VOTAR-358', () => {
-  it('UAT-04: maps NullifierAlreadyUsed to already_registered', () => {
+describe('mapVoteTxError — VOTAR-358 / VOTAR-341', () => {
+  it('UAT-04: maps RevoteDisabled to already_registered (VOTAR-341)', () => {
+    const reverted = new ContractFunctionRevertedError({
+      abi: [
+        {
+          type: 'error',
+          name: 'RevoteDisabled',
+          inputs: [],
+        },
+      ],
+      data: '0x',
+      functionName: 'castSignedVote',
+    })
+    Object.assign(reverted, {
+      data: {
+        errorName: 'RevoteDisabled',
+        args: [],
+      },
+    })
+    const base = new BaseError('execution reverted', { cause: reverted })
+    const mapped = mapVoteTxError(base)
+    expect(mapped.code).toBe('already_registered')
+    expect(mapped.message).toMatch(/ya está registrado/i)
+    expect(mapped.canRetrySend).toBe(false)
+  })
+
+  it('keeps legacy NullifierAlreadyUsed mapped to already_registered', () => {
     const reverted = new ContractFunctionRevertedError({
       abi: [
         {
@@ -26,7 +51,6 @@ describe('mapVoteTxError — VOTAR-358', () => {
     const base = new BaseError('execution reverted', { cause: reverted })
     const mapped = mapVoteTxError(base)
     expect(mapped.code).toBe('already_registered')
-    expect(mapped.message).toMatch(/ya está registrado/i)
     expect(mapped.canRetrySend).toBe(false)
   })
 
