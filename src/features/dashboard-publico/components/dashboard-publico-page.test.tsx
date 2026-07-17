@@ -7,7 +7,6 @@ import { DashboardPublicoPage } from './dashboard-publico-page'
 const mocks = vi.hoisted(() => ({
   obtenerConfiguracionBud: vi.fn(),
   useTotalVotantesPublico: vi.fn(),
-  obtenerEscrutinioPublico: vi.fn(),
 }))
 
 vi.mock('@tanstack/react-router', () => ({
@@ -34,13 +33,9 @@ vi.mock('@/features/padron/hooks/use-padron', () => ({
   useTotalVotantesPublico: mocks.useTotalVotantesPublico,
 }))
 
-vi.mock('@/features/dashboard-publico/api/dashboard-publico-api', () => ({
-  obtenerEscrutinioPublico: mocks.obtenerEscrutinioPublico,
-}))
-
 const renderPage = async (
   idEleccion: number,
-  section?: 'resumen' | 'padron' | 'estado' | 'resultados'
+  section?: 'resumen' | 'padron' | 'estado'
 ) => {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -59,19 +54,6 @@ describe('DashboardPublicoPage', () => {
       data: { totalVotantesHabilitados: 1500 },
       isLoading: false,
       isError: false,
-    })
-    mocks.obtenerEscrutinioPublico.mockResolvedValue({
-      idEleccion: 6,
-      estado: 'ABIERTA',
-      tipoVotacion: 'POR_LISTA',
-      participacion: {
-        votosFiscalizados: 375,
-        votosEnBlanco: 10,
-        votosNulos: 5,
-        totalVotantesHabilitados: 1500,
-        porcentajeEscrutinio: 25,
-      },
-      resultados: null,
     })
   })
 
@@ -125,9 +107,12 @@ describe('DashboardPublicoPage', () => {
     await expect
       .element(screen.getByText('Estado del comicio'))
       .toBeInTheDocument()
+    await expect
+      .element(screen.getByRole('navigation', { name: /dashboard público/i }))
+      .toBeInTheDocument()
   })
 
-  it('con comicio abierto muestra votos fiscalizados y % de escrutinio', async () => {
+  it('muestra el mismo indicador cuando el comicio está abierto', async () => {
     mocks.obtenerConfiguracionBud.mockResolvedValue({
       idEleccion: 6,
       nombre: 'Elección Centro de Estudiantes',
@@ -139,60 +124,52 @@ describe('DashboardPublicoPage', () => {
     const screen = await renderPage(6)
 
     await expect
-      .element(screen.getByText('Participación en tiempo real'))
+      .element(screen.getByText('Estado del comicio'))
       .toBeInTheDocument()
-    await expect.element(screen.getByText('375')).toBeInTheDocument()
-    await expect.element(screen.getByText('25%')).toBeInTheDocument()
+    await expect.element(screen.getByText('1.500')).toBeInTheDocument()
     await expect
-      .element(screen.getByText('% del escrutinio'))
+      .element(screen.getByText(/Actualización periódica activa/i))
       .toBeInTheDocument()
   })
 
-  it('con comicio cerrado muestra resultados por tipo de votación', async () => {
+  it('permite navegar a sub-rutas de auditoría sin login (UAT-02)', async () => {
     mocks.obtenerConfiguracionBud.mockResolvedValue({
       idEleccion: 6,
       nombre: 'Elección Centro de Estudiantes',
-      estado: 'CERRADA',
+      estado: 'ABIERTA',
       tipoVotacion: 'POR_LISTA',
       metodosAutenticacion: ['SSO_INSTITUCIONAL'],
-      resultadosDefinitivos: true,
-      snapshotCongelado: true,
     })
-    mocks.obtenerEscrutinioPublico.mockResolvedValue({
+
+    const padronScreen = await renderPage(6, 'padron')
+    await expect
+      .element(padronScreen.getByText('Total de votantes habilitados'))
+      .toBeInTheDocument()
+
+    const estadoScreen = await renderPage(6, 'estado')
+    await expect
+      .element(estadoScreen.getByText('Estado del comicio'))
+      .toBeInTheDocument()
+  })
+
+  it('muestra estado vacío de padrón cuando el total no está disponible', async () => {
+    mocks.obtenerConfiguracionBud.mockResolvedValue({
       idEleccion: 6,
-      estado: 'CERRADA',
+      nombre: 'Elección Centro de Estudiantes',
+      estado: 'ABIERTA',
       tipoVotacion: 'POR_LISTA',
-      participacion: {
-        votosFiscalizados: 1000,
-        votosEnBlanco: 20,
-        votosNulos: 10,
-        totalVotantesHabilitados: 1500,
-        porcentajeEscrutinio: 66.67,
-      },
-      resultados: {
-        porLista: [
-          {
-            idLista: 1,
-            nombre: 'Lista Azul',
-            sigla: 'LA',
-            color: '#2f6f9f',
-            votos: 600,
-            porcentaje: 60,
-          },
-        ],
-        votosEnBlanco: 20,
-        votosNulos: 10,
-      },
+      metodosAutenticacion: ['SSO_INSTITUCIONAL'],
+    })
+    mocks.useTotalVotantesPublico.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
     })
 
-    const screen = await renderPage(6, 'resultados')
+    const screen = await renderPage(6, 'padron')
 
     await expect
-      .element(screen.getByText('Escrutinio electoral'))
+      .element(screen.getByText(/Padrón aún no consolidado/i))
       .toBeInTheDocument()
-    await expect
-      .element(screen.getByText('Lista Azul (LA)'))
-      .toBeInTheDocument()
-    await expect.element(screen.getByText(/600 · 60%/)).toBeInTheDocument()
   })
 })

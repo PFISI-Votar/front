@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { BarChart3, ShieldCheck } from 'lucide-react'
+import { ShieldCheck } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DashboardPublicoHeader } from '@/features/dashboard-publico/components/dashboard-publico-header'
 import {
@@ -7,9 +7,6 @@ import {
   DashboardPublicoShell,
 } from '@/features/dashboard-publico/components/dashboard-publico-shell'
 import { EstadoComicioCard } from '@/features/dashboard-publico/components/estado-comicio-card'
-import { ParticipacionEscrutinioCard } from '@/features/dashboard-publico/components/participacion-escrutinio-card'
-import { ResultadosElectoralesCard } from '@/features/dashboard-publico/components/resultados-electorales-card'
-import { useDashboardEscrutinio } from '@/features/dashboard-publico/hooks/use-dashboard-escrutinio'
 import {
   isDashboardFrozen,
   useDashboardPublicoComicio,
@@ -18,7 +15,7 @@ import { TotalVotantesCard } from '@/features/padron/components/total-votantes-c
 
 type DashboardPublicoPageProps = {
   idEleccion: number
-  section?: 'resumen' | 'padron' | 'estado' | 'resultados'
+  section?: 'resumen' | 'padron' | 'estado'
 }
 
 export const DashboardPublicoPage = ({
@@ -26,17 +23,6 @@ export const DashboardPublicoPage = ({
   section = 'resumen',
 }: DashboardPublicoPageProps) => {
   const comicioQuery = useDashboardPublicoComicio(idEleccion)
-  const isFrozen = comicioQuery.data
-    ? isDashboardFrozen(comicioQuery.data)
-    : false
-  const isOpen = comicioQuery.data?.estado === 'ABIERTA'
-  const showResults =
-    comicioQuery.data?.estado === 'CERRADA' ||
-    comicioQuery.data?.estado === 'ESCRUTADA'
-
-  const escrutinioQuery = useDashboardEscrutinio(idEleccion, {
-    poll: isOpen && !isFrozen,
-  })
 
   useEffect(() => {
     const previousTitle = document.title
@@ -85,6 +71,7 @@ export const DashboardPublicoPage = ({
   }
 
   const { nombre, estado, tipoVotacion } = comicioQuery.data
+  const isFrozen = isDashboardFrozen(comicioQuery.data)
 
   return (
     <DashboardPublicoShell idEleccion={idEleccion} activeSection={section}>
@@ -93,11 +80,9 @@ export const DashboardPublicoPage = ({
         estado={estado}
         isFrozen={isFrozen}
         description={
-          showResults
-            ? 'El comicio está cerrado. Se muestran los resultados electorales definitivos leídos on-chain.'
-            : isOpen
-              ? 'Comicio abierto: avance del escrutinio con votos fiscalizados y porcentaje de participación.'
-              : 'Auditoría ciudadana sin autenticación. Los indicadores públicos se actualizan con los datos agregados del comicio.'
+          isFrozen
+            ? 'El comicio está cerrado. Los indicadores del Portal de Transparencia quedaron congelados y no se actualizan en tiempo real.'
+            : 'Auditoría ciudadana sin autenticación. Los indicadores públicos se actualizan con los datos agregados del comicio.'
         }
       />
 
@@ -116,52 +101,10 @@ export const DashboardPublicoPage = ({
         </section>
       )}
 
-      {(section === 'resumen' || section === 'estado') && isOpen && (
-        <section
-          aria-labelledby='participacion-publico-heading'
-          className={section === 'resumen' ? 'mt-8 space-y-4' : 'space-y-4'}
-        >
-          <h2
-            id='participacion-publico-heading'
-            className='text-sm font-semibold tracking-wide text-[#2f6f9f] uppercase'
-          >
-            Participación
-          </h2>
-          <ParticipacionEscrutinioCard
-            participacion={escrutinioQuery.data?.participacion}
-            isLoading={escrutinioQuery.isLoading}
-            isError={escrutinioQuery.isError}
-          />
-        </section>
-      )}
-
-      {(section === 'resumen' || section === 'resultados') && showResults && (
-        <section
-          aria-labelledby='resultados-publico-heading'
-          className={section === 'resumen' ? 'mt-8 space-y-4' : 'space-y-4'}
-        >
-          <div className='flex items-center gap-2'>
-            <BarChart3 className='size-4 text-[#2f6f9f]' aria-hidden='true' />
-            <h2
-              id='resultados-publico-heading'
-              className='text-sm font-semibold tracking-wide text-[#2f6f9f] uppercase'
-            >
-              Resultados
-            </h2>
-          </div>
-          <ResultadosElectoralesCard
-            tipoVotacion={tipoVotacion}
-            resultados={escrutinioQuery.data?.resultados}
-            isLoading={escrutinioQuery.isLoading}
-            isError={escrutinioQuery.isError}
-          />
-        </section>
-      )}
-
       {(section === 'resumen' || section === 'estado') && (
         <section
           aria-labelledby='estado-publico-heading'
-          className='mt-8 space-y-4'
+          className={section === 'resumen' ? 'mt-8 space-y-4' : 'space-y-4'}
         >
           <h2
             id='estado-publico-heading'
