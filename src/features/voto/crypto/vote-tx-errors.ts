@@ -114,7 +114,11 @@ export const mapVoteTxError = (error: unknown): VoteTxError => {
   }
 
   const revertName = getRevertErrorName(error)
-  if (revertName === 'NullifierAlreadyUsed') {
+  // VOTAR-341: RevoteDisabled replaces NullifierAlreadyUsed when revote is off.
+  if (
+    revertName === 'RevoteDisabled' ||
+    revertName === 'NullifierAlreadyUsed'
+  ) {
     return createVoteTxError({
       code: 'already_registered',
       message:
