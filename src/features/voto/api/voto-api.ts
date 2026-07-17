@@ -1,3 +1,4 @@
+import { publicApiClient } from '@/lib/public-api-client'
 import { votanteApiClient } from '@/lib/votante-api-client'
 import type {
   BoletaDigital,
@@ -6,10 +7,11 @@ import type {
   VoterMerkleProof,
 } from '@/features/voto/data/schema'
 
+/** Configuración pública del comicio (BUD + dashboard anónimo, VOTAR-315). */
 export const obtenerConfiguracionBud = async (
   idEleccion: number
 ): Promise<BudConfig> => {
-  const { data } = await votanteApiClient.get<BudConfig>(
+  const { data } = await publicApiClient.get<BudConfig>(
     `/elecciones/${idEleccion}/configuracion-bud`
   )
   return data
