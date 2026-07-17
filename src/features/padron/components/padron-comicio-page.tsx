@@ -166,9 +166,12 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
       <div className='flex flex-wrap items-start justify-between gap-4'>
         <div className='space-y-1'>
           <Button asChild variant='ghost' size='sm' className='-ms-2'>
-            <Link to='/comicios'>
+            <Link
+              to='/comicios/$idEleccion/oferta'
+              params={{ idEleccion: String(idEleccion) }}
+            >
               <ArrowLeft className='size-4' />
-              Volver a comicios
+              Volver a la oferta
             </Link>
           </Button>
           <h1 className='flex items-center gap-2 text-2xl font-bold tracking-tight'>

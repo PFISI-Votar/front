@@ -1,8 +1,26 @@
 import { useQuery } from '@tanstack/react-query'
 import { useParams, useRouterState } from '@tanstack/react-router'
-import { type BreadcrumbEntry } from '@/components/layout/breadcrumb-nav'
+import {
+  type BreadcrumbEntry,
+  type BreadcrumbMenuItem,
+} from '@/components/layout/breadcrumb-nav'
 import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
 import { listarListas } from '@/features/eleccion/lista/api/lista-api'
+
+const buildComicioSectionMenuItems = (
+  idEleccionParam: string
+): BreadcrumbMenuItem[] => [
+  {
+    label: 'Oferta electoral',
+    to: '/comicios/$idEleccion/oferta',
+    params: { idEleccion: idEleccionParam },
+  },
+  {
+    label: 'Padrón electoral',
+    to: '/comicios/$idEleccion/padron',
+    params: { idEleccion: idEleccionParam },
+  },
+]
 
 type BuildComiciosBreadcrumbInput = {
   pathname: string
@@ -39,32 +57,37 @@ export const buildComiciosBreadcrumbEntries = ({
     to: '/comicios/$idEleccion/oferta',
     params: { idEleccion: idEleccionParam },
   }
+  const sectionMenuItems = buildComicioSectionMenuItems(idEleccionParam)
+  const ofertaSection: BreadcrumbEntry = {
+    label: 'Oferta electoral',
+    to: '/comicios/$idEleccion/oferta',
+    params: { idEleccion: idEleccionParam },
+    menuItems: sectionMenuItems,
+  }
+  const padronSection: BreadcrumbEntry = {
+    label: 'Padrón electoral',
+    to: '/comicios/$idEleccion/padron',
+    params: { idEleccion: idEleccionParam },
+    menuItems: sectionMenuItems,
+  }
 
   if (pathname.endsWith('/editar')) {
-    entries.push(ofertaLink, { label: 'Editar comicio' })
+    entries.push(ofertaLink, ofertaSection, { label: 'Editar comicio' })
     return entries
   }
 
   if (pathname.includes('/padron/preview')) {
-    entries.push(
-      ofertaLink,
-      {
-        label: 'Padrón electoral',
-        to: '/comicios/$idEleccion/padron',
-        params: { idEleccion: idEleccionParam },
-      },
-      { label: 'Previsualizar padrón' }
-    )
+    entries.push(ofertaLink, padronSection, { label: 'Previsualizar padrón' })
     return entries
   }
 
   if (pathname.includes('/padron')) {
-    entries.push(ofertaLink, { label: 'Padrón electoral' })
+    entries.push(ofertaLink, padronSection)
     return entries
   }
 
   if (pathname.includes('/oferta')) {
-    entries.push(ofertaLink, { label: 'Oferta electoral' })
+    entries.push(ofertaLink, ofertaSection)
     return entries
   }
 
@@ -74,15 +97,7 @@ export const buildComiciosBreadcrumbEntries = ({
         ? `${listaNombre} (${listaSigla})`
         : `Lista #${idLista}`
 
-    entries.push(
-      ofertaLink,
-      {
-        label: 'Oferta electoral',
-        to: '/comicios/$idEleccion/oferta',
-        params: { idEleccion: idEleccionParam },
-      },
-      { label: listaLabel }
-    )
+    entries.push(ofertaLink, ofertaSection, { label: listaLabel })
     return entries
   }
 
