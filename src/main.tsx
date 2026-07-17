@@ -10,6 +10,7 @@ import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
 import { handleServerError } from '@/lib/handle-server-error'
+import { isPublicRoute } from '@/lib/is-public-route'
 import { DirectionProvider } from './context/direction-provider'
 import { FontProvider } from './context/font-provider'
 import { ThemeProvider } from './context/theme-provider'
@@ -17,9 +18,6 @@ import { ThemeProvider } from './context/theme-provider'
 import { routeTree } from './routeTree.gen'
 // Styles
 import './styles/index.css'
-
-const isBudVotingRoute = (): boolean =>
-  /\/comicios\/\d+\/votar/.test(window.location.pathname)
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -55,7 +53,8 @@ const queryClient = new QueryClient({
     onError: (error) => {
       if (error instanceof AxiosError) {
         if (error.response?.status === 401) {
-          if (isBudVotingRoute()) {
+          // VOTAR-315: rutas públicas (dashboard, BUD, verificador) no redirigen al login
+          if (isPublicRoute(window.location.pathname)) {
             return
           }
           toast.error('Session expired!')

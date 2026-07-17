@@ -560,7 +560,7 @@ describe('BudVotingWizard', () => {
     expect(signVotePayloadMock).toHaveBeenCalledOnce()
   })
 
-  it('UAT-04: interpreta NullifierAlreadyUsed como voto ya registrado', async () => {
+  it('UAT-04: interpreta RevoteDisabled / already_registered como voto ya registrado', async () => {
     transmitSignedVoteMock.mockRejectedValueOnce({
       code: 'already_registered',
       message:

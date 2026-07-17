@@ -4,6 +4,19 @@ import { buildComiciosBreadcrumbEntries } from '@/components/layout/comicios-bre
 const idEleccion = 42
 const idLista = 7
 
+const sectionMenuItems = [
+  {
+    label: 'Oferta electoral',
+    to: '/comicios/$idEleccion/oferta',
+    params: { idEleccion: '42' },
+  },
+  {
+    label: 'Padrón electoral',
+    to: '/comicios/$idEleccion/padron',
+    params: { idEleccion: '42' },
+  },
+]
+
 describe('buildComiciosBreadcrumbEntries', () => {
   it('returns only Comicios on the list page', () => {
     expect(buildComiciosBreadcrumbEntries({ pathname: '/comicios' })).toEqual([
@@ -20,7 +33,7 @@ describe('buildComiciosBreadcrumbEntries', () => {
     ])
   })
 
-  it('links the election name to oferta on the oferta page', () => {
+  it('exposes the section switcher menu on the oferta page', () => {
     expect(
       buildComiciosBreadcrumbEntries({
         pathname: '/comicios/42/oferta',
@@ -34,11 +47,16 @@ describe('buildComiciosBreadcrumbEntries', () => {
         to: '/comicios/$idEleccion/oferta',
         params: { idEleccion: '42' },
       },
-      { label: 'Oferta electoral' },
+      {
+        label: 'Oferta electoral',
+        to: '/comicios/$idEleccion/oferta',
+        params: { idEleccion: '42' },
+        menuItems: sectionMenuItems,
+      },
     ])
   })
 
-  it('includes the padron section and keeps the election link clickable', () => {
+  it('exposes the section switcher menu on the padron page', () => {
     expect(
       buildComiciosBreadcrumbEntries({
         pathname: '/comicios/42/padron',
@@ -52,11 +70,16 @@ describe('buildComiciosBreadcrumbEntries', () => {
         to: '/comicios/$idEleccion/oferta',
         params: { idEleccion: '42' },
       },
-      { label: 'Padrón electoral' },
+      {
+        label: 'Padrón electoral',
+        to: '/comicios/$idEleccion/padron',
+        params: { idEleccion: '42' },
+        menuItems: sectionMenuItems,
+      },
     ])
   })
 
-  it('includes padron preview with a link back to padron', () => {
+  it('includes padron preview with the padron section switcher', () => {
     expect(
       buildComiciosBreadcrumbEntries({
         pathname: '/comicios/42/padron/preview',
@@ -74,12 +97,37 @@ describe('buildComiciosBreadcrumbEntries', () => {
         label: 'Padrón electoral',
         to: '/comicios/$idEleccion/padron',
         params: { idEleccion: '42' },
+        menuItems: sectionMenuItems,
       },
       { label: 'Previsualizar padrón' },
     ])
   })
 
-  it('includes oferta electoral before the lista detail page', () => {
+  it('includes the oferta section switcher before the editar step', () => {
+    expect(
+      buildComiciosBreadcrumbEntries({
+        pathname: '/comicios/42/editar',
+        idEleccion,
+        eleccionNombre: 'Elecciones 2026',
+      })
+    ).toEqual([
+      { label: 'Comicios', to: '/comicios' },
+      {
+        label: 'Elecciones 2026',
+        to: '/comicios/$idEleccion/oferta',
+        params: { idEleccion: '42' },
+      },
+      {
+        label: 'Oferta electoral',
+        to: '/comicios/$idEleccion/oferta',
+        params: { idEleccion: '42' },
+        menuItems: sectionMenuItems,
+      },
+      { label: 'Editar comicio' },
+    ])
+  })
+
+  it('includes the oferta section switcher before the lista detail page', () => {
     expect(
       buildComiciosBreadcrumbEntries({
         pathname: '/comicios/42/listas/7',
@@ -100,6 +148,7 @@ describe('buildComiciosBreadcrumbEntries', () => {
         label: 'Oferta electoral',
         to: '/comicios/$idEleccion/oferta',
         params: { idEleccion: '42' },
+        menuItems: sectionMenuItems,
       },
       { label: 'Lista A (LA)' },
     ])
