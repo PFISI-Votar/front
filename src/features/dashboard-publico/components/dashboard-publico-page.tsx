@@ -7,6 +7,7 @@ import {
   DashboardPublicoShell,
 } from '@/features/dashboard-publico/components/dashboard-publico-shell'
 import { EstadoComicioCard } from '@/features/dashboard-publico/components/estado-comicio-card'
+import { ParticipacionResumenCard } from '@/features/dashboard-publico/components/participacion-resumen-card'
 import {
   isDashboardFrozen,
   useDashboardPublicoComicio,
@@ -98,6 +99,24 @@ export const DashboardPublicoPage = ({
             </h2>
           </div>
           <TotalVotantesCard idEleccion={idEleccion} />
+        </section>
+      )}
+
+      {section === 'resumen' && (
+        <section
+          aria-labelledby='participacion-resumen-heading'
+          className='mt-8 space-y-4'
+        >
+          <h2
+            id='participacion-resumen-heading'
+            className='text-sm font-semibold tracking-wide text-[#2f6f9f] uppercase'
+          >
+            Participación
+          </h2>
+          <ParticipacionResumenCard
+            idEleccion={idEleccion}
+            isFrozen={isFrozen}
+          />
         </section>
       )}
 
