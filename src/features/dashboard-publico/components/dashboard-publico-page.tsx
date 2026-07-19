@@ -15,7 +15,7 @@ import { TotalVotantesCard } from '@/features/padron/components/total-votantes-c
 
 type DashboardPublicoPageProps = {
   idEleccion: number
-  section?: 'resumen' | 'padron' | 'estado'
+  section?: 'resumen' | 'padron' | 'estado' | 'oferta'
 }
 
 export const DashboardPublicoPage = ({
