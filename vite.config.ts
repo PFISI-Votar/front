@@ -70,6 +70,23 @@ export default defineConfig(({ mode }) => {
         },
         {
           extends: true,
+          // Pre-bundle deps used across browser suites so Vite does not
+          // mid-run optimize+reload (flake: Failed to fetch dynamically imported module).
+          optimizeDeps: {
+            include: [
+              'react',
+              'react/jsx-runtime',
+              'react/jsx-dev-runtime',
+              'react-dom',
+              'react-dom/client',
+              'react-top-loading-bar',
+              '@tanstack/react-query',
+              '@tanstack/react-router',
+              'axios',
+              'recharts',
+              'lucide-react',
+            ],
+          },
           test: {
             name: 'browser',
             include: [

@@ -79,4 +79,10 @@ jobs:
         run: npm ci
 
       - name: Run browser tests
-        run: npm run test:browser
+        # Retry once: Vitest browser can flake if Vite mid-run dep optimization reloads the page.
+        run: |
+          npm run test:browser || {
+            echo "::warning::browser tests failed once; retrying after clearing Vite cache"
+            rm -rf node_modules/.vite
+            npm run test:browser
+          }
