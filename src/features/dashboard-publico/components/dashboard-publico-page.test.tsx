@@ -154,7 +154,9 @@ describe('DashboardPublicoPage', () => {
     await expect
       .element(screen.getByText('Total de votantes habilitados'))
       .toBeInTheDocument()
-    await expect.element(screen.getByText('1.500')).toBeInTheDocument()
+    await expect
+      .element(screen.getByLabelText(/1\.500 votantes habilitados/i))
+      .toBeInTheDocument()
     await expect
       .element(screen.getByText('Estado del comicio'))
       .toBeInTheDocument()
@@ -189,13 +191,16 @@ describe('DashboardPublicoPage', () => {
     await expect
       .element(screen.getByText('Estado del comicio'))
       .toBeInTheDocument()
-    await expect.element(screen.getByText('1.500')).toBeInTheDocument()
+    await expect
+      .element(screen.getByLabelText(/1\.500 votantes habilitados/i))
+      .toBeInTheDocument()
     await expect
       .element(screen.getByText(/Actualización periódica activa/i))
       .toBeInTheDocument()
     await expect
-      .element(screen.getByText(/Votos emitidos/i))
+      .element(screen.getByRole('group', { name: /participación/i }))
       .toBeInTheDocument()
+    await expect.element(screen.getByText('Votos emitidos')).toBeInTheDocument()
   })
 
   it('renderiza sección resultados con gráficos (VOTAR-364)', async () => {
@@ -215,10 +220,12 @@ describe('DashboardPublicoPage', () => {
     const screen = await renderPage(6, 'resultados')
 
     await expect
-      .element(screen.getByText(/Votos por candidato/i))
+      .element(screen.getByRole('heading', { name: /^Votos por candidato$/i }))
       .toBeInTheDocument()
     await expect
-      .element(screen.getByText(/Distribución relativa/i))
+      .element(
+        screen.getByRole('heading', { name: /^Distribución relativa$/i })
+      )
       .toBeInTheDocument()
   })
 
