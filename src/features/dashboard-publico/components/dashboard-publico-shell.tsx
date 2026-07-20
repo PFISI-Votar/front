@@ -3,7 +3,8 @@ import { Link } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
 import { VotarLoginBackground } from '@/features/auth/sign-in/components/login-screen-shared'
 
-type DashboardSection = 'resumen' | 'padron' | 'estado' | 'resultados'
+type DashboardSection =
+  'resumen' | 'padron' | 'estado' | 'resultados' | 'oferta'
 
 type DashboardPublicoShellProps = {
   idEleccion: number
@@ -21,6 +22,11 @@ const navItems = [
     section: 'resultados' as const,
     label: 'Resultados',
     to: '/comicios/$idEleccion/dashboard/resultados',
+  },
+  {
+    section: 'oferta' as const,
+    label: 'Oferta electoral',
+    to: '/comicios/$idEleccion/dashboard/oferta',
   },
   {
     section: 'padron' as const,

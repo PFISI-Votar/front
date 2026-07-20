@@ -80,7 +80,7 @@ const mockEscrutinioLive = {
 
 const renderPage = async (
   idEleccion: number,
-  section?: 'resumen' | 'padron' | 'estado' | 'resultados'
+  section?: 'resumen' | 'padron' | 'estado' | 'resultados' | 'oferta'
 ) => {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false } },
