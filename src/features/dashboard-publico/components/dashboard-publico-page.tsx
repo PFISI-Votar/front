@@ -6,6 +6,7 @@ import {
   DashboardPublicoErrorPanel,
   DashboardPublicoShell,
 } from '@/features/dashboard-publico/components/dashboard-publico-shell'
+import { EscrutinioPanel } from '@/features/dashboard-publico/components/escrutinio-panel'
 import { EstadoComicioCard } from '@/features/dashboard-publico/components/estado-comicio-card'
 import {
   isDashboardFrozen,
@@ -15,7 +16,7 @@ import { TotalVotantesCard } from '@/features/padron/components/total-votantes-c
 
 type DashboardPublicoPageProps = {
   idEleccion: number
-  section?: 'resumen' | 'padron' | 'estado'
+  section?: 'resumen' | 'padron' | 'estado' | 'resultados'
 }
 
 export const DashboardPublicoPage = ({
@@ -85,6 +86,22 @@ export const DashboardPublicoPage = ({
             : 'Auditoría ciudadana sin autenticación. Los indicadores públicos se actualizan con los datos agregados del comicio.'
         }
       />
+
+      {(section === 'resumen' || section === 'resultados') && (
+        <section
+          aria-labelledby='escrutinio-publico-heading'
+          className={section === 'resumen' ? 'mb-8 space-y-4' : 'space-y-4'}
+        >
+          <h2 id='escrutinio-publico-heading' className='sr-only'>
+            Resultados del escrutinio
+          </h2>
+          <EscrutinioPanel
+            idEleccion={idEleccion}
+            fullCharts={section === 'resultados'}
+            estadoComicio={estado}
+          />
+        </section>
+      )}
 
       {(section === 'resumen' || section === 'padron') && (
         <section aria-labelledby='padron-publico-heading' className='space-y-4'>

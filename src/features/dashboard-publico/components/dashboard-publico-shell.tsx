@@ -3,9 +3,11 @@ import { Link } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
 import { VotarLoginBackground } from '@/features/auth/sign-in/components/login-screen-shared'
 
+type DashboardSection = 'resumen' | 'padron' | 'estado' | 'resultados'
+
 type DashboardPublicoShellProps = {
   idEleccion: number
-  activeSection?: 'resumen' | 'padron' | 'estado'
+  activeSection?: DashboardSection
   children: ReactNode
 }
 
@@ -14,6 +16,11 @@ const navItems = [
     section: 'resumen' as const,
     label: 'Resumen',
     to: '/comicios/$idEleccion/dashboard',
+  },
+  {
+    section: 'resultados' as const,
+    label: 'Resultados',
+    to: '/comicios/$idEleccion/dashboard/resultados',
   },
   {
     section: 'padron' as const,
@@ -34,7 +41,7 @@ export const DashboardPublicoShell = ({
 }: DashboardPublicoShellProps) => (
   <main className='relative min-h-svh overflow-hidden bg-[#fdfcfa] text-[#202124]'>
     <VotarLoginBackground />
-    <div className='relative mx-auto flex min-h-svh w-full max-w-3xl flex-col px-4 py-10 sm:px-6 sm:py-14'>
+    <div className='relative mx-auto flex min-h-svh w-full max-w-5xl flex-col px-4 py-10 sm:px-6 sm:py-14'>
       <div className='mb-10 flex items-center justify-between gap-4'>
         <p className='text-2xl leading-none font-extrabold tracking-tight text-[#2f6f9f]'>
           VOTAR
