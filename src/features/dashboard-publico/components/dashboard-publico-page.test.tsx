@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   useTotalVotantesPublico: vi.fn(),
   useEscrutinio: vi.fn(),
   useDashboardResultadosWebSocket: vi.fn(),
+  obtenerParticipacionPublica: vi.fn(),
 }))
 
 vi.mock('@tanstack/react-router', () => ({
@@ -46,6 +47,10 @@ vi.mock(
     useDashboardResultadosWebSocket: mocks.useDashboardResultadosWebSocket,
   })
 )
+
+vi.mock('@/features/dashboard-publico/api/participacion-publica-api', () => ({
+  obtenerParticipacionPublica: mocks.obtenerParticipacionPublica,
+}))
 
 const mockEscrutinioLive = {
   idEleccion: 6,
@@ -106,6 +111,27 @@ describe('DashboardPublicoPage', () => {
       isError: false,
     })
     mocks.useDashboardResultadosWebSocket.mockReturnValue(undefined)
+    mocks.obtenerParticipacionPublica.mockResolvedValue({
+      idEleccion: 6,
+      snapshotCongelado: false,
+      formula: {
+        totalPadron: 100,
+        votosAfirmativos: 25,
+        votosEnBlanco: 0,
+        votosNulos: 0,
+        totalSufragios: 25,
+        porcentajeParticipacion: 25,
+        expresion: '(25 + 0 + 0) / 100 × 100 = 25%',
+      },
+      serieTemporal: [],
+      desglosePorCategoria: [],
+      verificacionTotales: {
+        coherente: true,
+        totalOnChain: 25,
+        totalCalculado: 25,
+      },
+      fuenteDatos: 'AuditViewContract.getParticipationStats',
+    })
   })
 
   it('rechaza un identificador de comicio inválido', async () => {

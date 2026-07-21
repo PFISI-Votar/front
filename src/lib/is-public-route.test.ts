@@ -6,6 +6,7 @@ describe('isPublicRoute', () => {
     expect(isPublicRoute('/comicios/6/dashboard')).toBe(true)
     expect(isPublicRoute('/comicios/6/dashboard/')).toBe(true)
     expect(isPublicRoute('/comicios/6/dashboard/padron')).toBe(true)
+    expect(isPublicRoute('/comicios/6/dashboard/participacion')).toBe(true)
     expect(isPublicRoute('/comicios/12/dashboard/estado')).toBe(true)
   })
 

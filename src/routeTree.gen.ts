@@ -42,6 +42,7 @@ import { Route as AuthenticatedComiciosNuevoRouteImport } from './routes/_authen
 import { Route as ComiciosIdEleccionDashboardRouteRouteImport } from './routes/comicios/$idEleccion/dashboard/route'
 import { Route as ComiciosIdEleccionDashboardIndexRouteImport } from './routes/comicios/$idEleccion/dashboard/index'
 import { Route as ComiciosIdEleccionDashboardResultadosRouteImport } from './routes/comicios/$idEleccion/dashboard/resultados'
+import { Route as ComiciosIdEleccionDashboardParticipacionRouteImport } from './routes/comicios/$idEleccion/dashboard/participacion'
 import { Route as ComiciosIdEleccionDashboardPadronRouteImport } from './routes/comicios/$idEleccion/dashboard/padron'
 import { Route as ComiciosIdEleccionDashboardOfertaRouteImport } from './routes/comicios/$idEleccion/dashboard/oferta'
 import { Route as ComiciosIdEleccionDashboardEstadoRouteImport } from './routes/comicios/$idEleccion/dashboard/estado'
@@ -229,6 +230,12 @@ const ComiciosIdEleccionDashboardResultadosRoute =
     path: '/resultados',
     getParentRoute: () => ComiciosIdEleccionDashboardRouteRoute,
   } as any)
+const ComiciosIdEleccionDashboardParticipacionRoute =
+  ComiciosIdEleccionDashboardParticipacionRouteImport.update({
+    id: '/participacion',
+    path: '/participacion',
+    getParentRoute: () => ComiciosIdEleccionDashboardRouteRoute,
+  } as any)
 const ComiciosIdEleccionDashboardPadronRoute =
   ComiciosIdEleccionDashboardPadronRouteImport.update({
     id: '/padron',
@@ -315,6 +322,7 @@ export interface FileRoutesByFullPath {
   '/comicios/$idEleccion/dashboard/estado': typeof ComiciosIdEleccionDashboardEstadoRoute
   '/comicios/$idEleccion/dashboard/oferta': typeof ComiciosIdEleccionDashboardOfertaRoute
   '/comicios/$idEleccion/dashboard/padron': typeof ComiciosIdEleccionDashboardPadronRoute
+  '/comicios/$idEleccion/dashboard/participacion': typeof ComiciosIdEleccionDashboardParticipacionRoute
   '/comicios/$idEleccion/dashboard/resultados': typeof ComiciosIdEleccionDashboardResultadosRoute
   '/comicios/$idEleccion/dashboard/': typeof ComiciosIdEleccionDashboardIndexRoute
   '/comicios/$idEleccion/padron/preview': typeof AuthenticatedComiciosIdEleccionPadronPreviewRoute
@@ -354,6 +362,7 @@ export interface FileRoutesByTo {
   '/comicios/$idEleccion/dashboard/estado': typeof ComiciosIdEleccionDashboardEstadoRoute
   '/comicios/$idEleccion/dashboard/oferta': typeof ComiciosIdEleccionDashboardOfertaRoute
   '/comicios/$idEleccion/dashboard/padron': typeof ComiciosIdEleccionDashboardPadronRoute
+  '/comicios/$idEleccion/dashboard/participacion': typeof ComiciosIdEleccionDashboardParticipacionRoute
   '/comicios/$idEleccion/dashboard/resultados': typeof ComiciosIdEleccionDashboardResultadosRoute
   '/comicios/$idEleccion/dashboard': typeof ComiciosIdEleccionDashboardIndexRoute
   '/comicios/$idEleccion/padron/preview': typeof AuthenticatedComiciosIdEleccionPadronPreviewRoute
@@ -398,6 +407,7 @@ export interface FileRoutesById {
   '/comicios/$idEleccion/dashboard/estado': typeof ComiciosIdEleccionDashboardEstadoRoute
   '/comicios/$idEleccion/dashboard/oferta': typeof ComiciosIdEleccionDashboardOfertaRoute
   '/comicios/$idEleccion/dashboard/padron': typeof ComiciosIdEleccionDashboardPadronRoute
+  '/comicios/$idEleccion/dashboard/participacion': typeof ComiciosIdEleccionDashboardParticipacionRoute
   '/comicios/$idEleccion/dashboard/resultados': typeof ComiciosIdEleccionDashboardResultadosRoute
   '/comicios/$idEleccion/dashboard/': typeof ComiciosIdEleccionDashboardIndexRoute
   '/_authenticated/comicios/$idEleccion/padron_/preview': typeof AuthenticatedComiciosIdEleccionPadronPreviewRoute
@@ -442,6 +452,7 @@ export interface FileRouteTypes {
     | '/comicios/$idEleccion/dashboard/estado'
     | '/comicios/$idEleccion/dashboard/oferta'
     | '/comicios/$idEleccion/dashboard/padron'
+    | '/comicios/$idEleccion/dashboard/participacion'
     | '/comicios/$idEleccion/dashboard/resultados'
     | '/comicios/$idEleccion/dashboard/'
     | '/comicios/$idEleccion/padron/preview'
@@ -481,6 +492,7 @@ export interface FileRouteTypes {
     | '/comicios/$idEleccion/dashboard/estado'
     | '/comicios/$idEleccion/dashboard/oferta'
     | '/comicios/$idEleccion/dashboard/padron'
+    | '/comicios/$idEleccion/dashboard/participacion'
     | '/comicios/$idEleccion/dashboard/resultados'
     | '/comicios/$idEleccion/dashboard'
     | '/comicios/$idEleccion/padron/preview'
@@ -524,6 +536,7 @@ export interface FileRouteTypes {
     | '/comicios/$idEleccion/dashboard/estado'
     | '/comicios/$idEleccion/dashboard/oferta'
     | '/comicios/$idEleccion/dashboard/padron'
+    | '/comicios/$idEleccion/dashboard/participacion'
     | '/comicios/$idEleccion/dashboard/resultados'
     | '/comicios/$idEleccion/dashboard/'
     | '/_authenticated/comicios/$idEleccion/padron_/preview'
@@ -781,6 +794,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ComiciosIdEleccionDashboardResultadosRouteImport
       parentRoute: typeof ComiciosIdEleccionDashboardRouteRoute
     }
+    '/comicios/$idEleccion/dashboard/participacion': {
+      id: '/comicios/$idEleccion/dashboard/participacion'
+      path: '/participacion'
+      fullPath: '/comicios/$idEleccion/dashboard/participacion'
+      preLoaderRoute: typeof ComiciosIdEleccionDashboardParticipacionRouteImport
+      parentRoute: typeof ComiciosIdEleccionDashboardRouteRoute
+    }
     '/comicios/$idEleccion/dashboard/padron': {
       id: '/comicios/$idEleccion/dashboard/padron'
       path: '/padron'
@@ -925,6 +945,7 @@ interface ComiciosIdEleccionDashboardRouteRouteChildren {
   ComiciosIdEleccionDashboardEstadoRoute: typeof ComiciosIdEleccionDashboardEstadoRoute
   ComiciosIdEleccionDashboardOfertaRoute: typeof ComiciosIdEleccionDashboardOfertaRoute
   ComiciosIdEleccionDashboardPadronRoute: typeof ComiciosIdEleccionDashboardPadronRoute
+  ComiciosIdEleccionDashboardParticipacionRoute: typeof ComiciosIdEleccionDashboardParticipacionRoute
   ComiciosIdEleccionDashboardResultadosRoute: typeof ComiciosIdEleccionDashboardResultadosRoute
   ComiciosIdEleccionDashboardIndexRoute: typeof ComiciosIdEleccionDashboardIndexRoute
 }
@@ -937,6 +958,8 @@ const ComiciosIdEleccionDashboardRouteRouteChildren: ComiciosIdEleccionDashboard
       ComiciosIdEleccionDashboardOfertaRoute,
     ComiciosIdEleccionDashboardPadronRoute:
       ComiciosIdEleccionDashboardPadronRoute,
+    ComiciosIdEleccionDashboardParticipacionRoute:
+      ComiciosIdEleccionDashboardParticipacionRoute,
     ComiciosIdEleccionDashboardResultadosRoute:
       ComiciosIdEleccionDashboardResultadosRoute,
     ComiciosIdEleccionDashboardIndexRoute:

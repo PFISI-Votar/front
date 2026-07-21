@@ -51,6 +51,14 @@ export default defineConfig(({ mode }) => {
     preview: {
       headers: previewHeaders,
     },
+    optimizeDeps: {
+      include: [
+        'react',
+        'react-dom/client',
+        'react-top-loading-bar',
+        'recharts',
+      ],
+    },
     test: {
       silent: 'passed-only',
       unstubEnvs: true,
