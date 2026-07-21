@@ -5,7 +5,7 @@ import { VotarLoginBackground } from '@/features/auth/sign-in/components/login-s
 
 type DashboardPublicoShellProps = {
   idEleccion: number
-  activeSection?: 'resumen' | 'padron' | 'estado' | 'participacion'
+  activeSection?: 'resumen' | 'padron' | 'estado' | 'oferta' | 'participacion'
   children: ReactNode
 }
 
@@ -14,6 +14,11 @@ const navItems = [
     section: 'resumen' as const,
     label: 'Resumen',
     to: '/comicios/$idEleccion/dashboard',
+  },
+  {
+    section: 'oferta' as const,
+    label: 'Oferta electoral',
+    to: '/comicios/$idEleccion/dashboard/oferta',
   },
   {
     section: 'padron' as const,
