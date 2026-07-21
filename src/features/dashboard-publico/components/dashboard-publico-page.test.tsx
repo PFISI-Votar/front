@@ -7,6 +7,8 @@ import { DashboardPublicoPage } from './dashboard-publico-page'
 const mocks = vi.hoisted(() => ({
   obtenerConfiguracionBud: vi.fn(),
   useTotalVotantesPublico: vi.fn(),
+  useEscrutinio: vi.fn(),
+  useDashboardResultadosWebSocket: vi.fn(),
   obtenerParticipacionPublica: vi.fn(),
 }))
 
@@ -34,13 +36,56 @@ vi.mock('@/features/padron/hooks/use-padron', () => ({
   useTotalVotantesPublico: mocks.useTotalVotantesPublico,
 }))
 
+vi.mock('@/features/dashboard-publico/hooks/use-escrutinio', () => ({
+  useEscrutinio: mocks.useEscrutinio,
+  escrutinioQueryKey: (id: number) => ['dashboard-publico-escrutinio', id],
+}))
+
+vi.mock(
+  '@/features/dashboard-publico/hooks/use-dashboard-resultados-websocket',
+  () => ({
+    useDashboardResultadosWebSocket: mocks.useDashboardResultadosWebSocket,
+  })
+)
+
 vi.mock('@/features/dashboard-publico/api/participacion-publica-api', () => ({
   obtenerParticipacionPublica: mocks.obtenerParticipacionPublica,
 }))
 
+const mockEscrutinioLive = {
+  idEleccion: 6,
+  nombre: 'Elección Centro de Estudiantes',
+  estado: 'ABIERTA',
+  congelado: false,
+  fuente: 'ON_CHAIN' as const,
+  actualizadoEn: new Date().toISOString(),
+  participacion: {
+    totalVotos: 12,
+    votosBlanco: 1,
+    votosNulo: 0,
+    totalVotantesHabilitados: 1500,
+    porcentajeParticipacion: 0.8,
+  },
+  candidatos: [
+    {
+      idCandidato: 1,
+      nombre: 'Ana',
+      apellido: 'Pérez',
+      idLista: 1,
+      nombreLista: 'Lista A',
+      siglaLista: 'LA',
+      colorLista: '#2f6f9f',
+      idCategoria: 1,
+      nombreCategoria: 'Presidente',
+      votos: 11,
+      porcentaje: 91.7,
+    },
+  ],
+}
+
 const renderPage = async (
   idEleccion: number,
-  section?: 'resumen' | 'padron' | 'estado'
+  section?: 'resumen' | 'padron' | 'estado' | 'resultados' | 'oferta'
 ) => {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -60,6 +105,12 @@ describe('DashboardPublicoPage', () => {
       isLoading: false,
       isError: false,
     })
+    mocks.useEscrutinio.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+    })
+    mocks.useDashboardResultadosWebSocket.mockReturnValue(undefined)
     mocks.obtenerParticipacionPublica.mockResolvedValue({
       idEleccion: 6,
       snapshotCongelado: false,
@@ -129,12 +180,21 @@ describe('DashboardPublicoPage', () => {
     await expect
       .element(screen.getByText('Total de votantes habilitados'))
       .toBeInTheDocument()
-    await expect.element(screen.getByText('1.500')).toBeInTheDocument()
+    await expect
+      .element(screen.getByLabelText(/1\.500 votantes habilitados/i))
+      .toBeInTheDocument()
     await expect
       .element(screen.getByText('Estado del comicio'))
       .toBeInTheDocument()
     await expect
       .element(screen.getByRole('navigation', { name: /dashboard público/i }))
+      .toBeInTheDocument()
+    await expect
+      .element(
+        screen.getByText(
+          /escrutinio estará disponible cuando el comicio esté abierto/i
+        )
+      )
       .toBeInTheDocument()
   })
 
@@ -146,15 +206,79 @@ describe('DashboardPublicoPage', () => {
       tipoVotacion: 'POR_LISTA',
       metodosAutenticacion: ['SSO_INSTITUCIONAL'],
     })
+    mocks.useEscrutinio.mockReturnValue({
+      data: mockEscrutinioLive,
+      isLoading: false,
+      isError: false,
+    })
 
     const screen = await renderPage(6)
 
     await expect
       .element(screen.getByText('Estado del comicio'))
       .toBeInTheDocument()
-    await expect.element(screen.getByText('1.500')).toBeInTheDocument()
+    await expect
+      .element(screen.getByLabelText(/1\.500 votantes habilitados/i))
+      .toBeInTheDocument()
     await expect
       .element(screen.getByText(/Actualización periódica activa/i))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByRole('group', { name: /participación/i }))
+      .toBeInTheDocument()
+    await expect.element(screen.getByText('Votos emitidos')).toBeInTheDocument()
+  })
+
+  it('renderiza sección resultados con gráficos (VOTAR-364)', async () => {
+    mocks.obtenerConfiguracionBud.mockResolvedValue({
+      idEleccion: 6,
+      nombre: 'Elección Centro de Estudiantes',
+      estado: 'ABIERTA',
+      tipoVotacion: 'POR_LISTA',
+      metodosAutenticacion: ['SSO_INSTITUCIONAL'],
+    })
+    mocks.useEscrutinio.mockReturnValue({
+      data: mockEscrutinioLive,
+      isLoading: false,
+      isError: false,
+    })
+
+    const screen = await renderPage(6, 'resultados')
+
+    await expect
+      .element(screen.getByRole('heading', { name: /^Votos por candidato$/i }))
+      .toBeInTheDocument()
+    await expect
+      .element(
+        screen.getByRole('heading', { name: /^Distribución relativa$/i })
+      )
+      .toBeInTheDocument()
+  })
+
+  it('muestra banner congelado cuando el snapshot está frozen', async () => {
+    mocks.obtenerConfiguracionBud.mockResolvedValue({
+      idEleccion: 6,
+      nombre: 'Elección Centro de Estudiantes',
+      estado: 'CERRADA',
+      tipoVotacion: 'POR_LISTA',
+      metodosAutenticacion: ['SSO_INSTITUCIONAL'],
+      resultadosDefinitivos: true,
+      snapshotCongelado: true,
+    })
+    mocks.useEscrutinio.mockReturnValue({
+      data: {
+        ...mockEscrutinioLive,
+        estado: 'CERRADA',
+        congelado: true,
+      },
+      isLoading: false,
+      isError: false,
+    })
+
+    const screen = await renderPage(6, 'resultados')
+
+    await expect
+      .element(screen.getByText(/resultados son definitivos e inmutables/i))
       .toBeInTheDocument()
   })
 
@@ -165,6 +289,11 @@ describe('DashboardPublicoPage', () => {
       estado: 'ABIERTA',
       tipoVotacion: 'POR_LISTA',
       metodosAutenticacion: ['SSO_INSTITUCIONAL'],
+    })
+    mocks.useEscrutinio.mockReturnValue({
+      data: mockEscrutinioLive,
+      isLoading: false,
+      isError: false,
     })
 
     const padronScreen = await renderPage(6, 'padron')
@@ -190,6 +319,11 @@ describe('DashboardPublicoPage', () => {
       data: undefined,
       isLoading: false,
       isError: true,
+    })
+    mocks.useEscrutinio.mockReturnValue({
+      data: mockEscrutinioLive,
+      isLoading: false,
+      isError: false,
     })
 
     const screen = await renderPage(6, 'padron')
