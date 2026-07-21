@@ -7,6 +7,7 @@ import { DashboardPublicoPage } from './dashboard-publico-page'
 const mocks = vi.hoisted(() => ({
   obtenerConfiguracionBud: vi.fn(),
   useTotalVotantesPublico: vi.fn(),
+  obtenerParticipacionPublica: vi.fn(),
 }))
 
 vi.mock('@tanstack/react-router', () => ({
@@ -33,6 +34,10 @@ vi.mock('@/features/padron/hooks/use-padron', () => ({
   useTotalVotantesPublico: mocks.useTotalVotantesPublico,
 }))
 
+vi.mock('@/features/dashboard-publico/api/participacion-publica-api', () => ({
+  obtenerParticipacionPublica: mocks.obtenerParticipacionPublica,
+}))
+
 const renderPage = async (
   idEleccion: number,
   section?: 'resumen' | 'padron' | 'estado'
@@ -54,6 +59,27 @@ describe('DashboardPublicoPage', () => {
       data: { totalVotantesHabilitados: 1500 },
       isLoading: false,
       isError: false,
+    })
+    mocks.obtenerParticipacionPublica.mockResolvedValue({
+      idEleccion: 6,
+      snapshotCongelado: false,
+      formula: {
+        totalPadron: 100,
+        votosAfirmativos: 25,
+        votosEnBlanco: 0,
+        votosNulos: 0,
+        totalSufragios: 25,
+        porcentajeParticipacion: 25,
+        expresion: '(25 + 0 + 0) / 100 × 100 = 25%',
+      },
+      serieTemporal: [],
+      desglosePorCategoria: [],
+      verificacionTotales: {
+        coherente: true,
+        totalOnChain: 25,
+        totalCalculado: 25,
+      },
+      fuenteDatos: 'AuditViewContract.getParticipationStats',
     })
   })
 
