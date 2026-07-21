@@ -144,7 +144,10 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
   const sinPadron = resumenQuery.isError && esError404(resumenQuery.error)
   const tienePadron = Boolean(resumenQuery.data) && !sinPadron
   const merkleQuery = usePadronMerkle(idEleccion, tienePadron)
-  const publicarMerkleMutation = usePublicarMerkle(idEleccion)
+  const {
+    runInBackground: publicarMerkleEnBackground,
+    isRunning: publicandoMerkle,
+  } = usePublicarMerkle(idEleccion)
   const puedeCargar = esBorrador && sinPadron
   const puedePublicarOnChain =
     merkleQuery.data?.estado === 'GENERADO' &&
@@ -357,10 +360,10 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
               {puedePublicarOnChain && (
                 <Button
                   onClick={() => setPublicarAbierto(true)}
-                  disabled={publicarMerkleMutation.isPending}
+                  disabled={publicandoMerkle}
                   aria-label='Publicar Raíz on-chain'
                 >
-                  {publicarMerkleMutation.isPending ? (
+                  {publicandoMerkle ? (
                     <Loader2 className='size-4 animate-spin' />
                   ) : (
                     <Link2 className='size-4' />
@@ -610,13 +613,13 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
       <ConfirmDialog
         open={publicarAbierto}
         onOpenChange={setPublicarAbierto}
-        isLoading={publicarMerkleMutation.isPending}
         title='¿Publicar Raíz on-chain?'
         desc={
           <>
             Se enviará la raíz Merkle del padrón a la red Sepolia. Esta acción
             ancla de forma pública e inmutable la lista de electores habilitados
-            antes del inicio del comicio.
+            antes del inicio del comicio. La publicación continuará en segundo
+            plano y podrá seguir navegando el panel.
             {merkleQuery.data && (
               <span className='mt-2 block font-mono text-xs break-all'>
                 {merkleQuery.data.merkleRoot}
@@ -627,9 +630,8 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
         cancelBtnText='Cancelar'
         confirmText='Publicar Raíz on-chain'
         handleConfirm={() => {
-          publicarMerkleMutation.mutate(undefined, {
-            onSuccess: () => setPublicarAbierto(false),
-          })
+          setPublicarAbierto(false)
+          publicarMerkleEnBackground()
         }}
       />
     </div>
