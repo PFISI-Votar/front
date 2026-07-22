@@ -2,35 +2,45 @@ import {
   escrutinioSchema,
   type Escrutinio,
 } from '@/features/dashboard-publico/data/escrutinio.schema'
+import {
+  buildResumenPorCategoria,
+  buildResumenPorLista,
+  buildVotoEnBlanco,
+  calcularBaseVotosValidos,
+} from '@/features/dashboard-publico/lib/escrutinio-export/escrutinio-export-calculos'
 import type {
   EscrutinioExportDocument,
   EscrutinioExportFormat,
-  EscrutinioResumenCategoria,
+  EscrutinioExportResultados,
 } from '@/features/dashboard-publico/lib/escrutinio-export/escrutinio-export.types'
+import { TIPOS_VOTACION } from '@/features/eleccion/lista/data/schema'
 
-const buildResumenPorCategoria = (
-  candidatos: Escrutinio['candidatos']
-): EscrutinioResumenCategoria[] => {
-  const byCategoria = new Map<number, EscrutinioResumenCategoria>()
-  for (const candidato of candidatos) {
-    const existing = byCategoria.get(candidato.idCategoria)
-    if (existing) {
-      existing.candidatos.push(candidato)
-      existing.totalVotosCategoria += candidato.votos
-      continue
-    }
-    byCategoria.set(candidato.idCategoria, {
-      idCategoria: candidato.idCategoria,
-      nombreCategoria: candidato.nombreCategoria,
-      totalVotosCategoria: candidato.votos,
-      candidatos: [candidato],
-    })
-  }
-  return [...byCategoria.values()].sort(
-    (a, b) =>
-      a.idCategoria - b.idCategoria ||
-      a.nombreCategoria.localeCompare(b.nombreCategoria)
+const buildResultados = (
+  escrutinio: Escrutinio
+): EscrutinioExportResultados => {
+  const baseVotosValidos = calcularBaseVotosValidos(escrutinio.participacion)
+  const votoEnBlanco = buildVotoEnBlanco(
+    escrutinio.participacion,
+    baseVotosValidos
   )
+  if (escrutinio.tipoVotacion === TIPOS_VOTACION.POR_LISTA) {
+    return {
+      tipoVotacion: TIPOS_VOTACION.POR_LISTA,
+      resumenPorLista: buildResumenPorLista(
+        escrutinio.candidatos,
+        baseVotosValidos
+      ),
+      votoEnBlanco,
+    }
+  }
+  return {
+    tipoVotacion: escrutinio.tipoVotacion,
+    resumenPorCategoria: buildResumenPorCategoria(
+      escrutinio.candidatos,
+      baseVotosValidos
+    ),
+    votoEnBlanco,
+  }
 }
 
 export const buildEscrutinioExportDocument = (
@@ -44,6 +54,7 @@ export const buildEscrutinioExportDocument = (
       idEleccion: validated.idEleccion,
       nombre: validated.nombre,
       estado: validated.estado,
+      tipoVotacion: validated.tipoVotacion,
       fuente: validated.fuente,
       actualizadoEn: validated.actualizadoEn,
       exportadoEn,
@@ -52,6 +63,6 @@ export const buildEscrutinioExportDocument = (
     },
     participacion: validated.participacion,
     candidatos: validated.candidatos,
-    resumenPorCategoria: buildResumenPorCategoria(validated.candidatos),
+    resultados: buildResultados(validated),
   }
 }

@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx'
 import { descargarArchivo } from '@/features/dashboard-publico/lib/escrutinio-export/descargar-archivo'
 import { buildEscrutinioExportFilename } from '@/features/dashboard-publico/lib/escrutinio-export/escrutinio-export-filename'
 import type { EscrutinioExportDocument } from '@/features/dashboard-publico/lib/escrutinio-export/escrutinio-export.types'
+import { TIPOS_VOTACION } from '@/features/eleccion/lista/data/schema'
 
 const buildParticipacionSheet = (
   document: EscrutinioExportDocument
@@ -12,6 +13,7 @@ const buildParticipacionSheet = (
     ['ID Elección', metadata.idEleccion],
     ['Nombre', metadata.nombre],
     ['Estado', metadata.estado],
+    ['Tipo de votación', metadata.tipoVotacion],
     ['Fuente', metadata.fuente],
     ['Actualizado en', metadata.actualizadoEn],
     ['Exportado en', metadata.exportadoEn],
@@ -26,9 +28,70 @@ const buildParticipacionSheet = (
   return sheet
 }
 
-const buildResultadosSheet = (
+const buildResultadosPorListaSheet = (
   document: EscrutinioExportDocument
 ): XLSX.WorkSheet => {
+  if (document.resultados.tipoVotacion !== TIPOS_VOTACION.POR_LISTA) {
+    throw new Error('Se esperaba resultados por lista')
+  }
+  const { resumenPorLista, votoEnBlanco } = document.resultados
+  const totalesHeader = ['Lista', 'Sigla', 'Votos', 'Porcentaje (%)']
+  const totalesRows = resumenPorLista.map((lista) => [
+    lista.nombreLista,
+    lista.siglaLista ?? '',
+    lista.totalVotosLista,
+    lista.porcentaje,
+  ])
+  if (votoEnBlanco) {
+    totalesRows.push([
+      'En blanco',
+      '',
+      votoEnBlanco.votos,
+      votoEnBlanco.porcentaje,
+    ])
+  }
+  const integrantesHeader = [
+    'Lista',
+    'Sigla',
+    'Categoría',
+    'Apellido',
+    'Nombre',
+  ]
+  const integrantesRows = resumenPorLista.flatMap((lista) =>
+    lista.candidatos.map((candidato) => [
+      lista.nombreLista,
+      lista.siglaLista ?? '',
+      candidato.nombreCategoria,
+      candidato.apellido,
+      candidato.nombre,
+    ])
+  )
+  const data = [
+    ['Totales por lista'],
+    totalesHeader,
+    ...totalesRows,
+    [],
+    ['Integrantes por lista'],
+    integrantesHeader,
+    ...integrantesRows,
+  ]
+  const sheet = XLSX.utils.aoa_to_sheet(data)
+  sheet['!cols'] = [
+    { wch: 24 },
+    { wch: 10 },
+    { wch: 22 },
+    { wch: 18 },
+    { wch: 18 },
+  ]
+  return sheet
+}
+
+const buildResultadosPorCategoriaSheet = (
+  document: EscrutinioExportDocument
+): XLSX.WorkSheet => {
+  if (document.resultados.tipoVotacion === TIPOS_VOTACION.POR_LISTA) {
+    throw new Error('Se esperaba resultados por categoría')
+  }
   const header = [
     'Categoría',
     'Lista',
@@ -47,8 +110,26 @@ const buildResultadosSheet = (
     candidato.votos,
     candidato.porcentaje,
   ])
-  const totalVotos = document.participacion.totalVotos
-  const data = [header, ...rows, ['', '', '', '', 'TOTAL', totalVotos, '']]
+  if (document.resultados.votoEnBlanco) {
+    rows.push([
+      'En blanco',
+      '',
+      '',
+      '',
+      '',
+      document.resultados.votoEnBlanco.votos,
+      document.resultados.votoEnBlanco.porcentaje,
+    ])
+  }
+  const baseVotosValidos = Math.max(
+    0,
+    document.participacion.totalVotos - document.participacion.votosNulo
+  )
+  const data = [
+    header,
+    ...rows,
+    ['', '', '', '', 'TOTAL', baseVotosValidos, ''],
+  ]
   const sheet = XLSX.utils.aoa_to_sheet(data)
   sheet['!cols'] = [
     { wch: 22 },
@@ -60,6 +141,15 @@ const buildResultadosSheet = (
     { wch: 14 },
   ]
   return sheet
+}
+
+const buildResultadosSheet = (
+  document: EscrutinioExportDocument
+): XLSX.WorkSheet => {
+  if (document.resultados.tipoVotacion === TIPOS_VOTACION.POR_LISTA) {
+    return buildResultadosPorListaSheet(document)
+  }
+  return buildResultadosPorCategoriaSheet(document)
 }
 
 export const buildEscrutinioXlsxBuffer = (

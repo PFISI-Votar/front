@@ -55,6 +55,7 @@ export const exportEscrutinioPdf = async (
     ['Comicio', metadata.nombre],
     ['ID Elección', String(metadata.idEleccion)],
     ['Estado', metadata.estado],
+    ['Tipo de votación', metadata.tipoVotacion],
     ['Fuente', metadata.fuente],
     ['Snapshot on-chain', formatFecha(metadata.actualizadoEn)],
     ['Exportado', formatFecha(metadata.exportadoEn)],
@@ -105,50 +106,102 @@ export const exportEscrutinioPdf = async (
   yPos = ensureSpace(doc, yPos, 20)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(12)
-  doc.text('Resultados por categoría', MARGIN, yPos)
+  doc.text('Resultados', MARGIN, yPos)
   yPos += 8
 
-  if (document.resumenPorCategoria.length === 0) {
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(10)
-    doc.text('No hay candidatos oficializados para este comicio.', MARGIN, yPos)
-    yPos += ROW_HEIGHT
+  const { resultados } = document
+
+  if (resultados.tipoVotacion === 'POR_LISTA') {
+    if (resultados.resumenPorLista.length === 0) {
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+      doc.text('No hay listas oficializadas para este comicio.', MARGIN, yPos)
+      yPos += ROW_HEIGHT
+    }
+    for (const lista of resultados.resumenPorLista) {
+      yPos = ensureSpace(doc, yPos, 20)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(11)
+      doc.setTextColor(...ACCENT_COLOR)
+      doc.text(
+        `${lista.nombreLista}${lista.siglaLista ? ` (${lista.siglaLista})` : ''} — ${lista.totalVotosLista} votos (${lista.porcentaje}%)`,
+        MARGIN,
+        yPos
+      )
+      yPos += 7
+      doc.setTextColor(32, 33, 36)
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'normal')
+      for (const candidato of lista.candidatos) {
+        yPos = ensureSpace(doc, yPos, ROW_HEIGHT)
+        doc.text(
+          `${candidato.nombreCategoria}: ${candidato.apellido}, ${candidato.nombre}`,
+          MARGIN + 4,
+          yPos
+        )
+        yPos += ROW_HEIGHT
+      }
+      yPos += 4
+    }
+  } else {
+    if (resultados.resumenPorCategoria.length === 0) {
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+      doc.text(
+        'No hay candidatos oficializados para este comicio.',
+        MARGIN,
+        yPos
+      )
+      yPos += ROW_HEIGHT
+    }
+    for (const categoria of resultados.resumenPorCategoria) {
+      yPos = ensureSpace(doc, yPos, 20)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(11)
+      doc.setTextColor(...ACCENT_COLOR)
+      doc.text(
+        `${categoria.nombreCategoria} (${categoria.totalVotosCategoria} votos)`,
+        MARGIN,
+        yPos
+      )
+      yPos += 7
+      doc.setTextColor(32, 33, 36)
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Lista', MARGIN, yPos)
+      doc.text('Candidato', MARGIN + 45, yPos)
+      doc.text('Votos', MARGIN + 120, yPos)
+      doc.text('%', MARGIN + 140, yPos)
+      yPos += 5
+      doc.setLineWidth(0.2)
+      doc.line(MARGIN, yPos, pageWidth - MARGIN, yPos)
+      yPos += 5
+      doc.setFont('helvetica', 'normal')
+      for (const candidato of categoria.candidatos) {
+        yPos = ensureSpace(doc, yPos, ROW_HEIGHT)
+        const listaLabel = candidato.siglaLista ?? candidato.nombreLista
+        const candidatoLabel = `${candidato.apellido}, ${candidato.nombre}`
+        doc.text(doc.splitTextToSize(listaLabel, 40), MARGIN, yPos)
+        doc.text(doc.splitTextToSize(candidatoLabel, 70), MARGIN + 45, yPos)
+        doc.text(String(candidato.votos), MARGIN + 120, yPos)
+        doc.text(String(candidato.porcentaje), MARGIN + 140, yPos)
+        yPos += ROW_HEIGHT
+      }
+      yPos += 4
+    }
   }
 
-  for (const categoria of document.resumenPorCategoria) {
-    yPos = ensureSpace(doc, yPos, 20)
+  if (resultados.votoEnBlanco) {
+    yPos = ensureSpace(doc, yPos, ROW_HEIGHT)
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(11)
-    doc.setTextColor(...ACCENT_COLOR)
+    doc.setFontSize(10)
+    doc.setTextColor(32, 33, 36)
     doc.text(
-      `${categoria.nombreCategoria} (${categoria.totalVotosCategoria} votos)`,
+      `En blanco: ${resultados.votoEnBlanco.votos} votos (${resultados.votoEnBlanco.porcentaje}%)`,
       MARGIN,
       yPos
     )
-    yPos += 7
-    doc.setTextColor(32, 33, 36)
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Lista', MARGIN, yPos)
-    doc.text('Candidato', MARGIN + 45, yPos)
-    doc.text('Votos', MARGIN + 120, yPos)
-    doc.text('%', MARGIN + 140, yPos)
-    yPos += 5
-    doc.setLineWidth(0.2)
-    doc.line(MARGIN, yPos, pageWidth - MARGIN, yPos)
-    yPos += 5
-    doc.setFont('helvetica', 'normal')
-    for (const candidato of categoria.candidatos) {
-      yPos = ensureSpace(doc, yPos, ROW_HEIGHT)
-      const listaLabel = candidato.siglaLista ?? candidato.nombreLista
-      const candidatoLabel = `${candidato.apellido}, ${candidato.nombre}`
-      doc.text(doc.splitTextToSize(listaLabel, 40), MARGIN, yPos)
-      doc.text(doc.splitTextToSize(candidatoLabel, 70), MARGIN + 45, yPos)
-      doc.text(String(candidato.votos), MARGIN + 120, yPos)
-      doc.text(String(candidato.porcentaje), MARGIN + 140, yPos)
-      yPos += ROW_HEIGHT
-    }
-    yPos += 4
+    yPos += ROW_HEIGHT
   }
 
   yPos = ensureSpace(doc, yPos, 25)

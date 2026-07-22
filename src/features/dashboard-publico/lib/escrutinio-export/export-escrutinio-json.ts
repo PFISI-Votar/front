@@ -2,10 +2,23 @@ import { descargarArchivo } from '@/features/dashboard-publico/lib/escrutinio-ex
 import { buildEscrutinioExportFilename } from '@/features/dashboard-publico/lib/escrutinio-export/escrutinio-export-filename'
 import type { EscrutinioExportDocument } from '@/features/dashboard-publico/lib/escrutinio-export/escrutinio-export.types'
 
+export const buildEscrutinioJsonPayload = (
+  document: EscrutinioExportDocument
+): Record<string, unknown> => ({
+  metadata: document.metadata,
+  participacion: document.participacion,
+  candidatos: document.candidatos,
+  resultados: document.resultados,
+})
+
 export const exportEscrutinioJson = (
   document: EscrutinioExportDocument
 ): void => {
-  const contenido = JSON.stringify(document, null, 2)
+  const contenido = JSON.stringify(
+    buildEscrutinioJsonPayload(document),
+    null,
+    2
+  )
   const blob = new Blob([contenido], { type: 'application/json;charset=utf-8' })
   const nombreArchivo = buildEscrutinioExportFilename(
     document.metadata.idEleccion,

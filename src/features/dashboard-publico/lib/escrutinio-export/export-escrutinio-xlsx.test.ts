@@ -8,6 +8,7 @@ const mockEscrutinio: Escrutinio = {
   idEleccion: 5,
   nombre: 'Elección Demo',
   estado: 'ESCRUTADA',
+  tipoVotacion: 'POR_LISTA',
   congelado: true,
   fuente: 'ON_CHAIN',
   actualizadoEn: '2026-07-20T19:00:00.000Z',
@@ -51,15 +52,11 @@ describe('export-escrutinio-xlsx — VOTAR-369 UAT-01', () => {
       workbook.Sheets['Resultados']!,
       { header: 1 }
     )
-    expect(resultados[0]).toEqual([
-      'Categoría',
-      'Lista',
-      'Sigla',
-      'Apellido',
-      'Nombre',
-      'Votos',
-      'Porcentaje (%)',
-    ])
-    expect(resultados[1]?.[4]).toBe('María')
+    expect(resultados[0]?.[0]).toBe('Totales por lista')
+    expect(resultados[1]).toEqual(['Lista', 'Sigla', 'Votos', 'Porcentaje (%)'])
+    expect(resultados[2]?.[0]).toBe('Lista Unidad')
+    expect(resultados.some((row) => row[0] === 'Integrantes por lista')).toBe(
+      true
+    )
   })
 })

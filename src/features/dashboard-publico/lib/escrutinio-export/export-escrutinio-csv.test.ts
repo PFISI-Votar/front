@@ -8,6 +8,7 @@ const mockEscrutinio: Escrutinio = {
   idEleccion: 3,
   nombre: 'Comicio Test',
   estado: 'CERRADA',
+  tipoVotacion: 'POR_CANDIDATO',
   congelado: true,
   fuente: 'ON_CHAIN',
   actualizadoEn: '2026-07-20T19:00:00.000Z',

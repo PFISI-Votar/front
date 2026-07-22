@@ -2,6 +2,7 @@ import { descargarArchivo } from '@/features/dashboard-publico/lib/escrutinio-ex
 import { buildEscrutinioExportFilename } from '@/features/dashboard-publico/lib/escrutinio-export/escrutinio-export-filename'
 import type { EscrutinioExportDocument } from '@/features/dashboard-publico/lib/escrutinio-export/escrutinio-export.types'
 import { escapeCsvCell } from '@/features/dashboard-publico/lib/escrutinio-export/sanitize-csv-cell'
+import { TIPOS_VOTACION } from '@/features/eleccion/lista/data/schema'
 
 const UTF8_BOM = '\uFEFF'
 
@@ -12,6 +13,7 @@ const buildMetadataSection = (document: EscrutinioExportDocument): string => {
     ['id_eleccion', metadata.idEleccion],
     ['nombre', metadata.nombre],
     ['estado', metadata.estado],
+    ['tipo_votacion', metadata.tipoVotacion],
     ['fuente', metadata.fuente],
     ['actualizado_en', metadata.actualizadoEn],
     ['exportado_en', metadata.exportadoEn],
@@ -27,7 +29,67 @@ const buildMetadataSection = (document: EscrutinioExportDocument): string => {
     .join('\n')
 }
 
-const buildResultadosSection = (document: EscrutinioExportDocument): string => {
+const buildResultadosPorListaSection = (
+  document: EscrutinioExportDocument
+): string => {
+  if (document.resultados.tipoVotacion !== TIPOS_VOTACION.POR_LISTA) {
+    throw new Error('Se esperaba resultados por lista')
+  }
+  const totalesHeader = ['lista', 'sigla_lista', 'votos', 'porcentaje']
+  const totalesRows = document.resultados.resumenPorLista.map((lista) => [
+    lista.nombreLista,
+    lista.siglaLista ?? '',
+    lista.totalVotosLista,
+    lista.porcentaje,
+  ])
+  if (document.resultados.votoEnBlanco) {
+    totalesRows.push([
+      'En blanco',
+      '',
+      document.resultados.votoEnBlanco.votos,
+      document.resultados.votoEnBlanco.porcentaje,
+    ])
+  }
+  const integrantesHeader = [
+    'lista',
+    'sigla_lista',
+    'categoria',
+    'candidato_apellido',
+    'candidato_nombre',
+  ]
+  const integrantesRows = document.resultados.resumenPorLista.flatMap((lista) =>
+    lista.candidatos.map((candidato) => [
+      lista.nombreLista,
+      lista.siglaLista ?? '',
+      candidato.nombreCategoria,
+      candidato.apellido,
+      candidato.nombre,
+    ])
+  )
+  const sections = [
+    ['totales_por_lista'],
+    totalesHeader,
+    ...totalesRows,
+    [],
+    ['integrantes_por_lista'],
+    integrantesHeader,
+    ...integrantesRows,
+  ]
+  return sections
+    .map((row) =>
+      Array.isArray(row)
+        ? row.map((cell) => escapeCsvCell(cell)).join(',')
+        : escapeCsvCell(row)
+    )
+    .join('\n')
+}
+
+const buildResultadosPorCategoriaSection = (
+  document: EscrutinioExportDocument
+): string => {
+  if (document.resultados.tipoVotacion === TIPOS_VOTACION.POR_LISTA) {
+    throw new Error('Se esperaba resultados por categoría')
+  }
   const header = [
     'categoria',
     'lista',
@@ -46,9 +108,27 @@ const buildResultadosSection = (document: EscrutinioExportDocument): string => {
     candidato.votos,
     candidato.porcentaje,
   ])
+  if (document.resultados.votoEnBlanco) {
+    rows.push([
+      'En blanco',
+      '',
+      '',
+      '',
+      '',
+      document.resultados.votoEnBlanco.votos,
+      document.resultados.votoEnBlanco.porcentaje,
+    ])
+  }
   return [header, ...rows]
     .map((row) => row.map((cell) => escapeCsvCell(cell)).join(','))
     .join('\n')
+}
+
+const buildResultadosSection = (document: EscrutinioExportDocument): string => {
+  if (document.resultados.tipoVotacion === TIPOS_VOTACION.POR_LISTA) {
+    return buildResultadosPorListaSection(document)
+  }
+  return buildResultadosPorCategoriaSection(document)
 }
 
 export const buildEscrutinioCsvContent = (
