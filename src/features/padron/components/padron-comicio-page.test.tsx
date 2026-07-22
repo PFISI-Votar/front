@@ -36,8 +36,8 @@ vi.mock('@/features/padron/hooks/use-padron', () => ({
 
 vi.mock('@/features/padron/hooks/use-publicar-merkle', () => ({
   usePublicarMerkle: vi.fn().mockReturnValue({
-    mutate: vi.fn(),
-    isPending: false,
+    runInBackground: vi.fn(),
+    isRunning: false,
   }),
 }))
 
