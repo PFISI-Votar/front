@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Command,
   Vote,
+  ScrollText,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -48,6 +49,11 @@ export const sidebarData: SidebarData = {
               url: '/comicios',
             },
           ],
+        },
+        {
+          title: 'Auditoría',
+          url: '/auditoria',
+          icon: ScrollText,
         },
       ],
     },

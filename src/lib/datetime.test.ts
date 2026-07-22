@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   clampLocalTime,
   combineLocalDateTime,
+  formatDateTime24ForDisplay,
   formatDateTimeForDisplay,
   getMinLocalTimeForDay,
   isHourOptionDisabled,
@@ -47,6 +48,14 @@ describe('datetime utilities', () => {
 
     expect(formatted).toMatch(/20\/6\/26/)
     expect(formatted.length).toBeGreaterThan(0)
+  })
+
+  it('formats UTC ISO values in 24-hour clock without am/pm', () => {
+    const formatted = formatDateTime24ForDisplay('2026-06-20T17:30:00.000Z')
+
+    expect(formatted).toMatch(/20\/0?6\/26/)
+    expect(formatted).not.toMatch(/a\.?\s?m\.?|p\.?\s?m\.?/i)
+    expect(formatted).toMatch(/\d{2}:\d{2}/)
   })
 
   it('requires the next minute when the selected day matches minDate', () => {
