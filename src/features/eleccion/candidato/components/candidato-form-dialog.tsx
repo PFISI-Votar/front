@@ -1,12 +1,10 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -153,6 +151,8 @@ export const CandidatoFormDialog = ({
                 isEditMode ? 'Guardar cambios' : 'Registrar candidato'
               }
               onConflictError={setConflictMessage}
+              onCancel={() => handleOpenChange(false)}
+              isActionsDisabled={isSaving}
               onSubmit={async (values) => {
                 if (isEditMode) {
                   await actualizarCandidatoMutation.mutateAsync(values)
@@ -163,17 +163,6 @@ export const CandidatoFormDialog = ({
             />
           )
         )}
-
-        <DialogFooter>
-          <Button
-            type='button'
-            variant='outline'
-            onClick={() => handleOpenChange(false)}
-            disabled={isSaving}
-          >
-            Cancelar
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

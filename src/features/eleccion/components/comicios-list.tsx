@@ -68,17 +68,14 @@ const AbrirComicioDialog = ({
   onOpenChange,
   onPreconditionError,
 }: AbrirComicioDialogProps) => {
-  const { mutate: abrirEleccion, isPending } = useAbrirEleccion(
-    idEleccion,
-    onPreconditionError
-  )
+  const { runInBackground, isRunning } = useAbrirEleccion(idEleccion, {
+    onPreconditionError,
+    padronPath: `/comicios/${idEleccion}/padron`,
+  })
 
   const handleConfirm = () => {
-    abrirEleccion(undefined, {
-      onSuccess: () => {
-        onOpenChange(false)
-      },
-    })
+    onOpenChange(false)
+    runInBackground()
   }
 
   return (
@@ -92,7 +89,8 @@ const AbrirComicioDialog = ({
               <br />
               <br />
               Esta acción habilitará la interfaz de votación (BUD) y comenzará a
-              recibir votos de forma oficial. Asegúrese de que:
+              recibir votos de forma oficial. La apertura continuará en segundo
+              plano y podrá seguir navegando el panel. Asegúrese de que:
               <ul className='mt-2 list-inside list-disc space-y-1 text-sm'>
                 <li>La raíz de Merkle del padrón esté publicada on-chain</li>
                 <li>Los Smart Contracts estén disponibles en Sepolia</li>
@@ -102,17 +100,13 @@ const AbrirComicioDialog = ({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button
-            variant='outline'
-            onClick={() => onOpenChange(false)}
-            disabled={isPending}
-          >
+          <Button variant='outline' onClick={() => onOpenChange(false)}>
             <X />
             Cancelar
           </Button>
-          <Button onClick={handleConfirm} disabled={isPending}>
+          <Button onClick={handleConfirm} disabled={isRunning}>
             <Play />
-            {isPending ? 'Abriendo...' : 'Abrir comicio'}
+            Abrir comicio
           </Button>
         </DialogFooter>
       </DialogContent>
