@@ -16,7 +16,7 @@ export const politicaRevotoSchema = z.enum(['LAST_VOTE_WINS', 'DISABLED'])
 
 export const guardarConfiguracionRevotoSchema = z.object({
   permitirVotoMultiple: z.boolean(),
-  maxVotosPorVotante: z.number().int().min(1).max(1).optional(),
+  maxVotosPorVotante: z.number().int().min(2).max(2).optional(),
 })
 
 export type GuardarConfiguracionRevotoInput = z.infer<

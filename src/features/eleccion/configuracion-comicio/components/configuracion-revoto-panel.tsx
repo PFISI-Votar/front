@@ -79,6 +79,11 @@ export const ConfiguracionRevotoPanel = ({
   useEffect(() => {
     if (!permitirVotoMultiple) {
       form.setValue('maxVotosPorVotante', 1)
+      return
+    }
+    const currentMax = form.getValues('maxVotosPorVotante') ?? 1
+    if (currentMax < 2) {
+      form.setValue('maxVotosPorVotante', 2)
     }
   }, [permitirVotoMultiple, form])
 
@@ -213,15 +218,15 @@ export const ConfiguracionRevotoPanel = ({
                       <FormLabel>Máximo de sufragios por votante</FormLabel>
                       <FormDescription>
                         {permitirVotoMultiple
-                          ? 'Límite de emisiones por sesión electoral (VOTAR-324 ampliará este rango).'
+                          ? 'Mínimo 2 sufragios: voto inicial y una modificación (VOTAR-324 ampliará este rango).'
                           : 'Deshabilitado mientras el re-voto esté inactivo.'}
                       </FormDescription>
                       <FormControl>
                         <Input
                           type='number'
-                          min={1}
-                          max={1}
-                          value={field.value ?? 1}
+                          min={permitirVotoMultiple ? 2 : 1}
+                          max={permitirVotoMultiple ? 2 : 1}
+                          value={field.value ?? (permitirVotoMultiple ? 2 : 1)}
                           onChange={(event) =>
                             field.onChange(Number(event.target.value))
                           }
