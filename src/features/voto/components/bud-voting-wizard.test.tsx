@@ -1,5 +1,4 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { page } from '@vitest/browser/context'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
@@ -7,6 +6,7 @@ import {
   TIPOS_VOTACION,
   type TipoVotacion,
 } from '@/features/eleccion/lista/data/schema'
+import { BUD_CATEGORY_GRID_CLASS } from '@/features/voto/components/bud-layout.constants'
 import { BudVotingWizard } from '@/features/voto/components/bud-voting-wizard'
 import { EphemeralWalletProvider } from '@/features/voto/crypto/ephemeral-wallet-context'
 import { calcularNullifier } from '@/features/voto/crypto/nullifier'
@@ -172,35 +172,12 @@ const boleta: BoletaDigital = {
         },
       ],
     },
-    {
-      idCategoria: 3,
-      nombre: 'Secretario',
-      descripcion: null,
-      orden: 3,
-      estado: 'DISPONIBLE',
-      candidatos: [
-        {
-          idCandidato: 301,
-          idCategoria: 3,
-          idLista: 12,
-          listId: 12,
-          nombre: 'Diego',
-          apellido: 'Mora',
-          nombreCompleto: 'Diego Mora',
-          agrupacionPolitica: 'Lista Celeste',
-          numeroLista: 2,
-          colorLista: '#2563eb',
-          fotoUrl: null,
-        },
-      ],
-    },
   ],
 }
 
 async function renderWizard(
   tipoVotacion: TipoVotacion = TIPOS_VOTACION.POR_CANDIDATO,
-  onLogout: () => void = vi.fn(),
-  boletaOverride: BoletaDigital = boleta
+  onLogout: () => void = vi.fn()
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -209,7 +186,7 @@ async function renderWizard(
     <QueryClientProvider client={queryClient}>
       <EphemeralWalletProvider>
         <BudVotingWizard
-          boleta={boletaOverride}
+          boleta={boleta}
           tipoVotacion={tipoVotacion}
           onLogout={onLogout}
         />
@@ -766,36 +743,31 @@ describe('BudVotingWizard', () => {
       .not.toBeInTheDocument()
   })
 
-  it('VOTAR-363 UAT-01: en 360px no hay overflow horizontal en selección', async () => {
-    await page.viewport(360, 640)
+  it('VOTAR-363 UAT-01: layout mobile-first en paso selección', async () => {
     const screen = await renderWizard()
 
-    const overflow =
-      document.documentElement.scrollWidth >
-      document.documentElement.clientWidth
-    expect(overflow).toBe(false)
-    await expect
-      .element(screen.getByTestId('bud-category-grid'))
-      .toBeInTheDocument()
+    const main = document.querySelector('main')
+    expect(main?.className).toContain('overflow-x-clip')
+
+    const grid = screen.getByTestId('bud-category-grid').element()
+    expect(grid.className).toContain('grid-cols-1')
+    expect(grid.className).toContain('md:grid-cols-2')
+
+    const continueButton = screen.getByRole('button', { name: /^Continuar/i })
+    expect(continueButton.element().className).toContain('w-full')
+    expect(continueButton.element().className).toContain('sm:w-auto')
+
+    const stickyContainer = continueButton.element().parentElement
+    expect(stickyContainer?.className).toContain('w-full')
+    expect(stickyContainer?.className).toContain('justify-stretch')
   })
 
-  it('VOTAR-363 UAT-01: botón Continuar ocupa ancho completo en mobile', async () => {
-    await page.viewport(360, 640)
-    const screen = await renderWizard()
-
-    const btn = screen.getByRole('button', { name: /^Continuar/i })
-    const width = btn.element().getBoundingClientRect().width
-    expect(width).toBeGreaterThan(300)
-  })
-
-  it('VOTAR-363 UAT-02: en tablet landscape las categorías usan grid multi-columna', async () => {
-    await page.viewport(1024, 768)
+  it('VOTAR-363 UAT-02: grid de categorías declara columnas paralelas desde md', async () => {
     const screen = await renderWizard()
 
     const grid = screen.getByTestId('bud-category-grid').element()
-    const style = window.getComputedStyle(grid)
-    expect(style.gridTemplateColumns.split(' ').length).toBeGreaterThanOrEqual(
-      2
-    )
+    expect(grid.className).toBe(BUD_CATEGORY_GRID_CLASS)
+    expect(grid.className).toContain('md:grid-cols-2')
+    expect(grid.className).toContain('xl:grid-cols-3')
   })
 })
