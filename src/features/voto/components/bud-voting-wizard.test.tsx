@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { page } from '@vitest/browser/context'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
@@ -171,12 +172,35 @@ const boleta: BoletaDigital = {
         },
       ],
     },
+    {
+      idCategoria: 3,
+      nombre: 'Secretario',
+      descripcion: null,
+      orden: 3,
+      estado: 'DISPONIBLE',
+      candidatos: [
+        {
+          idCandidato: 301,
+          idCategoria: 3,
+          idLista: 12,
+          listId: 12,
+          nombre: 'Diego',
+          apellido: 'Mora',
+          nombreCompleto: 'Diego Mora',
+          agrupacionPolitica: 'Lista Celeste',
+          numeroLista: 2,
+          colorLista: '#2563eb',
+          fotoUrl: null,
+        },
+      ],
+    },
   ],
 }
 
 async function renderWizard(
   tipoVotacion: TipoVotacion = TIPOS_VOTACION.POR_CANDIDATO,
-  onLogout: () => void = vi.fn()
+  onLogout: () => void = vi.fn(),
+  boletaOverride: BoletaDigital = boleta
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -185,7 +209,7 @@ async function renderWizard(
     <QueryClientProvider client={queryClient}>
       <EphemeralWalletProvider>
         <BudVotingWizard
-          boleta={boleta}
+          boleta={boletaOverride}
           tipoVotacion={tipoVotacion}
           onLogout={onLogout}
         />
@@ -740,5 +764,38 @@ describe('BudVotingWizard', () => {
     await expect
       .element(screen.getByText('Opciones especiales'))
       .not.toBeInTheDocument()
+  })
+
+  it('VOTAR-363 UAT-01: en 360px no hay overflow horizontal en selección', async () => {
+    await page.viewport(360, 640)
+    const screen = await renderWizard()
+
+    const overflow =
+      document.documentElement.scrollWidth >
+      document.documentElement.clientWidth
+    expect(overflow).toBe(false)
+    await expect
+      .element(screen.getByTestId('bud-category-grid'))
+      .toBeInTheDocument()
+  })
+
+  it('VOTAR-363 UAT-01: botón Continuar ocupa ancho completo en mobile', async () => {
+    await page.viewport(360, 640)
+    const screen = await renderWizard()
+
+    const btn = screen.getByRole('button', { name: /^Continuar/i })
+    const width = btn.element().getBoundingClientRect().width
+    expect(width).toBeGreaterThan(300)
+  })
+
+  it('VOTAR-363 UAT-02: en tablet landscape las categorías usan grid multi-columna', async () => {
+    await page.viewport(1024, 768)
+    const screen = await renderWizard()
+
+    const grid = screen.getByTestId('bud-category-grid').element()
+    const style = window.getComputedStyle(grid)
+    expect(style.gridTemplateColumns.split(' ').length).toBeGreaterThanOrEqual(
+      2
+    )
   })
 })

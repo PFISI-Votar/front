@@ -96,7 +96,7 @@ export const BudLoginScreen = ({
       <section className='relative mx-auto flex min-h-svh w-full max-w-md flex-col items-center justify-center px-4 py-8 sm:px-6'>
         <VotarBrandHeader className='mb-8' />
 
-        <Card className='w-full gap-0 rounded-2xl border-[#e4e7eb] bg-white/95 py-0 shadow-[0_1rem_3rem_rgba(30,64,95,0.08)] backdrop-blur-sm'>
+        <Card className='w-full min-w-0 gap-0 rounded-2xl border-[#e4e7eb] bg-white/95 py-0 shadow-[0_1rem_3rem_rgba(30,64,95,0.08)] backdrop-blur-sm'>
           <CardHeader className='space-y-1.5 px-6 pt-8 pb-0 text-center sm:px-8'>
             <CardTitle className='text-2xl font-bold tracking-tight text-[#202124]'>
               Bienvenido
