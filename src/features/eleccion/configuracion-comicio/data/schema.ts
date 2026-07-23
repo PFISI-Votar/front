@@ -14,10 +14,23 @@ export type MetodoAutenticacionInput = z.infer<typeof metodoAutenticacionSchema>
 
 export const politicaRevotoSchema = z.enum(['LAST_VOTE_WINS', 'DISABLED'])
 
-export const guardarConfiguracionRevotoSchema = z.object({
-  permitirVotoMultiple: z.boolean(),
-  maxVotosPorVotante: z.number().int().min(2).max(2).optional(),
-})
+export const guardarConfiguracionRevotoSchema = z
+  .object({
+    permitirVotoMultiple: z.boolean(),
+    maxVotosPorVotante: z.number().int().min(1).max(2).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.permitirVotoMultiple) {
+      return
+    }
+    if ((data.maxVotosPorVotante ?? 1) < 2) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Con re-voto habilitado se requieren al menos 2 sufragios',
+        path: ['maxVotosPorVotante'],
+      })
+    }
+  })
 
 export type GuardarConfiguracionRevotoInput = z.infer<
   typeof guardarConfiguracionRevotoSchema

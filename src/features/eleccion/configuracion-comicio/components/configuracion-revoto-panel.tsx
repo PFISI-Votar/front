@@ -91,7 +91,7 @@ export const ConfiguracionRevotoPanel = ({
     const payload: GuardarConfiguracionRevotoInput = {
       permitirVotoMultiple: values.permitirVotoMultiple,
       ...(values.permitirVotoMultiple
-        ? { maxVotosPorVotante: values.maxVotosPorVotante ?? 1 }
+        ? { maxVotosPorVotante: values.maxVotosPorVotante ?? 2 }
         : {}),
     }
     try {
