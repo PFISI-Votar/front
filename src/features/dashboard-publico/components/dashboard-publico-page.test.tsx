@@ -56,6 +56,7 @@ const mockEscrutinioLive = {
   idEleccion: 6,
   nombre: 'Elección Centro de Estudiantes',
   estado: 'ABIERTA',
+  tipoVotacion: 'POR_LISTA',
   congelado: false,
   fuente: 'ON_CHAIN' as const,
   actualizadoEn: new Date().toISOString(),

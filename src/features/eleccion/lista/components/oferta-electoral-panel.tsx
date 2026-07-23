@@ -22,7 +22,6 @@ import {
   getApiRulesViolations,
   isConflictError,
   isValidationError,
-  isPreconditionFailedError,
 } from '@/lib/api-client'
 import { resolveMediaUrl } from '@/lib/media-url'
 import { cn } from '@/lib/utils'
@@ -46,7 +45,6 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   eliminarEleccion,
   obtenerEleccion,
-  abrirEleccion,
   cerrarEleccion,
 } from '@/features/eleccion/api/eleccion-api'
 import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
@@ -58,6 +56,7 @@ import { CategoriasPanel } from '@/features/eleccion/categoria/components/catego
 import { ComicioVentanaElectoral } from '@/features/eleccion/components/comicio-ventana-electoral'
 import { EliminarComicioDialog } from '@/features/eleccion/components/eliminar-comicio-dialog'
 import { ConfiguracionRevotoPanel } from '@/features/eleccion/configuracion-comicio/components/configuracion-revoto-panel'
+import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
 import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
 import {
   getEstadoEleccionBadgeVariant,
@@ -261,29 +260,24 @@ export const OfertaElectoralPanel = ({
     oficializarMutation.mutate()
   }
 
-  const abrirComicioMutation = useMutation({
-    mutationFn: () => abrirEleccion(idEleccion),
-    onSuccess: async () => {
-      setAbrirDialogOpen(false)
+  const {
+    runInBackground: abrirComicioEnBackground,
+    isRunning: abriendoComicio,
+  } = useAbrirEleccion(idEleccion, {
+    onPreconditionError: (message) => {
+      setPreconditionError(message)
+    },
+    onSuccess: () => {
       setPreconditionError(null)
-      toast.success('Comicio abierto exitosamente')
-      await invalidateOferta()
-      await queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+      void invalidateOferta()
     },
-    onError: (error) => {
-      setAbrirDialogOpen(false)
-      if (isPreconditionFailedError(error)) {
-        const message = getApiErrorMessage(error)
-        setPreconditionError(message)
-        return
-      }
-      handleApiError(error)
-    },
+    padronPath: `/comicios/${idEleccion}/padron`,
   })
 
   const handleConfirmAbrir = () => {
     setPreconditionError(null)
-    abrirComicioMutation.mutate()
+    setAbrirDialogOpen(false)
+    abrirComicioEnBackground()
   }
 
   const cerrarComicioMutation = useMutation({
@@ -371,7 +365,7 @@ export const OfertaElectoralPanel = ({
           {eleccionQuery.data?.estado === 'CONFIGURADA' && (
             <Button
               onClick={() => setAbrirDialogOpen(true)}
-              disabled={abrirComicioMutation.isPending}
+              disabled={abriendoComicio}
               aria-haspopup='dialog'
               aria-label='Abrir comicio'
             >
@@ -765,13 +759,13 @@ export const OfertaElectoralPanel = ({
             Esta operación transicionará el comicio al estado{' '}
             <strong>ABIERTA</strong> y sincronizará el estado con la blockchain.
             Se validarán las precondiciones criptográficas (padrón cargado,
-            Merkle publicado on-chain). Una vez abierto, el sistema comenzará a
-            recibir votos.
+            Merkle publicado on-chain). La apertura continuará en segundo plano
+            y podrá seguir navegando el panel. Una vez abierto, el sistema
+            comenzará a recibir votos.
           </>
         }
         cancelBtnText='Cancelar'
         confirmText='Sí, abrir comicio'
-        isLoading={abrirComicioMutation.isPending}
         handleConfirm={handleConfirmAbrir}
       />
 
