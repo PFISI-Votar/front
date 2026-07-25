@@ -24,6 +24,7 @@ export type OnChainRevertName =
   | 'RevoteDisabled'
   | 'NullifierAlreadyUsed'
   | 'MerkleRootNotPublished'
+  | 'MaxVotesReached'
 
 export const VOTE_TX_FALLBACK_MESSAGE =
   'Ha ocurrido un error inesperado al procesar su voto. Por favor, verifique su conexión e intente nuevamente.'
@@ -38,6 +39,8 @@ export const VOTE_TX_MESSAGES = {
   notEligible:
     'Usted no se encuentra en el padrón electoral habilitado para esta elección.',
   electionClosed: 'El horario de votación ha finalizado.',
+  maxVotesReached:
+    'Ya utilizaste los [X] sufragios permitidos para esta elección.',
 } as const
 
 export type RevertErrorMapping = {
@@ -124,6 +127,21 @@ export const getMessageForRevert = (
       code: 'already_registered',
       message:
         'Este voto ya está registrado en la blockchain. No es necesario volver a enviarlo.',
+      severity: 'error',
+      isTransient: false,
+      canRetrySend: false,
+      canResign: false,
+    }
+  }
+
+  if (revertName === 'MaxVotesReached') {
+    const maxVotes = Number(args?.[1] ?? 0)
+    return {
+      code: 'already_registered',
+      message: VOTE_TX_MESSAGES.maxVotesReached.replace(
+        '[X]',
+        String(maxVotes)
+      ),
       severity: 'error',
       isTransient: false,
       canRetrySend: false,

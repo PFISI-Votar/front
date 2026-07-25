@@ -44,14 +44,44 @@ describe('ConfiguracionRevotoPanel (VOTAR-323)', () => {
     guardarConfiguracionRevotoMock.mockResolvedValue({ ...defaultConfig })
   })
 
-  it('UAT-01: deshabilita max votos cuando re-voto está off', async () => {
+  it('fuerza max votos a 1 cuando re-voto está off', async () => {
     await renderPanel()
     await userEvent.click(
       page.getByRole('button', { name: /Mostrar configuración de re-voto/i })
     )
 
     const maxInput = page.getByLabelText(/Máximo de sufragios por votante/i)
-    await expect.element(maxInput).toBeDisabled()
+    await expect.element(maxInput).toHaveValue(1)
+  })
+
+  it('VOTAR-324 UAT-01: acepta 5 (habilita re-voto) y, al cambiar a 1, lo deshabilita', async () => {
+    await renderPanel()
+    await userEvent.click(
+      page.getByRole('button', { name: /Mostrar configuración de re-voto/i })
+    )
+
+    const maxInput = page.getByLabelText(/Máximo de sufragios por votante/i)
+    await userEvent.fill(maxInput, '5')
+    await expect.element(maxInput).toHaveValue(5)
+
+    await userEvent.click(
+      page.getByRole('button', { name: /Guardar política de re-voto/i })
+    )
+    expect(guardarConfiguracionRevotoMock).toHaveBeenCalledWith(1, {
+      permitirVotoMultiple: true,
+      maxVotosPorVotante: 5,
+    })
+
+    await userEvent.fill(maxInput, '1')
+    await expect.element(maxInput).toHaveValue(1)
+    await expect.element(maxInput).toBeEnabled()
+
+    await userEvent.click(
+      page.getByRole('button', { name: /Guardar política de re-voto/i })
+    )
+    expect(guardarConfiguracionRevotoMock).toHaveBeenCalledWith(1, {
+      permitirVotoMultiple: false,
+    })
   })
 
   it('envía solo permitirVotoMultiple=false al guardar con re-voto off', async () => {
