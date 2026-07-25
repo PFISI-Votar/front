@@ -55,6 +55,7 @@ import { buildResumenDatosAdicionales } from '@/features/eleccion/candidato/util
 import { CategoriasPanel } from '@/features/eleccion/categoria/components/categorias-panel'
 import { ComicioVentanaElectoral } from '@/features/eleccion/components/comicio-ventana-electoral'
 import { EliminarComicioDialog } from '@/features/eleccion/components/eliminar-comicio-dialog'
+import { ConfiguracionRevotoPanel } from '@/features/eleccion/configuracion-comicio/components/configuracion-revoto-panel'
 import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
 import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
 import {
@@ -481,6 +482,11 @@ export const OfertaElectoralPanel = ({
           </AlertDescription>
         </Alert>
       )}
+
+      <ConfiguracionRevotoPanel
+        idEleccion={idEleccion}
+        isEditable={isEditable}
+      />
 
       <ConfiguracionDatosCandidatoPanel
         idEleccion={idEleccion}
