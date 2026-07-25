@@ -10,6 +10,7 @@ const sample: Escrutinio = {
   idEleccion: 1,
   nombre: 'Test',
   estado: 'ABIERTA',
+  tipoVotacion: 'POR_LISTA',
   congelado: false,
   fuente: 'ON_CHAIN',
   actualizadoEn: new Date().toISOString(),

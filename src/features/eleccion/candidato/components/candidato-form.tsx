@@ -45,6 +45,8 @@ type CandidatoFormProps = {
   currentFotoUrl?: string | null
   submitLabel: string
   onSubmit: (values: CreateCandidatoInput) => Promise<void>
+  onCancel?: () => void
+  isActionsDisabled?: boolean
   onConflictError?: (message: string) => void
 }
 
@@ -91,6 +93,8 @@ export const CandidatoForm = ({
   currentFotoUrl,
   submitLabel,
   onSubmit,
+  onCancel,
+  isActionsDisabled = false,
   onConflictError,
 }: CandidatoFormProps) => {
   const [localFotoPreview, setLocalFotoPreview] = useState<string | null>(null)
@@ -332,12 +336,28 @@ export const CandidatoForm = ({
           control={form.control}
           campos={camposConfig}
         />
-        <Button
-          type='submit'
-          disabled={form.formState.isSubmitting || !canSubmit}
-        >
-          {form.formState.isSubmitting ? 'Guardando…' : submitLabel}
-        </Button>
+        <div className='flex w-full gap-2'>
+          {onCancel ? (
+            <Button
+              type='button'
+              variant='outline'
+              className='flex-1'
+              onClick={onCancel}
+              disabled={form.formState.isSubmitting || isActionsDisabled}
+            >
+              Cancelar
+            </Button>
+          ) : null}
+          <Button
+            type='submit'
+            className={onCancel ? 'flex-1' : 'w-full'}
+            disabled={
+              form.formState.isSubmitting || isActionsDisabled || !canSubmit
+            }
+          >
+            {form.formState.isSubmitting ? 'Guardando…' : submitLabel}
+          </Button>
+        </div>
       </form>
     </Form>
   )
