@@ -8,13 +8,13 @@ import {
 import { describe, expect, it } from 'vitest'
 import { BALLOT_CONTRACT_ABI } from '@/features/voto/crypto/ballot-abi'
 import {
-  buildRetryTooSoonMessage,
+  buildCooldownActiveMessage,
   remainingSecondsToMinutes,
   VOTE_TX_FALLBACK_MESSAGE,
   VOTE_TX_MESSAGES,
 } from '@/features/voto/crypto/vote-tx-error-catalog'
 import {
-  buildOffChainRetryTooSoonError,
+  buildOffChainCooldownActiveError,
   mapVoteTxError,
 } from '@/features/voto/crypto/vote-tx-errors'
 
@@ -99,9 +99,9 @@ describe('mapVoteTxError — VOTAR-358 / VOTAR-341 / VOTAR-359', () => {
     ).toBe('NullifierAlreadyUsed')
   })
 
-  it('UAT-01: maps RetryTooSoon(180) to 3 minutes warning', () => {
+  it('VOTAR-325 UAT-01: maps CooldownActive(electionId, 180) to 3 minutes warning', () => {
     const mapped = mapVoteTxError(
-      createRevertedFromEncodedError('RetryTooSoon', [180n])
+      createRevertedFromEncodedError('CooldownActive', [339n, 180n])
     )
     expect(mapped.code).toBe('retry_too_soon')
     expect(mapped.severity).toBe('warning')
@@ -184,11 +184,11 @@ describe('mapVoteTxError — VOTAR-358 / VOTAR-341 / VOTAR-359', () => {
     expect(mapped.canResign).toBe(true)
   })
 
-  it('buildOffChainRetryTooSoonError uses remaining seconds from backend', () => {
-    const mapped = buildOffChainRetryTooSoonError(150)
+  it('buildOffChainCooldownActiveError uses remaining seconds from backend', () => {
+    const mapped = buildOffChainCooldownActiveError(150)
     expect(mapped.code).toBe('retry_too_soon')
     expect(mapped.remainingSeconds).toBe(150)
-    expect(mapped.message).toBe(buildRetryTooSoonMessage(3))
+    expect(mapped.message).toBe(buildCooldownActiveMessage(3))
   })
 })
 
@@ -200,7 +200,7 @@ describe('vote-tx-error-catalog helpers', () => {
     expect(remainingSecondsToMinutes(180)).toBe(3)
   })
 
-  it('buildRetryTooSoonMessage substitutes minutes', () => {
-    expect(buildRetryTooSoonMessage(3)).toContain('3 minutos')
+  it('buildCooldownActiveMessage substitutes minutes', () => {
+    expect(buildCooldownActiveMessage(3)).toContain('3 minutos')
   })
 })

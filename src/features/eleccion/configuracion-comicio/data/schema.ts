@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import {
+  MAX_INTERVALO_SEGUNDOS,
   MAX_SUFRAGIOS_POR_VOTANTE,
   METODOS_AUTENTICACION,
 } from '@/features/eleccion/configuracion-comicio/data/constants'
@@ -26,6 +27,12 @@ export const guardarConfiguracionRevotoSchema = z
       .min(1)
       .max(MAX_SUFRAGIOS_POR_VOTANTE)
       .optional(),
+    minIntervaloSegundos: z
+      .number()
+      .int()
+      .min(0)
+      .max(MAX_INTERVALO_SEGUNDOS)
+      .optional(),
   })
   .superRefine((data, ctx) => {
     if (!data.permitirVotoMultiple) {
@@ -48,6 +55,7 @@ export type ConfiguracionRevoto = {
   idEleccion: number
   permitirVotoMultiple: boolean
   maxVotosPorVotante: number
+  minIntervaloSegundos: number
   politicaRevoto: z.infer<typeof politicaRevotoSchema>
   editable: boolean
 }

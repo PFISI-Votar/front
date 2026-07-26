@@ -64,7 +64,7 @@ import {
 } from '@/features/voto/crypto/vote-transmitter'
 import { remainingSecondsToMinutes } from '@/features/voto/crypto/vote-tx-error-catalog'
 import {
-  buildOffChainRetryTooSoonError,
+  buildOffChainCooldownActiveError,
   mapVoteTxError,
   type VoteTxError,
 } from '@/features/voto/crypto/vote-tx-errors'
@@ -79,6 +79,7 @@ import {
   useRegistrarConsumoIntento,
 } from '@/features/voto/hooks/use-estado-revoto'
 import { useSolicitarMerkleProof } from '@/features/voto/hooks/use-merkle-proof'
+import { useVoterStateOnChain } from '@/features/voto/hooks/use-voter-state-onchain'
 import { generarReciboPDF } from '@/features/voto/lib/generar-recibo-pdf'
 import { clearVotanteSession } from '@/features/voto/services/votante-session'
 import {
@@ -332,18 +333,42 @@ export const BudVotingWizard = ({
     data: estadoRevoto,
     isLoading: isLoadingEstadoRevoto,
     isError: isEstadoRevotoError,
-    refetch: refetchEstadoRevoto,
   } = useEstadoRevoto(boleta.idEleccion)
   const registrarConsumoMutation = useRegistrarConsumoIntento(boleta.idEleccion)
   const {
     signVotePayload,
     initialize: initializeEphemeralWallet,
     destroy: destroyEphemeralWallet,
+    publicKeyHex,
   } = useEphemeralWallet()
+
+  // VOTAR-325: nullifier derivado apenas la billetera efímera está lista, para
+  // poder consultar getVoterState() on-chain desde el arranque del wizard
+  // (no solo al firmar). Determinístico por votante+elección (VOTAR-353).
+  const nullifier = useMemo(() => {
+    if (!publicKeyHex) {
+      return null
+    }
+    try {
+      return calcularNullifier(publicKeyHex, boleta.idEleccion)
+    } catch {
+      return null
+    }
+  }, [publicKeyHex, boleta.idEleccion])
+
+  const { data: voterStateOnChain, refetch: refetchVoterStateOnChain } =
+    useVoterStateOnChain(boleta.idEleccion, nullifier)
 
   const intentosAgotados =
     Boolean(estadoRevoto) && (estadoRevoto?.intentosRestantes ?? 1) === 0
-  const cooldownActivo = (estadoRevoto?.proximoReintentoEnSegundos ?? 0) > 0
+  // VOTAR-325 — el reloj del nodo manda en cuanto se conoce el nullifier
+  // (inmune a manipular el reloj del cliente, UAT-02); antes de eso (pre-
+  // identidad) se usa el valor advisory del backend.
+  const cooldownRemainingSeconds =
+    voterStateOnChain !== undefined
+      ? voterStateOnChain.cooldownRemaining
+      : (estadoRevoto?.proximoReintentoEnSegundos ?? 0)
+  const cooldownActivo = cooldownRemainingSeconds > 0
   const cooldownToastShownRef = useRef(false)
   // Derive UI step when attempts are exhausted or cooldown is active.
   const effectiveStep: WizardStep =
@@ -361,28 +386,10 @@ export const BudVotingWizard = ({
     if (cooldownToastShownRef.current) {
       return
     }
-    const remainingSeconds = estadoRevoto?.proximoReintentoEnSegundos ?? 0
-    if (remainingSeconds <= 0) {
-      return
-    }
-    const mapped = buildOffChainRetryTooSoonError(remainingSeconds)
+    const mapped = buildOffChainCooldownActiveError(cooldownRemainingSeconds)
     reportVoteTxError(mapped, boleta.idEleccion)
     cooldownToastShownRef.current = true
-  }, [
-    boleta.idEleccion,
-    cooldownActivo,
-    estadoRevoto?.proximoReintentoEnSegundos,
-  ])
-
-  useEffect(() => {
-    if (!cooldownActivo) {
-      return
-    }
-    const intervalId = window.setInterval(() => {
-      void refetchEstadoRevoto()
-    }, 30_000)
-    return () => window.clearInterval(intervalId)
-  }, [cooldownActivo, refetchEstadoRevoto])
+  }, [boleta.idEleccion, cooldownActivo, cooldownRemainingSeconds])
 
   const lists = useMemo(() => buildListsFromBoleta(boleta), [boleta])
   const roles = useMemo(() => buildRolesFromBoleta(boleta), [boleta])
@@ -565,9 +572,8 @@ export const BudVotingWizard = ({
   const handleSignVote = async () => {
     setSigningError(null)
 
-    const remainingCooldown = estadoRevoto?.proximoReintentoEnSegundos ?? 0
-    if (remainingCooldown > 0) {
-      const mapped = buildOffChainRetryTooSoonError(remainingCooldown)
+    if (cooldownRemainingSeconds > 0) {
+      const mapped = buildOffChainCooldownActiveError(cooldownRemainingSeconds)
       reportVoteTxError(mapped, boleta.idEleccion)
       setTxError(mapped)
       setTransmitPhase('error')
@@ -669,8 +675,9 @@ export const BudVotingWizard = ({
         )}
         {effectiveStep === 'cooldown' && (
           <RetryTooSoonPanel
-            proximoReintentoEnSegundos={
-              estadoRevoto?.proximoReintentoEnSegundos ?? 0
+            proximoReintentoEnSegundos={cooldownRemainingSeconds}
+            onRefetch={
+              nullifier ? () => void refetchVoterStateOnChain() : undefined
             }
             onLogout={handleLogout}
           />
@@ -1044,14 +1051,56 @@ const IdentityStep = ({
   </div>
 )
 
+/** VOTAR-325: "04:59" — formato mm:ss del contador regresivo de la BUD. */
+const formatMmSs = (totalSeconds: number): string => {
+  const clamped = Math.max(0, totalSeconds)
+  const minutes = Math.floor(clamped / 60)
+  const seconds = clamped % 60
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
 const RetryTooSoonPanel = ({
   proximoReintentoEnSegundos,
+  onRefetch,
   onLogout,
 }: {
   proximoReintentoEnSegundos: number
+  onRefetch?: () => void
   onLogout: () => void
 }) => {
-  const remainingMinutes = remainingSecondsToMinutes(proximoReintentoEnSegundos)
+  // VOTAR-325 UAT-02: el ancla (unlockAtMs) se resincroniza con Date.now()
+  // cada vez que llega un nuevo proximoReintentoEnSegundos del reloj de la
+  // red (on-chain refetch cada 30s); el ticker local solo interpola entre
+  // anclas, así que adelantar el reloj del SO no cambia el resultado final
+  // una vez el nodo resincroniza. Es un efecto legítimo de sincronización
+  // con un sistema externo (el reloj), no estado derivable en el render.
+  const [unlockAtMs, setUnlockAtMs] = useState(
+    () => Date.now() + proximoReintentoEnSegundos * 1000
+  )
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resync de ancla con el reloj externo, ver comentario arriba.
+    setUnlockAtMs(Date.now() + proximoReintentoEnSegundos * 1000)
+  }, [proximoReintentoEnSegundos])
+
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(Date.now()), 1_000)
+    return () => window.clearInterval(intervalId)
+  }, [])
+
+  const remainingSeconds = Math.max(0, Math.ceil((unlockAtMs - now) / 1000))
+
+  useEffect(() => {
+    if (remainingSeconds === 0) {
+      onRefetch?.()
+    }
+    // Solo dispara cuando el ticker local llega a cero, no en cada tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remainingSeconds === 0])
+
+  const remainingMinutes = remainingSecondsToMinutes(remainingSeconds)
+  const mmss = formatMmSs(remainingSeconds)
 
   return (
     <div className='mx-auto grid w-full max-w-2xl gap-5'>
@@ -1077,9 +1126,14 @@ const RetryTooSoonPanel = ({
             <Clock3 className='size-4' />
             <AlertTitle>Tiempo restante</AlertTitle>
             <AlertDescription aria-live='polite'>
-              Podrá emitir un nuevo sufragio en aproximadamente{' '}
-              {remainingMinutes} minuto{remainingMinutes === 1 ? '' : 's'} (
-              {proximoReintentoEnSegundos} segundos).
+              Próximo retry en{' '}
+              <span
+                className='font-mono font-semibold tabular-nums'
+                data-testid='retry-too-soon-countdown'
+              >
+                {mmss}
+              </span>{' '}
+              ({remainingMinutes} minuto{remainingMinutes === 1 ? '' : 's'}).
             </AlertDescription>
           </Alert>
         </CardContent>

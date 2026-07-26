@@ -26,5 +26,13 @@ export const useRegistrarConsumoIntento = (idEleccion: number) => {
     onSuccess: (data) => {
       queryClient.setQueryData(estadoRevotoQueryKey(idEleccion), data)
     },
+    // VOTAR-325: HTTP 429 con cooldown activo — el estado en caché quedó
+    // obsoleto (el cliente creía que podía sufragar). Forzar refetch para
+    // sincronizar con el tiempo real del servidor (UAT-01).
+    onError: () => {
+      void queryClient.invalidateQueries({
+        queryKey: estadoRevotoQueryKey(idEleccion),
+      })
+    },
   })
 }

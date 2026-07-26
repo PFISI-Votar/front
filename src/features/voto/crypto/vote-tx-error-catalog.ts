@@ -16,7 +16,7 @@ export type VoteTxErrorCode =
   | 'unknown'
 
 export type OnChainRevertName =
-  | 'RetryTooSoon'
+  | 'CooldownActive'
   | 'InvalidSignature'
   | 'EnforcedPause'
   | 'InvalidMerkleProof'
@@ -30,7 +30,7 @@ export const VOTE_TX_FALLBACK_MESSAGE =
   'Ha ocurrido un error inesperado al procesar su voto. Por favor, verifique su conexión e intente nuevamente.'
 
 export const VOTE_TX_MESSAGES = {
-  retryTooSoon:
+  cooldownActive:
     'Debe esperar [X] minutos antes de volver a votar. Por favor, intente nuevamente más tarde.',
   invalidSignature:
     'La firma de su voto no es válida. Por favor, asegúrese de que su sesión esté activa y vuelva a intentar.',
@@ -52,8 +52,8 @@ export type RevertErrorMapping = {
   canResign: boolean
 }
 
-export const buildRetryTooSoonMessage = (remainingMinutes: number): string =>
-  VOTE_TX_MESSAGES.retryTooSoon.replace('[X]', String(remainingMinutes))
+export const buildCooldownActiveMessage = (remainingMinutes: number): string =>
+  VOTE_TX_MESSAGES.cooldownActive.replace('[X]', String(remainingMinutes))
 
 export const remainingSecondsToMinutes = (remainingSeconds: number): number =>
   Math.max(1, Math.ceil(remainingSeconds / 60))
@@ -62,12 +62,13 @@ export const getMessageForRevert = (
   revertName: string,
   args?: readonly unknown[]
 ): RevertErrorMapping | null => {
-  if (revertName === 'RetryTooSoon') {
-    const remainingSeconds = Number(args?.[0] ?? 60)
+  if (revertName === 'CooldownActive') {
+    // CooldownActive(electionId, remainingSeconds) — VOTAR-325.
+    const remainingSeconds = Number(args?.[1] ?? 60)
     const remainingMinutes = remainingSecondsToMinutes(remainingSeconds)
     return {
       code: 'retry_too_soon',
-      message: buildRetryTooSoonMessage(remainingMinutes),
+      message: buildCooldownActiveMessage(remainingMinutes),
       severity: 'warning',
       isTransient: false,
       canRetrySend: false,
