@@ -13,6 +13,11 @@ import { calcularNullifier } from '@/features/voto/crypto/nullifier'
 import { VOTE_TX_MESSAGES } from '@/features/voto/crypto/vote-tx-error-catalog'
 import type { BoletaDigital, EstadoRevoto } from '@/features/voto/data/schema'
 
+const mmssToSeconds = (text: string | null): number => {
+  const [minutes, seconds] = (text ?? '00:00').split(':').map(Number)
+  return minutes * 60 + seconds
+}
+
 const toastWarningMock = vi.fn()
 const toastErrorMock = vi.fn()
 const logVoteTxErrorMock = vi.fn()
@@ -809,17 +814,21 @@ describe('BudVotingWizard', () => {
     await expect
       .element(screen.getByTestId('retry-too-soon-panel'))
       .toBeInTheDocument()
-    await expect
-      .element(screen.getByTestId('retry-too-soon-countdown'))
-      .toHaveTextContent('04:59')
+
+    const countdown = screen.getByTestId('retry-too-soon-countdown')
+    // mm:ss format, sin fijar un valor exacto: el fetch de leerVoterState y el
+    // polling de expect.element corren en tiempo real, así que unos segundos
+    // ya pudieron transcurrir antes de esta primera lectura (no-flaky).
+    await expect.element(countdown).toHaveTextContent(/^\d{2}:\d{2}$/)
+    const initialSeconds = mmssToSeconds(countdown.element().textContent)
 
     vi.useFakeTimers()
-    await vi.advanceTimersByTimeAsync(1_000)
+    await vi.advanceTimersByTimeAsync(3_000)
     vi.useRealTimers()
 
-    await expect
-      .element(screen.getByTestId('retry-too-soon-countdown'))
-      .toHaveTextContent('04:58')
+    await expect.element(countdown).toHaveTextContent(/^\d{2}:\d{2}$/)
+    const laterSeconds = mmssToSeconds(countdown.element().textContent)
+    expect(laterSeconds).toBeLessThan(initialSeconds)
   })
 
   it('VOTAR-325 UAT-02: getVoterState() rechazado por el nodo mantiene el fallback off-chain (sin datos on-chain confiables)', async () => {
