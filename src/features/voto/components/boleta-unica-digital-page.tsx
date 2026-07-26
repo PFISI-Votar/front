@@ -262,7 +262,7 @@ const BoletaUnicaDigitalPageContent = ({
     }
 
     return (
-      <main className='grid min-h-svh place-items-center bg-[#fdfcfa] px-6'>
+      <main className='grid min-h-svh place-items-center bg-[#fdfcfa] px-4 sm:px-6'>
         <Alert variant='destructive' className='max-w-xl'>
           <AlertCircle className='size-4' aria-hidden='true' />
           <AlertTitle>No se pudo preparar la votación</AlertTitle>
@@ -310,8 +310,8 @@ const ComicioCerradoPanel = ({
   idEleccion: number
   description: string
 }) => (
-  <main className='grid min-h-svh place-items-center bg-[#fdfcfa] px-6'>
-    <div className='flex w-full max-w-xl flex-col gap-4'>
+  <main className='grid min-h-svh place-items-center bg-[#fdfcfa] px-4 sm:px-6'>
+    <div className='flex w-full max-w-xl min-w-0 flex-col gap-4'>
       <Alert className='border-slate-300 bg-white'>
         <AlertCircle className='size-4' aria-hidden='true' />
         <AlertTitle>El período de votación ha concluido</AlertTitle>
@@ -331,7 +331,7 @@ const ComicioCerradoPanel = ({
 )
 
 const BoletaIntroSplash = () => (
-  <main className='votar-light-surface relative grid min-h-svh place-items-center overflow-hidden bg-[#fdfcfa]'>
+  <main className='votar-light-surface relative grid min-h-svh place-items-center overflow-hidden bg-[#fdfcfa] px-4'>
     <img
       src={budFingerprint}
       alt=''
@@ -339,7 +339,7 @@ const BoletaIntroSplash = () => (
       className='pointer-events-none absolute top-1/2 left-1/2 w-[min(70vw,28rem)] -translate-x-1/2 -translate-y-1/2 opacity-[0.08]'
     />
     <div className='relative text-center'>
-      <p className='text-5xl font-extrabold tracking-tight text-[#2f6f9f]'>
+      <p className='text-4xl font-extrabold tracking-tight text-[#2f6f9f] sm:text-5xl'>
         VOTAR
       </p>
       <p className='mt-3 text-sm text-slate-600'>Preparando tu boleta…</p>

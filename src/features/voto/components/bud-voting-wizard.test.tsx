@@ -6,6 +6,7 @@ import {
   TIPOS_VOTACION,
   type TipoVotacion,
 } from '@/features/eleccion/lista/data/schema'
+import { BUD_CATEGORY_GRID_CLASS } from '@/features/voto/components/bud-layout.constants'
 import { BudVotingWizard } from '@/features/voto/components/bud-voting-wizard'
 import { EphemeralWalletProvider } from '@/features/voto/crypto/ephemeral-wallet-context'
 import { calcularNullifier } from '@/features/voto/crypto/nullifier'
@@ -845,5 +846,33 @@ describe('BudVotingWizard', () => {
     await expect
       .element(screen.getByText('Opciones especiales'))
       .not.toBeInTheDocument()
+  })
+
+  it('VOTAR-363 UAT-01: layout mobile-first en paso selección', async () => {
+    const screen = await renderWizard()
+
+    const main = document.querySelector('main')
+    expect(main?.className).toContain('overflow-x-clip')
+
+    const grid = screen.getByTestId('bud-category-grid').element()
+    expect(grid.className).toContain('grid-cols-1')
+    expect(grid.className).toContain('md:grid-cols-2')
+
+    const continueButton = screen.getByRole('button', { name: /^Continuar/i })
+    expect(continueButton.element().className).toContain('w-full')
+    expect(continueButton.element().className).toContain('sm:w-auto')
+
+    const stickyContainer = continueButton.element().parentElement
+    expect(stickyContainer?.className).toContain('w-full')
+    expect(stickyContainer?.className).toContain('justify-stretch')
+  })
+
+  it('VOTAR-363 UAT-02: grid de categorías declara columnas paralelas desde md', async () => {
+    const screen = await renderWizard()
+
+    const grid = screen.getByTestId('bud-category-grid').element()
+    expect(grid.className).toBe(BUD_CATEGORY_GRID_CLASS)
+    expect(grid.className).toContain('md:grid-cols-2')
+    expect(grid.className).toContain('xl:grid-cols-3')
   })
 })
