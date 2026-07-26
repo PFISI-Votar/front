@@ -3,6 +3,7 @@
  * Must stay aligned with blockchain/contracts/ballot/BallotContract.sol.
  * VOTAR-346 adds candidateId for VoteRegistry audit VoteCast emission.
  * VOTAR-341: RevoteDisabled is the current double-vote error when revote is off.
+ * VOTAR-324: MaxVotesReached fires once a nullifier reaches maxVotesPerVoter signed votes.
  * NullifierAlreadyUsed is kept so viem can still decode legacy Sepolia deployments.
  */
 export const BALLOT_CONTRACT_ABI = [
@@ -82,5 +83,13 @@ export const BALLOT_CONTRACT_ABI = [
     type: 'error',
     name: 'RetryTooSoon',
     inputs: [{ name: 'remainingSeconds', type: 'uint256' }],
+  },
+  {
+    type: 'error',
+    name: 'MaxVotesReached',
+    inputs: [
+      { name: 'electionId', type: 'uint256' },
+      { name: 'maxVotes', type: 'uint16' },
+    ],
   },
 ] as const

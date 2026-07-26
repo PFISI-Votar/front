@@ -1,6 +1,6 @@
 {
   "contractName": "BallotContract",
-  "abiHash": "0xaab8e750e67b185449b5841f4e43b7775f9baab6c1a240336ad8460c38596519",
+  "abiHash": "0xa21060bfde8d42cba2add6a5e7913966be307be3ac512e834abf62f60d1f6059",
   "abi": [
     {
       "inputs": [
@@ -18,6 +18,11 @@
           "internalType": "address",
           "name": "voteRegistryAddress",
           "type": "address"
+        },
+        {
+          "internalType": "uint16",
+          "name": "maxVotesPerVoter_",
+          "type": "uint16"
         }
       ],
       "stateMutability": "nonpayable",
@@ -99,6 +104,11 @@
     },
     {
       "inputs": [],
+      "name": "InvalidMaxVotesPerVoter",
+      "type": "error"
+    },
+    {
+      "inputs": [],
       "name": "InvalidMerkleProof",
       "type": "error"
     },
@@ -110,6 +120,22 @@
     {
       "inputs": [],
       "name": "InvalidSignature",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "electionId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint16",
+          "name": "maxVotes",
+          "type": "uint16"
+        }
+      ],
+      "name": "MaxVotesReached",
       "type": "error"
     },
     {
@@ -595,6 +621,19 @@
     },
     {
       "inputs": [],
+      "name": "maxVotesPerVoter",
+      "outputs": [
+        {
+          "internalType": "uint16",
+          "name": "",
+          "type": "uint16"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
       "name": "merkleRootStore",
       "outputs": [
         {
@@ -702,6 +741,6 @@
       "type": "function"
     }
   ],
-  "exportedAt": "2026-07-17T22:57:14.807Z",
+  "exportedAt": "2026-07-25T22:52:01.382Z",
   "source": "blockchain/scripts/lib/export-abis.ts (VOTAR-385)"
 }

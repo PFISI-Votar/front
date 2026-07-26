@@ -1,5 +1,8 @@
 import { z } from 'zod'
-import { METODOS_AUTENTICACION } from '@/features/eleccion/configuracion-comicio/data/constants'
+import {
+  MAX_SUFRAGIOS_POR_VOTANTE,
+  METODOS_AUTENTICACION,
+} from '@/features/eleccion/configuracion-comicio/data/constants'
 
 export const metodoAutenticacionSchema = z.enum([
   METODOS_AUTENTICACION.GOOGLE,
@@ -17,7 +20,12 @@ export const politicaRevotoSchema = z.enum(['LAST_VOTE_WINS', 'DISABLED'])
 export const guardarConfiguracionRevotoSchema = z
   .object({
     permitirVotoMultiple: z.boolean(),
-    maxVotosPorVotante: z.number().int().min(1).max(2).optional(),
+    maxVotosPorVotante: z
+      .number()
+      .int()
+      .min(1)
+      .max(MAX_SUFRAGIOS_POR_VOTANTE)
+      .optional(),
   })
   .superRefine((data, ctx) => {
     if (!data.permitirVotoMultiple) {

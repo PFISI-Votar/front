@@ -56,6 +56,16 @@ describe('mapVoteTxError — VOTAR-358 / VOTAR-341 / VOTAR-359', () => {
     expect(mapped.severity).toBe('error')
   })
 
+  it('VOTAR-324: maps MaxVotesReached(electionId, maxVotes) to already_registered with the limit', () => {
+    const mapped = mapVoteTxError(
+      createRevertedFromEncodedError('MaxVotesReached', [339n, 2])
+    )
+    expect(mapped.code).toBe('already_registered')
+    expect(mapped.message).toMatch(/2 sufragios permitidos/i)
+    expect(mapped.canRetrySend).toBe(false)
+    expect(mapped.severity).toBe('error')
+  })
+
   it('keeps legacy NullifierAlreadyUsed mapped to already_registered', () => {
     const mapped = mapVoteTxError(
       createRevertedFromEncodedError('NullifierAlreadyUsed', [

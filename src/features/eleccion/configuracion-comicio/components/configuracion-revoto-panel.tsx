@@ -29,7 +29,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
+import { MAX_SUFRAGIOS_POR_VOTANTE } from '@/features/eleccion/configuracion-comicio/data/constants'
 import {
   guardarConfiguracionRevotoSchema,
   type GuardarConfiguracionRevotoInput,
@@ -60,9 +60,9 @@ export const ConfiguracionRevotoPanel = ({
     },
   })
 
-  const permitirVotoMultiple = useWatch({
+  const maxVotosPorVotante = useWatch({
     control: form.control,
-    name: 'permitirVotoMultiple',
+    name: 'maxVotosPorVotante',
   })
   const canEditForm = isEditable && (configQuery.data?.editable ?? false)
 
@@ -76,16 +76,14 @@ export const ConfiguracionRevotoPanel = ({
     })
   }, [configQuery.data, form])
 
+  // VOTAR-324: el número es la única entrada del usuario; permitirVotoMultiple
+  // se deriva (1 = off, 2..10 = on) en vez de exponer un switch aparte.
   useEffect(() => {
-    if (!permitirVotoMultiple) {
-      form.setValue('maxVotosPorVotante', 1)
-      return
+    const enabled = (maxVotosPorVotante ?? 1) >= 2
+    if (form.getValues('permitirVotoMultiple') !== enabled) {
+      form.setValue('permitirVotoMultiple', enabled)
     }
-    const currentMax = form.getValues('maxVotosPorVotante') ?? 1
-    if (currentMax < 2) {
-      form.setValue('maxVotosPorVotante', 2)
-    }
-  }, [permitirVotoMultiple, form])
+  }, [maxVotosPorVotante, form])
 
   const handleSubmit = async (values: GuardarConfiguracionRevotoInput) => {
     const payload: GuardarConfiguracionRevotoInput = {
@@ -172,15 +170,6 @@ export const ConfiguracionRevotoPanel = ({
               </Alert>
             )}
 
-            <Alert>
-              <AlertTitle>Impacto criptográfico</AlertTitle>
-              <AlertDescription>
-                Al oficializar el comicio, esta política se transfiere al smart
-                contract y regula si un mismo votante puede sobrescribir su
-                sufragio durante la ventana electoral.
-              </AlertDescription>
-            </Alert>
-
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(handleSubmit)}
@@ -188,50 +177,24 @@ export const ConfiguracionRevotoPanel = ({
               >
                 <FormField
                   control={form.control}
-                  name='permitirVotoMultiple'
-                  render={({ field }) => (
-                    <FormItem className='flex flex-row items-center justify-between rounded-lg border p-4'>
-                      <div className='space-y-0.5'>
-                        <FormLabel>Permitir re-voto</FormLabel>
-                        <FormDescription>
-                          Mitiga coerción electoral permitiendo modificar el
-                          sufragio mientras el comicio esté abierto.
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          disabled={!canEditForm}
-                          aria-label='Permitir re-voto'
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
                   name='maxVotosPorVotante'
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Máximo de sufragios por votante</FormLabel>
                       <FormDescription>
-                        {permitirVotoMultiple
-                          ? 'Mínimo 2 sufragios: voto inicial y una modificación (VOTAR-324 ampliará este rango).'
-                          : 'Deshabilitado mientras el re-voto esté inactivo.'}
+                        {`1 deshabilita el re-voto. Entre 2 y ${MAX_SUFRAGIOS_POR_VOTANTE} lo habilita (solo el último sufragio se computa).`}
                       </FormDescription>
                       <FormControl>
                         <Input
                           type='number'
-                          min={permitirVotoMultiple ? 2 : 1}
-                          max={permitirVotoMultiple ? 2 : 1}
-                          value={field.value ?? (permitirVotoMultiple ? 2 : 1)}
+                          min={1}
+                          max={MAX_SUFRAGIOS_POR_VOTANTE}
+                          value={field.value ?? 1}
                           onChange={(event) =>
                             field.onChange(Number(event.target.value))
                           }
-                          disabled={!canEditForm || !permitirVotoMultiple}
-                          aria-disabled={!canEditForm || !permitirVotoMultiple}
+                          disabled={!canEditForm}
+                          aria-disabled={!canEditForm}
                           aria-label='Máximo de sufragios por votante'
                           className='max-w-[8rem]'
                         />
