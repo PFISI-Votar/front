@@ -10,7 +10,23 @@ import { BUD_CATEGORY_GRID_CLASS } from '@/features/voto/components/bud-layout.c
 import { BudVotingWizard } from '@/features/voto/components/bud-voting-wizard'
 import { EphemeralWalletProvider } from '@/features/voto/crypto/ephemeral-wallet-context'
 import { calcularNullifier } from '@/features/voto/crypto/nullifier'
+import { VOTE_TX_MESSAGES } from '@/features/voto/crypto/vote-tx-error-catalog'
 import type { BoletaDigital, EstadoRevoto } from '@/features/voto/data/schema'
+
+const toastWarningMock = vi.fn()
+const toastErrorMock = vi.fn()
+const logVoteTxErrorMock = vi.fn()
+
+vi.mock('sonner', () => ({
+  toast: {
+    warning: (...args: unknown[]) => toastWarningMock(...args),
+    error: (...args: unknown[]) => toastErrorMock(...args),
+  },
+}))
+
+vi.mock('@/features/voto/crypto/log-vote-tx-error', () => ({
+  logVoteTxError: (...args: unknown[]) => logVoteTxErrorMock(...args),
+}))
 
 const registrarVotoEmitidoAnonimoMock = vi.fn().mockResolvedValue(undefined)
 const registrarConsumoIntentoMock = vi.fn()
@@ -213,6 +229,9 @@ describe('BudVotingWizard', () => {
     clearVotanteSessionMock.mockClear()
     registrarVotoEmitidoAnonimoMock.mockClear()
     registrarConsumoIntentoMock.mockClear()
+    toastWarningMock.mockClear()
+    toastErrorMock.mockClear()
+    logVoteTxErrorMock.mockClear()
     obtenerEstadoRevotoMock.mockReset()
     clearVotanteSessionMock.mockResolvedValue(undefined)
     registrarVotoEmitidoAnonimoMock.mockResolvedValue(undefined)
@@ -524,6 +543,7 @@ describe('BudVotingWizard', () => {
       code: 'network',
       message:
         'No pudimos conectar con la red blockchain. Reintentá el envío cuando recuperes la conexión. Tu selección se conserva.',
+      severity: 'warning',
       isTransient: true,
       canRetrySend: true,
       canResign: true,
@@ -543,7 +563,7 @@ describe('BudVotingWizard', () => {
     )
 
     await expect
-      .element(screen.getByText('Error de transmisión'))
+      .element(screen.getByText('Error de conexión'))
       .toBeInTheDocument()
     await expect
       .element(screen.getByText('Tu selección se conserva', { exact: true }))
@@ -566,6 +586,7 @@ describe('BudVotingWizard', () => {
       code: 'already_registered',
       message:
         'Este voto ya está registrado en la blockchain. No es necesario volver a enviarlo.',
+      severity: 'error',
       isTransient: false,
       canRetrySend: false,
       canResign: false,
@@ -700,6 +721,90 @@ describe('BudVotingWizard', () => {
     await expect
       .element(screen.getByText('Opciones especiales'))
       .toBeInTheDocument()
+  })
+
+  it('VOTAR-359 UAT-01: cooldown off-chain muestra panel de espera, no límite máximo', async () => {
+    obtenerEstadoRevotoMock.mockResolvedValue({
+      ...defaultEstadoRevoto,
+      votosConsumidos: 1,
+      intentosRestantes: 2,
+      puedeVotar: false,
+      minIntervaloSegundos: 180,
+      proximoReintentoEnSegundos: 150,
+    })
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <EphemeralWalletProvider>
+          <BudVotingWizard
+            boleta={boleta}
+            tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            onLogout={vi.fn()}
+          />
+        </EphemeralWalletProvider>
+      </QueryClientProvider>
+    )
+
+    await expect
+      .element(screen.getByTestId('retry-too-soon-panel'))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByText(/Debe esperar 3 minutos/i))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByTestId('max-votes-reached-panel'))
+      .not.toBeInTheDocument()
+    expect(toastWarningMock).toHaveBeenCalled()
+    expect(logVoteTxErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        electionId: boleta.idEleccion,
+        code: 'retry_too_soon',
+      })
+    )
+  })
+
+  it('VOTAR-359 UAT-02: muestra mensaje NotEligible ante error de padrón on-chain', async () => {
+    transmitSignedVoteMock.mockRejectedValueOnce({
+      code: 'not_eligible',
+      message: VOTE_TX_MESSAGES.notEligible,
+      severity: 'error',
+      revertName: 'InvalidMerkleProof',
+      isTransient: false,
+      canRetrySend: false,
+      canResign: true,
+    })
+
+    const screen = await renderWizard()
+    await userEvent.click(
+      screen.getByRole('button', { name: /Votar en blanco/i })
+    )
+    await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
+    await userEvent.click(
+      screen.getByRole('button', { name: /Firmar y confirmar/i })
+    )
+
+    await expect
+      .element(screen.getByText(VOTE_TX_MESSAGES.notEligible))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByText('No habilitado en el padrón'))
+      .toBeInTheDocument()
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      VOTE_TX_MESSAGES.notEligible,
+      expect.objectContaining({ duration: 8000 })
+    )
+    expect(logVoteTxErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        electionId: boleta.idEleccion,
+        code: 'not_eligible',
+      })
+    )
   })
 
   it('VOTAR-328 UAT-02: con intentos agotados oculta la boleta y muestra panel de límite', async () => {

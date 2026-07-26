@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { AxiosError } from 'axios'
 import {
   AlertTriangle,
@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   UserRoundCheck,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import type { Hex } from 'viem'
 import budFingerprint from '@/assets/bud-fingerprint.png'
 import { resolveMediaUrl } from '@/lib/media-url'
@@ -48,8 +49,10 @@ import {
   BUD_SHELL_SECTION_CLASS,
   BUD_STICKY_CTA_CLASS,
 } from '@/features/voto/components/bud-layout.constants'
+import { VoteTransmitErrorAlert } from '@/features/voto/components/vote-transmit-error-alert'
 import type { SignedVotePayload } from '@/features/voto/crypto'
 import { getExplorerTxUrl } from '@/features/voto/crypto/constants'
+import { logVoteTxError } from '@/features/voto/crypto/log-vote-tx-error'
 import {
   calcularNullifier,
   CredencialNulificadorInvalidaError,
@@ -59,7 +62,9 @@ import {
   transmitSignedVote,
   type TransmitProgressPhase,
 } from '@/features/voto/crypto/vote-transmitter'
+import { remainingSecondsToMinutes } from '@/features/voto/crypto/vote-tx-error-catalog'
 import {
+  buildOffChainRetryTooSoonError,
   mapVoteTxError,
   type VoteTxError,
 } from '@/features/voto/crypto/vote-tx-errors'
@@ -94,6 +99,7 @@ type WizardStep =
   | 'transmitting'
   | 'success'
   | 'limit-reached'
+  | 'cooldown'
 
 type TransmitUiPhase = TransmitProgressPhase | 'error'
 
@@ -277,6 +283,23 @@ const groupCandidatesByParty = (candidates: Candidate[]) => {
   )
 }
 
+const showVoteErrorToast = (error: VoteTxError): void => {
+  if (error.severity === 'warning') {
+    toast.warning(error.message, { duration: 8000 })
+    return
+  }
+  toast.error(error.message, { duration: 8000 })
+}
+
+const reportVoteTxError = (error: VoteTxError, electionId: number): void => {
+  logVoteTxError({
+    electionId,
+    revertName: error.revertName,
+    code: error.code,
+  })
+  showVoteErrorToast(error)
+}
+
 export const BudVotingWizard = ({
   boleta,
   tipoVotacion,
@@ -309,6 +332,7 @@ export const BudVotingWizard = ({
     data: estadoRevoto,
     isLoading: isLoadingEstadoRevoto,
     isError: isEstadoRevotoError,
+    refetch: refetchEstadoRevoto,
   } = useEstadoRevoto(boleta.idEleccion)
   const registrarConsumoMutation = useRegistrarConsumoIntento(boleta.idEleccion)
   const {
@@ -318,12 +342,47 @@ export const BudVotingWizard = ({
   } = useEphemeralWallet()
 
   const intentosAgotados =
-    Boolean(estadoRevoto) && estadoRevoto?.puedeVotar === false
-  // Derive UI step when attempts are exhausted (avoids setState-in-effect).
+    Boolean(estadoRevoto) && (estadoRevoto?.intentosRestantes ?? 1) === 0
+  const cooldownActivo = (estadoRevoto?.proximoReintentoEnSegundos ?? 0) > 0
+  const cooldownToastShownRef = useRef(false)
+  // Derive UI step when attempts are exhausted or cooldown is active.
   const effectiveStep: WizardStep =
     intentosAgotados && step !== 'success' && step !== 'transmitting'
       ? 'limit-reached'
-      : step
+      : cooldownActivo && step !== 'success' && step !== 'transmitting'
+        ? 'cooldown'
+        : step
+
+  useEffect(() => {
+    if (!cooldownActivo) {
+      cooldownToastShownRef.current = false
+      return
+    }
+    if (cooldownToastShownRef.current) {
+      return
+    }
+    const remainingSeconds = estadoRevoto?.proximoReintentoEnSegundos ?? 0
+    if (remainingSeconds <= 0) {
+      return
+    }
+    const mapped = buildOffChainRetryTooSoonError(remainingSeconds)
+    reportVoteTxError(mapped, boleta.idEleccion)
+    cooldownToastShownRef.current = true
+  }, [
+    boleta.idEleccion,
+    cooldownActivo,
+    estadoRevoto?.proximoReintentoEnSegundos,
+  ])
+
+  useEffect(() => {
+    if (!cooldownActivo) {
+      return
+    }
+    const intervalId = window.setInterval(() => {
+      void refetchEstadoRevoto()
+    }, 30_000)
+    return () => window.clearInterval(intervalId)
+  }, [cooldownActivo, refetchEstadoRevoto])
 
   const lists = useMemo(() => buildListsFromBoleta(boleta), [boleta])
   const roles = useMemo(() => buildRolesFromBoleta(boleta), [boleta])
@@ -461,6 +520,7 @@ export const BudVotingWizard = ({
       await clearVotanteSession()
     } catch (error) {
       const mapped = mapVoteTxError(error)
+      reportVoteTxError(mapped, boleta.idEleccion)
       setTxError(mapped)
       setTransmitPhase('error')
     }
@@ -504,6 +564,16 @@ export const BudVotingWizard = ({
 
   const handleSignVote = async () => {
     setSigningError(null)
+
+    const remainingCooldown = estadoRevoto?.proximoReintentoEnSegundos ?? 0
+    if (remainingCooldown > 0) {
+      const mapped = buildOffChainRetryTooSoonError(remainingCooldown)
+      reportVoteTxError(mapped, boleta.idEleccion)
+      setTxError(mapped)
+      setTransmitPhase('error')
+      setStep('transmitting')
+      return
+    }
 
     setIsSigning(true)
 
@@ -584,7 +654,7 @@ export const BudVotingWizard = ({
 
   return (
     <BudWizardShell step={effectiveStep} estadoRevoto={estadoRevoto}>
-      {effectiveStep !== 'limit-reached' ? (
+      {effectiveStep !== 'limit-reached' && effectiveStep !== 'cooldown' ? (
         <WizardStepper currentStep={effectiveStep} />
       ) : null}
       <div
@@ -594,6 +664,14 @@ export const BudVotingWizard = ({
         {effectiveStep === 'limit-reached' && (
           <MaxVotesReachedPanel
             maxVotos={estadoRevoto?.maxVotosPorVotante ?? 1}
+            onLogout={handleLogout}
+          />
+        )}
+        {effectiveStep === 'cooldown' && (
+          <RetryTooSoonPanel
+            proximoReintentoEnSegundos={
+              estadoRevoto?.proximoReintentoEnSegundos ?? 0
+            }
             onLogout={handleLogout}
           />
         )}
@@ -965,6 +1043,61 @@ const IdentityStep = ({
     </Card>
   </div>
 )
+
+const RetryTooSoonPanel = ({
+  proximoReintentoEnSegundos,
+  onLogout,
+}: {
+  proximoReintentoEnSegundos: number
+  onLogout: () => void
+}) => {
+  const remainingMinutes = remainingSecondsToMinutes(proximoReintentoEnSegundos)
+
+  return (
+    <div className='mx-auto grid w-full max-w-2xl gap-5'>
+      <Card
+        className='border-amber-200 bg-white/95 shadow-[0_1.5rem_5rem_rgba(30,64,95,0.07)]'
+        data-testid='retry-too-soon-panel'
+      >
+        <CardHeader className='flex flex-row items-start gap-4 space-y-0'>
+          <div className='grid size-14 shrink-0 place-items-center rounded-full bg-amber-100 text-amber-700 ring-8 ring-amber-50'>
+            <Clock3 className='size-6' />
+          </div>
+          <div className='space-y-1'>
+            <CardTitle>Debe esperar antes de volver a votar</CardTitle>
+            <CardDescription>
+              Debe esperar {remainingMinutes} minuto
+              {remainingMinutes === 1 ? '' : 's'} antes de volver a votar. Por
+              favor, intente nuevamente más tarde.
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Alert className='border-amber-200 bg-amber-50 text-amber-950'>
+            <Clock3 className='size-4' />
+            <AlertTitle>Tiempo restante</AlertTitle>
+            <AlertDescription aria-live='polite'>
+              Podrá emitir un nuevo sufragio en aproximadamente{' '}
+              {remainingMinutes} minuto{remainingMinutes === 1 ? '' : 's'} (
+              {proximoReintentoEnSegundos} segundos).
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+        <CardFooter>
+          <Button
+            variant='outline'
+            size='lg'
+            className='h-12 w-full'
+            onClick={onLogout}
+          >
+            <LogOut className='size-4' />
+            Cerrar sesión
+          </Button>
+        </CardFooter>
+      </Card>
+    </div>
+  )
+}
 
 const MaxVotesReachedPanel = ({
   maxVotos,
@@ -1634,17 +1767,7 @@ const TransmitStep = ({
               )}
           </div>
 
-          {txError && (
-            <Alert variant='destructive'>
-              <AlertTriangle className='size-4' />
-              <AlertTitle>
-                {txError.code === 'already_registered'
-                  ? 'Voto ya registrado'
-                  : 'Error de transmisión'}
-              </AlertTitle>
-              <AlertDescription>{txError.message}</AlertDescription>
-            </Alert>
-          )}
+          {txError && <VoteTransmitErrorAlert error={txError} />}
         </CardContent>
         <CardFooter className='grid gap-3'>
           {txError?.canRetrySend && (
@@ -2196,6 +2319,7 @@ const ListLogo = ({
 
 const getStepLabel = (step: WizardStep) => {
   if (step === 'limit-reached') return 'Límite de intentos'
+  if (step === 'cooldown') return 'Espera entre votos'
   if (step === 'registered') return 'Voto registrado'
   if (step === 'identity') return 'Confirmación de identidad'
   if (step === 'selection') return 'Selección de voto'

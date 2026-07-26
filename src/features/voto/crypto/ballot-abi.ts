@@ -68,4 +68,19 @@ export const BALLOT_CONTRACT_ABI = [
     name: 'InvalidSignature',
     inputs: [],
   },
+  {
+    type: 'error',
+    name: 'ElectionClosed',
+    inputs: [{ name: 'electionId', type: 'uint256' }],
+  },
+  {
+    type: 'error',
+    name: 'EnforcedPause',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'RetryTooSoon',
+    inputs: [{ name: 'remainingSeconds', type: 'uint256' }],
+  },
 ] as const
