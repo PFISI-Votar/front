@@ -820,15 +820,15 @@ describe('BudVotingWizard', () => {
     // polling de expect.element corren en tiempo real, así que unos segundos
     // ya pudieron transcurrir antes de esta primera lectura (no-flaky).
     await expect.element(countdown).toHaveTextContent(/^\d{2}:\d{2}$/)
-    const initialSeconds = mmssToSeconds(countdown.element().textContent)
+    const initialText = countdown.element().textContent ?? ''
 
-    vi.useFakeTimers()
-    await vi.advanceTimersByTimeAsync(3_000)
-    vi.useRealTimers()
+    // El ticker del panel usa un setInterval real (registrado antes de que el
+    // test pudiera fake-earlo), así que se espera el tick real de 1s en vez de
+    // vi.useFakeTimers() — avanzar timers falsos no mueve un interval ya real.
+    await expect.element(countdown).not.toHaveTextContent(initialText)
 
-    await expect.element(countdown).toHaveTextContent(/^\d{2}:\d{2}$/)
     const laterSeconds = mmssToSeconds(countdown.element().textContent)
-    expect(laterSeconds).toBeLessThan(initialSeconds)
+    expect(laterSeconds).toBeLessThan(mmssToSeconds(initialText))
   })
 
   it('VOTAR-325 UAT-02: getVoterState() rechazado por el nodo mantiene el fallback off-chain (sin datos on-chain confiables)', async () => {
