@@ -43,6 +43,12 @@ import {
 } from '@/features/eleccion/lista/data/schema'
 import { firmarRecibo } from '@/features/voto/api/recibo-api'
 import { registrarVotoEmitidoAnonimo } from '@/features/voto/api/voto-api'
+import {
+  BUD_CANDIDATE_GRID_CLASS,
+  BUD_CATEGORY_GRID_CLASS,
+  BUD_SHELL_SECTION_CLASS,
+  BUD_STICKY_CTA_CLASS,
+} from '@/features/voto/components/bud-layout.constants'
 import { VoteTransmitErrorAlert } from '@/features/voto/components/vote-transmit-error-alert'
 import type { SignedVotePayload } from '@/features/voto/crypto'
 import { getExplorerTxUrl } from '@/features/voto/crypto/constants'
@@ -795,7 +801,7 @@ const BudWizardShell = ({
   step: WizardStep
   estadoRevoto?: EstadoRevoto
 }) => (
-  <main className='votar-light-surface relative min-h-svh overflow-hidden bg-[#fdfcfa] text-[#202124]'>
+  <main className='votar-light-surface relative min-h-svh overflow-x-clip overflow-y-auto bg-[#fdfcfa] text-[#202124]'>
     <div className='pointer-events-none absolute inset-0' aria-hidden='true'>
       {BACKGROUND_FINGERPRINTS.map((fingerprint) => (
         <img
@@ -813,19 +819,19 @@ const BudWizardShell = ({
         />
       ))}
     </div>
-    <section className='relative mx-auto flex min-h-svh w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8'>
+    <section className={BUD_SHELL_SECTION_CLASS}>
       <header className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-        <div>
-          <p className='text-3xl leading-none font-extrabold tracking-tight text-[#2f6f9f]'>
+        <div className='min-w-0'>
+          <p className='text-2xl leading-none font-extrabold tracking-tight text-[#2f6f9f] sm:text-3xl'>
             VOTAR
           </p>
           <p className='mt-2 text-sm text-slate-600'>Boleta Única Digital</p>
         </div>
-        <div className='flex flex-wrap items-center gap-2'>
+        <div className='flex max-w-full flex-wrap items-center gap-2'>
           {estadoRevoto ? (
             <Badge
               variant='outline'
-              className='rounded-full border-emerald-300/70 bg-emerald-50/90 px-3 py-1 font-semibold text-emerald-900'
+              className='rounded-full border-emerald-300/70 bg-emerald-50/90 px-3 py-1 text-xs font-semibold text-emerald-900 sm:text-sm'
               aria-live='polite'
               data-testid='intentos-restantes'
             >
@@ -834,7 +840,7 @@ const BudWizardShell = ({
           ) : null}
           <Badge
             variant='outline'
-            className='rounded-full border-[#2f6f9f]/30 bg-white/80 px-3 py-1 text-[#2f6f9f]'
+            className='rounded-full border-[#2f6f9f]/30 bg-white/80 px-3 py-1 text-xs text-[#2f6f9f] sm:text-sm'
           >
             <ShieldCheck className='size-3.5' />
             {getStepLabel(step)}
@@ -903,12 +909,12 @@ const WizardStepper = ({ currentStep }: { currentStep: WizardStep }) => {
         </div>
       </details>
 
-      <div className='hidden overflow-hidden rounded-2xl sm:flex'>
+      <div className='hidden min-w-0 overflow-hidden rounded-2xl sm:flex'>
         {steps.map(([step, label], index) => (
           <div
             key={step}
             className={cn(
-              'relative -ms-3 flex min-h-16 flex-1 items-center gap-2 border-r border-[#edf1f4] px-4 py-3 text-sm font-semibold transition-all first:ms-0 last:border-r-0',
+              'relative -ms-3 flex min-h-16 min-w-0 flex-1 items-center gap-2 border-r border-[#edf1f4] px-4 py-3 text-sm font-semibold transition-all first:ms-0 last:border-r-0',
               index <= activeIndex
                 ? 'bg-[#e7f1f8] text-[#2f6f9f]'
                 : 'bg-white text-slate-500'
@@ -932,7 +938,7 @@ const WizardStepper = ({ currentStep }: { currentStep: WizardStep }) => {
             >
               {String(index + 1).padStart(2, '0')}
             </span>
-            <span>{label}</span>
+            <span className='truncate'>{label}</span>
           </div>
         ))}
       </div>
@@ -1276,19 +1282,24 @@ const SelectionStep = ({
               </CardDescription>
             </CardHeader>
             <CardContent className='grid gap-5'>
-              {roles.map((role) => (
-                <CandidateRoleSection
-                  key={role.id}
-                  roleId={role.id}
-                  roleName={role.name}
-                  candidates={candidates}
-                  selectedCandidateIds={candidateSelections[role.id] ?? []}
-                  groupByParty={variant === 'candidatos'}
-                  permitirVotoEnBlanco={permitirVotoEnBlanco}
-                  onSelectCandidate={onSelectCandidate}
-                  onSelectBlank={onSelectBlank}
-                />
-              ))}
+              <div
+                className={BUD_CATEGORY_GRID_CLASS}
+                data-testid='bud-category-grid'
+              >
+                {roles.map((role) => (
+                  <CandidateRoleSection
+                    key={role.id}
+                    roleId={role.id}
+                    roleName={role.name}
+                    candidates={candidates}
+                    selectedCandidateIds={candidateSelections[role.id] ?? []}
+                    groupByParty={variant === 'candidatos'}
+                    permitirVotoEnBlanco={permitirVotoEnBlanco}
+                    onSelectCandidate={onSelectCandidate}
+                    onSelectBlank={onSelectBlank}
+                  />
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}
@@ -1308,7 +1319,7 @@ const SelectionStep = ({
             <SpecialVoteCard
               title='Votar en blanco'
               description='No selecciona listas ni candidatos.'
-              icon={<CircleOff className='size-20' />}
+              icon={<CircleOff className='size-14 sm:size-20' />}
               selected={specialVote === 'blank'}
               onSelect={() => onSpecialVote('blank')}
             />
@@ -1316,17 +1327,17 @@ const SelectionStep = ({
           <SpecialVoteCard
             title='Anular voto'
             description='Registra una boleta anulada para este comicio.'
-            icon={<Ban className='size-20' />}
+            icon={<Ban className='size-14 sm:size-20' />}
             selected={specialVote === 'null'}
             onSelect={() => onSpecialVote('null')}
           />
         </CardContent>
       </Card>
 
-      <div className='sticky bottom-4 z-10 flex justify-end'>
+      <div className={BUD_STICKY_CTA_CLASS}>
         <Button
           size='lg'
-          className='h-12 rounded-xl bg-[#2f6f9f] px-8 font-semibold shadow-lg shadow-slate-900/10 hover:bg-[#285f88]'
+          className='h-12 w-full rounded-xl bg-[#2f6f9f] px-8 font-semibold shadow-lg shadow-slate-900/10 hover:bg-[#285f88] sm:w-auto sm:min-w-48'
           disabled={!canContinue}
           onClick={onContinue}
         >
@@ -1929,8 +1940,10 @@ const ListCard = ({
           <ListLogo list={list} />
           <div className='min-w-0 flex-1'>
             <div className='flex items-start justify-between gap-3'>
-              <div>
-                <p className='text-lg font-bold'>{list.name}</p>
+              <div className='min-w-0'>
+                <p className='text-base font-bold break-words sm:text-lg'>
+                  {list.name}
+                </p>
                 <p className='mt-1 text-sm text-slate-500'>
                   Lista {list.initials}
                 </p>
@@ -2000,7 +2013,7 @@ const ListCandidatesOverview = ({
   return (
     <div className={cn(showPrimary && 'mt-4')}>
       {showPrimary && (
-        <div className='grid gap-3 md:grid-cols-2'>
+        <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
           {primaryCandidates.map((candidate) => (
             <CandidatePreview key={candidate.id} candidate={candidate} />
           ))}
@@ -2029,7 +2042,7 @@ const ListCandidatesOverview = ({
                   <p className='text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase'>
                     {role.name}
                   </p>
-                  <div className='grid gap-2 md:grid-cols-2'>
+                  <div className='grid grid-cols-1 gap-2 sm:grid-cols-2'>
                     {role.candidates.map((candidate) => (
                       <CandidatePreview
                         key={candidate.id}
@@ -2119,7 +2132,7 @@ const CandidateRoleSection = ({
               {group.name}
             </div>
           )}
-          <div className='grid gap-3 md:grid-cols-3'>
+          <div className={BUD_CANDIDATE_GRID_CLASS}>
             {group.candidates.map((candidate) => {
               const isSelected = selectedCandidateIds.includes(candidate.id)
               const accessibleName = `${candidate.name}, ${candidate.listName}, lista ${candidate.numeroLista}`
@@ -2131,30 +2144,30 @@ const CandidateRoleSection = ({
                   aria-pressed={isSelected}
                   aria-label={accessibleName}
                   className={cn(
-                    'rounded-2xl border bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/20 focus-visible:outline-none',
+                    'flex flex-col items-stretch gap-3 rounded-2xl border bg-white p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/20 focus-visible:outline-none sm:flex-row sm:items-center sm:p-4',
                     isSelected
                       ? 'border-[#2f6f9f] shadow-md shadow-[#2f6f9f]/10'
                       : 'border-[#dbe3ea]'
                   )}
                   onClick={() => onSelectCandidate(roleId, candidate.id)}
                 >
-                  <div className='flex items-center gap-3'>
+                  <div className='flex min-w-0 flex-1 items-center gap-3'>
                     <CandidateAvatar candidate={candidate} />
-                    <div>
-                      <p className='font-semibold'>{candidate.name}</p>
+                    <div className='min-w-0 flex-1'>
+                      <p className='truncate font-semibold'>{candidate.name}</p>
                       <p className='text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase'>
                         Lista {candidate.numeroLista}
                       </p>
-                      <p className='text-sm text-slate-500'>
+                      <p className='truncate text-sm text-slate-500'>
                         {candidate.listName}
                       </p>
                     </div>
-                    {isSelected && (
-                      <span className='ms-auto grid size-7 place-items-center rounded-full bg-[#2f6f9f] text-white'>
-                        <Check className='size-4' />
-                      </span>
-                    )}
                   </div>
+                  {isSelected && (
+                    <span className='grid size-7 shrink-0 place-items-center self-end rounded-full bg-[#2f6f9f] text-white sm:ms-auto sm:self-center'>
+                      <Check className='size-4' />
+                    </span>
+                  )}
                 </button>
               )
             })}
@@ -2168,7 +2181,7 @@ const CandidateRoleSection = ({
           aria-pressed={isBlankSelected}
           aria-label={`Voto en Blanco para ${roleName}, no seleccionar ningún candidato`}
           className={cn(
-            'flex w-full items-center gap-4 rounded-2xl border border-dashed bg-slate-50 p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-slate-400/40 focus-visible:outline-none',
+            'flex min-h-11 w-full items-center gap-4 rounded-2xl border border-dashed bg-slate-50 p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-slate-400/40 focus-visible:outline-none',
             isBlankSelected
               ? 'border-slate-700 bg-white shadow-md shadow-slate-900/10'
               : 'border-slate-300'
@@ -2195,10 +2208,15 @@ const CandidateRoleSection = ({
   )
 
   return (
-    <section className='grid gap-3' aria-label={roleName}>
-      <div className='flex items-center justify-between gap-3'>
-        <h3 className='font-semibold'>{roleName}</h3>
-        <Badge variant='outline'>{selectionBadge}</Badge>
+    <section
+      className='grid gap-3 rounded-2xl border border-[#dbe3ea] bg-white/95 p-4 shadow-sm'
+      aria-label={roleName}
+    >
+      <div className='flex flex-wrap items-center justify-between gap-3'>
+        <h3 className='min-w-0 truncate font-semibold'>{roleName}</h3>
+        <Badge variant='outline' className='shrink-0'>
+          {selectionBadge}
+        </Badge>
       </div>
       {roleCandidates.length > 20 ? (
         <ScrollArea className='max-h-[65vh] pe-3'>{groupsContent}</ScrollArea>
@@ -2210,19 +2228,24 @@ const CandidateRoleSection = ({
 }
 
 const CandidateReviewItem = ({ candidate }: { candidate: Candidate }) => (
-  <div className='flex items-center gap-3 rounded-2xl bg-white text-sm'>
-    <ListLogo
-      list={{
-        name: candidate.listName,
-        initials: candidate.listInitials,
-        color: candidate.color,
-        accent: getSoftAccent(candidate.color),
-        imageUrl: candidate.listImageUrl,
-      }}
-      className='size-14 rounded-2xl'
-    />
-    <CandidateAvatar candidate={candidate} className='size-14 rounded-2xl' />
-    <div className='min-w-0'>
+  <div className='flex flex-col gap-3 rounded-2xl bg-white p-3 text-sm sm:flex-row sm:items-center sm:gap-3'>
+    <div className='flex shrink-0 items-center gap-3'>
+      <ListLogo
+        list={{
+          name: candidate.listName,
+          initials: candidate.listInitials,
+          color: candidate.color,
+          accent: getSoftAccent(candidate.color),
+          imageUrl: candidate.listImageUrl,
+        }}
+        className='size-12 rounded-2xl sm:size-14'
+      />
+      <CandidateAvatar
+        candidate={candidate}
+        className='size-12 rounded-2xl sm:size-14'
+      />
+    </div>
+    <div className='min-w-0 flex-1'>
       <p className='truncate font-semibold text-slate-950'>{candidate.name}</p>
       <p className='truncate text-slate-500'>{candidate.role}</p>
     </div>
