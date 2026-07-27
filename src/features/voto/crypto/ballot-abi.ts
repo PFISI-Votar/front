@@ -3,6 +3,10 @@
  * Must stay aligned with blockchain/contracts/ballot/BallotContract.sol.
  * VOTAR-346 adds candidateId for VoteRegistry audit VoteCast emission.
  * VOTAR-341: RevoteDisabled is the current double-vote error when revote is off.
+ * VOTAR-324: MaxVotesReached fires once a nullifier reaches maxVotesPerVoter signed votes.
+ * VOTAR-325: CooldownActive fires when a nullifier re-votes before minIntervalSeconds
+ * elapsed; getVoterState exposes the node's cooldownRemaining/blockTimestamp so the
+ * BUD can anchor its countdown to the network clock instead of the OS clock.
  * NullifierAlreadyUsed is kept so viem can still decode legacy Sepolia deployments.
  */
 export const BALLOT_CONTRACT_ABI = [
@@ -32,6 +36,21 @@ export const BALLOT_CONTRACT_ABI = [
       { name: 'nullifier', type: 'bytes32' },
     ],
     outputs: [{ name: '', type: 'bool' }],
+  },
+  {
+    type: 'function',
+    name: 'getVoterState',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'electionId', type: 'uint256' },
+      { name: 'nullifier', type: 'bytes32' },
+    ],
+    outputs: [
+      { name: 'votesUsed', type: 'uint16' },
+      { name: 'lastVoteAt', type: 'uint64' },
+      { name: 'cooldownRemaining', type: 'uint256' },
+      { name: 'blockTimestamp', type: 'uint256' },
+    ],
   },
   {
     type: 'event',
@@ -67,5 +86,31 @@ export const BALLOT_CONTRACT_ABI = [
     type: 'error',
     name: 'InvalidSignature',
     inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'ElectionClosed',
+    inputs: [{ name: 'electionId', type: 'uint256' }],
+  },
+  {
+    type: 'error',
+    name: 'EnforcedPause',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'CooldownActive',
+    inputs: [
+      { name: 'electionId', type: 'uint256' },
+      { name: 'remainingSeconds', type: 'uint256' },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'MaxVotesReached',
+    inputs: [
+      { name: 'electionId', type: 'uint256' },
+      { name: 'maxVotes', type: 'uint16' },
+    ],
   },
 ] as const

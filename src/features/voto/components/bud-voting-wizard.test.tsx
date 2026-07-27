@@ -6,14 +6,41 @@ import {
   TIPOS_VOTACION,
   type TipoVotacion,
 } from '@/features/eleccion/lista/data/schema'
+import { BUD_CATEGORY_GRID_CLASS } from '@/features/voto/components/bud-layout.constants'
 import { BudVotingWizard } from '@/features/voto/components/bud-voting-wizard'
 import { EphemeralWalletProvider } from '@/features/voto/crypto/ephemeral-wallet-context'
 import { calcularNullifier } from '@/features/voto/crypto/nullifier'
+import { VOTE_TX_MESSAGES } from '@/features/voto/crypto/vote-tx-error-catalog'
 import type { BoletaDigital, EstadoRevoto } from '@/features/voto/data/schema'
+
+const mmssToSeconds = (text: string | null): number => {
+  const [minutes, seconds] = (text ?? '00:00').split(':').map(Number)
+  return minutes * 60 + seconds
+}
+
+const toastWarningMock = vi.fn()
+const toastErrorMock = vi.fn()
+const logVoteTxErrorMock = vi.fn()
+
+vi.mock('sonner', () => ({
+  toast: {
+    warning: (...args: unknown[]) => toastWarningMock(...args),
+    error: (...args: unknown[]) => toastErrorMock(...args),
+  },
+}))
+
+vi.mock('@/features/voto/crypto/log-vote-tx-error', () => ({
+  logVoteTxError: (...args: unknown[]) => logVoteTxErrorMock(...args),
+}))
 
 const registrarVotoEmitidoAnonimoMock = vi.fn().mockResolvedValue(undefined)
 const registrarConsumoIntentoMock = vi.fn()
 const obtenerEstadoRevotoMock = vi.fn()
+const leerVoterStateMock = vi.fn()
+
+vi.mock('@/features/voto/crypto/voter-state', () => ({
+  leerVoterState: (...args: unknown[]) => leerVoterStateMock(...args),
+}))
 
 const defaultEstadoRevoto: EstadoRevoto = {
   revoteHabilitado: true,
@@ -212,10 +239,18 @@ describe('BudVotingWizard', () => {
     clearVotanteSessionMock.mockClear()
     registrarVotoEmitidoAnonimoMock.mockClear()
     registrarConsumoIntentoMock.mockClear()
+    toastWarningMock.mockClear()
+    toastErrorMock.mockClear()
+    logVoteTxErrorMock.mockClear()
     obtenerEstadoRevotoMock.mockReset()
+    leerVoterStateMock.mockReset()
     clearVotanteSessionMock.mockResolvedValue(undefined)
     registrarVotoEmitidoAnonimoMock.mockResolvedValue(undefined)
     obtenerEstadoRevotoMock.mockResolvedValue({ ...defaultEstadoRevoto })
+    // VOTAR-325: por defecto simula que el contrato aún no tiene despliegue
+    // alcanzable; los tests existentes (que asumen el estado off-chain como
+    // única fuente) siguen valiendo sin cambios. Los tests on-chain overridean esto.
+    leerVoterStateMock.mockRejectedValue(new Error('contract not reachable'))
     registrarConsumoIntentoMock.mockResolvedValue({
       ...defaultEstadoRevoto,
       votosConsumidos: 1,
@@ -523,6 +558,7 @@ describe('BudVotingWizard', () => {
       code: 'network',
       message:
         'No pudimos conectar con la red blockchain. Reintentá el envío cuando recuperes la conexión. Tu selección se conserva.',
+      severity: 'warning',
       isTransient: true,
       canRetrySend: true,
       canResign: true,
@@ -542,7 +578,7 @@ describe('BudVotingWizard', () => {
     )
 
     await expect
-      .element(screen.getByText('Error de transmisión'))
+      .element(screen.getByText('Error de conexión'))
       .toBeInTheDocument()
     await expect
       .element(screen.getByText('Tu selección se conserva', { exact: true }))
@@ -565,6 +601,7 @@ describe('BudVotingWizard', () => {
       code: 'already_registered',
       message:
         'Este voto ya está registrado en la blockchain. No es necesario volver a enviarlo.',
+      severity: 'error',
       isTransient: false,
       canRetrySend: false,
       canResign: false,
@@ -701,6 +738,172 @@ describe('BudVotingWizard', () => {
       .toBeInTheDocument()
   })
 
+  it('VOTAR-359 UAT-01: cooldown off-chain muestra panel de espera, no límite máximo', async () => {
+    obtenerEstadoRevotoMock.mockResolvedValue({
+      ...defaultEstadoRevoto,
+      votosConsumidos: 1,
+      intentosRestantes: 2,
+      puedeVotar: false,
+      minIntervaloSegundos: 180,
+      proximoReintentoEnSegundos: 150,
+    })
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <EphemeralWalletProvider>
+          <BudVotingWizard
+            boleta={boleta}
+            tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            onLogout={vi.fn()}
+          />
+        </EphemeralWalletProvider>
+      </QueryClientProvider>
+    )
+
+    await expect
+      .element(screen.getByTestId('retry-too-soon-panel'))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByText(/Debe esperar 3 minutos/i))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByTestId('max-votes-reached-panel'))
+      .not.toBeInTheDocument()
+    expect(toastWarningMock).toHaveBeenCalled()
+    expect(logVoteTxErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        electionId: boleta.idEleccion,
+        code: 'retry_too_soon',
+      })
+    )
+  })
+
+  it('VOTAR-325 UAT-01: cooldown on-chain muestra contador mm:ss que decrementa cada segundo', async () => {
+    const nowSeconds = Math.floor(Date.now() / 1000)
+    leerVoterStateMock.mockResolvedValue({
+      votesUsed: 1,
+      lastVoteAt: nowSeconds - 1,
+      cooldownRemaining: 299,
+      blockTimestamp: nowSeconds,
+    })
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <EphemeralWalletProvider>
+          <BudVotingWizard
+            boleta={boleta}
+            tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            onLogout={vi.fn()}
+          />
+        </EphemeralWalletProvider>
+      </QueryClientProvider>
+    )
+
+    await expect
+      .element(screen.getByTestId('retry-too-soon-panel'))
+      .toBeInTheDocument()
+
+    const countdown = screen.getByTestId('retry-too-soon-countdown')
+    // mm:ss format, sin fijar un valor exacto: el fetch de leerVoterState y el
+    // polling de expect.element corren en tiempo real, así que unos segundos
+    // ya pudieron transcurrir antes de esta primera lectura (no-flaky).
+    await expect.element(countdown).toHaveTextContent(/^\d{2}:\d{2}$/)
+    const initialText = countdown.element().textContent ?? ''
+
+    // El ticker del panel usa un setInterval real (registrado antes de que el
+    // test pudiera fake-earlo), así que se espera el tick real de 1s en vez de
+    // vi.useFakeTimers() — avanzar timers falsos no mueve un interval ya real.
+    await expect.element(countdown).not.toHaveTextContent(initialText)
+
+    const laterSeconds = mmssToSeconds(countdown.element().textContent)
+    expect(laterSeconds).toBeLessThan(mmssToSeconds(initialText))
+  })
+
+  it('VOTAR-325 UAT-02: getVoterState() rechazado por el nodo mantiene el fallback off-chain (sin datos on-chain confiables)', async () => {
+    leerVoterStateMock.mockRejectedValue(new Error('network error'))
+    obtenerEstadoRevotoMock.mockResolvedValue({
+      ...defaultEstadoRevoto,
+      puedeVotar: false,
+      minIntervaloSegundos: 180,
+      proximoReintentoEnSegundos: 150,
+    })
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <EphemeralWalletProvider>
+          <BudVotingWizard
+            boleta={boleta}
+            tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            onLogout={vi.fn()}
+          />
+        </EphemeralWalletProvider>
+      </QueryClientProvider>
+    )
+
+    await expect
+      .element(screen.getByTestId('retry-too-soon-panel'))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByText(/Debe esperar 3 minutos/i))
+      .toBeInTheDocument()
+  })
+
+  it('VOTAR-359 UAT-02: muestra mensaje NotEligible ante error de padrón on-chain', async () => {
+    transmitSignedVoteMock.mockRejectedValueOnce({
+      code: 'not_eligible',
+      message: VOTE_TX_MESSAGES.notEligible,
+      severity: 'error',
+      revertName: 'InvalidMerkleProof',
+      isTransient: false,
+      canRetrySend: false,
+      canResign: true,
+    })
+
+    const screen = await renderWizard()
+    await userEvent.click(
+      screen.getByRole('button', { name: /Votar en blanco/i })
+    )
+    await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
+    await userEvent.click(
+      screen.getByRole('button', { name: /Firmar y confirmar/i })
+    )
+
+    await expect
+      .element(screen.getByText(VOTE_TX_MESSAGES.notEligible))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByText('No habilitado en el padrón'))
+      .toBeInTheDocument()
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      VOTE_TX_MESSAGES.notEligible,
+      expect.objectContaining({ duration: 8000 })
+    )
+    expect(logVoteTxErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        electionId: boleta.idEleccion,
+        code: 'not_eligible',
+      })
+    )
+  })
+
   it('VOTAR-328 UAT-02: con intentos agotados oculta la boleta y muestra panel de límite', async () => {
     obtenerEstadoRevotoMock.mockResolvedValue({
       ...defaultEstadoRevoto,
@@ -740,5 +943,33 @@ describe('BudVotingWizard', () => {
     await expect
       .element(screen.getByText('Opciones especiales'))
       .not.toBeInTheDocument()
+  })
+
+  it('VOTAR-363 UAT-01: layout mobile-first en paso selección', async () => {
+    const screen = await renderWizard()
+
+    const main = document.querySelector('main')
+    expect(main?.className).toContain('overflow-x-clip')
+
+    const grid = screen.getByTestId('bud-category-grid').element()
+    expect(grid.className).toContain('grid-cols-1')
+    expect(grid.className).toContain('md:grid-cols-2')
+
+    const continueButton = screen.getByRole('button', { name: /^Continuar/i })
+    expect(continueButton.element().className).toContain('w-full')
+    expect(continueButton.element().className).toContain('sm:w-auto')
+
+    const stickyContainer = continueButton.element().parentElement
+    expect(stickyContainer?.className).toContain('w-full')
+    expect(stickyContainer?.className).toContain('justify-stretch')
+  })
+
+  it('VOTAR-363 UAT-02: grid de categorías declara columnas paralelas desde md', async () => {
+    const screen = await renderWizard()
+
+    const grid = screen.getByTestId('bud-category-grid').element()
+    expect(grid.className).toBe(BUD_CATEGORY_GRID_CLASS)
+    expect(grid.className).toContain('md:grid-cols-2')
+    expect(grid.className).toContain('xl:grid-cols-3')
   })
 })

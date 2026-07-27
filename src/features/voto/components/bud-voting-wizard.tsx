@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { AxiosError } from 'axios'
 import {
   AlertTriangle,
@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   UserRoundCheck,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import type { Hex } from 'viem'
 import budFingerprint from '@/assets/bud-fingerprint.png'
 import { resolveMediaUrl } from '@/lib/media-url'
@@ -42,8 +43,16 @@ import {
 } from '@/features/eleccion/lista/data/schema'
 import { firmarRecibo } from '@/features/voto/api/recibo-api'
 import { registrarVotoEmitidoAnonimo } from '@/features/voto/api/voto-api'
+import {
+  BUD_CANDIDATE_GRID_CLASS,
+  BUD_CATEGORY_GRID_CLASS,
+  BUD_SHELL_SECTION_CLASS,
+  BUD_STICKY_CTA_CLASS,
+} from '@/features/voto/components/bud-layout.constants'
+import { VoteTransmitErrorAlert } from '@/features/voto/components/vote-transmit-error-alert'
 import type { SignedVotePayload } from '@/features/voto/crypto'
 import { getExplorerTxUrl } from '@/features/voto/crypto/constants'
+import { logVoteTxError } from '@/features/voto/crypto/log-vote-tx-error'
 import {
   calcularNullifier,
   CredencialNulificadorInvalidaError,
@@ -53,7 +62,9 @@ import {
   transmitSignedVote,
   type TransmitProgressPhase,
 } from '@/features/voto/crypto/vote-transmitter'
+import { remainingSecondsToMinutes } from '@/features/voto/crypto/vote-tx-error-catalog'
 import {
+  buildOffChainCooldownActiveError,
   mapVoteTxError,
   type VoteTxError,
 } from '@/features/voto/crypto/vote-tx-errors'
@@ -68,6 +79,7 @@ import {
   useRegistrarConsumoIntento,
 } from '@/features/voto/hooks/use-estado-revoto'
 import { useSolicitarMerkleProof } from '@/features/voto/hooks/use-merkle-proof'
+import { useVoterStateOnChain } from '@/features/voto/hooks/use-voter-state-onchain'
 import { generarReciboPDF } from '@/features/voto/lib/generar-recibo-pdf'
 import { clearVotanteSession } from '@/features/voto/services/votante-session'
 import {
@@ -88,6 +100,7 @@ type WizardStep =
   | 'transmitting'
   | 'success'
   | 'limit-reached'
+  | 'cooldown'
 
 type TransmitUiPhase = TransmitProgressPhase | 'error'
 
@@ -271,6 +284,23 @@ const groupCandidatesByParty = (candidates: Candidate[]) => {
   )
 }
 
+const showVoteErrorToast = (error: VoteTxError): void => {
+  if (error.severity === 'warning') {
+    toast.warning(error.message, { duration: 8000 })
+    return
+  }
+  toast.error(error.message, { duration: 8000 })
+}
+
+const reportVoteTxError = (error: VoteTxError, electionId: number): void => {
+  logVoteTxError({
+    electionId,
+    revertName: error.revertName,
+    code: error.code,
+  })
+  showVoteErrorToast(error)
+}
+
 export const BudVotingWizard = ({
   boleta,
   tipoVotacion,
@@ -309,15 +339,57 @@ export const BudVotingWizard = ({
     signVotePayload,
     initialize: initializeEphemeralWallet,
     destroy: destroyEphemeralWallet,
+    publicKeyHex,
   } = useEphemeralWallet()
 
+  // VOTAR-325: nullifier derivado apenas la billetera efímera está lista, para
+  // poder consultar getVoterState() on-chain desde el arranque del wizard
+  // (no solo al firmar). Determinístico por votante+elección (VOTAR-353).
+  const nullifier = useMemo(() => {
+    if (!publicKeyHex) {
+      return null
+    }
+    try {
+      return calcularNullifier(publicKeyHex, boleta.idEleccion)
+    } catch {
+      return null
+    }
+  }, [publicKeyHex, boleta.idEleccion])
+
+  const { data: voterStateOnChain, refetch: refetchVoterStateOnChain } =
+    useVoterStateOnChain(boleta.idEleccion, nullifier)
+
   const intentosAgotados =
-    Boolean(estadoRevoto) && estadoRevoto?.puedeVotar === false
-  // Derive UI step when attempts are exhausted (avoids setState-in-effect).
+    Boolean(estadoRevoto) && (estadoRevoto?.intentosRestantes ?? 1) === 0
+  // VOTAR-325 — el reloj del nodo manda en cuanto se conoce el nullifier
+  // (inmune a manipular el reloj del cliente, UAT-02); antes de eso (pre-
+  // identidad) se usa el valor advisory del backend.
+  const cooldownRemainingSeconds =
+    voterStateOnChain !== undefined
+      ? voterStateOnChain.cooldownRemaining
+      : (estadoRevoto?.proximoReintentoEnSegundos ?? 0)
+  const cooldownActivo = cooldownRemainingSeconds > 0
+  const cooldownToastShownRef = useRef(false)
+  // Derive UI step when attempts are exhausted or cooldown is active.
   const effectiveStep: WizardStep =
     intentosAgotados && step !== 'success' && step !== 'transmitting'
       ? 'limit-reached'
-      : step
+      : cooldownActivo && step !== 'success' && step !== 'transmitting'
+        ? 'cooldown'
+        : step
+
+  useEffect(() => {
+    if (!cooldownActivo) {
+      cooldownToastShownRef.current = false
+      return
+    }
+    if (cooldownToastShownRef.current) {
+      return
+    }
+    const mapped = buildOffChainCooldownActiveError(cooldownRemainingSeconds)
+    reportVoteTxError(mapped, boleta.idEleccion)
+    cooldownToastShownRef.current = true
+  }, [boleta.idEleccion, cooldownActivo, cooldownRemainingSeconds])
 
   const lists = useMemo(() => buildListsFromBoleta(boleta), [boleta])
   const roles = useMemo(() => buildRolesFromBoleta(boleta), [boleta])
@@ -455,6 +527,7 @@ export const BudVotingWizard = ({
       await clearVotanteSession()
     } catch (error) {
       const mapped = mapVoteTxError(error)
+      reportVoteTxError(mapped, boleta.idEleccion)
       setTxError(mapped)
       setTransmitPhase('error')
     }
@@ -498,6 +571,15 @@ export const BudVotingWizard = ({
 
   const handleSignVote = async () => {
     setSigningError(null)
+
+    if (cooldownRemainingSeconds > 0) {
+      const mapped = buildOffChainCooldownActiveError(cooldownRemainingSeconds)
+      reportVoteTxError(mapped, boleta.idEleccion)
+      setTxError(mapped)
+      setTransmitPhase('error')
+      setStep('transmitting')
+      return
+    }
 
     setIsSigning(true)
 
@@ -578,7 +660,7 @@ export const BudVotingWizard = ({
 
   return (
     <BudWizardShell step={effectiveStep} estadoRevoto={estadoRevoto}>
-      {effectiveStep !== 'limit-reached' ? (
+      {effectiveStep !== 'limit-reached' && effectiveStep !== 'cooldown' ? (
         <WizardStepper currentStep={effectiveStep} />
       ) : null}
       <div
@@ -588,6 +670,15 @@ export const BudVotingWizard = ({
         {effectiveStep === 'limit-reached' && (
           <MaxVotesReachedPanel
             maxVotos={estadoRevoto?.maxVotosPorVotante ?? 1}
+            onLogout={handleLogout}
+          />
+        )}
+        {effectiveStep === 'cooldown' && (
+          <RetryTooSoonPanel
+            proximoReintentoEnSegundos={cooldownRemainingSeconds}
+            onRefetch={
+              nullifier ? () => void refetchVoterStateOnChain() : undefined
+            }
             onLogout={handleLogout}
           />
         )}
@@ -717,7 +808,7 @@ const BudWizardShell = ({
   step: WizardStep
   estadoRevoto?: EstadoRevoto
 }) => (
-  <main className='votar-light-surface relative min-h-svh overflow-hidden bg-[#fdfcfa] text-[#202124]'>
+  <main className='votar-light-surface relative min-h-svh overflow-x-clip overflow-y-auto bg-[#fdfcfa] text-[#202124]'>
     <div className='pointer-events-none absolute inset-0' aria-hidden='true'>
       {BACKGROUND_FINGERPRINTS.map((fingerprint) => (
         <img
@@ -735,19 +826,19 @@ const BudWizardShell = ({
         />
       ))}
     </div>
-    <section className='relative mx-auto flex min-h-svh w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8'>
+    <section className={BUD_SHELL_SECTION_CLASS}>
       <header className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-        <div>
-          <p className='text-3xl leading-none font-extrabold tracking-tight text-[#2f6f9f]'>
+        <div className='min-w-0'>
+          <p className='text-2xl leading-none font-extrabold tracking-tight text-[#2f6f9f] sm:text-3xl'>
             VOTAR
           </p>
           <p className='mt-2 text-sm text-slate-600'>Boleta Única Digital</p>
         </div>
-        <div className='flex flex-wrap items-center gap-2'>
+        <div className='flex max-w-full flex-wrap items-center gap-2'>
           {estadoRevoto ? (
             <Badge
               variant='outline'
-              className='rounded-full border-emerald-300/70 bg-emerald-50/90 px-3 py-1 font-semibold text-emerald-900'
+              className='rounded-full border-emerald-300/70 bg-emerald-50/90 px-3 py-1 text-xs font-semibold text-emerald-900 sm:text-sm'
               aria-live='polite'
               data-testid='intentos-restantes'
             >
@@ -756,7 +847,7 @@ const BudWizardShell = ({
           ) : null}
           <Badge
             variant='outline'
-            className='rounded-full border-[#2f6f9f]/30 bg-white/80 px-3 py-1 text-[#2f6f9f]'
+            className='rounded-full border-[#2f6f9f]/30 bg-white/80 px-3 py-1 text-xs text-[#2f6f9f] sm:text-sm'
           >
             <ShieldCheck className='size-3.5' />
             {getStepLabel(step)}
@@ -825,12 +916,12 @@ const WizardStepper = ({ currentStep }: { currentStep: WizardStep }) => {
         </div>
       </details>
 
-      <div className='hidden overflow-hidden rounded-2xl sm:flex'>
+      <div className='hidden min-w-0 overflow-hidden rounded-2xl sm:flex'>
         {steps.map(([step, label], index) => (
           <div
             key={step}
             className={cn(
-              'relative -ms-3 flex min-h-16 flex-1 items-center gap-2 border-r border-[#edf1f4] px-4 py-3 text-sm font-semibold transition-all first:ms-0 last:border-r-0',
+              'relative -ms-3 flex min-h-16 min-w-0 flex-1 items-center gap-2 border-r border-[#edf1f4] px-4 py-3 text-sm font-semibold transition-all first:ms-0 last:border-r-0',
               index <= activeIndex
                 ? 'bg-[#e7f1f8] text-[#2f6f9f]'
                 : 'bg-white text-slate-500'
@@ -854,7 +945,7 @@ const WizardStepper = ({ currentStep }: { currentStep: WizardStep }) => {
             >
               {String(index + 1).padStart(2, '0')}
             </span>
-            <span>{label}</span>
+            <span className='truncate'>{label}</span>
           </div>
         ))}
       </div>
@@ -959,6 +1050,108 @@ const IdentityStep = ({
     </Card>
   </div>
 )
+
+/** VOTAR-325: "04:59" — formato mm:ss del contador regresivo de la BUD. */
+const formatMmSs = (totalSeconds: number): string => {
+  const clamped = Math.max(0, totalSeconds)
+  const minutes = Math.floor(clamped / 60)
+  const seconds = clamped % 60
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+}
+
+const RetryTooSoonPanel = ({
+  proximoReintentoEnSegundos,
+  onRefetch,
+  onLogout,
+}: {
+  proximoReintentoEnSegundos: number
+  onRefetch?: () => void
+  onLogout: () => void
+}) => {
+  // VOTAR-325 UAT-02: el ancla (unlockAtMs) se resincroniza con Date.now()
+  // cada vez que llega un nuevo proximoReintentoEnSegundos del reloj de la
+  // red (on-chain refetch cada 30s); el ticker local solo interpola entre
+  // anclas, así que adelantar el reloj del SO no cambia el resultado final
+  // una vez el nodo resincroniza. Es un efecto legítimo de sincronización
+  // con un sistema externo (el reloj), no estado derivable en el render.
+  const [unlockAtMs, setUnlockAtMs] = useState(
+    () => Date.now() + proximoReintentoEnSegundos * 1000
+  )
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resync de ancla con el reloj externo, ver comentario arriba.
+    setUnlockAtMs(Date.now() + proximoReintentoEnSegundos * 1000)
+  }, [proximoReintentoEnSegundos])
+
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(Date.now()), 1_000)
+    return () => window.clearInterval(intervalId)
+  }, [])
+
+  const remainingSeconds = Math.max(0, Math.ceil((unlockAtMs - now) / 1000))
+
+  useEffect(() => {
+    if (remainingSeconds === 0) {
+      onRefetch?.()
+    }
+    // Solo dispara cuando el ticker local llega a cero, no en cada tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remainingSeconds === 0])
+
+  const remainingMinutes = remainingSecondsToMinutes(remainingSeconds)
+  const mmss = formatMmSs(remainingSeconds)
+
+  return (
+    <div className='mx-auto grid w-full max-w-2xl gap-5'>
+      <Card
+        className='border-amber-200 bg-white/95 shadow-[0_1.5rem_5rem_rgba(30,64,95,0.07)]'
+        data-testid='retry-too-soon-panel'
+      >
+        <CardHeader className='flex flex-row items-start gap-4 space-y-0'>
+          <div className='grid size-14 shrink-0 place-items-center rounded-full bg-amber-100 text-amber-700 ring-8 ring-amber-50'>
+            <Clock3 className='size-6' />
+          </div>
+          <div className='space-y-1'>
+            <CardTitle>Debe esperar antes de volver a votar</CardTitle>
+            <CardDescription>
+              Debe esperar {remainingMinutes} minuto
+              {remainingMinutes === 1 ? '' : 's'} antes de volver a votar. Por
+              favor, intente nuevamente más tarde.
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Alert className='border-amber-200 bg-amber-50 text-amber-950'>
+            <Clock3 className='size-4' />
+            <AlertTitle>Tiempo restante</AlertTitle>
+            <AlertDescription aria-live='polite'>
+              Próximo retry en{' '}
+              <span
+                className='font-mono font-semibold tabular-nums'
+                data-testid='retry-too-soon-countdown'
+              >
+                {mmss}
+              </span>{' '}
+              ({remainingMinutes} minuto{remainingMinutes === 1 ? '' : 's'}).
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+        <CardFooter>
+          <Button
+            variant='outline'
+            size='lg'
+            className='h-12 w-full'
+            onClick={onLogout}
+          >
+            <LogOut className='size-4' />
+            Cerrar sesión
+          </Button>
+        </CardFooter>
+      </Card>
+    </div>
+  )
+}
 
 const MaxVotesReachedPanel = ({
   maxVotos,
@@ -1143,19 +1336,24 @@ const SelectionStep = ({
               </CardDescription>
             </CardHeader>
             <CardContent className='grid gap-5'>
-              {roles.map((role) => (
-                <CandidateRoleSection
-                  key={role.id}
-                  roleId={role.id}
-                  roleName={role.name}
-                  candidates={candidates}
-                  selectedCandidateIds={candidateSelections[role.id] ?? []}
-                  groupByParty={variant === 'candidatos'}
-                  permitirVotoEnBlanco={permitirVotoEnBlanco}
-                  onSelectCandidate={onSelectCandidate}
-                  onSelectBlank={onSelectBlank}
-                />
-              ))}
+              <div
+                className={BUD_CATEGORY_GRID_CLASS}
+                data-testid='bud-category-grid'
+              >
+                {roles.map((role) => (
+                  <CandidateRoleSection
+                    key={role.id}
+                    roleId={role.id}
+                    roleName={role.name}
+                    candidates={candidates}
+                    selectedCandidateIds={candidateSelections[role.id] ?? []}
+                    groupByParty={variant === 'candidatos'}
+                    permitirVotoEnBlanco={permitirVotoEnBlanco}
+                    onSelectCandidate={onSelectCandidate}
+                    onSelectBlank={onSelectBlank}
+                  />
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}
@@ -1175,7 +1373,7 @@ const SelectionStep = ({
             <SpecialVoteCard
               title='Votar en blanco'
               description='No selecciona listas ni candidatos.'
-              icon={<CircleOff className='size-20' />}
+              icon={<CircleOff className='size-14 sm:size-20' />}
               selected={specialVote === 'blank'}
               onSelect={() => onSpecialVote('blank')}
             />
@@ -1183,17 +1381,17 @@ const SelectionStep = ({
           <SpecialVoteCard
             title='Anular voto'
             description='Registra una boleta anulada para este comicio.'
-            icon={<Ban className='size-20' />}
+            icon={<Ban className='size-14 sm:size-20' />}
             selected={specialVote === 'null'}
             onSelect={() => onSpecialVote('null')}
           />
         </CardContent>
       </Card>
 
-      <div className='sticky bottom-4 z-10 flex justify-end'>
+      <div className={BUD_STICKY_CTA_CLASS}>
         <Button
           size='lg'
-          className='h-12 rounded-xl bg-[#2f6f9f] px-8 font-semibold shadow-lg shadow-slate-900/10 hover:bg-[#285f88]'
+          className='h-12 w-full rounded-xl bg-[#2f6f9f] px-8 font-semibold shadow-lg shadow-slate-900/10 hover:bg-[#285f88] sm:w-auto sm:min-w-48'
           disabled={!canContinue}
           onClick={onContinue}
         >
@@ -1623,17 +1821,7 @@ const TransmitStep = ({
               )}
           </div>
 
-          {txError && (
-            <Alert variant='destructive'>
-              <AlertTriangle className='size-4' />
-              <AlertTitle>
-                {txError.code === 'already_registered'
-                  ? 'Voto ya registrado'
-                  : 'Error de transmisión'}
-              </AlertTitle>
-              <AlertDescription>{txError.message}</AlertDescription>
-            </Alert>
-          )}
+          {txError && <VoteTransmitErrorAlert error={txError} />}
         </CardContent>
         <CardFooter className='grid gap-3'>
           {txError?.canRetrySend && (
@@ -1806,8 +1994,10 @@ const ListCard = ({
           <ListLogo list={list} />
           <div className='min-w-0 flex-1'>
             <div className='flex items-start justify-between gap-3'>
-              <div>
-                <p className='text-lg font-bold'>{list.name}</p>
+              <div className='min-w-0'>
+                <p className='text-base font-bold break-words sm:text-lg'>
+                  {list.name}
+                </p>
                 <p className='mt-1 text-sm text-slate-500'>
                   Lista {list.initials}
                 </p>
@@ -1877,7 +2067,7 @@ const ListCandidatesOverview = ({
   return (
     <div className={cn(showPrimary && 'mt-4')}>
       {showPrimary && (
-        <div className='grid gap-3 md:grid-cols-2'>
+        <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
           {primaryCandidates.map((candidate) => (
             <CandidatePreview key={candidate.id} candidate={candidate} />
           ))}
@@ -1906,7 +2096,7 @@ const ListCandidatesOverview = ({
                   <p className='text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase'>
                     {role.name}
                   </p>
-                  <div className='grid gap-2 md:grid-cols-2'>
+                  <div className='grid grid-cols-1 gap-2 sm:grid-cols-2'>
                     {role.candidates.map((candidate) => (
                       <CandidatePreview
                         key={candidate.id}
@@ -1996,7 +2186,7 @@ const CandidateRoleSection = ({
               {group.name}
             </div>
           )}
-          <div className='grid gap-3 md:grid-cols-3'>
+          <div className={BUD_CANDIDATE_GRID_CLASS}>
             {group.candidates.map((candidate) => {
               const isSelected = selectedCandidateIds.includes(candidate.id)
               const accessibleName = `${candidate.name}, ${candidate.listName}, lista ${candidate.numeroLista}`
@@ -2008,30 +2198,30 @@ const CandidateRoleSection = ({
                   aria-pressed={isSelected}
                   aria-label={accessibleName}
                   className={cn(
-                    'rounded-2xl border bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/20 focus-visible:outline-none',
+                    'flex flex-col items-stretch gap-3 rounded-2xl border bg-white p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/20 focus-visible:outline-none sm:flex-row sm:items-center sm:p-4',
                     isSelected
                       ? 'border-[#2f6f9f] shadow-md shadow-[#2f6f9f]/10'
                       : 'border-[#dbe3ea]'
                   )}
                   onClick={() => onSelectCandidate(roleId, candidate.id)}
                 >
-                  <div className='flex items-center gap-3'>
+                  <div className='flex min-w-0 flex-1 items-center gap-3'>
                     <CandidateAvatar candidate={candidate} />
-                    <div>
-                      <p className='font-semibold'>{candidate.name}</p>
+                    <div className='min-w-0 flex-1'>
+                      <p className='truncate font-semibold'>{candidate.name}</p>
                       <p className='text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase'>
                         Lista {candidate.numeroLista}
                       </p>
-                      <p className='text-sm text-slate-500'>
+                      <p className='truncate text-sm text-slate-500'>
                         {candidate.listName}
                       </p>
                     </div>
-                    {isSelected && (
-                      <span className='ms-auto grid size-7 place-items-center rounded-full bg-[#2f6f9f] text-white'>
-                        <Check className='size-4' />
-                      </span>
-                    )}
                   </div>
+                  {isSelected && (
+                    <span className='grid size-7 shrink-0 place-items-center self-end rounded-full bg-[#2f6f9f] text-white sm:ms-auto sm:self-center'>
+                      <Check className='size-4' />
+                    </span>
+                  )}
                 </button>
               )
             })}
@@ -2045,7 +2235,7 @@ const CandidateRoleSection = ({
           aria-pressed={isBlankSelected}
           aria-label={`Voto en Blanco para ${roleName}, no seleccionar ningún candidato`}
           className={cn(
-            'flex w-full items-center gap-4 rounded-2xl border border-dashed bg-slate-50 p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-slate-400/40 focus-visible:outline-none',
+            'flex min-h-11 w-full items-center gap-4 rounded-2xl border border-dashed bg-slate-50 p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-slate-400/40 focus-visible:outline-none',
             isBlankSelected
               ? 'border-slate-700 bg-white shadow-md shadow-slate-900/10'
               : 'border-slate-300'
@@ -2072,10 +2262,15 @@ const CandidateRoleSection = ({
   )
 
   return (
-    <section className='grid gap-3' aria-label={roleName}>
-      <div className='flex items-center justify-between gap-3'>
-        <h3 className='font-semibold'>{roleName}</h3>
-        <Badge variant='outline'>{selectionBadge}</Badge>
+    <section
+      className='grid gap-3 rounded-2xl border border-[#dbe3ea] bg-white/95 p-4 shadow-sm'
+      aria-label={roleName}
+    >
+      <div className='flex flex-wrap items-center justify-between gap-3'>
+        <h3 className='min-w-0 truncate font-semibold'>{roleName}</h3>
+        <Badge variant='outline' className='shrink-0'>
+          {selectionBadge}
+        </Badge>
       </div>
       {roleCandidates.length > 20 ? (
         <ScrollArea className='max-h-[65vh] pe-3'>{groupsContent}</ScrollArea>
@@ -2087,19 +2282,24 @@ const CandidateRoleSection = ({
 }
 
 const CandidateReviewItem = ({ candidate }: { candidate: Candidate }) => (
-  <div className='flex items-center gap-3 rounded-2xl bg-white text-sm'>
-    <ListLogo
-      list={{
-        name: candidate.listName,
-        initials: candidate.listInitials,
-        color: candidate.color,
-        accent: getSoftAccent(candidate.color),
-        imageUrl: candidate.listImageUrl,
-      }}
-      className='size-14 rounded-2xl'
-    />
-    <CandidateAvatar candidate={candidate} className='size-14 rounded-2xl' />
-    <div className='min-w-0'>
+  <div className='flex flex-col gap-3 rounded-2xl bg-white p-3 text-sm sm:flex-row sm:items-center sm:gap-3'>
+    <div className='flex shrink-0 items-center gap-3'>
+      <ListLogo
+        list={{
+          name: candidate.listName,
+          initials: candidate.listInitials,
+          color: candidate.color,
+          accent: getSoftAccent(candidate.color),
+          imageUrl: candidate.listImageUrl,
+        }}
+        className='size-12 rounded-2xl sm:size-14'
+      />
+      <CandidateAvatar
+        candidate={candidate}
+        className='size-12 rounded-2xl sm:size-14'
+      />
+    </div>
+    <div className='min-w-0 flex-1'>
       <p className='truncate font-semibold text-slate-950'>{candidate.name}</p>
       <p className='truncate text-slate-500'>{candidate.role}</p>
     </div>
@@ -2173,6 +2373,7 @@ const ListLogo = ({
 
 const getStepLabel = (step: WizardStep) => {
   if (step === 'limit-reached') return 'Límite de intentos'
+  if (step === 'cooldown') return 'Espera entre votos'
   if (step === 'registered') return 'Voto registrado'
   if (step === 'identity') return 'Confirmación de identidad'
   if (step === 'selection') return 'Selección de voto'

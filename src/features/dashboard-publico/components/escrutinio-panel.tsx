@@ -4,6 +4,7 @@ import { BarChart3, Info } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EscrutinioBarChart } from '@/features/dashboard-publico/components/escrutinio-bar-chart'
 import { EscrutinioDonutChart } from '@/features/dashboard-publico/components/escrutinio-donut-chart'
+import { EscrutinioExportMenu } from '@/features/dashboard-publico/components/escrutinio-export-menu'
 import { EscrutinioFrozenBanner } from '@/features/dashboard-publico/components/escrutinio-frozen-banner'
 import { ParticipacionStatsCards } from '@/features/dashboard-publico/components/participacion-stats-cards'
 import { useDashboardResultadosWebSocket } from '@/features/dashboard-publico/hooks/use-dashboard-resultados-websocket'
@@ -121,10 +122,13 @@ export const EscrutinioPanel = ({
             Escrutinio provisional
           </h2>
         </div>
-        <p className='text-xs text-[#80868b]' aria-live='polite'>
-          Actualizado {formatRelativeUpdate(data.actualizadoEn, now)}
-          {!data.congelado && ' · en vivo'}
-        </p>
+        <div className='flex flex-wrap items-center gap-3'>
+          {fullCharts && <EscrutinioExportMenu escrutinio={data} />}
+          <p className='text-xs text-[#80868b]' aria-live='polite'>
+            Actualizado {formatRelativeUpdate(data.actualizadoEn, now)}
+            {!data.congelado && ' · en vivo'}
+          </p>
+        </div>
       </div>
 
       <ParticipacionStatsCards
@@ -143,10 +147,6 @@ export const EscrutinioPanel = ({
         <>
           <EscrutinioBarChart data={barData} height={fullCharts ? 320 : 240} />
           {fullCharts && <EscrutinioDonutChart data={donutData} />}
-          <p className='text-xs leading-relaxed text-[#80868b]'>
-            Los tallies provienen de AuditView on-chain. En boletas multi-cargo,
-            el registro proyecta un único candidateId de auditoría por sufragio.
-          </p>
         </>
       )}
     </div>

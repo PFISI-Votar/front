@@ -16,6 +16,12 @@ type ExportedAbiPayload = {
 const CURATED_LEGACY_ONLY_NAMES = new Set(['NullifierAlreadyUsed'])
 
 /**
+ * No forward-compat entries pending — VOTAR-325's CooldownActive shipped in the
+ * same deployment as its ABI export, so the curated set stays a strict subset.
+ */
+const CURATED_FORWARD_COMPAT_NAMES = new Set<string>()
+
+/**
  * VOTAR-385 — When a full BallotContract ABI was exported by the blockchain
  * pipeline, the curated frontend subset must remain a subset of that interface
  * (except documented legacy decode entries).
@@ -53,6 +59,7 @@ describe('VOTAR-385 exported BallotContract ABI alignment', () => {
     for (const entry of BALLOT_CONTRACT_ABI) {
       if (!entry.name) continue
       if (CURATED_LEGACY_ONLY_NAMES.has(entry.name)) continue
+      if (CURATED_FORWARD_COMPAT_NAMES.has(entry.name)) continue
       expect(exportedNames.has(entry.name)).toBe(true)
     }
   })

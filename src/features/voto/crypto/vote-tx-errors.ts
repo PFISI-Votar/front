@@ -5,21 +5,23 @@ import {
   TimeoutError,
   UserRejectedRequestError,
 } from 'viem'
+import {
+  buildCooldownActiveMessage,
+  getMessageForRevert,
+  remainingSecondsToMinutes,
+  VOTE_TX_FALLBACK_MESSAGE,
+  type VoteErrorSeverity,
+  type VoteTxErrorCode,
+} from '@/features/voto/crypto/vote-tx-error-catalog'
 
-export type VoteTxErrorCode =
-  | 'already_registered'
-  | 'insufficient_funds'
-  | 'invalid_proof'
-  | 'invalid_signature'
-  | 'merkle_root_missing'
-  | 'network'
-  | 'timeout'
-  | 'user_rejected'
-  | 'unknown'
+export type { VoteTxErrorCode } from '@/features/voto/crypto/vote-tx-error-catalog'
 
 export type VoteTxError = {
   code: VoteTxErrorCode
   message: string
+  severity: VoteErrorSeverity
+  revertName?: string
+  remainingSeconds?: number
   /** True when automatic retries may help (transient network). */
   isTransient: boolean
   /** True when the same signed payload can be re-sent manually. */
@@ -46,10 +48,16 @@ const createVoteTxError = (
   partial: Omit<VoteTxError, 'cause'> & { cause?: unknown }
 ): VoteTxError => ({
   ...partial,
+  severity: partial.severity ?? 'error',
   cause: partial.cause,
 })
 
-const getRevertErrorName = (error: unknown): string | null => {
+export type RevertErrorData = {
+  name: string
+  args: readonly unknown[]
+}
+
+export const getRevertErrorData = (error: unknown): RevertErrorData | null => {
   if (!(error instanceof BaseError)) {
     return null
   }
@@ -59,12 +67,35 @@ const getRevertErrorName = (error: unknown): string | null => {
   if (!(reverted instanceof ContractFunctionRevertedError)) {
     return null
   }
-  return reverted.data?.errorName ?? reverted.reason ?? null
+  const name = reverted.data?.errorName ?? reverted.reason
+  if (!name) {
+    return null
+  }
+  return {
+    name,
+    args: reverted.data?.args ?? [],
+  }
+}
+
+/** Off-chain cooldown from revotePolicyService HTTP 429 (VOTAR-325 / VOTAR-359 UAT-01). */
+export const buildOffChainCooldownActiveError = (
+  remainingSeconds: number
+): VoteTxError => {
+  const remainingMinutes = remainingSecondsToMinutes(remainingSeconds)
+  return createVoteTxError({
+    code: 'retry_too_soon',
+    message: buildCooldownActiveMessage(remainingMinutes),
+    severity: 'warning',
+    revertName: 'CooldownActive',
+    remainingSeconds,
+    isTransient: false,
+    canRetrySend: false,
+    canResign: false,
+  })
 }
 
 /**
- * Maps RPC / contract failures to user-facing Spanish messages (VOTAR-358).
- * Exhaustive UX copy belongs to VOTAR-359; this covers acceptance criteria only.
+ * Maps RPC / contract failures to user-facing Spanish messages (VOTAR-358 / VOTAR-359).
  */
 export const mapVoteTxError = (error: unknown): VoteTxError => {
   if (
@@ -73,7 +104,8 @@ export const mapVoteTxError = (error: unknown): VoteTxError => {
     'code' in error &&
     typeof (error as VoteTxError).code === 'string' &&
     'message' in error &&
-    'isTransient' in error
+    'isTransient' in error &&
+    'severity' in error
   ) {
     return error as VoteTxError
   }
@@ -83,6 +115,7 @@ export const mapVoteTxError = (error: unknown): VoteTxError => {
       code: 'timeout',
       message:
         'La transacción no fue incluida en un bloque a tiempo. Podés reintentar el envío o volver a firmar.',
+      severity: 'warning',
       isTransient: false,
       canRetrySend: true,
       canResign: true,
@@ -95,6 +128,7 @@ export const mapVoteTxError = (error: unknown): VoteTxError => {
       code: 'insufficient_funds',
       message:
         'No hay fondos suficientes para pagar el gas de la red. Contactá a la autoridad electoral o reintentá más tarde. Tu selección se conserva.',
+      severity: 'error',
       isTransient: false,
       canRetrySend: true,
       canResign: false,
@@ -106,6 +140,7 @@ export const mapVoteTxError = (error: unknown): VoteTxError => {
     return createVoteTxError({
       code: 'user_rejected',
       message: 'El envío fue cancelado. Tu selección se conserva.',
+      severity: 'warning',
       isTransient: false,
       canRetrySend: true,
       canResign: false,
@@ -113,54 +148,26 @@ export const mapVoteTxError = (error: unknown): VoteTxError => {
     })
   }
 
-  const revertName = getRevertErrorName(error)
-  // VOTAR-341: RevoteDisabled replaces NullifierAlreadyUsed when revote is off.
-  if (
-    revertName === 'RevoteDisabled' ||
-    revertName === 'NullifierAlreadyUsed'
-  ) {
-    return createVoteTxError({
-      code: 'already_registered',
-      message:
-        'Este voto ya está registrado en la blockchain. No es necesario volver a enviarlo.',
-      isTransient: false,
-      canRetrySend: false,
-      canResign: false,
-      cause: error,
-    })
-  }
-  if (revertName === 'InvalidMerkleProof') {
-    return createVoteTxError({
-      code: 'invalid_proof',
-      message:
-        'La prueba de padrón no es válida. Volvé a verificar tu identidad e intentá de nuevo.',
-      isTransient: false,
-      canRetrySend: false,
-      canResign: true,
-      cause: error,
-    })
-  }
-  if (revertName === 'InvalidSignature') {
-    return createVoteTxError({
-      code: 'invalid_signature',
-      message:
-        'La firma del voto no es válida. Volvé a firmar e intentá el envío otra vez.',
-      isTransient: false,
-      canRetrySend: false,
-      canResign: true,
-      cause: error,
-    })
-  }
-  if (revertName === 'MerkleRootNotPublished') {
-    return createVoteTxError({
-      code: 'merkle_root_missing',
-      message:
-        'El padrón aún no está publicado en la blockchain. Reintentá más tarde.',
-      isTransient: false,
-      canRetrySend: true,
-      canResign: false,
-      cause: error,
-    })
+  const revertData = getRevertErrorData(error)
+  if (revertData) {
+    const mapped = getMessageForRevert(revertData.name, revertData.args)
+    if (mapped) {
+      const remainingSeconds =
+        revertData.name === 'CooldownActive'
+          ? Number(revertData.args[1] ?? 0)
+          : undefined
+      return createVoteTxError({
+        code: mapped.code,
+        message: mapped.message,
+        severity: mapped.severity,
+        revertName: revertData.name,
+        remainingSeconds,
+        isTransient: mapped.isTransient,
+        canRetrySend: mapped.canRetrySend,
+        canResign: mapped.canResign,
+        cause: error,
+      })
+    }
   }
 
   const rawMessage =
@@ -175,6 +182,7 @@ export const mapVoteTxError = (error: unknown): VoteTxError => {
       code: 'insufficient_funds',
       message:
         'No hay fondos suficientes para pagar el gas de la red. Contactá a la autoridad electoral o reintentá más tarde. Tu selección se conserva.',
+      severity: 'error',
       isTransient: false,
       canRetrySend: true,
       canResign: false,
@@ -187,6 +195,7 @@ export const mapVoteTxError = (error: unknown): VoteTxError => {
       code: 'network',
       message:
         'No pudimos conectar con la red blockchain. Reintentá el envío cuando recuperes la conexión. Tu selección se conserva.',
+      severity: 'warning',
       isTransient: true,
       canRetrySend: true,
       canResign: true,
@@ -196,8 +205,8 @@ export const mapVoteTxError = (error: unknown): VoteTxError => {
 
   return createVoteTxError({
     code: 'unknown',
-    message:
-      'No pudimos registrar el voto en la blockchain. Reintentá el envío. Tu selección se conserva.',
+    message: VOTE_TX_FALLBACK_MESSAGE,
+    severity: 'error',
     isTransient: false,
     canRetrySend: true,
     canResign: true,

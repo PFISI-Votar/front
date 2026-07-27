@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { tipoVotacionSchema } from '@/features/eleccion/lista/data/schema'
 
 export const candidatoEscrutinioSchema = z.object({
   idCandidato: z.number(),
@@ -26,6 +27,7 @@ export const escrutinioSchema = z.object({
   idEleccion: z.number(),
   nombre: z.string(),
   estado: z.string(),
+  tipoVotacion: tipoVotacionSchema,
   congelado: z.boolean(),
   fuente: z.literal('ON_CHAIN'),
   actualizadoEn: z.string(),
