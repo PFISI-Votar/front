@@ -31,7 +31,7 @@ export const VOTE_TX_FALLBACK_MESSAGE =
 
 export const VOTE_TX_MESSAGES = {
   cooldownActive:
-    'Debe esperar [X] minutos antes de volver a votar. Por favor, intente nuevamente más tarde.',
+    'Debe esperar [TIEMPO] antes de volver a votar. Por favor, intente nuevamente más tarde.',
   invalidSignature:
     'La firma de su voto no es válida. Por favor, asegúrese de que su sesión esté activa y vuelva a intentar.',
   electionPaused:
@@ -52,11 +52,25 @@ export type RevertErrorMapping = {
   canResign: boolean
 }
 
-export const buildCooldownActiveMessage = (remainingMinutes: number): string =>
-  VOTE_TX_MESSAGES.cooldownActive.replace('[X]', String(remainingMinutes))
+/**
+ * VOTAR-325 permite cooldowns de cualquier duración en segundos (no solo múltiplos
+ * de 60). Bajo 60s se muestra en segundos exactos; de lo contrario, en minutos
+ * redondeados hacia arriba (nunca "0 minutos").
+ */
+export const formatCooldownDuration = (remainingSeconds: number): string => {
+  const seconds = Math.max(1, Math.ceil(remainingSeconds))
+  if (seconds < 60) {
+    return `${seconds} segundo${seconds === 1 ? '' : 's'}`
+  }
+  const minutes = Math.ceil(seconds / 60)
+  return `${minutes} minuto${minutes === 1 ? '' : 's'}`
+}
 
-export const remainingSecondsToMinutes = (remainingSeconds: number): number =>
-  Math.max(1, Math.ceil(remainingSeconds / 60))
+export const buildCooldownActiveMessage = (remainingSeconds: number): string =>
+  VOTE_TX_MESSAGES.cooldownActive.replace(
+    '[TIEMPO]',
+    formatCooldownDuration(remainingSeconds)
+  )
 
 export const getMessageForRevert = (
   revertName: string,
@@ -65,10 +79,9 @@ export const getMessageForRevert = (
   if (revertName === 'CooldownActive') {
     // CooldownActive(electionId, remainingSeconds) — VOTAR-325.
     const remainingSeconds = Number(args?.[1] ?? 60)
-    const remainingMinutes = remainingSecondsToMinutes(remainingSeconds)
     return {
       code: 'retry_too_soon',
-      message: buildCooldownActiveMessage(remainingMinutes),
+      message: buildCooldownActiveMessage(remainingSeconds),
       severity: 'warning',
       isTransient: false,
       canRetrySend: false,

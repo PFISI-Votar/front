@@ -8,7 +8,6 @@ import {
 import {
   buildCooldownActiveMessage,
   getMessageForRevert,
-  remainingSecondsToMinutes,
   VOTE_TX_FALLBACK_MESSAGE,
   type VoteErrorSeverity,
   type VoteTxErrorCode,
@@ -81,10 +80,9 @@ export const getRevertErrorData = (error: unknown): RevertErrorData | null => {
 export const buildOffChainCooldownActiveError = (
   remainingSeconds: number
 ): VoteTxError => {
-  const remainingMinutes = remainingSecondsToMinutes(remainingSeconds)
   return createVoteTxError({
     code: 'retry_too_soon',
-    message: buildCooldownActiveMessage(remainingMinutes),
+    message: buildCooldownActiveMessage(remainingSeconds),
     severity: 'warning',
     revertName: 'CooldownActive',
     remainingSeconds,

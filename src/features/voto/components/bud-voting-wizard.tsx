@@ -62,7 +62,7 @@ import {
   transmitSignedVote,
   type TransmitProgressPhase,
 } from '@/features/voto/crypto/vote-transmitter'
-import { remainingSecondsToMinutes } from '@/features/voto/crypto/vote-tx-error-catalog'
+import { formatCooldownDuration } from '@/features/voto/crypto/vote-tx-error-catalog'
 import {
   buildOffChainCooldownActiveError,
   mapVoteTxError,
@@ -1099,7 +1099,7 @@ const RetryTooSoonPanel = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remainingSeconds === 0])
 
-  const remainingMinutes = remainingSecondsToMinutes(remainingSeconds)
+  const remainingDuration = formatCooldownDuration(remainingSeconds)
   const mmss = formatMmSs(remainingSeconds)
 
   return (
@@ -1115,8 +1115,7 @@ const RetryTooSoonPanel = ({
           <div className='space-y-1'>
             <CardTitle>Debe esperar antes de volver a votar</CardTitle>
             <CardDescription>
-              Debe esperar {remainingMinutes} minuto
-              {remainingMinutes === 1 ? '' : 's'} antes de volver a votar. Por
+              Debe esperar {remainingDuration} antes de volver a votar. Por
               favor, intente nuevamente más tarde.
             </CardDescription>
           </div>
@@ -1133,7 +1132,7 @@ const RetryTooSoonPanel = ({
               >
                 {mmss}
               </span>{' '}
-              ({remainingMinutes} minuto{remainingMinutes === 1 ? '' : 's'}).
+              ({remainingDuration}).
             </AlertDescription>
           </Alert>
         </CardContent>
