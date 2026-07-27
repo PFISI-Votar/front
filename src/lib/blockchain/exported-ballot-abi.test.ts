@@ -22,6 +22,17 @@ const CURATED_LEGACY_ONLY_NAMES = new Set(['NullifierAlreadyUsed'])
 const CURATED_FORWARD_COMPAT_NAMES = new Set<string>()
 
 /**
+ * VOTAR-345 — These errors are thrown by VoteRegistry.recordVote (called from
+ * BallotContract.castSignedVote), not declared on BallotContract.sol itself.
+ * They must stay decodable from a castSignedVote revert, so they live in the
+ * curated ABI, but they are intentionally absent from BallotContract's export.
+ */
+const CURATED_CROSS_CONTRACT_NAMES = new Set([
+  'InvalidCandidateId',
+  'CandidateSetNotRegistered',
+])
+
+/**
  * VOTAR-385 — When a full BallotContract ABI was exported by the blockchain
  * pipeline, the curated frontend subset must remain a subset of that interface
  * (except documented legacy decode entries).
@@ -56,10 +67,24 @@ describe('VOTAR-385 exported BallotContract ABI alignment', () => {
 
     expect(exportedNames.has('RevoteDisabled')).toBe(true)
 
+    const voteRegistryPath = resolve(__dirname, 'abis/VoteRegistry.json')
+    if (existsSync(voteRegistryPath)) {
+      const voteRegistryPayload = JSON.parse(
+        readFileSync(voteRegistryPath, 'utf8')
+      ) as ExportedAbiPayload
+      const voteRegistryNames = new Set(
+        voteRegistryPayload.abi.map((e) => e.name).filter(Boolean)
+      )
+      for (const name of CURATED_CROSS_CONTRACT_NAMES) {
+        expect(voteRegistryNames.has(name)).toBe(true)
+      }
+    }
+
     for (const entry of BALLOT_CONTRACT_ABI) {
       if (!entry.name) continue
       if (CURATED_LEGACY_ONLY_NAMES.has(entry.name)) continue
       if (CURATED_FORWARD_COMPAT_NAMES.has(entry.name)) continue
+      if (CURATED_CROSS_CONTRACT_NAMES.has(entry.name)) continue
       expect(exportedNames.has(entry.name)).toBe(true)
     }
   })
