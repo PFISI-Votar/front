@@ -20,6 +20,11 @@ const buildComicioSectionMenuItems = (
     to: '/comicios/$idEleccion/padron',
     params: { idEleccion: idEleccionParam },
   },
+  {
+    label: 'Registro de auditoría',
+    to: '/comicios/$idEleccion/auditoria',
+    params: { idEleccion: idEleccionParam },
+  },
 ]
 
 type BuildComiciosBreadcrumbInput = {
@@ -70,9 +75,20 @@ export const buildComiciosBreadcrumbEntries = ({
     params: { idEleccion: idEleccionParam },
     menuItems: sectionMenuItems,
   }
+  const auditoriaSection: BreadcrumbEntry = {
+    label: 'Registro de auditoría',
+    to: '/comicios/$idEleccion/auditoria',
+    params: { idEleccion: idEleccionParam },
+    menuItems: sectionMenuItems,
+  }
 
   if (pathname.endsWith('/editar')) {
     entries.push(ofertaLink, ofertaSection, { label: 'Editar comicio' })
+    return entries
+  }
+
+  if (pathname.includes('/auditoria')) {
+    entries.push(ofertaLink, auditoriaSection)
     return entries
   }
 

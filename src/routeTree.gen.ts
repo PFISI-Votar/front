@@ -31,6 +31,7 @@ import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedHelpCenterIndexRouteImport } from './routes/_authenticated/help-center/index'
 import { Route as AuthenticatedComiciosIndexRouteImport } from './routes/_authenticated/comicios/index'
 import { Route as AuthenticatedChatsIndexRouteImport } from './routes/_authenticated/chats/index'
+import { Route as AuthenticatedAuditoriaIndexRouteImport } from './routes/_authenticated/auditoria/index'
 import { Route as AuthenticatedAppsIndexRouteImport } from './routes/_authenticated/apps/index'
 import { Route as ComiciosIdEleccionVotarRouteImport } from './routes/comicios/$idEleccion/votar'
 import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes/_authenticated/settings/notifications'
@@ -49,6 +50,7 @@ import { Route as ComiciosIdEleccionDashboardEstadoRouteImport } from './routes/
 import { Route as AuthenticatedComiciosIdEleccionPadronRouteImport } from './routes/_authenticated/comicios/$idEleccion/padron'
 import { Route as AuthenticatedComiciosIdEleccionOfertaRouteImport } from './routes/_authenticated/comicios/$idEleccion/oferta'
 import { Route as AuthenticatedComiciosIdEleccionEditarRouteImport } from './routes/_authenticated/comicios/$idEleccion/editar'
+import { Route as AuthenticatedComiciosIdEleccionAuditoriaRouteImport } from './routes/_authenticated/comicios/$idEleccion/auditoria'
 import { Route as AuthenticatedComiciosIdEleccionPadronPreviewRouteImport } from './routes/_authenticated/comicios/$idEleccion/padron_.preview'
 import { Route as AuthenticatedComiciosIdEleccionListasIdListaIndexRouteImport } from './routes/_authenticated/comicios/$idEleccion/listas/$idLista/index'
 
@@ -166,6 +168,12 @@ const AuthenticatedChatsIndexRoute = AuthenticatedChatsIndexRouteImport.update({
   path: '/chats/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAuditoriaIndexRoute =
+  AuthenticatedAuditoriaIndexRouteImport.update({
+    id: '/auditoria/',
+    path: '/auditoria/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAppsIndexRoute = AuthenticatedAppsIndexRouteImport.update({
   id: '/apps/',
   path: '/apps/',
@@ -272,6 +280,12 @@ const AuthenticatedComiciosIdEleccionEditarRoute =
     path: '/$idEleccion/editar',
     getParentRoute: () => AuthenticatedComiciosRouteRoute,
   } as any)
+const AuthenticatedComiciosIdEleccionAuditoriaRoute =
+  AuthenticatedComiciosIdEleccionAuditoriaRouteImport.update({
+    id: '/$idEleccion/auditoria',
+    path: '/$idEleccion/auditoria',
+    getParentRoute: () => AuthenticatedComiciosRouteRoute,
+  } as any)
 const AuthenticatedComiciosIdEleccionPadronPreviewRoute =
   AuthenticatedComiciosIdEleccionPadronPreviewRouteImport.update({
     id: '/$idEleccion/padron_/preview',
@@ -310,12 +324,14 @@ export interface FileRoutesByFullPath {
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/comicios/$idEleccion/votar': typeof ComiciosIdEleccionVotarRoute
   '/apps/': typeof AuthenticatedAppsIndexRoute
+  '/auditoria/': typeof AuthenticatedAuditoriaIndexRoute
   '/chats/': typeof AuthenticatedChatsIndexRoute
   '/comicios/': typeof AuthenticatedComiciosIndexRoute
   '/help-center/': typeof AuthenticatedHelpCenterIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/tasks/': typeof AuthenticatedTasksIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
+  '/comicios/$idEleccion/auditoria': typeof AuthenticatedComiciosIdEleccionAuditoriaRoute
   '/comicios/$idEleccion/editar': typeof AuthenticatedComiciosIdEleccionEditarRoute
   '/comicios/$idEleccion/oferta': typeof AuthenticatedComiciosIdEleccionOfertaRoute
   '/comicios/$idEleccion/padron': typeof AuthenticatedComiciosIdEleccionPadronRoute
@@ -350,12 +366,14 @@ export interface FileRoutesByTo {
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/comicios/$idEleccion/votar': typeof ComiciosIdEleccionVotarRoute
   '/apps': typeof AuthenticatedAppsIndexRoute
+  '/auditoria': typeof AuthenticatedAuditoriaIndexRoute
   '/chats': typeof AuthenticatedChatsIndexRoute
   '/comicios': typeof AuthenticatedComiciosIndexRoute
   '/help-center': typeof AuthenticatedHelpCenterIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/tasks': typeof AuthenticatedTasksIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
+  '/comicios/$idEleccion/auditoria': typeof AuthenticatedComiciosIdEleccionAuditoriaRoute
   '/comicios/$idEleccion/editar': typeof AuthenticatedComiciosIdEleccionEditarRoute
   '/comicios/$idEleccion/oferta': typeof AuthenticatedComiciosIdEleccionOfertaRoute
   '/comicios/$idEleccion/padron': typeof AuthenticatedComiciosIdEleccionPadronRoute
@@ -395,12 +413,14 @@ export interface FileRoutesById {
   '/_authenticated/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/comicios/$idEleccion/votar': typeof ComiciosIdEleccionVotarRoute
   '/_authenticated/apps/': typeof AuthenticatedAppsIndexRoute
+  '/_authenticated/auditoria/': typeof AuthenticatedAuditoriaIndexRoute
   '/_authenticated/chats/': typeof AuthenticatedChatsIndexRoute
   '/_authenticated/comicios/': typeof AuthenticatedComiciosIndexRoute
   '/_authenticated/help-center/': typeof AuthenticatedHelpCenterIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
+  '/_authenticated/comicios/$idEleccion/auditoria': typeof AuthenticatedComiciosIdEleccionAuditoriaRoute
   '/_authenticated/comicios/$idEleccion/editar': typeof AuthenticatedComiciosIdEleccionEditarRoute
   '/_authenticated/comicios/$idEleccion/oferta': typeof AuthenticatedComiciosIdEleccionOfertaRoute
   '/_authenticated/comicios/$idEleccion/padron': typeof AuthenticatedComiciosIdEleccionPadronRoute
@@ -440,12 +460,14 @@ export interface FileRouteTypes {
     | '/settings/notifications'
     | '/comicios/$idEleccion/votar'
     | '/apps/'
+    | '/auditoria/'
     | '/chats/'
     | '/comicios/'
     | '/help-center/'
     | '/settings/'
     | '/tasks/'
     | '/users/'
+    | '/comicios/$idEleccion/auditoria'
     | '/comicios/$idEleccion/editar'
     | '/comicios/$idEleccion/oferta'
     | '/comicios/$idEleccion/padron'
@@ -480,12 +502,14 @@ export interface FileRouteTypes {
     | '/settings/notifications'
     | '/comicios/$idEleccion/votar'
     | '/apps'
+    | '/auditoria'
     | '/chats'
     | '/comicios'
     | '/help-center'
     | '/settings'
     | '/tasks'
     | '/users'
+    | '/comicios/$idEleccion/auditoria'
     | '/comicios/$idEleccion/editar'
     | '/comicios/$idEleccion/oferta'
     | '/comicios/$idEleccion/padron'
@@ -524,12 +548,14 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/notifications'
     | '/comicios/$idEleccion/votar'
     | '/_authenticated/apps/'
+    | '/_authenticated/auditoria/'
     | '/_authenticated/chats/'
     | '/_authenticated/comicios/'
     | '/_authenticated/help-center/'
     | '/_authenticated/settings/'
     | '/_authenticated/tasks/'
     | '/_authenticated/users/'
+    | '/_authenticated/comicios/$idEleccion/auditoria'
     | '/_authenticated/comicios/$idEleccion/editar'
     | '/_authenticated/comicios/$idEleccion/oferta'
     | '/_authenticated/comicios/$idEleccion/padron'
@@ -717,6 +743,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChatsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/auditoria/': {
+      id: '/_authenticated/auditoria/'
+      path: '/auditoria'
+      fullPath: '/auditoria/'
+      preLoaderRoute: typeof AuthenticatedAuditoriaIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/apps/': {
       id: '/_authenticated/apps/'
       path: '/apps'
@@ -843,6 +876,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedComiciosIdEleccionEditarRouteImport
       parentRoute: typeof AuthenticatedComiciosRouteRoute
     }
+    '/_authenticated/comicios/$idEleccion/auditoria': {
+      id: '/_authenticated/comicios/$idEleccion/auditoria'
+      path: '/$idEleccion/auditoria'
+      fullPath: '/comicios/$idEleccion/auditoria'
+      preLoaderRoute: typeof AuthenticatedComiciosIdEleccionAuditoriaRouteImport
+      parentRoute: typeof AuthenticatedComiciosRouteRoute
+    }
     '/_authenticated/comicios/$idEleccion/padron_/preview': {
       id: '/_authenticated/comicios/$idEleccion/padron_/preview'
       path: '/$idEleccion/padron/preview'
@@ -863,6 +903,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedComiciosRouteRouteChildren {
   AuthenticatedComiciosNuevoRoute: typeof AuthenticatedComiciosNuevoRoute
   AuthenticatedComiciosIndexRoute: typeof AuthenticatedComiciosIndexRoute
+  AuthenticatedComiciosIdEleccionAuditoriaRoute: typeof AuthenticatedComiciosIdEleccionAuditoriaRoute
   AuthenticatedComiciosIdEleccionEditarRoute: typeof AuthenticatedComiciosIdEleccionEditarRoute
   AuthenticatedComiciosIdEleccionOfertaRoute: typeof AuthenticatedComiciosIdEleccionOfertaRoute
   AuthenticatedComiciosIdEleccionPadronRoute: typeof AuthenticatedComiciosIdEleccionPadronRoute
@@ -874,6 +915,8 @@ const AuthenticatedComiciosRouteRouteChildren: AuthenticatedComiciosRouteRouteCh
   {
     AuthenticatedComiciosNuevoRoute: AuthenticatedComiciosNuevoRoute,
     AuthenticatedComiciosIndexRoute: AuthenticatedComiciosIndexRoute,
+    AuthenticatedComiciosIdEleccionAuditoriaRoute:
+      AuthenticatedComiciosIdEleccionAuditoriaRoute,
     AuthenticatedComiciosIdEleccionEditarRoute:
       AuthenticatedComiciosIdEleccionEditarRoute,
     AuthenticatedComiciosIdEleccionOfertaRoute:
@@ -920,6 +963,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
   AuthenticatedAppsIndexRoute: typeof AuthenticatedAppsIndexRoute
+  AuthenticatedAuditoriaIndexRoute: typeof AuthenticatedAuditoriaIndexRoute
   AuthenticatedChatsIndexRoute: typeof AuthenticatedChatsIndexRoute
   AuthenticatedHelpCenterIndexRoute: typeof AuthenticatedHelpCenterIndexRoute
   AuthenticatedTasksIndexRoute: typeof AuthenticatedTasksIndexRoute
@@ -932,6 +976,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
   AuthenticatedAppsIndexRoute: AuthenticatedAppsIndexRoute,
+  AuthenticatedAuditoriaIndexRoute: AuthenticatedAuditoriaIndexRoute,
   AuthenticatedChatsIndexRoute: AuthenticatedChatsIndexRoute,
   AuthenticatedHelpCenterIndexRoute: AuthenticatedHelpCenterIndexRoute,
   AuthenticatedTasksIndexRoute: AuthenticatedTasksIndexRoute,

@@ -6,6 +6,16 @@ export const DATETIME_DISPLAY_OPTIONS: Intl.DateTimeFormatOptions = {
   timeStyle: 'short',
 }
 
+/** 24-hour clock for institutional views (audit log, official timestamps). */
+export const DATETIME_DISPLAY_24H_OPTIONS: Intl.DateTimeFormatOptions = {
+  day: '2-digit',
+  month: '2-digit',
+  year: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+}
+
 const UTC_ISO8601_PATTERN =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?(Z|[+-]\d{2}:\d{2})$/i
 
@@ -52,6 +62,12 @@ export const formatDateTimeForDisplay = (
 
   return new Intl.DateTimeFormat(locale, options).format(date)
 }
+
+export const formatDateTime24ForDisplay = (
+  isoUtc: string,
+  locale: string = DATETIME_DISPLAY_LOCALE
+): string =>
+  formatDateTimeForDisplay(isoUtc, locale, DATETIME_DISPLAY_24H_OPTIONS)
 
 export const parseDateTimeValue = (value: string): ParsedDateTime => {
   if (!value) {
