@@ -13,6 +13,11 @@ import { calcularNullifier } from '@/features/voto/crypto/nullifier'
 import { VOTE_TX_MESSAGES } from '@/features/voto/crypto/vote-tx-error-catalog'
 import type { BoletaDigital, EstadoRevoto } from '@/features/voto/data/schema'
 
+const mmssToSeconds = (text: string | null): number => {
+  const [minutes, seconds] = (text ?? '00:00').split(':').map(Number)
+  return minutes * 60 + seconds
+}
+
 const toastWarningMock = vi.fn()
 const toastErrorMock = vi.fn()
 const logVoteTxErrorMock = vi.fn()
@@ -31,6 +36,11 @@ vi.mock('@/features/voto/crypto/log-vote-tx-error', () => ({
 const registrarVotoEmitidoAnonimoMock = vi.fn().mockResolvedValue(undefined)
 const registrarConsumoIntentoMock = vi.fn()
 const obtenerEstadoRevotoMock = vi.fn()
+const leerVoterStateMock = vi.fn()
+
+vi.mock('@/features/voto/crypto/voter-state', () => ({
+  leerVoterState: (...args: unknown[]) => leerVoterStateMock(...args),
+}))
 
 const defaultEstadoRevoto: EstadoRevoto = {
   revoteHabilitado: true,
@@ -233,9 +243,14 @@ describe('BudVotingWizard', () => {
     toastErrorMock.mockClear()
     logVoteTxErrorMock.mockClear()
     obtenerEstadoRevotoMock.mockReset()
+    leerVoterStateMock.mockReset()
     clearVotanteSessionMock.mockResolvedValue(undefined)
     registrarVotoEmitidoAnonimoMock.mockResolvedValue(undefined)
     obtenerEstadoRevotoMock.mockResolvedValue({ ...defaultEstadoRevoto })
+    // VOTAR-325: por defecto simula que el contrato aún no tiene despliegue
+    // alcanzable; los tests existentes (que asumen el estado off-chain como
+    // única fuente) siguen valiendo sin cambios. Los tests on-chain overridean esto.
+    leerVoterStateMock.mockRejectedValue(new Error('contract not reachable'))
     registrarConsumoIntentoMock.mockResolvedValue({
       ...defaultEstadoRevoto,
       votosConsumidos: 1,
@@ -767,6 +782,88 @@ describe('BudVotingWizard', () => {
         code: 'retry_too_soon',
       })
     )
+  })
+
+  it('VOTAR-325 UAT-01: cooldown on-chain muestra contador mm:ss que decrementa cada segundo', async () => {
+    const nowSeconds = Math.floor(Date.now() / 1000)
+    leerVoterStateMock.mockResolvedValue({
+      votesUsed: 1,
+      lastVoteAt: nowSeconds - 1,
+      cooldownRemaining: 299,
+      blockTimestamp: nowSeconds,
+    })
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <EphemeralWalletProvider>
+          <BudVotingWizard
+            boleta={boleta}
+            tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            onLogout={vi.fn()}
+          />
+        </EphemeralWalletProvider>
+      </QueryClientProvider>
+    )
+
+    await expect
+      .element(screen.getByTestId('retry-too-soon-panel'))
+      .toBeInTheDocument()
+
+    const countdown = screen.getByTestId('retry-too-soon-countdown')
+    // mm:ss format, sin fijar un valor exacto: el fetch de leerVoterState y el
+    // polling de expect.element corren en tiempo real, así que unos segundos
+    // ya pudieron transcurrir antes de esta primera lectura (no-flaky).
+    await expect.element(countdown).toHaveTextContent(/^\d{2}:\d{2}$/)
+    const initialText = countdown.element().textContent ?? ''
+
+    // El ticker del panel usa un setInterval real (registrado antes de que el
+    // test pudiera fake-earlo), así que se espera el tick real de 1s en vez de
+    // vi.useFakeTimers() — avanzar timers falsos no mueve un interval ya real.
+    await expect.element(countdown).not.toHaveTextContent(initialText)
+
+    const laterSeconds = mmssToSeconds(countdown.element().textContent)
+    expect(laterSeconds).toBeLessThan(mmssToSeconds(initialText))
+  })
+
+  it('VOTAR-325 UAT-02: getVoterState() rechazado por el nodo mantiene el fallback off-chain (sin datos on-chain confiables)', async () => {
+    leerVoterStateMock.mockRejectedValue(new Error('network error'))
+    obtenerEstadoRevotoMock.mockResolvedValue({
+      ...defaultEstadoRevoto,
+      puedeVotar: false,
+      minIntervaloSegundos: 180,
+      proximoReintentoEnSegundos: 150,
+    })
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <EphemeralWalletProvider>
+          <BudVotingWizard
+            boleta={boleta}
+            tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            onLogout={vi.fn()}
+          />
+        </EphemeralWalletProvider>
+      </QueryClientProvider>
+    )
+
+    await expect
+      .element(screen.getByTestId('retry-too-soon-panel'))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByText(/Debe esperar 3 minutos/i))
+      .toBeInTheDocument()
   })
 
   it('VOTAR-359 UAT-02: muestra mensaje NotEligible ante error de padrón on-chain', async () => {

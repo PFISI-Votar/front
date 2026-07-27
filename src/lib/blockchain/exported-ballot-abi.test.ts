@@ -15,8 +15,11 @@ type ExportedAbiPayload = {
  */
 const CURATED_LEGACY_ONLY_NAMES = new Set(['NullifierAlreadyUsed'])
 
-/** VOTAR-359 — decode-ready before on-chain deploy (VOTAR-344). */
-const CURATED_FORWARD_COMPAT_NAMES = new Set(['RetryTooSoon'])
+/**
+ * No forward-compat entries pending — VOTAR-325's CooldownActive shipped in the
+ * same deployment as its ABI export, so the curated set stays a strict subset.
+ */
+const CURATED_FORWARD_COMPAT_NAMES = new Set<string>()
 
 /**
  * VOTAR-385 — When a full BallotContract ABI was exported by the blockchain

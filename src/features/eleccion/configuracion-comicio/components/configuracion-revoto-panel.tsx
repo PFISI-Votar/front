@@ -29,7 +29,10 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { MAX_SUFRAGIOS_POR_VOTANTE } from '@/features/eleccion/configuracion-comicio/data/constants'
+import {
+  MAX_INTERVALO_SEGUNDOS,
+  MAX_SUFRAGIOS_POR_VOTANTE,
+} from '@/features/eleccion/configuracion-comicio/data/constants'
 import {
   guardarConfiguracionRevotoSchema,
   type GuardarConfiguracionRevotoInput,
@@ -57,6 +60,7 @@ export const ConfiguracionRevotoPanel = ({
     defaultValues: {
       permitirVotoMultiple: false,
       maxVotosPorVotante: 1,
+      minIntervaloSegundos: 0,
     },
   })
 
@@ -64,7 +68,12 @@ export const ConfiguracionRevotoPanel = ({
     control: form.control,
     name: 'maxVotosPorVotante',
   })
+  const permitirVotoMultiple = useWatch({
+    control: form.control,
+    name: 'permitirVotoMultiple',
+  })
   const canEditForm = isEditable && (configQuery.data?.editable ?? false)
+  const canEditIntervalo = canEditForm && permitirVotoMultiple
 
   useEffect(() => {
     if (!configQuery.data) {
@@ -73,6 +82,7 @@ export const ConfiguracionRevotoPanel = ({
     form.reset({
       permitirVotoMultiple: configQuery.data.permitirVotoMultiple,
       maxVotosPorVotante: configQuery.data.maxVotosPorVotante,
+      minIntervaloSegundos: configQuery.data.minIntervaloSegundos,
     })
   }, [configQuery.data, form])
 
@@ -89,7 +99,10 @@ export const ConfiguracionRevotoPanel = ({
     const payload: GuardarConfiguracionRevotoInput = {
       permitirVotoMultiple: values.permitirVotoMultiple,
       ...(values.permitirVotoMultiple
-        ? { maxVotosPorVotante: values.maxVotosPorVotante ?? 2 }
+        ? {
+            maxVotosPorVotante: values.maxVotosPorVotante ?? 2,
+            minIntervaloSegundos: values.minIntervaloSegundos ?? 0,
+          }
         : {}),
     }
     try {
@@ -196,6 +209,37 @@ export const ConfiguracionRevotoPanel = ({
                           disabled={!canEditForm}
                           aria-disabled={!canEditForm}
                           aria-label='Máximo de sufragios por votante'
+                          className='max-w-[8rem]'
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name='minIntervaloSegundos'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Intervalo mínimo entre sufragios (segundos)
+                      </FormLabel>
+                      <FormDescription>
+                        {`Tiempo mínimo que debe esperar un votante antes de volver a sufragar (mitiga coerción por "voto en cadena"). 0 deshabilita la espera, máximo ${MAX_INTERVALO_SEGUNDOS}.`}
+                      </FormDescription>
+                      <FormControl>
+                        <Input
+                          type='number'
+                          min={0}
+                          max={MAX_INTERVALO_SEGUNDOS}
+                          value={field.value ?? 0}
+                          onChange={(event) =>
+                            field.onChange(Number(event.target.value))
+                          }
+                          disabled={!canEditIntervalo}
+                          aria-disabled={!canEditIntervalo}
+                          aria-label='Intervalo mínimo entre sufragios'
                           className='max-w-[8rem]'
                         />
                       </FormControl>

@@ -22,6 +22,7 @@ const defaultConfig: ConfiguracionRevoto = {
   idEleccion: 1,
   permitirVotoMultiple: false,
   maxVotosPorVotante: 1,
+  minIntervaloSegundos: 0,
   politicaRevoto: 'DISABLED',
   editable: true,
 }
@@ -70,6 +71,7 @@ describe('ConfiguracionRevotoPanel (VOTAR-323)', () => {
     expect(guardarConfiguracionRevotoMock).toHaveBeenCalledWith(1, {
       permitirVotoMultiple: true,
       maxVotosPorVotante: 5,
+      minIntervaloSegundos: 0,
     })
 
     await userEvent.fill(maxInput, '1')
@@ -95,6 +97,44 @@ describe('ConfiguracionRevotoPanel (VOTAR-323)', () => {
 
     expect(guardarConfiguracionRevotoMock).toHaveBeenCalledWith(1, {
       permitirVotoMultiple: false,
+    })
+  })
+
+  it('VOTAR-325: el intervalo mínimo está deshabilitado mientras el re-voto está off', async () => {
+    await renderPanel()
+    await userEvent.click(
+      page.getByRole('button', { name: /Mostrar configuración de re-voto/i })
+    )
+
+    const intervaloInput = page.getByLabelText(
+      /Intervalo mínimo entre sufragios/i
+    )
+    await expect.element(intervaloInput).toHaveValue(0)
+    await expect.element(intervaloInput).toBeDisabled()
+  })
+
+  it('VOTAR-325: habilita y envía minIntervaloSegundos junto con el re-voto', async () => {
+    await renderPanel()
+    await userEvent.click(
+      page.getByRole('button', { name: /Mostrar configuración de re-voto/i })
+    )
+
+    const maxInput = page.getByLabelText(/Máximo de sufragios por votante/i)
+    await userEvent.fill(maxInput, '3')
+
+    const intervaloInput = page.getByLabelText(
+      /Intervalo mínimo entre sufragios/i
+    )
+    await expect.element(intervaloInput).toBeEnabled()
+    await userEvent.fill(intervaloInput, '300')
+
+    await userEvent.click(
+      page.getByRole('button', { name: /Guardar política de re-voto/i })
+    )
+    expect(guardarConfiguracionRevotoMock).toHaveBeenCalledWith(1, {
+      permitirVotoMultiple: true,
+      maxVotosPorVotante: 3,
+      minIntervaloSegundos: 300,
     })
   })
 

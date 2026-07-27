@@ -6,7 +6,7 @@ import {
   UserRejectedRequestError,
 } from 'viem'
 import {
-  buildRetryTooSoonMessage,
+  buildCooldownActiveMessage,
   getMessageForRevert,
   remainingSecondsToMinutes,
   VOTE_TX_FALLBACK_MESSAGE,
@@ -77,16 +77,16 @@ export const getRevertErrorData = (error: unknown): RevertErrorData | null => {
   }
 }
 
-/** Off-chain cooldown from revotePolicyService (VOTAR-359 UAT-01). */
-export const buildOffChainRetryTooSoonError = (
+/** Off-chain cooldown from revotePolicyService HTTP 429 (VOTAR-325 / VOTAR-359 UAT-01). */
+export const buildOffChainCooldownActiveError = (
   remainingSeconds: number
 ): VoteTxError => {
   const remainingMinutes = remainingSecondsToMinutes(remainingSeconds)
   return createVoteTxError({
     code: 'retry_too_soon',
-    message: buildRetryTooSoonMessage(remainingMinutes),
+    message: buildCooldownActiveMessage(remainingMinutes),
     severity: 'warning',
-    revertName: 'RetryTooSoon',
+    revertName: 'CooldownActive',
     remainingSeconds,
     isTransient: false,
     canRetrySend: false,
@@ -153,8 +153,8 @@ export const mapVoteTxError = (error: unknown): VoteTxError => {
     const mapped = getMessageForRevert(revertData.name, revertData.args)
     if (mapped) {
       const remainingSeconds =
-        revertData.name === 'RetryTooSoon'
-          ? Number(revertData.args[0] ?? 0)
+        revertData.name === 'CooldownActive'
+          ? Number(revertData.args[1] ?? 0)
           : undefined
       return createVoteTxError({
         code: mapped.code,
