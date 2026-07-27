@@ -18,6 +18,13 @@ import type {
 } from '@/features/audit-log/data/schema'
 import type { AuditLogToolbarDraft } from '@/features/audit-log/lib/audit-log-search-state'
 
+const AUDIT_FILTER_MAX_LENGTH = {
+  actor: 128,
+  terminal: 128,
+  endpoint: 256,
+  q: 200,
+} as const
+
 type AuditLogToolbarProps = {
   draft: AuditLogToolbarDraft
   onDraftChange: (draft: AuditLogToolbarDraft) => void
@@ -50,8 +57,17 @@ export const AuditLogToolbar = ({
     })
   }
 
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
+    event.preventDefault()
+    onApply()
+  }
+
   return (
-    <div className='space-y-4 rounded-lg border bg-card p-4'>
+    <form
+      className='space-y-4 rounded-lg border bg-card p-4'
+      onSubmit={handleSubmit}
+      aria-label='Filtros de auditoría'
+    >
       <div className='flex flex-wrap items-center gap-2'>
         <AuditLogEventTypeFilter
           selected={draft.tipoEvento}
@@ -106,6 +122,7 @@ export const AuditLogToolbar = ({
             onChange={(event) => handleFieldChange('actor', event.target.value)}
             placeholder='Hash SHA-256 (64 hex)'
             aria-label='ID ofuscado del operador'
+            maxLength={AUDIT_FILTER_MAX_LENGTH.actor}
           />
         </div>
 
@@ -119,6 +136,7 @@ export const AuditLogToolbar = ({
             }
             placeholder='Hash o IP (se ofusca en servidor)'
             aria-label='Terminal criptográfico'
+            maxLength={AUDIT_FILTER_MAX_LENGTH.terminal}
           />
         </div>
 
@@ -132,6 +150,7 @@ export const AuditLogToolbar = ({
             }
             placeholder='/padron/import'
             aria-label='Endpoint'
+            maxLength={AUDIT_FILTER_MAX_LENGTH.endpoint}
           />
         </div>
 
@@ -143,6 +162,7 @@ export const AuditLogToolbar = ({
             onChange={(event) => handleFieldChange('q', event.target.value)}
             placeholder='Texto libre…'
             aria-label='Búsqueda en descripción'
+            maxLength={AUDIT_FILTER_MAX_LENGTH.q}
           />
         </div>
 
@@ -210,7 +230,7 @@ export const AuditLogToolbar = ({
       </div>
 
       <div className='flex flex-wrap gap-2'>
-        <Button type='button' onClick={onApply} aria-label='Buscar registros'>
+        <Button type='submit' aria-label='Buscar registros'>
           <Search className='me-2 size-4' aria-hidden='true' />
           Buscar
         </Button>
@@ -224,6 +244,6 @@ export const AuditLogToolbar = ({
           Limpiar filtros
         </Button>
       </div>
-    </div>
+    </form>
   )
 }
