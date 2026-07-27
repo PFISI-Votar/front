@@ -15,6 +15,11 @@ const sectionMenuItems = [
     to: '/comicios/$idEleccion/padron',
     params: { idEleccion: '42' },
   },
+  {
+    label: 'Registro de auditoría',
+    to: '/comicios/$idEleccion/auditoria',
+    params: { idEleccion: '42' },
+  },
 ]
 
 describe('buildComiciosBreadcrumbEntries', () => {
