@@ -517,7 +517,8 @@ describe('BudVotingWizard', () => {
     expect(signVotePayloadMock).toHaveBeenCalledOnce()
     expect(signVotePayloadMock).toHaveBeenCalledWith(
       expect.objectContaining({ votoEnBlanco: true }),
-      expectedNullifier
+      expectedNullifier,
+      BALLOT_CONTRACT_ADDRESS
     )
     expect(transmitSignedVoteMock).toHaveBeenCalledOnce()
     expect(document.body.innerHTML).not.toContain(expectedNullifier)
