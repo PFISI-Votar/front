@@ -1,5 +1,4 @@
 import { BALLOT_CONTRACT_ABI } from '@/features/voto/crypto/ballot-abi'
-import { getBallotContractAddress } from '@/features/voto/crypto/constants'
 import { createVotePublicClient } from '@/features/voto/crypto/rpc-client'
 
 export type VoterStateOnChain = {
@@ -19,12 +18,13 @@ export type VoterStateOnChain = {
  */
 export const leerVoterState = async (
   idEleccion: number,
-  nullifier: `0x${string}`
+  nullifier: `0x${string}`,
+  ballotContractAddress: `0x${string}`
 ): Promise<VoterStateOnChain> => {
   const client = createVotePublicClient()
   const [votesUsed, lastVoteAt, cooldownRemaining, blockTimestamp] =
     await client.readContract({
-      address: getBallotContractAddress(),
+      address: ballotContractAddress,
       abi: BALLOT_CONTRACT_ABI,
       functionName: 'getVoterState',
       args: [BigInt(idEleccion), nullifier],

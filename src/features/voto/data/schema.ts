@@ -40,6 +40,8 @@ export type BoletaDigital = {
   titulo: string
   permitirVotoEnBlanco: boolean
   categorias: CategoriaBoletaDigital[]
+  /** BallotContract address deployed by ElectionFactory for this comicio (only present on the authenticated voter's boleta). */
+  ballotContractAddress?: `0x${string}`
 }
 
 export type BudConfig = {
@@ -74,6 +76,8 @@ export type VoterMerkleProof = {
   hashHoja: string
   merkleProof: string[]
   root: string
+  /** BallotContract address deployed by ElectionFactory for this comicio. */
+  ballotContractAddress: `0x${string}`
 }
 
 /** VOTAR-360 public verification response (never includes vote content). */
