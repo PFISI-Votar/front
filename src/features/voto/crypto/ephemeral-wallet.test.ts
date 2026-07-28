@@ -6,6 +6,9 @@ import { signDigestWithSecp256k1 } from '@/features/voto/crypto/secp256k1-digest
 import { computeSelectionHash } from '@/features/voto/crypto/selection-hash'
 import { hashVoteTypedData } from '@/features/voto/crypto/vote-signer'
 
+const TEST_BALLOT_ADDRESS =
+  '0x0000000000000000000000000000000000000001' as const
+
 const createMemoryStorage = () => {
   const store = new Map<string, string>()
   return {
@@ -63,7 +66,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
     expect(manager.getSession()).toEqual(session)
   })
 
-  it('UAT-01: does not persist private material in storage or cookies', async () => {
+  it('UAT-01: never persists private/public key material in storage or cookies', async () => {
     const session = await manager.initialize(7)
     const publicKeyHex = session.publicKeyHex
 
@@ -72,13 +75,20 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
       expect(sessionStorageMock.getItem(key)).toBeNull()
     }
 
-    expect(localStorageMock.length).toBe(0)
+    // VOTAR-353: a random per-(browser, idEleccion) seed IS persisted so the
+    // same voter reaches the same nullifier across sign attempts — but the
+    // seed is not the private/public key, and never appears verbatim in it.
+    expect(localStorageMock.length).toBe(1)
+    expect(localStorageMock.getItem('votar:vote-seed:7')).toMatch(
+      /^0x[0-9a-f]{64}$/
+    )
+    expect(localStorageMock.getItem('votar:vote-seed:7')).not.toBe(publicKeyHex)
     expect(sessionStorageMock.length).toBe(0)
     expect(document.cookie).not.toContain(publicKeyHex.slice(2))
     expect(document.cookie.toLowerCase()).not.toContain('private')
   })
 
-  it('UAT-02: destroy clears the session and regenerate yields a new public key', async () => {
+  it('VOTAR-353: destroy clears the session, but regenerating for the same election yields the same public key (LAST_VOTE_WINS revote support)', async () => {
     const firstSession = await manager.initialize(7)
     manager.destroy()
 
@@ -86,8 +96,16 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
     expect(manager.getPublicKeyHex()).toBeNull()
 
     const secondSession = await manager.initialize(7)
-    expect(secondSession.publicKeyHex).not.toBe(firstSession.publicKeyHex)
+    expect(secondSession.publicKeyHex).toBe(firstSession.publicKeyHex)
     expect(secondSession.publicKeyHex).toMatch(/^0x0[23][0-9a-f]{64}$/)
+  })
+
+  it('VOTAR-353: two different elections derive different public keys from the same browser', async () => {
+    const electionSeven = await manager.initialize(7)
+    manager.destroy()
+    const electionEight = await manager.initialize(8)
+
+    expect(electionEight.publicKeyHex).not.toBe(electionSeven.publicKeyHex)
   })
 
   it('UAT-03: does not expose private key accessors on the public API or window', async () => {
@@ -120,16 +138,20 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
     const nullifier =
       '0x1111111111111111111111111111111111111111111111111111111111111111' as const
 
-    const signed = await manager.signVotePayload(selection, nullifier)
+    const signed = await manager.signVotePayload(
+      selection,
+      nullifier,
+      TEST_BALLOT_ADDRESS
+    )
     expect(signed.electionId).toBe(357)
     expect(signed.nullifier).toBe(nullifier)
     expect(signed.signature).toMatch(/^0x[0-9a-f]+$/i)
     expect(manager.getPublicKeyHex()).toBeNull()
     expect(manager.getSession()).toBeNull()
 
-    await expect(manager.signVotePayload(selection, nullifier)).rejects.toThrow(
-      'Ephemeral wallet is not initialized'
-    )
+    await expect(
+      manager.signVotePayload(selection, nullifier, TEST_BALLOT_ADDRESS)
+    ).rejects.toThrow('Ephemeral wallet is not initialized')
   })
 
   it('VOTAR-418: signVotePayload zeroizes the private-key Uint8Array buffer', async () => {
@@ -142,7 +164,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
       '0x2222222222222222222222222222222222222222222222222222222222222222' as const
 
     fillSpy.mockClear()
-    await manager.signVotePayload(selection, nullifier)
+    await manager.signVotePayload(selection, nullifier, TEST_BALLOT_ADDRESS)
 
     const zeroizeCalls = fillSpy.mock.calls.filter(
       (call) => call[0] === 0 && call.length === 1
@@ -159,7 +181,11 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
     }
 
     await expect(
-      manager.signVotePayload(selection, '0xdead' as `0x${string}`)
+      manager.signVotePayload(
+        selection,
+        '0xdead' as `0x${string}`,
+        TEST_BALLOT_ADDRESS
+      )
     ).rejects.toThrow(/nullifier must be a 32-byte hex value/)
 
     expect(manager.getPublicKeyHex()).toBe(publicKeyBefore)
@@ -167,7 +193,11 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
 
     const nullifier =
       '0x3333333333333333333333333333333333333333333333333333333333333333' as const
-    const signed = await manager.signVotePayload(selection, nullifier)
+    const signed = await manager.signVotePayload(
+      selection,
+      nullifier,
+      TEST_BALLOT_ADDRESS
+    )
     expect(signed.signature).toMatch(/^0x[0-9a-f]+$/i)
   })
 

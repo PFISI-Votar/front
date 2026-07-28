@@ -21,11 +21,14 @@ describe('EphemeralWalletProvider (VOTAR-418)', () => {
 
     const nullifier =
       '0x5555555555555555555555555555555555555555555555555555555555555555' as const
+    const ballotContractAddress =
+      '0x0000000000000000000000000000000000000001' as const
 
     await act(() =>
       result.current.signVotePayload(
         { selecciones: [{ idCategoria: 1, idCandidato: 101 }] },
-        nullifier
+        nullifier,
+        ballotContractAddress
       )
     )
 

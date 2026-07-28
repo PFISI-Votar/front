@@ -622,7 +622,11 @@ export const BudVotingWizard = ({
         roles,
         candidates,
       })
-      const signed = await signVotePayload(selection, nullifier)
+      const signed = await signVotePayload(
+        selection,
+        nullifier,
+        boleta.ballotContractAddress
+      )
       setSignedVote(signed)
       setIsSigning(false)
       await transmitVote(signed)
