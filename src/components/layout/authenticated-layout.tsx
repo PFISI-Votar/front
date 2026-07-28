@@ -4,8 +4,10 @@ import { cn } from '@/lib/utils'
 import { LayoutProvider } from '@/context/layout-provider'
 import { SearchProvider } from '@/context/search-provider'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { AppLayoutProvider } from '@/components/layout/app-layout'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { SkipToMain } from '@/components/skip-to-main'
+import { AuthSessionManager } from '@/features/auth/components/auth-session-manager'
 
 type AuthenticatedLayoutProps = {
   children?: React.ReactNode
@@ -15,6 +17,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
   const defaultOpen = getCookie('sidebar_state') !== 'false'
   return (
     <SearchProvider>
+      <AuthSessionManager />
       <LayoutProvider>
         <SidebarProvider defaultOpen={defaultOpen}>
           <SkipToMain />
@@ -33,7 +36,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
               'peer-data-[variant=inset]:has-data-[layout=fixed]:h-[calc(100svh-(var(--spacing)*4))]'
             )}
           >
-            {children ?? <Outlet />}
+            <AppLayoutProvider>{children ?? <Outlet />}</AppLayoutProvider>
           </SidebarInset>
         </SidebarProvider>
       </LayoutProvider>

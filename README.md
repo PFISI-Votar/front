@@ -1,18 +1,18 @@
 # VOTAR — Frontend
 
-Frontend del proyecto **VOTAR** (*Plataforma de Votación Electrónica con Tecnología Blockchain*), desarrollado como Proyecto Final de la carrera de Ingeniería en Sistemas de Información en la UTN FRVM.
+Frontend del proyecto **VOTAR** (_Plataforma de Votación Electrónica con Tecnología Blockchain_), desarrollado como Proyecto Final de la carrera de Ingeniería en Sistemas de Información en la UTN FRVM.
 
 Este repositorio contiene el **Panel de Administración** y la base de UI sobre la que se construirán también la Boleta Única Digital (BUD) y el Dashboard Público de resultados.
 
 ## Equipo Five Stack
 
-| Integrante | Legajo |
-|---|---|
-| Liendo, Alejo | 15074 |
-| Lucarelli, Bruno | 14988 |
-| Magni, Gastón | 14991 |
-| Mosconi, Ignacio (director) | 15288 |
-| Terreno, Valentino | 15079 |
+| Integrante                  | Legajo |
+| --------------------------- | ------ |
+| Liendo, Alejo               | 15074  |
+| Lucarelli, Bruno            | 14988  |
+| Magni, Gastón               | 14991  |
+| Mosconi, Ignacio (director) | 15288  |
+| Terreno, Valentino          | 15079  |
 
 **Cátedra:** Proyecto Final ISI — Ing. Christian Villafañe, Ing. Matías Cassani
 
@@ -27,13 +27,28 @@ VOTAR es una plataforma **open source** para digitalizar procesos electorales de
 
 **Caso piloto:** elecciones del Centro de Estudiantes (CEUTI) — UTN FRVM.
 
+## Estado del proyecto — v1.0.0 (MVP)
+
+**Versión 1 — MVP: Elecciones en Blockchain Funcionales** (finales de julio de 2026).
+
+Objetivo: elección funcional extremo a extremo. Alcance cubierto en esta versión:
+
+- **Gestión electoral:** login de autoridad electoral, creación de comicio, categorías, listas y candidatos, importación de padrón CSV con validación de duplicados, apertura y cierre del comicio
+- **Seguridad básica:** control de acceso por roles, login del votante, validación criptográfica de electores, voto en blanco
+- **Votación:** firma criptográfica y transmisión segura del voto
+- **Blockchain y auditoría mínima:** control de unicidad del sufragio (nullifier), eventos on-chain, dashboard público sin login
+- **Verificabilidad:** recibo criptográfico de participación y verificador de voto E2E
+- **Resultados:** visualización, exportación y métricas de participación
+
+Además de lo planificado, esta versión incorpora funcionalidades adicionales no previstas originalmente para v1, como auditoría (audit log inmutable) y re-voto (política de último voto cuenta), entre otras.
+
 ## Arquitectura del ecosistema
 
-| Contenedor | Repositorio | Tecnología |
-|---|---|---|
-| Panel de Administración / BUD / Dashboard | `votar.front` (este repo) | React 19, Vite, TypeScript, Tailwind CSS 4, shadcn/ui |
-| API Backend | [votar.back](https://github.com/PFISI-Votar/back) | NestJS 11, TypeORM, PostgreSQL 16 |
-| Smart contracts | [blockchain](https://github.com/PFISI-Votar/blockchain) | Solidity, Ethereum Sepolia |
+| Contenedor                                | Repositorio                                             | Tecnología                                            |
+| ----------------------------------------- | ------------------------------------------------------- | ----------------------------------------------------- |
+| Panel de Administración / BUD / Dashboard | `votar.front` (este repo)                               | React 19, Vite, TypeScript, Tailwind CSS 4, shadcn/ui |
+| API Backend                               | [votar.back](https://github.com/PFISI-Votar/back)       | NestJS 11, TypeORM, PostgreSQL 16                     |
+| Smart contracts                           | [blockchain](https://github.com/PFISI-Votar/blockchain) | Solidity, Ethereum Sepolia                            |
 
 La documentación completa del proyecto (alcance, reglas de negocio, diagramas, lineamientos) se encuentra en la carpeta `Contexto/` del workspace académico.
 
@@ -45,8 +60,8 @@ La documentación completa del proyecto (alcance, reglas de negocio, diagramas, 
 - **Estado / datos:** [TanStack Query](https://tanstack.com/query/latest), [Zustand](https://zustand.docs.pmnd.rs/)
 - **Formularios:** React Hook Form + Zod
 - **HTTP:** Axios
-- **Autenticación:** SSO institucional OAuth 2.0 / OIDC (integración pendiente con el backend)
-- **Blockchain (cliente):** Ethers.js + Web Crypto API (billetera efímera)
+- **Autenticación:** SSO institucional vía BFF Autogestión (votante y admin); cookie HttpOnly separada por rol
+- **Blockchain (cliente):** `@noble/secp256k1` + Web Crypto API (billetera efímera) + `viem` (EIP-712 typed data)
 
 ## Requisitos previos
 
@@ -66,20 +81,36 @@ npm run dev
 
 Variables de entorno disponibles:
 
-| Variable | Descripción | Valor por defecto |
-|---|---|---|
-| `VITE_API_URL` | URL base del backend NestJS | `http://localhost:3000` |
+| Variable       | Descripción                 | Valor por defecto       |
+| -------------- | --------------------------- | ----------------------- |
+| `VITE_API_URL` | URL base del backend NestJS | `http://localhost:8000` |
+
+## Login del votante (BUD — US-312)
+
+Ruta pública: `/comicios/{idEleccion}/votar`
+
+1. El votante ingresa legajo y clave de **Autogestión UTN** (no usar `/sign-in` del panel admin).
+2. El backend valida credenciales, comprueba padrón (`hash(dni:email)`) y emite JWT `role=voter` en cookie `votar_voter_access_token` (30 min, sin refresh).
 
 ## Scripts disponibles
 
-| Comando | Descripción |
-|---|---|
-| `npm run dev` | Servidor de desarrollo |
-| `npm run build` | Build de producción |
-| `npm run preview` | Vista previa del build |
-| `npm run lint` | ESLint |
-| `npm run test` | Tests con Vitest (browser) |
-| `npm run format` | Formateo con Prettier |
+| Comando           | Descripción                |
+| ----------------- | -------------------------- |
+| `npm run dev`     | Servidor de desarrollo     |
+| `npm run build`   | Build de producción        |
+| `npm run preview` | Vista previa del build     |
+| `npm run lint`    | ESLint                     |
+| `npm run test`    | Tests con Vitest (browser) |
+| `npm run format`  | Formateo con Prettier      |
+
+## Deploy y cabeceras de seguridad (VOTAR-381)
+
+El build estático se despliega con Docker/nginx. Ver [deploy/README.md](./deploy/README.md) para variables, HSTS detrás de TLS y sincronización de CSP con `src/config/security-headers.ts`.
+
+```bash
+npm run generate:nginx-security-headers   # regenerar snippet nginx desde el módulo TS
+npm run verify:security-headers           # validar headers en Vite preview
+```
 
 ## Roles y módulos previstos
 

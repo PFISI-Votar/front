@@ -1,24 +1,21 @@
 import {
   Construction,
-  LayoutDashboard,
   Monitor,
   Bug,
-  ListTodo,
   FileX,
   HelpCircle,
   Lock,
   Bell,
-  Package,
   Palette,
   ServerOff,
   Settings,
   Wrench,
   UserCog,
   UserX,
-  Users,
-  MessagesSquare,
   ShieldCheck,
   Command,
+  Vote,
+  ScrollText,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -32,7 +29,7 @@ export const sidebarData: SidebarData = {
     {
       name: 'VOTAR',
       logo: Command,
-      plan: 'Five Stack — UTN FRVM',
+      plan: 'Five Stack - UTN FRVM',
     },
   ],
   navGroups: [
@@ -40,30 +37,23 @@ export const sidebarData: SidebarData = {
       title: 'General',
       items: [
         {
-          title: 'Dashboard',
-          url: '/',
-          icon: LayoutDashboard,
+          title: 'Comicios',
+          icon: Vote,
+          items: [
+            {
+              title: 'Nuevo comicio',
+              url: '/comicios/nuevo',
+            },
+            {
+              title: 'Ver comicios',
+              url: '/comicios',
+            },
+          ],
         },
         {
-          title: 'Tasks',
-          url: '/tasks',
-          icon: ListTodo,
-        },
-        {
-          title: 'Apps',
-          url: '/apps',
-          icon: Package,
-        },
-        {
-          title: 'Chats',
-          url: '/chats',
-          badge: '3',
-          icon: MessagesSquare,
-        },
-        {
-          title: 'Users',
-          url: '/users',
-          icon: Users,
+          title: 'Auditoría',
+          url: '/auditoria',
+          icon: ScrollText,
         },
       ],
     },

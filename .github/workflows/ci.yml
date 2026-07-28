@@ -3,40 +3,86 @@ name: Continuous Integration
 on:
   push:
     branches:
-      - main
+      - dev
+      - master
 
   pull_request:
     branches:
-      - main
+      - dev
+      - master
 
 jobs:
-  install-lint-build:
+  ci:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint the code
+      - name: Lint
         run: npm run lint
 
       - name: Run Prettier check
         run: npm run format:check
 
-      - name: Install browsers
-        run: npm run test:browser:install
+      - name: Run unit tests
+        run: npm run test:unit
 
-      - name: Run tests
-        run: npm run test
+      - name: Verify nginx security headers template sync
+        run: npm run verify:nginx-security-headers
 
       - name: Build the project
         run: npm run build
+
+      - name: Verify security headers on preview
+        run: |
+          npm run preview:ci &
+          PREVIEW_PID=$!
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:4173/ > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          SECURITY_HEADERS_URL=http://127.0.0.1:4173/ npm run verify:security-headers
+          kill $PREVIEW_PID
+
+  browser-tests:
+    needs: ci
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.59.1-noble
+
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run browser tests
+        # Retry once: Vitest browser can flake if Vite mid-run dep optimization reloads the page.
+        run: |
+          npm run test:browser || {
+            echo "::warning::browser tests failed once; retrying after clearing Vite cache"
+            rm -rf node_modules/.vite
+            npm run test:browser
+          }
