@@ -1,6 +1,10 @@
-import { Point, getPublicKey, utils as secpUtils } from '@noble/secp256k1'
+import { Point, getPublicKey } from '@noble/secp256k1'
 import { bytesToHex, type Hex } from 'viem'
 import { publicKeyToAddress } from 'viem/accounts'
+import {
+  deriveEphemeralPrivateKey,
+  getOrCreateElectionSeed,
+} from '@/features/voto/crypto/ephemeral-wallet-seed'
 import type {
   EphemeralWalletManager,
   EphemeralWalletSession,
@@ -13,32 +17,11 @@ import {
 } from '@/features/voto/crypto/vote-signer'
 import { isWebCryptoSupported } from '@/features/voto/crypto/web-crypto-support'
 
-const PRIVATE_KEY_BYTES = 32
-const MAX_KEYGEN_ATTEMPTS = 16
-
 const zeroize = (buffer: Uint8Array | null): void => {
   if (!buffer) {
     return
   }
   buffer.fill(0)
-}
-
-const generateSecp256k1PrivateKey = (): Uint8Array => {
-  const cryptoApi = globalThis.crypto
-  if (!cryptoApi?.getRandomValues) {
-    throw new Error('Web Crypto getRandomValues is unavailable')
-  }
-
-  for (let attempt = 0; attempt < MAX_KEYGEN_ATTEMPTS; attempt += 1) {
-    const candidate = new Uint8Array(PRIVATE_KEY_BYTES)
-    cryptoApi.getRandomValues(candidate)
-    if (secpUtils.isValidSecretKey(candidate)) {
-      return candidate
-    }
-    zeroize(candidate)
-  }
-
-  throw new Error('Unable to generate a valid secp256k1 private key')
 }
 
 /**
@@ -83,7 +66,12 @@ export const createEphemeralWalletManager = (): EphemeralWalletManager => {
 
     destroy()
 
-    const nextPrivateKey = generateSecp256k1PrivateKey()
+    // VOTAR-353: derive (not randomize) the ephemeral key so the same
+    // voter always reaches the same nullifier across sign attempts —
+    // required for LAST_VOTE_WINS revotes to overwrite, not multiply.
+    const seed = getOrCreateElectionSeed(idEleccion)
+    const nextPrivateKey = deriveEphemeralPrivateKey(seed, idEleccion)
+    zeroize(seed)
     const publicKeyBytes = getPublicKey(nextPrivateKey, true)
     const publicKeyHex = bytesToHex(publicKeyBytes)
 
@@ -115,7 +103,8 @@ export const createEphemeralWalletManager = (): EphemeralWalletManager => {
 
   const signVotePayload = async (
     selection: SelectionPayload,
-    nullifier: Hex
+    nullifier: Hex,
+    ballotContractAddress: Hex
   ): Promise<SignedVotePayload> => {
     if (!privateKey || !session) {
       throw new Error('Ephemeral wallet is not initialized')
@@ -131,6 +120,7 @@ export const createEphemeralWalletManager = (): EphemeralWalletManager => {
         nullifier,
         expectedSigner,
         signDigest,
+        verifyingContract: ballotContractAddress,
       }
     )
 

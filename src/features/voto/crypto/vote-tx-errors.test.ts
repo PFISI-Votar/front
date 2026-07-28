@@ -184,6 +184,27 @@ describe('mapVoteTxError — VOTAR-358 / VOTAR-341 / VOTAR-359', () => {
     expect(mapped.canResign).toBe(true)
   })
 
+  it('VOTAR-345: maps InvalidCandidateId(electionId, candidateId) to not_eligible ticket copy', () => {
+    const mapped = mapVoteTxError(
+      createRevertedFromEncodedError('InvalidCandidateId', [345n, 999n])
+    )
+    expect(mapped.code).toBe('not_eligible')
+    expect(mapped.message).toBe(VOTE_TX_MESSAGES.invalidCandidateId)
+    expect(mapped.severity).toBe('error')
+    expect(mapped.canRetrySend).toBe(false)
+    expect(mapped.canResign).toBe(false)
+  })
+
+  it('VOTAR-345: maps CandidateSetNotRegistered(electionId) to a retryable warning', () => {
+    const mapped = mapVoteTxError(
+      createRevertedFromEncodedError('CandidateSetNotRegistered', [345n])
+    )
+    expect(mapped.code).toBe('merkle_root_missing')
+    expect(mapped.message).toBe(VOTE_TX_MESSAGES.candidateSetNotRegistered)
+    expect(mapped.severity).toBe('warning')
+    expect(mapped.canRetrySend).toBe(true)
+  })
+
   it('buildOffChainCooldownActiveError uses remaining seconds from backend', () => {
     const mapped = buildOffChainCooldownActiveError(150)
     expect(mapped.code).toBe('retry_too_soon')

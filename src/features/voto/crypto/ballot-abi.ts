@@ -113,4 +113,19 @@ export const BALLOT_CONTRACT_ABI = [
       { name: 'maxVotes', type: 'uint16' },
     ],
   },
+  // VOTAR-345 — thrown by VoteRegistry.recordVote (called from castSignedVote),
+  // so its selector must be decodable from the same revert data.
+  {
+    type: 'error',
+    name: 'InvalidCandidateId',
+    inputs: [
+      { name: 'electionId', type: 'uint256' },
+      { name: 'candidateId', type: 'uint256' },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'CandidateSetNotRegistered',
+    inputs: [{ name: 'electionId', type: 'uint256' }],
+  },
 ] as const

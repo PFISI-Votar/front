@@ -357,7 +357,11 @@ export const BudVotingWizard = ({
   }, [publicKeyHex, boleta.idEleccion])
 
   const { data: voterStateOnChain, refetch: refetchVoterStateOnChain } =
-    useVoterStateOnChain(boleta.idEleccion, nullifier)
+    useVoterStateOnChain(
+      boleta.idEleccion,
+      nullifier,
+      boleta.ballotContractAddress
+    )
 
   const intentosAgotados =
     Boolean(estadoRevoto) && (estadoRevoto?.intentosRestantes ?? 1) === 0
@@ -501,6 +505,7 @@ export const BudVotingWizard = ({
           merkleProof: merkleProofData.merkleProof as Hex[],
         },
         {
+          contractAddress: merkleProofData.ballotContractAddress,
           onProgress: (phase) => {
             setTransmitPhase(phase)
           },
@@ -572,6 +577,13 @@ export const BudVotingWizard = ({
   const handleSignVote = async () => {
     setSigningError(null)
 
+    if (!boleta.ballotContractAddress) {
+      setSigningError(
+        'No se pudo resolver el contrato de la elección. Recargá la página e intentá de nuevo.'
+      )
+      return
+    }
+
     if (cooldownRemainingSeconds > 0) {
       const mapped = buildOffChainCooldownActiveError(cooldownRemainingSeconds)
       reportVoteTxError(mapped, boleta.idEleccion)
@@ -610,7 +622,11 @@ export const BudVotingWizard = ({
         roles,
         candidates,
       })
-      const signed = await signVotePayload(selection, nullifier)
+      const signed = await signVotePayload(
+        selection,
+        nullifier,
+        boleta.ballotContractAddress
+      )
       setSignedVote(signed)
       setIsSigning(false)
       await transmitVote(signed)

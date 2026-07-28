@@ -25,6 +25,8 @@ export type OnChainRevertName =
   | 'NullifierAlreadyUsed'
   | 'MerkleRootNotPublished'
   | 'MaxVotesReached'
+  | 'InvalidCandidateId'
+  | 'CandidateSetNotRegistered'
 
 export const VOTE_TX_FALLBACK_MESSAGE =
   'Ha ocurrido un error inesperado al procesar su voto. Por favor, verifique su conexión e intente nuevamente.'
@@ -41,6 +43,10 @@ export const VOTE_TX_MESSAGES = {
   electionClosed: 'El horario de votación ha finalizado.',
   maxVotesReached:
     'Ya utilizaste los [X] sufragios permitidos para esta elección.',
+  invalidCandidateId:
+    'La opción seleccionada no pertenece a esta elección. Recargue la boleta e intente nuevamente.',
+  candidateSetNotRegistered:
+    'El comicio aún no tiene su oferta electoral sellada en la blockchain. Reintente en unos minutos.',
 } as const
 
 export type RevertErrorMapping = {
@@ -159,6 +165,30 @@ export const getMessageForRevert = (
       severity: 'error',
       isTransient: false,
       canRetrySend: false,
+      canResign: false,
+    }
+  }
+
+  if (revertName === 'InvalidCandidateId') {
+    // VOTAR-345 — candidateId no pertenece al set sellado ni es blanco/nulo.
+    return {
+      code: 'not_eligible',
+      message: VOTE_TX_MESSAGES.invalidCandidateId,
+      severity: 'error',
+      isTransient: false,
+      canRetrySend: false,
+      canResign: false,
+    }
+  }
+
+  if (revertName === 'CandidateSetNotRegistered') {
+    // VOTAR-345 — el comicio abrió on-chain sin sellar el set de candidatos.
+    return {
+      code: 'merkle_root_missing',
+      message: VOTE_TX_MESSAGES.candidateSetNotRegistered,
+      severity: 'warning',
+      isTransient: false,
+      canRetrySend: true,
       canResign: false,
     }
   }

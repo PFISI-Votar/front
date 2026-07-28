@@ -57,6 +57,7 @@ vi.mock('@/features/voto/api/voto-api', () => ({
     hashHoja: 'a'.repeat(64),
     merkleProof: ['0x' + '1'.repeat(64)],
     root: '0x' + 'a'.repeat(64),
+    ballotContractAddress: '0x' + '9'.repeat(40),
   }),
   registrarVotoEmitidoAnonimo: (...args: unknown[]) =>
     registrarVotoEmitidoAnonimoMock(...args),
@@ -120,6 +121,8 @@ vi.mock('@/features/voto/crypto/use-ephemeral-wallet', () => ({
   }),
 }))
 
+const BALLOT_CONTRACT_ADDRESS = ('0x' + '9'.repeat(40)) as `0x${string}`
+
 const boleta: BoletaDigital = {
   idEleccion: 7,
   nombreEleccion: 'Centro de Estudiantes',
@@ -127,6 +130,7 @@ const boleta: BoletaDigital = {
   idBoleta: 70,
   titulo: 'Boleta - Centro de Estudiantes',
   permitirVotoEnBlanco: true,
+  ballotContractAddress: BALLOT_CONTRACT_ADDRESS,
   categorias: [
     {
       idCategoria: 1,
@@ -513,7 +517,8 @@ describe('BudVotingWizard', () => {
     expect(signVotePayloadMock).toHaveBeenCalledOnce()
     expect(signVotePayloadMock).toHaveBeenCalledWith(
       expect.objectContaining({ votoEnBlanco: true }),
-      expectedNullifier
+      expectedNullifier,
+      BALLOT_CONTRACT_ADDRESS
     )
     expect(transmitSignedVoteMock).toHaveBeenCalledOnce()
     expect(document.body.innerHTML).not.toContain(expectedNullifier)
