@@ -145,6 +145,9 @@ export const OfertaElectoralPanel = ({
     [listasQuery.data]
   )
 
+  //fix: Collapsible abierto en la lista recien creada
+  const [nuevaListaId, setNuevaListaId] = useState<number | null>(null)
+
   const invalidateOferta = async () => {
     await queryClient.invalidateQueries({ queryKey: ['listas', idEleccion] })
     await queryClient.invalidateQueries({ queryKey: ['eleccion', idEleccion] })
@@ -179,8 +182,9 @@ export const OfertaElectoralPanel = ({
   const crearListaMutation = useMutation({
     mutationFn: (input: Parameters<typeof crearLista>[1]) =>
       crearLista(idEleccion, input),
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       setConflictMessage(null)
+      setNuevaListaId(data.idLista)
       toast.success('Lista creada correctamente')
       await invalidateOferta()
     },
@@ -519,7 +523,10 @@ export const OfertaElectoralPanel = ({
           const candidatos = lista.candidatos ?? []
 
           return (
-            <Collapsible key={lista.idLista}>
+            <Collapsible
+              key={lista.idLista}
+              defaultOpen={lista.idLista === nuevaListaId}
+            >
               <Card>
                 <CardHeader className='flex flex-row items-start justify-between gap-4 space-y-0 pb-3'>
                   <CollapsibleTrigger asChild>
