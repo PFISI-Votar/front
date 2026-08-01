@@ -730,7 +730,6 @@ export const BudVotingWizard = ({
             specialVote={specialVote}
             candidateSelections={candidateSelections}
             canContinue={canContinueSelection}
-            permitirVotoEnBlanco={boleta.permitirVotoEnBlanco}
             lists={lists}
             roles={roles}
             candidates={candidates}
@@ -1279,7 +1278,6 @@ const SelectionStep = ({
   specialVote,
   candidateSelections,
   canContinue,
-  permitirVotoEnBlanco,
   lists,
   roles,
   candidates,
@@ -1294,7 +1292,6 @@ const SelectionStep = ({
   specialVote: SpecialVote
   candidateSelections: Record<string, string[]>
   canContinue: boolean
-  permitirVotoEnBlanco: boolean
   lists: PartyList[]
   roles: CandidateRole[]
   candidates: Candidate[]
@@ -1304,9 +1301,8 @@ const SelectionStep = ({
   onSelectBlank: (roleId: string) => void
   onContinue: () => void
 }) => {
-  const specialDescription = permitirVotoEnBlanco
-    ? 'También podés emitir tu voto en blanco o anularlo.'
-    : 'También podés anular tu voto para este comicio.'
+  const specialDescription =
+    'También podés emitir tu voto en blanco o anular tu voto para este comicio.'
 
   return (
     <div className='grid gap-5'>
@@ -1345,9 +1341,8 @@ const SelectionStep = ({
                 {variant === 'mixto' ? 'Corte de boleta' : 'Candidatos por rol'}
               </CardTitle>
               <CardDescription>
-                Elegí un candidato por cargo
-                {permitirVotoEnBlanco ? ' o voto en blanco' : ''}. Podés
-                combinar partidos diferentes entre cargos.
+                Elegí un candidato por cargo o voto en blanco. Podés combinar
+                partidos diferentes entre cargos.
               </CardDescription>
             </CardHeader>
             <CardContent className='grid gap-5'>
@@ -1363,7 +1358,6 @@ const SelectionStep = ({
                     candidates={candidates}
                     selectedCandidateIds={candidateSelections[role.id] ?? []}
                     groupByParty={variant === 'candidatos'}
-                    permitirVotoEnBlanco={permitirVotoEnBlanco}
                     onSelectCandidate={onSelectCandidate}
                     onSelectBlank={onSelectBlank}
                   />
@@ -1378,21 +1372,14 @@ const SelectionStep = ({
           <CardTitle>Opciones especiales</CardTitle>
           <CardDescription>{specialDescription}</CardDescription>
         </CardHeader>
-        <CardContent
-          className={cn(
-            'grid gap-3',
-            permitirVotoEnBlanco ? 'md:grid-cols-2' : 'md:grid-cols-1'
-          )}
-        >
-          {permitirVotoEnBlanco && (
-            <SpecialVoteCard
-              title='Votar en blanco'
-              description='No selecciona listas ni candidatos.'
-              icon={<CircleOff className='size-14 sm:size-20' />}
-              selected={specialVote === 'blank'}
-              onSelect={() => onSpecialVote('blank')}
-            />
-          )}
+        <CardContent className='grid gap-3 md:grid-cols-2'>
+          <SpecialVoteCard
+            title='Votar en blanco'
+            description='No selecciona listas ni candidatos.'
+            icon={<CircleOff className='size-14 sm:size-20' />}
+            selected={specialVote === 'blank'}
+            onSelect={() => onSpecialVote('blank')}
+          />
           <SpecialVoteCard
             title='Anular voto'
             description='Registra una boleta anulada para este comicio.'
@@ -2145,7 +2132,6 @@ const CandidateRoleSection = ({
   candidates,
   selectedCandidateIds,
   groupByParty,
-  permitirVotoEnBlanco,
   onSelectCandidate,
   onSelectBlank,
 }: {
@@ -2154,7 +2140,6 @@ const CandidateRoleSection = ({
   candidates: Candidate[]
   selectedCandidateIds: string[]
   groupByParty: boolean
-  permitirVotoEnBlanco: boolean
   onSelectCandidate: (roleId: string, candidateId: string) => void
   onSelectBlank: (roleId: string) => void
 }) => {
@@ -2243,36 +2228,33 @@ const CandidateRoleSection = ({
           </div>
         </div>
       ))}
-
-      {permitirVotoEnBlanco && (
-        <button
-          type='button'
-          aria-pressed={isBlankSelected}
-          aria-label={`Voto en Blanco para ${roleName}, no seleccionar ningún candidato`}
-          className={cn(
-            'flex min-h-11 w-full items-center gap-4 rounded-2xl border border-dashed bg-slate-50 p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-slate-400/40 focus-visible:outline-none',
-            isBlankSelected
-              ? 'border-slate-700 bg-white shadow-md shadow-slate-900/10'
-              : 'border-slate-300'
-          )}
-          onClick={() => onSelectBlank(roleId)}
-        >
-          <div className='grid size-14 place-items-center rounded-xl border border-dashed border-slate-300 bg-white text-slate-500'>
-            <CircleOff className='size-7' aria-hidden='true' />
-          </div>
-          <div className='min-w-0 flex-1'>
-            <p className='font-semibold text-slate-900'>Voto en Blanco</p>
-            <p className='text-sm text-slate-600'>
-              Abstención explícita para {roleName}
-            </p>
-          </div>
-          {isBlankSelected && (
-            <span className='grid size-7 shrink-0 place-items-center rounded-full bg-slate-700 text-white'>
-              <Check className='size-4' aria-hidden='true' />
-            </span>
-          )}
-        </button>
-      )}
+      <button
+        type='button'
+        aria-pressed={isBlankSelected}
+        aria-label={`Voto en Blanco para ${roleName}, no seleccionar ningún candidato`}
+        className={cn(
+          'flex min-h-11 w-full items-center gap-4 rounded-2xl border border-dashed bg-slate-50 p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-slate-400/40 focus-visible:outline-none',
+          isBlankSelected
+            ? 'border-slate-700 bg-white shadow-md shadow-slate-900/10'
+            : 'border-slate-300'
+        )}
+        onClick={() => onSelectBlank(roleId)}
+      >
+        <div className='grid size-14 place-items-center rounded-xl border border-dashed border-slate-300 bg-white text-slate-500'>
+          <CircleOff className='size-7' aria-hidden='true' />
+        </div>
+        <div className='min-w-0 flex-1'>
+          <p className='font-semibold text-slate-900'>Voto en Blanco</p>
+          <p className='text-sm text-slate-600'>
+            Abstención explícita para {roleName}
+          </p>
+        </div>
+        {isBlankSelected && (
+          <span className='grid size-7 shrink-0 place-items-center rounded-full bg-slate-700 text-white'>
+            <Check className='size-4' aria-hidden='true' />
+          </span>
+        )}
+      </button>
     </div>
   )
 
