@@ -55,7 +55,7 @@ export {
   type VoteTxErrorLogContext,
 } from '@/features/voto/crypto/log-vote-tx-error'
 export {
-  buildOffChainCooldownActiveError,
+  buildOffChainRetryTooSoonError,
   getRevertErrorData,
   mapVoteTxError,
   type RevertErrorData,
@@ -63,7 +63,7 @@ export {
   type VoteTxErrorCode,
 } from '@/features/voto/crypto/vote-tx-errors'
 export {
-  buildCooldownActiveMessage,
+  buildRetryTooSoonMessage,
   VOTE_TX_FALLBACK_MESSAGE,
   VOTE_TX_MESSAGES,
 } from '@/features/voto/crypto/vote-tx-error-catalog'

@@ -64,7 +64,7 @@ import {
 } from '@/features/voto/crypto/vote-transmitter'
 import { formatCooldownDuration } from '@/features/voto/crypto/vote-tx-error-catalog'
 import {
-  buildOffChainCooldownActiveError,
+  buildOffChainRetryTooSoonError,
   mapVoteTxError,
   type VoteTxError,
 } from '@/features/voto/crypto/vote-tx-errors'
@@ -390,7 +390,7 @@ export const BudVotingWizard = ({
     if (cooldownToastShownRef.current) {
       return
     }
-    const mapped = buildOffChainCooldownActiveError(cooldownRemainingSeconds)
+    const mapped = buildOffChainRetryTooSoonError(cooldownRemainingSeconds)
     reportVoteTxError(mapped, boleta.idEleccion)
     cooldownToastShownRef.current = true
   }, [boleta.idEleccion, cooldownActivo, cooldownRemainingSeconds])
@@ -585,7 +585,7 @@ export const BudVotingWizard = ({
     }
 
     if (cooldownRemainingSeconds > 0) {
-      const mapped = buildOffChainCooldownActiveError(cooldownRemainingSeconds)
+      const mapped = buildOffChainRetryTooSoonError(cooldownRemainingSeconds)
       reportVoteTxError(mapped, boleta.idEleccion)
       setTxError(mapped)
       setTransmitPhase('error')

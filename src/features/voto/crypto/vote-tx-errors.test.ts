@@ -8,13 +8,13 @@ import {
 import { describe, expect, it } from 'vitest'
 import { BALLOT_CONTRACT_ABI } from '@/features/voto/crypto/ballot-abi'
 import {
-  buildCooldownActiveMessage,
+  buildRetryTooSoonMessage,
   formatCooldownDuration,
   VOTE_TX_FALLBACK_MESSAGE,
   VOTE_TX_MESSAGES,
 } from '@/features/voto/crypto/vote-tx-error-catalog'
 import {
-  buildOffChainCooldownActiveError,
+  buildOffChainRetryTooSoonError,
   mapVoteTxError,
 } from '@/features/voto/crypto/vote-tx-errors'
 
@@ -99,9 +99,9 @@ describe('mapVoteTxError — VOTAR-358 / VOTAR-341 / VOTAR-359', () => {
     ).toBe('NullifierAlreadyUsed')
   })
 
-  it('VOTAR-325 UAT-01: maps CooldownActive(electionId, 180) to 3 minutes warning', () => {
+  it('VOTAR-325 UAT-01: maps RetryTooSoon(electionId, 180) to 3 minutes warning', () => {
     const mapped = mapVoteTxError(
-      createRevertedFromEncodedError('CooldownActive', [339n, 180n])
+      createRevertedFromEncodedError('RetryTooSoon', [339n, 180n])
     )
     expect(mapped.code).toBe('retry_too_soon')
     expect(mapped.severity).toBe('warning')
@@ -205,11 +205,11 @@ describe('mapVoteTxError — VOTAR-358 / VOTAR-341 / VOTAR-359', () => {
     expect(mapped.canRetrySend).toBe(true)
   })
 
-  it('buildOffChainCooldownActiveError uses remaining seconds from backend', () => {
-    const mapped = buildOffChainCooldownActiveError(150)
+  it('buildOffChainRetryTooSoonError uses remaining seconds from backend', () => {
+    const mapped = buildOffChainRetryTooSoonError(150)
     expect(mapped.code).toBe('retry_too_soon')
     expect(mapped.remainingSeconds).toBe(150)
-    expect(mapped.message).toBe(buildCooldownActiveMessage(150))
+    expect(mapped.message).toBe(buildRetryTooSoonMessage(150))
   })
 })
 
@@ -226,8 +226,8 @@ describe('vote-tx-error-catalog helpers', () => {
     expect(formatCooldownDuration(180)).toBe('3 minutos')
   })
 
-  it('buildCooldownActiveMessage substitutes the exact duration', () => {
-    expect(buildCooldownActiveMessage(180)).toContain('3 minutos')
-    expect(buildCooldownActiveMessage(30)).toContain('30 segundos')
+  it('buildRetryTooSoonMessage substitutes the exact duration', () => {
+    expect(buildRetryTooSoonMessage(180)).toContain('3 minutos')
+    expect(buildRetryTooSoonMessage(30)).toContain('30 segundos')
   })
 })
