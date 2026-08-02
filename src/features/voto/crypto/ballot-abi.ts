@@ -4,7 +4,7 @@
  * VOTAR-346 adds candidateId for VoteRegistry audit VoteCast emission.
  * VOTAR-341: RevoteDisabled is the current double-vote error when revote is off.
  * VOTAR-324: MaxVotesReached fires once a nullifier reaches maxVotesPerVoter signed votes.
- * VOTAR-325: CooldownActive fires when a nullifier re-votes before minIntervalSeconds
+ * VOTAR-325: RetryTooSoon fires when a nullifier re-votes before minIntervalSeconds
  * elapsed; getVoterState exposes the node's cooldownRemaining/blockTimestamp so the
  * BUD can anchor its countdown to the network clock instead of the OS clock.
  * NullifierAlreadyUsed is kept so viem can still decode legacy Sepolia deployments.
@@ -99,7 +99,7 @@ export const BALLOT_CONTRACT_ABI = [
   },
   {
     type: 'error',
-    name: 'CooldownActive',
+    name: 'RetryTooSoon',
     inputs: [
       { name: 'electionId', type: 'uint256' },
       { name: 'remainingSeconds', type: 'uint256' },
