@@ -130,6 +130,7 @@ const boleta: BoletaDigital = {
   idBoleta: 70,
   titulo: 'Boleta - Centro de Estudiantes',
   permitirVotoEnBlanco: true,
+  permitirVotoNulo: true,
   ballotContractAddress: BALLOT_CONTRACT_ADDRESS,
   categorias: [
     {
@@ -441,6 +442,69 @@ describe('BudVotingWizard', () => {
     await expect
       .element(screen.getByRole('button', { name: /Anular voto/i }))
       .toBeInTheDocument()
+  })
+
+  it('VOTAR-443: no renderiza "Anular voto" si permitirVotoNulo es false', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <EphemeralWalletProvider>
+          <BudVotingWizard
+            boleta={{ ...boleta, permitirVotoNulo: false }}
+            tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            onLogout={vi.fn()}
+          />
+        </EphemeralWalletProvider>
+      </QueryClientProvider>
+    )
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /Confirmar Identidad y Comenzar/i })
+    )
+
+    await expect
+      .element(screen.getByRole('button', { name: /Anular voto/i }))
+      .not.toBeInTheDocument()
+    await expect
+      .element(screen.getByRole('button', { name: /Votar en blanco/i }))
+      .toBeInTheDocument()
+  })
+
+  it('VOTAR-443: no renderiza "Opciones especiales" si ambos flags están off', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <EphemeralWalletProvider>
+          <BudVotingWizard
+            boleta={{
+              ...boleta,
+              permitirVotoEnBlanco: false,
+              permitirVotoNulo: false,
+            }}
+            tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            onLogout={vi.fn()}
+          />
+        </EphemeralWalletProvider>
+      </QueryClientProvider>
+    )
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /Confirmar Identidad y Comenzar/i })
+    )
+
+    await expect
+      .element(screen.getByText('Opciones especiales'))
+      .not.toBeInTheDocument()
   })
 
   it('permite un solo candidato seleccionado por rol', async () => {

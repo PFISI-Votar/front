@@ -88,6 +88,7 @@ const boleta: BoletaDigital = {
   idBoleta: 70,
   titulo: 'Boleta - Centro de Estudiantes',
   permitirVotoEnBlanco: true,
+  permitirVotoNulo: true,
   categorias: [
     {
       idCategoria: 1,
