@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ChangeEvent } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ChevronDown, Lock, RefreshCw } from 'lucide-react'
@@ -203,9 +203,12 @@ export const ConfiguracionRevotoPanel = ({
                           min={1}
                           max={MAX_SUFRAGIOS_POR_VOTANTE}
                           value={field.value ?? 1}
-                          onChange={(event) =>
-                            field.onChange(Number(event.target.value))
-                          }
+                          onChange={(event) => {
+                            const sinCerosIzquierda =
+                              event.target.value.replace(/^0+(?=\d)/, '')
+                            event.target.value = sinCerosIzquierda
+                            field.onChange(Number(sinCerosIzquierda))
+                          }}
                           disabled={!canEditForm}
                           aria-disabled={!canEditForm}
                           aria-label='Máximo de sufragios por votante'
@@ -220,32 +223,97 @@ export const ConfiguracionRevotoPanel = ({
                 <FormField
                   control={form.control}
                   name='minIntervaloSegundos'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Intervalo mínimo entre sufragios (segundos)
-                      </FormLabel>
-                      <FormDescription>
-                        {`Tiempo mínimo que debe esperar un votante antes de volver a sufragar (mitiga coerción por "voto en cadena"). 0 deshabilita la espera, máximo ${MAX_INTERVALO_SEGUNDOS}.`}
-                      </FormDescription>
-                      <FormControl>
-                        <Input
-                          type='number'
-                          min={0}
-                          max={MAX_INTERVALO_SEGUNDOS}
-                          value={field.value ?? 0}
-                          onChange={(event) =>
-                            field.onChange(Number(event.target.value))
-                          }
-                          disabled={!canEditIntervalo}
-                          aria-disabled={!canEditIntervalo}
-                          aria-label='Intervalo mínimo entre sufragios'
-                          className='max-w-[8rem]'
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    const maxMinutos = Math.floor(MAX_INTERVALO_SEGUNDOS / 60)
+                    const totalSegundos = field.value ?? 0
+                    const minutos = Math.floor(totalSegundos / 60)
+                    const segundos = totalSegundos % 60
+
+                    const manejarCambioParte = (
+                      event: ChangeEvent<HTMLInputElement>,
+                      max: number,
+                      parte: 'minutos' | 'segundos'
+                    ) => {
+                      const sinCerosIzquierda = event.target.value.replace(
+                        /^0+(?=\d)/,
+                        ''
+                      )
+                      const valor =
+                        sinCerosIzquierda === ''
+                          ? 0
+                          : Math.min(
+                              max,
+                              Math.max(0, Number(sinCerosIzquierda))
+                            )
+                      event.target.value = String(valor)
+
+                      const nuevosMinutos =
+                        parte === 'minutos' ? valor : minutos
+                      const nuevosSegundos =
+                        parte === 'segundos' ? valor : segundos
+                      field.onChange(nuevosMinutos * 60 + nuevosSegundos)
+                    }
+
+                    return (
+                      <FormItem>
+                        <FormLabel>Intervalo mínimo entre sufragios</FormLabel>
+                        <FormDescription>
+                          {`Tiempo mínimo que debe esperar un votante antes de volver a sufragar (mitiga coerción por "voto en cadena"). 0 deshabilita la espera, máximo ${maxMinutos} minutos.`}
+                        </FormDescription>
+                        <FormControl>
+                          <div className='flex items-end gap-2'>
+                            <div className='flex flex-col gap-1.5'>
+                              <span className='text-xs text-muted-foreground'>
+                                Minutos
+                              </span>
+                              <Input
+                                type='number'
+                                min={0}
+                                max={maxMinutos}
+                                value={minutos}
+                                onChange={(event) =>
+                                  manejarCambioParte(
+                                    event,
+                                    maxMinutos,
+                                    'minutos'
+                                  )
+                                }
+                                disabled={!canEditIntervalo}
+                                aria-disabled={!canEditIntervalo}
+                                aria-label='Minutos del intervalo mínimo entre sufragios'
+                                className='w-20'
+                              />
+                            </div>
+                            <span
+                              className='pb-2 text-muted-foreground'
+                              aria-hidden='true'
+                            >
+                              :
+                            </span>
+                            <div className='flex flex-col gap-1.5'>
+                              <span className='text-xs text-muted-foreground'>
+                                Segundos
+                              </span>
+                              <Input
+                                type='number'
+                                min={0}
+                                max={59}
+                                value={segundos}
+                                onChange={(event) =>
+                                  manejarCambioParte(event, 59, 'segundos')
+                                }
+                                disabled={!canEditIntervalo}
+                                aria-disabled={!canEditIntervalo}
+                                aria-label='Segundos del intervalo mínimo entre sufragios'
+                                className='w-20'
+                              />
+                            </div>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )
+                  }}
                 />
 
                 {canEditForm && (
