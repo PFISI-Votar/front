@@ -407,7 +407,7 @@ describe('BudVotingWizard', () => {
     ).toBe('true')
   })
 
-  it('VOTAR-356: no renderiza casilleros de blanco si permitirVotoEnBlanco es false', async () => {
+  it('VOTAR-438: el voto en blanco se muestra siempre, sin importar permitirVotoEnBlanco', async () => {
     const queryClient = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -434,10 +434,10 @@ describe('BudVotingWizard', () => {
       .element(
         screen.getByRole('button', { name: /Voto en Blanco para Presidente/i })
       )
-      .not.toBeInTheDocument()
+      .toBeInTheDocument()
     await expect
       .element(screen.getByRole('button', { name: /Votar en blanco/i }))
-      .not.toBeInTheDocument()
+      .toBeInTheDocument()
     await expect
       .element(screen.getByRole('button', { name: /Anular voto/i }))
       .toBeInTheDocument()

@@ -106,11 +106,16 @@ describe('ConfiguracionRevotoPanel (VOTAR-323)', () => {
       page.getByRole('button', { name: /Mostrar configuración de re-voto/i })
     )
 
-    const intervaloInput = page.getByLabelText(
-      /Intervalo mínimo entre sufragios/i
+    const minutosInput = page.getByLabelText(
+      /Minutos del intervalo mínimo entre sufragios/i
     )
-    await expect.element(intervaloInput).toHaveValue(0)
-    await expect.element(intervaloInput).toBeDisabled()
+    const segundosInput = page.getByLabelText(
+      /Segundos del intervalo mínimo entre sufragios/i
+    )
+    await expect.element(minutosInput).toHaveValue(0)
+    await expect.element(segundosInput).toHaveValue(0)
+    await expect.element(minutosInput).toBeDisabled()
+    await expect.element(segundosInput).toBeDisabled()
   })
 
   it('VOTAR-325: habilita y envía minIntervaloSegundos junto con el re-voto', async () => {
@@ -122,11 +127,11 @@ describe('ConfiguracionRevotoPanel (VOTAR-323)', () => {
     const maxInput = page.getByLabelText(/Máximo de sufragios por votante/i)
     await userEvent.fill(maxInput, '3')
 
-    const intervaloInput = page.getByLabelText(
-      /Intervalo mínimo entre sufragios/i
+    const minutosInput = page.getByLabelText(
+      /Minutos del intervalo mínimo entre sufragios/i
     )
-    await expect.element(intervaloInput).toBeEnabled()
-    await userEvent.fill(intervaloInput, '300')
+    await expect.element(minutosInput).toBeEnabled()
+    await userEvent.fill(minutosInput, '5')
 
     await userEvent.click(
       page.getByRole('button', { name: /Guardar política de re-voto/i })
