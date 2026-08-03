@@ -730,7 +730,6 @@ export const BudVotingWizard = ({
             specialVote={specialVote}
             candidateSelections={candidateSelections}
             canContinue={canContinueSelection}
-            permitirVotoEnBlanco={boleta.permitirVotoEnBlanco}
             permitirVotoNulo={boleta.permitirVotoNulo}
             lists={lists}
             roles={roles}
@@ -1280,7 +1279,6 @@ const SelectionStep = ({
   specialVote,
   candidateSelections,
   canContinue,
-  permitirVotoEnBlanco,
   permitirVotoNulo,
   lists,
   roles,
@@ -1296,7 +1294,6 @@ const SelectionStep = ({
   specialVote: SpecialVote
   candidateSelections: Record<string, string[]>
   canContinue: boolean
-  permitirVotoEnBlanco: boolean
   permitirVotoNulo: boolean
   lists: PartyList[]
   roles: CandidateRole[]
@@ -1307,13 +1304,9 @@ const SelectionStep = ({
   onSelectBlank: (roleId: string) => void
   onContinue: () => void
 }) => {
-  const showSpecialVoteCard = permitirVotoEnBlanco || permitirVotoNulo
-  const specialDescription =
-    permitirVotoEnBlanco && permitirVotoNulo
-      ? 'También podés emitir tu voto en blanco o anularlo.'
-      : permitirVotoEnBlanco
-        ? 'También podés emitir tu voto en blanco.'
-        : 'También podés anular tu voto para este comicio.'
+  const specialDescription = permitirVotoNulo
+    ? 'También podés emitir tu voto en blanco o anularlo.'
+    : 'También podés emitir tu voto en blanco.'
 
   return (
     <div className='grid gap-5'>
@@ -1378,41 +1371,35 @@ const SelectionStep = ({
           </Card>
         )}
 
-      {showSpecialVoteCard && (
-        <Card className='border-[#e4e7eb] bg-white/95'>
-          <CardHeader>
-            <CardTitle>Opciones especiales</CardTitle>
-            <CardDescription>{specialDescription}</CardDescription>
-          </CardHeader>
-          <CardContent
-            className={cn(
-              'grid gap-3',
-              permitirVotoEnBlanco && permitirVotoNulo
-                ? 'md:grid-cols-2'
-                : 'md:grid-cols-1'
-            )}
-          >
-            {permitirVotoEnBlanco && (
-              <SpecialVoteCard
-                title='Votar en blanco'
-                description='No selecciona listas ni candidatos.'
-                icon={<CircleOff className='size-14 sm:size-20' />}
-                selected={specialVote === 'blank'}
-                onSelect={() => onSpecialVote('blank')}
-              />
-            )}
-            {permitirVotoNulo && (
-              <SpecialVoteCard
-                title='Anular voto'
-                description='Registra una boleta anulada para este comicio.'
-                icon={<Ban className='size-14 sm:size-20' />}
-                selected={specialVote === 'null'}
-                onSelect={() => onSpecialVote('null')}
-              />
-            )}
-          </CardContent>
-        </Card>
-      )}
+      <Card className='border-[#e4e7eb] bg-white/95'>
+        <CardHeader>
+          <CardTitle>Opciones especiales</CardTitle>
+          <CardDescription>{specialDescription}</CardDescription>
+        </CardHeader>
+        <CardContent
+          className={cn(
+            'grid gap-3',
+            permitirVotoNulo ? 'md:grid-cols-2' : 'md:grid-cols-1'
+          )}
+        >
+          <SpecialVoteCard
+            title='Votar en blanco'
+            description='No selecciona listas ni candidatos.'
+            icon={<CircleOff className='size-14 sm:size-20' />}
+            selected={specialVote === 'blank'}
+            onSelect={() => onSpecialVote('blank')}
+          />
+          {permitirVotoNulo && (
+            <SpecialVoteCard
+              title='Anular voto'
+              description='Registra una boleta anulada para este comicio.'
+              icon={<Ban className='size-14 sm:size-20' />}
+              selected={specialVote === 'null'}
+              onSelect={() => onSpecialVote('null')}
+            />
+          )}
+        </CardContent>
+      </Card>
 
       <div className={BUD_STICKY_CTA_CLASS}>
         <Button

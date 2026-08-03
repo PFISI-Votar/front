@@ -475,7 +475,7 @@ describe('BudVotingWizard', () => {
       .toBeInTheDocument()
   })
 
-  it('VOTAR-443: no renderiza "Opciones especiales" si ambos flags están off', async () => {
+  it('VOTAR-443: con ambos flags en false, mantiene "Votar en blanco" pero no "Anular voto"', async () => {
     const queryClient = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -503,7 +503,10 @@ describe('BudVotingWizard', () => {
     )
 
     await expect
-      .element(screen.getByText('Opciones especiales'))
+      .element(screen.getByRole('button', { name: /Votar en blanco/i }))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByRole('button', { name: /Anular voto/i }))
       .not.toBeInTheDocument()
   })
 
