@@ -23,15 +23,21 @@ export const guardarConfiguracionRevotoSchema = z
     permitirVotoMultiple: z.boolean(),
     maxVotosPorVotante: z
       .number()
-      .int()
-      .min(1)
-      .max(MAX_SUFRAGIOS_POR_VOTANTE)
+      .int('Ingrese un número entero')
+      .min(1, 'El mínimo es 1 sufragio')
+      .max(
+        MAX_SUFRAGIOS_POR_VOTANTE,
+        `El máximo permitido es ${MAX_SUFRAGIOS_POR_VOTANTE} sufragios`
+      )
       .optional(),
     minIntervaloSegundos: z
       .number()
-      .int()
-      .min(0)
-      .max(MAX_INTERVALO_SEGUNDOS)
+      .int('Ingrese un número entero de segundos')
+      .min(0, 'El intervalo no puede ser negativo')
+      .max(
+        MAX_INTERVALO_SEGUNDOS,
+        `El intervalo máximo permitido es de ${MAX_INTERVALO_SEGUNDOS / 60} minutos`
+      )
       .optional(),
   })
   .superRefine((data, ctx) => {

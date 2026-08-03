@@ -64,7 +64,7 @@ import {
 } from '@/features/voto/crypto/vote-transmitter'
 import { formatCooldownDuration } from '@/features/voto/crypto/vote-tx-error-catalog'
 import {
-  buildOffChainCooldownActiveError,
+  buildOffChainRetryTooSoonError,
   mapVoteTxError,
   type VoteTxError,
 } from '@/features/voto/crypto/vote-tx-errors'
@@ -390,7 +390,7 @@ export const BudVotingWizard = ({
     if (cooldownToastShownRef.current) {
       return
     }
-    const mapped = buildOffChainCooldownActiveError(cooldownRemainingSeconds)
+    const mapped = buildOffChainRetryTooSoonError(cooldownRemainingSeconds)
     reportVoteTxError(mapped, boleta.idEleccion)
     cooldownToastShownRef.current = true
   }, [boleta.idEleccion, cooldownActivo, cooldownRemainingSeconds])
@@ -585,7 +585,7 @@ export const BudVotingWizard = ({
     }
 
     if (cooldownRemainingSeconds > 0) {
-      const mapped = buildOffChainCooldownActiveError(cooldownRemainingSeconds)
+      const mapped = buildOffChainRetryTooSoonError(cooldownRemainingSeconds)
       reportVoteTxError(mapped, boleta.idEleccion)
       setTxError(mapped)
       setTransmitPhase('error')
@@ -1352,9 +1352,8 @@ const SelectionStep = ({
                 {variant === 'mixto' ? 'Corte de boleta' : 'Candidatos por rol'}
               </CardTitle>
               <CardDescription>
-                Elegí un candidato por cargo
-                {permitirVotoEnBlanco ? ' o voto en blanco' : ''}. Podés
-                combinar partidos diferentes entre cargos.
+                Elegí un candidato por cargo o voto en blanco. Podés combinar
+                partidos diferentes entre cargos.
               </CardDescription>
             </CardHeader>
             <CardContent className='grid gap-5'>
@@ -1370,7 +1369,6 @@ const SelectionStep = ({
                     candidates={candidates}
                     selectedCandidateIds={candidateSelections[role.id] ?? []}
                     groupByParty={variant === 'candidatos'}
-                    permitirVotoEnBlanco={permitirVotoEnBlanco}
                     onSelectCandidate={onSelectCandidate}
                     onSelectBlank={onSelectBlank}
                   />
@@ -2158,7 +2156,6 @@ const CandidateRoleSection = ({
   candidates,
   selectedCandidateIds,
   groupByParty,
-  permitirVotoEnBlanco,
   onSelectCandidate,
   onSelectBlank,
 }: {
@@ -2167,7 +2164,6 @@ const CandidateRoleSection = ({
   candidates: Candidate[]
   selectedCandidateIds: string[]
   groupByParty: boolean
-  permitirVotoEnBlanco: boolean
   onSelectCandidate: (roleId: string, candidateId: string) => void
   onSelectBlank: (roleId: string) => void
 }) => {
@@ -2256,36 +2252,33 @@ const CandidateRoleSection = ({
           </div>
         </div>
       ))}
-
-      {permitirVotoEnBlanco && (
-        <button
-          type='button'
-          aria-pressed={isBlankSelected}
-          aria-label={`Voto en Blanco para ${roleName}, no seleccionar ningún candidato`}
-          className={cn(
-            'flex min-h-11 w-full items-center gap-4 rounded-2xl border border-dashed bg-slate-50 p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-slate-400/40 focus-visible:outline-none',
-            isBlankSelected
-              ? 'border-slate-700 bg-white shadow-md shadow-slate-900/10'
-              : 'border-slate-300'
-          )}
-          onClick={() => onSelectBlank(roleId)}
-        >
-          <div className='grid size-14 place-items-center rounded-xl border border-dashed border-slate-300 bg-white text-slate-500'>
-            <CircleOff className='size-7' aria-hidden='true' />
-          </div>
-          <div className='min-w-0 flex-1'>
-            <p className='font-semibold text-slate-900'>Voto en Blanco</p>
-            <p className='text-sm text-slate-600'>
-              Abstención explícita para {roleName}
-            </p>
-          </div>
-          {isBlankSelected && (
-            <span className='grid size-7 shrink-0 place-items-center rounded-full bg-slate-700 text-white'>
-              <Check className='size-4' aria-hidden='true' />
-            </span>
-          )}
-        </button>
-      )}
+      <button
+        type='button'
+        aria-pressed={isBlankSelected}
+        aria-label={`Voto en Blanco para ${roleName}, no seleccionar ningún candidato`}
+        className={cn(
+          'flex min-h-11 w-full items-center gap-4 rounded-2xl border border-dashed bg-slate-50 p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-slate-400/40 focus-visible:outline-none',
+          isBlankSelected
+            ? 'border-slate-700 bg-white shadow-md shadow-slate-900/10'
+            : 'border-slate-300'
+        )}
+        onClick={() => onSelectBlank(roleId)}
+      >
+        <div className='grid size-14 place-items-center rounded-xl border border-dashed border-slate-300 bg-white text-slate-500'>
+          <CircleOff className='size-7' aria-hidden='true' />
+        </div>
+        <div className='min-w-0 flex-1'>
+          <p className='font-semibold text-slate-900'>Voto en Blanco</p>
+          <p className='text-sm text-slate-600'>
+            Abstención explícita para {roleName}
+          </p>
+        </div>
+        {isBlankSelected && (
+          <span className='grid size-7 shrink-0 place-items-center rounded-full bg-slate-700 text-white'>
+            <Check className='size-4' aria-hidden='true' />
+          </span>
+        )}
+      </button>
     </div>
   )
 
