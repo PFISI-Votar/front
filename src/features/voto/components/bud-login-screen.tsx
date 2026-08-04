@@ -9,6 +9,7 @@ import {
   KeyRound,
   LockKeyhole,
   Loader2,
+  Mail,
   ShieldCheck,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -107,6 +108,18 @@ export const BudLoginScreen = ({
           </CardHeader>
 
           <CardContent className='px-6 pt-6 pb-8 sm:px-8'>
+            <div className='mb-5 flex items-start gap-2 rounded-lg border border-[#dbe3ea] bg-[#f7fbfd] p-3 text-xs text-[#55575d]'>
+              <Mail
+                className='mt-0.5 size-4 shrink-0 text-[#2f6f9f]'
+                aria-hidden='true'
+              />
+              <p>
+                El acceso se realiza con tu cuenta institucional. Para poder
+                emitir el voto, el correo electrónico cargado en la sección{' '}
+                <strong>Datos Personales</strong> de Autogestión debe coincidir
+                con el registrado en el padrón electoral.
+              </p>
+            </div>
             {errorMessage ? (
               <Alert variant='destructive' className='mb-5'>
                 <AlertTitle>Error de autenticación</AlertTitle>
