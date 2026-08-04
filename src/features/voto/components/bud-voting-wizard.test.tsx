@@ -226,7 +226,7 @@ async function renderWizard(
   )
 
   await userEvent.click(
-    screen.getByRole('button', { name: /Confirmar Identidad y Comenzar/i })
+    screen.getByRole('button', { name: /Comenzar a votar/i })
   )
   await expect
     .element(screen.getByText('Opciones especiales'))
@@ -428,7 +428,7 @@ describe('BudVotingWizard', () => {
     )
 
     await userEvent.click(
-      screen.getByRole('button', { name: /Confirmar Identidad y Comenzar/i })
+      screen.getByRole('button', { name: /Comenzar a votar/i })
     )
 
     await expect
@@ -796,7 +796,7 @@ describe('BudVotingWizard', () => {
       .toBeInTheDocument()
 
     await userEvent.click(
-      screen.getByRole('button', { name: /Confirmar Identidad y Comenzar/i })
+      screen.getByRole('button', { name: /Comenzar a votar/i })
     )
     await userEvent.click(
       screen.getByRole('button', { name: /Modificar mi voto/i })
