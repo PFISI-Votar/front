@@ -95,18 +95,8 @@ describe('mapVoteTxError — VOTAR-358 / VOTAR-341 / VOTAR-359', () => {
     ).toBe('NullifierAlreadyUsed')
   })
 
-  it('VOTAR-325 UAT-01: maps RetryTooSoon(electionId, 180) to 3 minutes warning', () => {
-    const mapped = mapVoteTxError(
-      createRevertedFromEncodedError('RetryTooSoon', [339n, 180n])
-    )
-    expect(mapped.code).toBe('retry_too_soon')
-    expect(mapped.severity).toBe('warning')
-    expect(mapped.message).toBe(
-      'Debe esperar 3 minutos antes de volver a votar. Por favor, intente nuevamente más tarde.'
-    )
-    expect(mapped.remainingSeconds).toBe(180)
-    expect(mapped.canRetrySend).toBe(false)
-  })
+  //UAT-01 borrada: ya se cumple con el pop-up que le aparece al modal completo que le aparece al usuario cuando
+  //intenta reloguearse para votar, el pop-up es innecesario, llena la pantalla con información que el usuario ya tiene.
 
   it('UAT-02: maps InvalidMerkleProof to not_eligible ticket copy', () => {
     const mapped = mapVoteTxError(
