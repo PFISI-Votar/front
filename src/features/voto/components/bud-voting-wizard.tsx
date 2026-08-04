@@ -1062,7 +1062,6 @@ const formatMmSs = (totalSeconds: number): string => {
 
 const RetryTooSoonPanel = ({
   proximoReintentoEnSegundos,
-  onRefetch,
   onLogout,
 }: {
   proximoReintentoEnSegundos: number
@@ -1093,12 +1092,13 @@ const RetryTooSoonPanel = ({
   const remainingSeconds = Math.max(0, Math.ceil((unlockAtMs - now) / 1000))
 
   useEffect(() => {
-    if (remainingSeconds === 0) {
-      onRefetch?.()
-    }
-    // Solo dispara cuando el ticker local llega a cero, no en cada tick.
+    if (remainingSeconds > 0) return
+
+    onLogout()
+
+    // Solo dispara cuando el ticker local llega a cero o menos.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remainingSeconds === 0])
+  }, [remainingSeconds])
 
   const remainingDuration = formatCooldownDuration(remainingSeconds)
   const mmss = formatMmSs(remainingSeconds)
