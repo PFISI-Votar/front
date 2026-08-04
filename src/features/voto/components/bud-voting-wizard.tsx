@@ -63,7 +63,6 @@ import {
 } from '@/features/voto/crypto/vote-transmitter'
 import { formatCooldownDuration } from '@/features/voto/crypto/vote-tx-error-catalog'
 import {
-  buildOffChainRetryTooSoonError,
   mapVoteTxError,
   type VoteTxError,
 } from '@/features/voto/crypto/vote-tx-errors'
@@ -389,8 +388,6 @@ export const BudVotingWizard = ({
     if (cooldownToastShownRef.current) {
       return
     }
-    const mapped = buildOffChainRetryTooSoonError(cooldownRemainingSeconds)
-    reportVoteTxError(mapped, boleta.idEleccion)
     cooldownToastShownRef.current = true
   }, [boleta.idEleccion, cooldownActivo, cooldownRemainingSeconds])
 
@@ -580,15 +577,6 @@ export const BudVotingWizard = ({
       setSigningError(
         'No se pudo resolver el contrato de la elección. Recargá la página e intentá de nuevo.'
       )
-      return
-    }
-
-    if (cooldownRemainingSeconds > 0) {
-      const mapped = buildOffChainRetryTooSoonError(cooldownRemainingSeconds)
-      reportVoteTxError(mapped, boleta.idEleccion)
-      setTxError(mapped)
-      setTransmitPhase('error')
-      setStep('transmitting')
       return
     }
 
