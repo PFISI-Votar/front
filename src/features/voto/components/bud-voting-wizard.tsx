@@ -661,6 +661,19 @@ export const BudVotingWizard = ({
     setSpecialVote((current) => (current === value ? null : value))
   }
 
+  // Esperar a conocer el estado de revoto antes de decidir el paso inicial.
+  // Evita mostrar brevemente la pantalla de identidad cuando el usuario
+  // en realidad debe ir a cooldown o límite de intentos.
+  if (isLoadingEstadoRevoto) {
+    return (
+      <BudWizardShell step='identity' estadoRevoto={estadoRevoto}>
+        <div className='flex min-h-[24rem] items-center justify-center'>
+          <p className='text-sm text-slate-600'>Preparando tu boleta…</p>
+        </div>
+      </BudWizardShell>
+    )
+  }
+
   return (
     <BudWizardShell step={effectiveStep} estadoRevoto={estadoRevoto}>
       {effectiveStep !== 'limit-reached' && effectiveStep !== 'cooldown' ? (
