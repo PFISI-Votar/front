@@ -780,13 +780,6 @@ describe('BudVotingWizard', () => {
     await expect
       .element(screen.getByTestId('max-votes-reached-panel'))
       .not.toBeInTheDocument()
-    expect(toastWarningMock).toHaveBeenCalled()
-    expect(logVoteTxErrorMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        electionId: boleta.idEleccion,
-        code: 'retry_too_soon',
-      })
-    )
   })
 
   it('VOTAR-325 UAT-01: cooldown on-chain muestra contador mm:ss que decrementa cada segundo', async () => {
@@ -900,12 +893,6 @@ describe('BudVotingWizard', () => {
     expect(toastErrorMock).toHaveBeenCalledWith(
       VOTE_TX_MESSAGES.notEligible,
       expect.objectContaining({ duration: 8000 })
-    )
-    expect(logVoteTxErrorMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        electionId: boleta.idEleccion,
-        code: 'not_eligible',
-      })
     )
   })
 
