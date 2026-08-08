@@ -29,12 +29,9 @@ vi.mock('@/features/voto/api/voto-api', () => ({
   obtenerConfiguracionBud: mocks.obtenerConfiguracionBud,
 }))
 
-vi.mock(
-  '@/features/dashboard-publico/api/contrato-estado-publica-api',
-  () => ({
-    obtenerContratoEstadoPublica: mocks.obtenerContratoEstadoPublica,
-  })
-)
+vi.mock('@/features/dashboard-publico/api/contrato-estado-publica-api', () => ({
+  obtenerContratoEstadoPublica: mocks.obtenerContratoEstadoPublica,
+}))
 
 const contratoMock = {
   idEleccion: 6,
@@ -113,9 +110,11 @@ describe('EstadoContratoPublicaPage — VOTAR-367', () => {
       .toBeVisible()
     await expect
       .element(
-        screen.getByRole('link', {
-          name: /Etherscan/i,
-        }).nth(2)
+        screen
+          .getByRole('link', {
+            name: /Etherscan/i,
+          })
+          .nth(2)
       )
       .toBeVisible()
     await expect

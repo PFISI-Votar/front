@@ -1,10 +1,5 @@
 import { ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { ContratoDireccionPublica } from '@/features/dashboard-publico/api/contrato-estado-publica-api'
-import {
-  getEstadoEleccionBadgeClass,
-  getEstadoEleccionLabel,
-} from '@/features/dashboard-publico/lib/estado-eleccion'
 import {
   Card,
   CardContent,
@@ -12,19 +7,29 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import type { ContratoDireccionPublica } from '@/features/dashboard-publico/api/contrato-estado-publica-api'
+import {
+  getEstadoEleccionBadgeClass,
+  getEstadoEleccionLabel,
+} from '@/features/dashboard-publico/lib/estado-eleccion'
 
 type ContratoDireccionRowProps = {
   label: string
   contrato: ContratoDireccionPublica
 }
 
-const ContratoDireccionRow = ({ label, contrato }: ContratoDireccionRowProps) => (
+const ContratoDireccionRow = ({
+  label,
+  contrato,
+}: ContratoDireccionRowProps) => (
   <div className='rounded-xl border border-[#e4e7eb] bg-[#fafbfc] px-4 py-3'>
     <p className='text-xs font-semibold tracking-wide text-[#80868b] uppercase'>
       {label}
     </p>
     <div className='mt-2 flex flex-wrap items-center gap-2'>
-      <code className='break-all text-sm text-[#202124]'>{contrato.direccion}</code>
+      <code className='text-sm break-all text-[#202124]'>
+        {contrato.direccion}
+      </code>
       <a
         href={contrato.explorerUrl}
         target='_blank'
@@ -108,7 +113,7 @@ export const ContratoEstadoTecnicoPanel = ({
           <p className='text-xs font-semibold tracking-wide text-[#80868b] uppercase'>
             Hash del padrón
           </p>
-          <code className='mt-2 block break-all text-sm text-[#202124]'>
+          <code className='mt-2 block text-sm break-all text-[#202124]'>
             {merkleRoot.hash}
           </code>
           <p className='mt-2 text-sm text-[#5f6368]'>
@@ -164,7 +169,10 @@ export const ContratoEstadoTecnicoPanel = ({
           Direcciones verificadas
         </h3>
         <div className='grid gap-3'>
-          <ContratoDireccionRow label='BallotContract' contrato={contratos.ballot} />
+          <ContratoDireccionRow
+            label='BallotContract'
+            contrato={contratos.ballot}
+          />
           <ContratoDireccionRow
             label='VoteRegistry'
             contrato={contratos.voteRegistry}
