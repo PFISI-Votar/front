@@ -225,7 +225,7 @@ async function renderWizard(
   )
 
   await userEvent.click(
-    screen.getByRole('button', { name: /Confirmar Identidad y Comenzar/i })
+    screen.getByRole('button', { name: /Comenzar a votar/i })
   )
   await expect
     .element(screen.getByText('Opciones especiales'))
@@ -407,7 +407,7 @@ describe('BudVotingWizard', () => {
     ).toBe('true')
   })
 
-  it('VOTAR-356: no renderiza casilleros de blanco si permitirVotoEnBlanco es false', async () => {
+  it('VOTAR-438: el voto en blanco se muestra siempre, sin importar permitirVotoEnBlanco', async () => {
     const queryClient = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -427,17 +427,17 @@ describe('BudVotingWizard', () => {
     )
 
     await userEvent.click(
-      screen.getByRole('button', { name: /Confirmar Identidad y Comenzar/i })
+      screen.getByRole('button', { name: /Comenzar a votar/i })
     )
 
     await expect
       .element(
         screen.getByRole('button', { name: /Voto en Blanco para Presidente/i })
       )
-      .not.toBeInTheDocument()
+      .toBeInTheDocument()
     await expect
       .element(screen.getByRole('button', { name: /Votar en blanco/i }))
-      .not.toBeInTheDocument()
+      .toBeInTheDocument()
     await expect
       .element(screen.getByRole('button', { name: /Anular voto/i }))
       .toBeInTheDocument()
@@ -729,7 +729,7 @@ describe('BudVotingWizard', () => {
       .toBeInTheDocument()
 
     await userEvent.click(
-      screen.getByRole('button', { name: /Confirmar Identidad y Comenzar/i })
+      screen.getByRole('button', { name: /Comenzar a votar/i })
     )
     await userEvent.click(
       screen.getByRole('button', { name: /Modificar mi voto/i })
