@@ -36,6 +36,27 @@ export const getBallotContractAddress = (): `0x${string}` => {
   )
 }
 
+const DEV_ELECTION_FACTORY_ADDRESS =
+  '0x0000000000000000000000000000000000000002' as const
+
+/**
+ * Cada comicio despliega su propio BallotContract vía ElectionFactory
+ * (VOTAR-439), por lo que la verificación pública de un recibo no puede
+ * validar contra una única dirección fija de BallotContract.
+ */
+export const getElectionFactoryAddress = (): `0x${string}` => {
+  const value = import.meta.env.VITE_ELECTION_FACTORY_ADDRESS
+  if (value && /^0x[0-9a-fA-F]{40}$/.test(value)) {
+    return value as `0x${string}`
+  }
+  if (import.meta.env.DEV || import.meta.env.MODE === 'test') {
+    return DEV_ELECTION_FACTORY_ADDRESS
+  }
+  throw new Error(
+    'VITE_ELECTION_FACTORY_ADDRESS no está configurada para verificar recibos'
+  )
+}
+
 export const getChainId = (): number => {
   const raw = import.meta.env.VITE_CHAIN_ID
   const parsed = Number(raw)
