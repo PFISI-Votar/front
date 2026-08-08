@@ -7,10 +7,11 @@ import {
 import { hardhat, localhost, sepolia } from 'viem/chains'
 import { BALLOT_CONTRACT_ABI } from '@/features/voto/crypto/ballot-abi'
 import {
-  getBallotContractAddress,
   getChainId,
+  getElectionFactoryAddress,
   getExplorerTxUrl,
 } from '@/features/voto/crypto/constants'
+import { ELECTION_FACTORY_ABI } from '@/features/voto/crypto/election-factory-abi'
 import {
   createVotePublicClient,
   type VotePublicClient,
@@ -56,7 +57,7 @@ export type VoteInclusionResult = {
 
 export type VerificarInclusionVotoOptions = {
   publicClient?: VotePublicClient
-  ballotAddress?: Hex
+  electionFactoryAddress?: Hex
   chainId?: number
 }
 
@@ -72,14 +73,17 @@ export const buildInclusionSuccessMessage = (
 ): string =>
   `Su voto ha sido incluido con éxito en el bloque número ${blockNumber} de la blockchain de ${networkName}`
 
+/**
+ * VOTAR-439: cada comicio despliega su propio BallotContract vía
+ * ElectionFactory, por lo que el electionId se decodifica del evento ANTES
+ * de validar la dirección del contrato — comparar contra una única dirección
+ * fija de BallotContract rechazaba con "no encontrado" cualquier voto de un
+ * comicio distinto al que esa constante apuntaba.
+ */
 const findSignedVoteCast = (
-  logs: readonly Log[],
-  ballotAddress: Hex
-): { electionId: number } | null => {
-  const normalizedBallot = ballotAddress.toLowerCase()
-
+  logs: readonly Log[]
+): { electionId: number; ballotAddress: Hex } | null => {
   for (const log of logs) {
-    if (log.address.toLowerCase() !== normalizedBallot) continue
     try {
       const decoded = decodeEventLog({
         abi: BALLOT_CONTRACT_ABI,
@@ -89,7 +93,7 @@ const findSignedVoteCast = (
       if (decoded.eventName !== 'SignedVoteCast') continue
       const electionId = Number(decoded.args.electionId)
       if (!Number.isFinite(electionId) || electionId <= 0) continue
-      return { electionId }
+      return { electionId, ballotAddress: log.address as Hex }
     } catch {
       // Log is not SignedVoteCast — skip without exposing raw payload.
     }
@@ -98,10 +102,35 @@ const findSignedVoteCast = (
   return null
 }
 
-const assertSuccessfulVoteReceipt = (
+const resolveElectionBallotAddress = async (
+  publicClient: VotePublicClient,
+  electionFactoryAddress: Hex,
+  electionId: number
+): Promise<Hex> => {
+  const deployment = await publicClient.readContract({
+    address: electionFactoryAddress,
+    abi: ELECTION_FACTORY_ABI,
+    functionName: 'getElection',
+    args: [BigInt(electionId)],
+  })
+
+  if (!deployment.exists) {
+    throw new VoteInclusionNotFoundError()
+  }
+
+  return deployment.ballot
+}
+
+const assertSuccessfulVoteReceipt = async (
   receipt: TransactionReceipt | null,
+  publicClient: VotePublicClient,
+  electionFactoryAddress: Hex
+): Promise<{
+  electionId: number
+  blockNumber: number
+  txHash: Hex
   ballotAddress: Hex
-): { electionId: number; blockNumber: number; txHash: Hex } => {
+}> => {
   if (!receipt) {
     throw new VoteInclusionNotFoundError()
   }
@@ -110,13 +139,27 @@ const assertSuccessfulVoteReceipt = (
     throw new VoteInclusionNotFoundError()
   }
 
-  const toAddress = receipt.to?.toLowerCase()
-  if (!toAddress || toAddress !== ballotAddress.toLowerCase()) {
+  const voteEvent = findSignedVoteCast(receipt.logs)
+  if (!voteEvent) {
     throw new VoteInclusionNotFoundError()
   }
 
-  const voteEvent = findSignedVoteCast(receipt.logs, ballotAddress)
-  if (!voteEvent) {
+  let expectedBallotAddress: Hex
+  try {
+    expectedBallotAddress = await resolveElectionBallotAddress(
+      publicClient,
+      electionFactoryAddress,
+      voteEvent.electionId
+    )
+  } catch (error) {
+    if (error instanceof VoteInclusionNotFoundError) throw error
+    throw new VoteInclusionNotFoundError()
+  }
+
+  if (
+    voteEvent.ballotAddress.toLowerCase() !==
+    expectedBallotAddress.toLowerCase()
+  ) {
     throw new VoteInclusionNotFoundError()
   }
 
@@ -124,6 +167,7 @@ const assertSuccessfulVoteReceipt = (
     electionId: voteEvent.electionId,
     blockNumber: Number(receipt.blockNumber),
     txHash: receipt.transactionHash,
+    ballotAddress: expectedBallotAddress,
   }
 }
 
@@ -142,7 +186,8 @@ export async function verificarInclusionVotoLocal(
 
   const normalizedTxHash = trimmed.toLowerCase() as Hex
   const chainId = options.chainId ?? getChainId()
-  const ballotAddress = options.ballotAddress ?? getBallotContractAddress()
+  const electionFactoryAddress =
+    options.electionFactoryAddress ?? getElectionFactoryAddress()
   const publicClient = options.publicClient ?? createVotePublicClient()
   const networkName = getBlockchainNetworkName(chainId)
 
@@ -155,7 +200,11 @@ export async function verificarInclusionVotoLocal(
     throw new VoteInclusionNotFoundError()
   }
 
-  const parsed = assertSuccessfulVoteReceipt(receipt, ballotAddress)
+  const parsed = await assertSuccessfulVoteReceipt(
+    receipt,
+    publicClient,
+    electionFactoryAddress
+  )
 
   let timestamp = new Date().toISOString()
   try {
@@ -175,7 +224,7 @@ export async function verificarInclusionVotoLocal(
     txHash: parsed.txHash.toLowerCase() as Hex,
     blockNumber: parsed.blockNumber,
     timestamp,
-    contractAddress: ballotAddress,
+    contractAddress: parsed.ballotAddress,
     explorerUrl: getExplorerTxUrl(parsed.txHash, chainId),
     networkName,
     mensaje: buildInclusionSuccessMessage(parsed.blockNumber, networkName),
