@@ -84,7 +84,7 @@ export const getRpcUrl = (): string => {
  * Testnet/local only — never use a mainnet key in the frontend bundle.
  */
 export const getVoteTransmitterPrivateKey = (): `0x${string}` => {
-  const value = import.meta.env.VITE_VOTE_TRANSMITTER_PRIVATE_KEY
+  const value = import.meta.env.VITE_PRIVATE_KEY
   if (value && /^0x[0-9a-fA-F]{64}$/.test(value)) {
     return value as `0x${string}`
   }
@@ -93,7 +93,7 @@ export const getVoteTransmitterPrivateKey = (): `0x${string}` => {
     return '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
   }
   throw new Error(
-    'VITE_VOTE_TRANSMITTER_PRIVATE_KEY no está configurada para transmitir el voto'
+    'VITE_PRIVATE_KEY no está configurada para transmitir el voto'
   )
 }
 
