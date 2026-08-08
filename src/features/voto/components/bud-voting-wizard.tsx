@@ -17,7 +17,6 @@ import {
   PenLine,
   RefreshCw,
   ShieldCheck,
-  UserRoundCheck,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Hex } from 'viem'
@@ -64,7 +63,7 @@ import {
 } from '@/features/voto/crypto/vote-transmitter'
 import { formatCooldownDuration } from '@/features/voto/crypto/vote-tx-error-catalog'
 import {
-  buildOffChainCooldownActiveError,
+  buildOffChainRetryTooSoonError,
   mapVoteTxError,
   type VoteTxError,
 } from '@/features/voto/crypto/vote-tx-errors'
@@ -390,7 +389,7 @@ export const BudVotingWizard = ({
     if (cooldownToastShownRef.current) {
       return
     }
-    const mapped = buildOffChainCooldownActiveError(cooldownRemainingSeconds)
+    const mapped = buildOffChainRetryTooSoonError(cooldownRemainingSeconds)
     reportVoteTxError(mapped, boleta.idEleccion)
     cooldownToastShownRef.current = true
   }, [boleta.idEleccion, cooldownActivo, cooldownRemainingSeconds])
@@ -585,7 +584,7 @@ export const BudVotingWizard = ({
     }
 
     if (cooldownRemainingSeconds > 0) {
-      const mapped = buildOffChainCooldownActiveError(cooldownRemainingSeconds)
+      const mapped = buildOffChainRetryTooSoonError(cooldownRemainingSeconds)
       reportVoteTxError(mapped, boleta.idEleccion)
       setTxError(mapped)
       setTransmitPhase('error')
@@ -730,7 +729,6 @@ export const BudVotingWizard = ({
             specialVote={specialVote}
             candidateSelections={candidateSelections}
             canContinue={canContinueSelection}
-            permitirVotoEnBlanco={boleta.permitirVotoEnBlanco}
             lists={lists}
             roles={roles}
             candidates={candidates}
@@ -877,7 +875,7 @@ const BudWizardShell = ({
 
 const WizardStepper = ({ currentStep }: { currentStep: WizardStep }) => {
   const steps = [
-    ['identity', 'Identidad'],
+    ['identity', 'Inicio'],
     ['selection', 'Voto'],
     ['review', 'Confirmación'],
     ['success', 'Éxito'],
@@ -988,11 +986,11 @@ const IdentityStep = ({
     <Card className='border-[#e4e7eb] bg-white/95 shadow-[0_1.5rem_5rem_rgba(30,64,95,0.07)]'>
       <CardHeader className='text-center'>
         <div className='mx-auto grid size-14 place-items-center rounded-full bg-[#d7e9f7] text-[#2f6f9f]'>
-          <UserRoundCheck className='size-7' />
+          <ShieldCheck className='size-7' />
         </div>
-        <CardTitle className='text-2xl'>Confirmar Identidad</CardTitle>
+        <CardTitle className='text-2xl'>Antes de votar</CardTitle>
         <CardDescription>
-          Verificá que tus datos sean correctos antes de abrir la boleta.
+          Verificá los datos del comicio antes de abrir la boleta.
         </CardDescription>
       </CardHeader>
       <CardContent className='grid gap-5'>
@@ -1000,14 +998,13 @@ const IdentityStep = ({
           <div
             className='flex items-center justify-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800'
             role='status'
-            aria-label='Identidad criptográfica efímera generada'
+            aria-label='Clave de votación efímera generada'
           >
             <Fingerprint className='size-4' aria-hidden='true' />
-            Identidad criptográfica efímera generada
+            Clave de votación efímera generada
           </div>
         ) : null}
         <div className='grid gap-3 rounded-2xl bg-[#f7fbfd] p-4 sm:grid-cols-2'>
-          <IdentityItem label='Sesión' value='Votante autenticado' />
           <IdentityItem label='Comicio' value={boleta.nombreEleccion} />
           <IdentityItem label='Boleta' value={boleta.titulo} />
           <IdentityItem label='Estado' value={boleta.estadoEleccion} />
@@ -1018,11 +1015,11 @@ const IdentityStep = ({
         </div>
         <Alert className='border-amber-200 bg-amber-50 text-amber-950'>
           <AlertTriangle className='size-4' />
-          <AlertTitle>Validación obligatoria</AlertTitle>
+          <AlertTitle>Antes de continuar</AlertTitle>
           <AlertDescription>
-            La confirmación de identidad habilita una sesión de votación única.
-            Revisá tus datos con atención: luego la boleta se desvincula de tu
-            identidad para preservar el secreto del voto.
+            Este paso habilita tu sesión de votación única. Revisá los datos del
+            comicio con atención: una vez que continúes, tu boleta queda
+            desvinculada de tu sesión para preservar el secreto del voto.
           </AlertDescription>
         </Alert>
         {isEstadoRevotoError ? (
@@ -1046,7 +1043,7 @@ const IdentityStep = ({
       <CardFooter>
         <Button
           size='lg'
-          className='h-12 w-full rounded-xl bg-[#2f6f9f] text-base font-semibold hover:bg-[#285f88]'
+          className='h-12 w-full rounded-xl bg-[#2f6f9f] text-base font-semibold text-white hover:bg-[#285f88]'
           disabled={isLoadingProof}
           onClick={onConfirm}
         >
@@ -1057,7 +1054,7 @@ const IdentityStep = ({
             </>
           ) : (
             <>
-              Confirmar Identidad y Comenzar
+              Comenzar a votar
               <ArrowRight className='size-5' />
             </>
           )}
@@ -1262,7 +1259,7 @@ const RegisteredVoteStep = ({
         </Button>
         <Button
           size='lg'
-          className='h-12 bg-[#2f6f9f] hover:bg-[#285f88]'
+          className='h-12 bg-[#2f6f9f] text-white hover:bg-[#285f88]'
           onClick={onModify}
         >
           <PenLine className='size-4' />
@@ -1279,7 +1276,6 @@ const SelectionStep = ({
   specialVote,
   candidateSelections,
   canContinue,
-  permitirVotoEnBlanco,
   lists,
   roles,
   candidates,
@@ -1294,7 +1290,6 @@ const SelectionStep = ({
   specialVote: SpecialVote
   candidateSelections: Record<string, string[]>
   canContinue: boolean
-  permitirVotoEnBlanco: boolean
   lists: PartyList[]
   roles: CandidateRole[]
   candidates: Candidate[]
@@ -1304,9 +1299,8 @@ const SelectionStep = ({
   onSelectBlank: (roleId: string) => void
   onContinue: () => void
 }) => {
-  const specialDescription = permitirVotoEnBlanco
-    ? 'También podés emitir tu voto en blanco o anularlo.'
-    : 'También podés anular tu voto para este comicio.'
+  const specialDescription =
+    'También podés emitir tu voto en blanco o anular tu voto para este comicio.'
 
   return (
     <div className='grid gap-5'>
@@ -1345,9 +1339,8 @@ const SelectionStep = ({
                 {variant === 'mixto' ? 'Corte de boleta' : 'Candidatos por rol'}
               </CardTitle>
               <CardDescription>
-                Elegí un candidato por cargo
-                {permitirVotoEnBlanco ? ' o voto en blanco' : ''}. Podés
-                combinar partidos diferentes entre cargos.
+                Elegí un candidato por cargo o voto en blanco. Podés combinar
+                partidos diferentes entre cargos.
               </CardDescription>
             </CardHeader>
             <CardContent className='grid gap-5'>
@@ -1363,7 +1356,6 @@ const SelectionStep = ({
                     candidates={candidates}
                     selectedCandidateIds={candidateSelections[role.id] ?? []}
                     groupByParty={variant === 'candidatos'}
-                    permitirVotoEnBlanco={permitirVotoEnBlanco}
                     onSelectCandidate={onSelectCandidate}
                     onSelectBlank={onSelectBlank}
                   />
@@ -1378,21 +1370,14 @@ const SelectionStep = ({
           <CardTitle>Opciones especiales</CardTitle>
           <CardDescription>{specialDescription}</CardDescription>
         </CardHeader>
-        <CardContent
-          className={cn(
-            'grid gap-3',
-            permitirVotoEnBlanco ? 'md:grid-cols-2' : 'md:grid-cols-1'
-          )}
-        >
-          {permitirVotoEnBlanco && (
-            <SpecialVoteCard
-              title='Votar en blanco'
-              description='No selecciona listas ni candidatos.'
-              icon={<CircleOff className='size-14 sm:size-20' />}
-              selected={specialVote === 'blank'}
-              onSelect={() => onSpecialVote('blank')}
-            />
-          )}
+        <CardContent className='grid gap-3 md:grid-cols-2'>
+          <SpecialVoteCard
+            title='Votar en blanco'
+            description='No selecciona listas ni candidatos.'
+            icon={<CircleOff className='size-14 sm:size-20' />}
+            selected={specialVote === 'blank'}
+            onSelect={() => onSpecialVote('blank')}
+          />
           <SpecialVoteCard
             title='Anular voto'
             description='Registra una boleta anulada para este comicio.'
@@ -1406,7 +1391,7 @@ const SelectionStep = ({
       <div className={BUD_STICKY_CTA_CLASS}>
         <Button
           size='lg'
-          className='h-12 w-full rounded-xl bg-[#2f6f9f] px-8 font-semibold shadow-lg shadow-slate-900/10 hover:bg-[#285f88] sm:w-auto sm:min-w-48'
+          className='h-12 w-full rounded-xl bg-[#2f6f9f] px-8 font-semibold text-white shadow-lg shadow-slate-900/10 hover:bg-[#285f88] sm:w-auto sm:min-w-48'
           disabled={!canContinue}
           onClick={onContinue}
         >
@@ -1550,7 +1535,7 @@ const ReviewStep = ({
           </Button>
           <Button
             size='lg'
-            className='h-12 bg-[#2f6f9f] font-semibold hover:bg-[#285f88]'
+            className='h-12 bg-[#2f6f9f] font-semibold text-white hover:bg-[#285f88]'
             disabled={isSigning}
             onClick={onSign}
             aria-label='Firmar y confirmar voto'
@@ -1842,7 +1827,7 @@ const TransmitStep = ({
           {txError?.canRetrySend && (
             <Button
               size='lg'
-              className='h-12 bg-[#2f6f9f] font-semibold hover:bg-[#285f88]'
+              className='h-12 bg-[#2f6f9f] font-semibold text-white hover:bg-[#285f88]'
               disabled={isBusy}
               onClick={onRetrySend}
               aria-label='Reintentar envío del voto'
@@ -2145,7 +2130,6 @@ const CandidateRoleSection = ({
   candidates,
   selectedCandidateIds,
   groupByParty,
-  permitirVotoEnBlanco,
   onSelectCandidate,
   onSelectBlank,
 }: {
@@ -2154,7 +2138,6 @@ const CandidateRoleSection = ({
   candidates: Candidate[]
   selectedCandidateIds: string[]
   groupByParty: boolean
-  permitirVotoEnBlanco: boolean
   onSelectCandidate: (roleId: string, candidateId: string) => void
   onSelectBlank: (roleId: string) => void
 }) => {
@@ -2243,36 +2226,33 @@ const CandidateRoleSection = ({
           </div>
         </div>
       ))}
-
-      {permitirVotoEnBlanco && (
-        <button
-          type='button'
-          aria-pressed={isBlankSelected}
-          aria-label={`Voto en Blanco para ${roleName}, no seleccionar ningún candidato`}
-          className={cn(
-            'flex min-h-11 w-full items-center gap-4 rounded-2xl border border-dashed bg-slate-50 p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-slate-400/40 focus-visible:outline-none',
-            isBlankSelected
-              ? 'border-slate-700 bg-white shadow-md shadow-slate-900/10'
-              : 'border-slate-300'
-          )}
-          onClick={() => onSelectBlank(roleId)}
-        >
-          <div className='grid size-14 place-items-center rounded-xl border border-dashed border-slate-300 bg-white text-slate-500'>
-            <CircleOff className='size-7' aria-hidden='true' />
-          </div>
-          <div className='min-w-0 flex-1'>
-            <p className='font-semibold text-slate-900'>Voto en Blanco</p>
-            <p className='text-sm text-slate-600'>
-              Abstención explícita para {roleName}
-            </p>
-          </div>
-          {isBlankSelected && (
-            <span className='grid size-7 shrink-0 place-items-center rounded-full bg-slate-700 text-white'>
-              <Check className='size-4' aria-hidden='true' />
-            </span>
-          )}
-        </button>
-      )}
+      <button
+        type='button'
+        aria-pressed={isBlankSelected}
+        aria-label={`Voto en Blanco para ${roleName}, no seleccionar ningún candidato`}
+        className={cn(
+          'flex min-h-11 w-full items-center gap-4 rounded-2xl border border-dashed bg-slate-50 p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-slate-400/40 focus-visible:outline-none',
+          isBlankSelected
+            ? 'border-slate-700 bg-white shadow-md shadow-slate-900/10'
+            : 'border-slate-300'
+        )}
+        onClick={() => onSelectBlank(roleId)}
+      >
+        <div className='grid size-14 place-items-center rounded-xl border border-dashed border-slate-300 bg-white text-slate-500'>
+          <CircleOff className='size-7' aria-hidden='true' />
+        </div>
+        <div className='min-w-0 flex-1'>
+          <p className='font-semibold text-slate-900'>Voto en Blanco</p>
+          <p className='text-sm text-slate-600'>
+            Abstención explícita para {roleName}
+          </p>
+        </div>
+        {isBlankSelected && (
+          <span className='grid size-7 shrink-0 place-items-center rounded-full bg-slate-700 text-white'>
+            <Check className='size-4' aria-hidden='true' />
+          </span>
+        )}
+      </button>
     </div>
   )
 
@@ -2390,7 +2370,7 @@ const getStepLabel = (step: WizardStep) => {
   if (step === 'limit-reached') return 'Límite de intentos'
   if (step === 'cooldown') return 'Espera entre votos'
   if (step === 'registered') return 'Voto registrado'
-  if (step === 'identity') return 'Confirmación de identidad'
+  if (step === 'identity') return 'Antes de votar'
   if (step === 'selection') return 'Selección de voto'
   if (step === 'review') return 'Confirmación'
   if (step === 'transmitting') return 'Envío a la red'

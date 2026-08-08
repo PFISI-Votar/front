@@ -16,7 +16,7 @@ export type VoteTxErrorCode =
   | 'unknown'
 
 export type OnChainRevertName =
-  | 'CooldownActive'
+  | 'RetryTooSoon'
   | 'InvalidSignature'
   | 'EnforcedPause'
   | 'InvalidMerkleProof'
@@ -72,7 +72,7 @@ export const formatCooldownDuration = (remainingSeconds: number): string => {
   return `${minutes} minuto${minutes === 1 ? '' : 's'}`
 }
 
-export const buildCooldownActiveMessage = (remainingSeconds: number): string =>
+export const buildRetryTooSoonMessage = (remainingSeconds: number): string =>
   VOTE_TX_MESSAGES.cooldownActive.replace(
     '[TIEMPO]',
     formatCooldownDuration(remainingSeconds)
@@ -82,12 +82,12 @@ export const getMessageForRevert = (
   revertName: string,
   args?: readonly unknown[]
 ): RevertErrorMapping | null => {
-  if (revertName === 'CooldownActive') {
-    // CooldownActive(electionId, remainingSeconds) — VOTAR-325.
+  if (revertName === 'RetryTooSoon') {
+    // RetryTooSoon(electionId, remainingSeconds) — VOTAR-325.
     const remainingSeconds = Number(args?.[1] ?? 60)
     return {
       code: 'retry_too_soon',
-      message: buildCooldownActiveMessage(remainingSeconds),
+      message: buildRetryTooSoonMessage(remainingSeconds),
       severity: 'warning',
       isTransient: false,
       canRetrySend: false,
