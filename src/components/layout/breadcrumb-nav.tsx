@@ -27,6 +27,7 @@ export type BreadcrumbEntry = {
   to?: string
   params?: Record<string, string>
   menuItems?: BreadcrumbMenuItem[]
+  activeTo?: string
 }
 
 type BreadcrumbNavProps = {
@@ -44,7 +45,7 @@ const BreadcrumbSectionMenu = ({ entry }: { entry: BreadcrumbEntry }) => (
     </DropdownMenuTrigger>
     <DropdownMenuContent align='start'>
       {entry.menuItems?.map((item) => {
-        const isActive = item.label === entry.label
+        const isActive = item.to === entry.activeTo
         return (
           <DropdownMenuItem key={item.label} asChild>
             <Link

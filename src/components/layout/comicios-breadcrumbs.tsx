@@ -57,53 +57,42 @@ export const buildComiciosBreadcrumbEntries = ({
 
   const idEleccionParam = String(idEleccion)
   const eleccionLabel = eleccionNombre ?? `Comicio #${idEleccion}`
-  const ofertaLink: BreadcrumbEntry = {
+  const sectionMenuItems = buildComicioSectionMenuItems(idEleccionParam)
+  const activeSectionTo = pathname.includes('/auditoria')
+    ? '/comicios/$idEleccion/auditoria'
+    : pathname.includes('/padron')
+      ? '/comicios/$idEleccion/padron'
+      : '/comicios/$idEleccion/oferta'
+  const comicioSection: BreadcrumbEntry = {
     label: eleccionLabel,
     to: '/comicios/$idEleccion/oferta',
     params: { idEleccion: idEleccionParam },
-  }
-  const sectionMenuItems = buildComicioSectionMenuItems(idEleccionParam)
-  const ofertaSection: BreadcrumbEntry = {
-    label: 'Oferta electoral',
-    to: '/comicios/$idEleccion/oferta',
-    params: { idEleccion: idEleccionParam },
     menuItems: sectionMenuItems,
-  }
-  const padronSection: BreadcrumbEntry = {
-    label: 'Padrón electoral',
-    to: '/comicios/$idEleccion/padron',
-    params: { idEleccion: idEleccionParam },
-    menuItems: sectionMenuItems,
-  }
-  const auditoriaSection: BreadcrumbEntry = {
-    label: 'Registro de auditoría',
-    to: '/comicios/$idEleccion/auditoria',
-    params: { idEleccion: idEleccionParam },
-    menuItems: sectionMenuItems,
+    activeTo: activeSectionTo,
   }
 
   if (pathname.endsWith('/editar')) {
-    entries.push(ofertaLink, ofertaSection, { label: 'Editar comicio' })
+    entries.push(comicioSection, { label: 'Editar comicio' })
     return entries
   }
 
   if (pathname.includes('/auditoria')) {
-    entries.push(ofertaLink, auditoriaSection)
+    entries.push(comicioSection)
     return entries
   }
 
   if (pathname.includes('/padron/preview')) {
-    entries.push(ofertaLink, padronSection, { label: 'Previsualizar padrón' })
+    entries.push(comicioSection, { label: 'Previsualizar padrón' })
     return entries
   }
 
   if (pathname.includes('/padron')) {
-    entries.push(ofertaLink, padronSection)
+    entries.push(comicioSection)
     return entries
   }
 
   if (pathname.includes('/oferta')) {
-    entries.push(ofertaLink, ofertaSection)
+    entries.push(comicioSection)
     return entries
   }
 
@@ -113,11 +102,11 @@ export const buildComiciosBreadcrumbEntries = ({
         ? `${listaNombre} (${listaSigla})`
         : `Lista #${idLista}`
 
-    entries.push(ofertaLink, ofertaSection, { label: listaLabel })
+    entries.push(comicioSection, { label: listaLabel })
     return entries
   }
 
-  entries.push(ofertaLink)
+  entries.push(comicioSection)
   return entries
 }
 
