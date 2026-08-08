@@ -63,7 +63,6 @@ import {
 } from '@/features/voto/crypto/vote-transmitter'
 import { formatCooldownDuration } from '@/features/voto/crypto/vote-tx-error-catalog'
 import {
-  buildOffChainRetryTooSoonError,
   mapVoteTxError,
   type VoteTxError,
 } from '@/features/voto/crypto/vote-tx-errors'
@@ -389,8 +388,6 @@ export const BudVotingWizard = ({
     if (cooldownToastShownRef.current) {
       return
     }
-    const mapped = buildOffChainRetryTooSoonError(cooldownRemainingSeconds)
-    reportVoteTxError(mapped, boleta.idEleccion)
     cooldownToastShownRef.current = true
   }, [boleta.idEleccion, cooldownActivo, cooldownRemainingSeconds])
 
@@ -583,15 +580,6 @@ export const BudVotingWizard = ({
       return
     }
 
-    if (cooldownRemainingSeconds > 0) {
-      const mapped = buildOffChainRetryTooSoonError(cooldownRemainingSeconds)
-      reportVoteTxError(mapped, boleta.idEleccion)
-      setTxError(mapped)
-      setTransmitPhase('error')
-      setStep('transmitting')
-      return
-    }
-
     setIsSigning(true)
 
     try {
@@ -671,6 +659,19 @@ export const BudVotingWizard = ({
     setSelectedListId(null)
     setCandidateSelections({})
     setSpecialVote((current) => (current === value ? null : value))
+  }
+
+  // Esperar a conocer el estado de revoto antes de decidir el paso inicial.
+  // Evita mostrar brevemente la pantalla de identidad cuando el usuario
+  // en realidad debe ir a cooldown o límite de intentos.
+  if (isLoadingEstadoRevoto) {
+    return (
+      <BudWizardShell step='identity' estadoRevoto={estadoRevoto}>
+        <div className='flex min-h-[24rem] items-center justify-center'>
+          <p className='text-sm text-slate-600'>Preparando tu boleta…</p>
+        </div>
+      </BudWizardShell>
+    )
   }
 
   return (
@@ -1074,7 +1075,6 @@ const formatMmSs = (totalSeconds: number): string => {
 
 const RetryTooSoonPanel = ({
   proximoReintentoEnSegundos,
-  onRefetch,
   onLogout,
 }: {
   proximoReintentoEnSegundos: number
@@ -1105,12 +1105,13 @@ const RetryTooSoonPanel = ({
   const remainingSeconds = Math.max(0, Math.ceil((unlockAtMs - now) / 1000))
 
   useEffect(() => {
-    if (remainingSeconds === 0) {
-      onRefetch?.()
-    }
-    // Solo dispara cuando el ticker local llega a cero, no en cada tick.
+    if (remainingSeconds > 0) return
+
+    onLogout()
+
+    // Solo dispara cuando el ticker local llega a cero o menos.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remainingSeconds === 0])
+  }, [remainingSeconds])
 
   const remainingDuration = formatCooldownDuration(remainingSeconds)
   const mmss = formatMmSs(remainingSeconds)
