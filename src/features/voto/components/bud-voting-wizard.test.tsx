@@ -208,7 +208,8 @@ const boleta: BoletaDigital = {
 
 async function renderWizard(
   tipoVotacion: TipoVotacion = TIPOS_VOTACION.POR_CANDIDATO,
-  onLogout: () => void = vi.fn()
+  onLogout: () => void = vi.fn(),
+  boletaOverride: BoletaDigital = boleta
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -217,7 +218,7 @@ async function renderWizard(
     <QueryClientProvider client={queryClient}>
       <EphemeralWalletProvider>
         <BudVotingWizard
-          boleta={boleta}
+          boleta={boletaOverride}
           tipoVotacion={tipoVotacion}
           onLogout={onLogout}
         />
@@ -464,8 +465,11 @@ describe('BudVotingWizard', () => {
     )
 
     await userEvent.click(
-      screen.getByRole('button', { name: /Confirmar Identidad y Comenzar/i })
+      screen.getByRole('button', { name: /Comenzar a votar/i })
     )
+    await expect
+      .element(screen.getByText('Opciones especiales'))
+      .toBeInTheDocument()
 
     await expect
       .element(screen.getByRole('button', { name: /Anular voto/i }))
@@ -499,8 +503,11 @@ describe('BudVotingWizard', () => {
     )
 
     await userEvent.click(
-      screen.getByRole('button', { name: /Confirmar Identidad y Comenzar/i })
+      screen.getByRole('button', { name: /Comenzar a votar/i })
     )
+    await expect
+      .element(screen.getByText('Opciones especiales'))
+      .toBeInTheDocument()
 
     await expect
       .element(screen.getByRole('button', { name: /Votar en blanco/i }))
