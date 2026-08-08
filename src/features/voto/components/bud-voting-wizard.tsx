@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { AxiosError } from 'axios'
 import {
   AlertTriangle,
@@ -354,12 +354,11 @@ export const BudVotingWizard = ({
     }
   }, [publicKeyHex, boleta.idEleccion])
 
-  const { data: voterStateOnChain, refetch: refetchVoterStateOnChain } =
-    useVoterStateOnChain(
-      boleta.idEleccion,
-      nullifier,
-      boleta.ballotContractAddress
-    )
+  const { data: voterStateOnChain } = useVoterStateOnChain(
+    boleta.idEleccion,
+    nullifier,
+    boleta.ballotContractAddress
+  )
 
   const intentosAgotados =
     Boolean(estadoRevoto) && (estadoRevoto?.intentosRestantes ?? 1) === 0
@@ -371,7 +370,6 @@ export const BudVotingWizard = ({
       ? voterStateOnChain.cooldownRemaining
       : (estadoRevoto?.proximoReintentoEnSegundos ?? 0)
   const cooldownActivo = cooldownRemainingSeconds > 0
-  const cooldownToastShownRef = useRef(false)
   // Derive UI step when attempts are exhausted or cooldown is active.
   const effectiveStep: WizardStep =
     intentosAgotados && step !== 'success' && step !== 'transmitting'
@@ -379,17 +377,6 @@ export const BudVotingWizard = ({
       : cooldownActivo && step !== 'success' && step !== 'transmitting'
         ? 'cooldown'
         : step
-
-  useEffect(() => {
-    if (!cooldownActivo) {
-      cooldownToastShownRef.current = false
-      return
-    }
-    if (cooldownToastShownRef.current) {
-      return
-    }
-    cooldownToastShownRef.current = true
-  }, [boleta.idEleccion, cooldownActivo, cooldownRemainingSeconds])
 
   const lists = useMemo(() => buildListsFromBoleta(boleta), [boleta])
   const roles = useMemo(() => buildRolesFromBoleta(boleta), [boleta])
@@ -692,9 +679,6 @@ export const BudVotingWizard = ({
         {effectiveStep === 'cooldown' && (
           <RetryTooSoonPanel
             proximoReintentoEnSegundos={cooldownRemainingSeconds}
-            onRefetch={
-              nullifier ? () => void refetchVoterStateOnChain() : undefined
-            }
             onLogout={handleLogout}
           />
         )}
@@ -1078,7 +1062,6 @@ const RetryTooSoonPanel = ({
   onLogout,
 }: {
   proximoReintentoEnSegundos: number
-  onRefetch?: () => void
   onLogout: () => void
 }) => {
   // VOTAR-325 UAT-02: el ancla (unlockAtMs) se resincroniza con Date.now()

@@ -184,5 +184,17 @@ export const getMessageForRevert = (
     }
   }
 
+  if (revertName === 'RetryTooSoon') {
+    return {
+      code: 'retry_too_soon',
+      message:
+        'Debe esperar antes de volver a votar. El tiempo restante se muestra en pantalla.',
+      severity: 'warning',
+      isTransient: false,
+      canRetrySend: false,
+      canResign: false,
+    }
+  }
+
   return null
 }
