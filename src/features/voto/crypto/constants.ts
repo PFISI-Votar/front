@@ -36,6 +36,27 @@ export const getBallotContractAddress = (): `0x${string}` => {
   )
 }
 
+const DEV_ELECTION_FACTORY_ADDRESS =
+  '0x0000000000000000000000000000000000000002' as const
+
+/**
+ * Cada comicio despliega su propio BallotContract vía ElectionFactory
+ * (VOTAR-439), por lo que la verificación pública de un recibo no puede
+ * validar contra una única dirección fija de BallotContract.
+ */
+export const getElectionFactoryAddress = (): `0x${string}` => {
+  const value = import.meta.env.VITE_ELECTION_FACTORY_ADDRESS
+  if (value && /^0x[0-9a-fA-F]{40}$/.test(value)) {
+    return value as `0x${string}`
+  }
+  if (import.meta.env.DEV || import.meta.env.MODE === 'test') {
+    return DEV_ELECTION_FACTORY_ADDRESS
+  }
+  throw new Error(
+    'VITE_ELECTION_FACTORY_ADDRESS no está configurada para verificar recibos'
+  )
+}
+
 export const getChainId = (): number => {
   const raw = import.meta.env.VITE_CHAIN_ID
   const parsed = Number(raw)
@@ -63,7 +84,7 @@ export const getRpcUrl = (): string => {
  * Testnet/local only — never use a mainnet key in the frontend bundle.
  */
 export const getVoteTransmitterPrivateKey = (): `0x${string}` => {
-  const value = import.meta.env.VITE_VOTE_TRANSMITTER_PRIVATE_KEY
+  const value = import.meta.env.VITE_PRIVATE_KEY
   if (value && /^0x[0-9a-fA-F]{64}$/.test(value)) {
     return value as `0x${string}`
   }
@@ -72,7 +93,7 @@ export const getVoteTransmitterPrivateKey = (): `0x${string}` => {
     return '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
   }
   throw new Error(
-    'VITE_VOTE_TRANSMITTER_PRIVATE_KEY no está configurada para transmitir el voto'
+    'VITE_PRIVATE_KEY no está configurada para transmitir el voto'
   )
 }
 
