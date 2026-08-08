@@ -105,10 +105,7 @@ export const RevotoPublicaPage = ({ idEleccion }: RevotoPublicaPageProps) => {
         }
       />
 
-      <section
-        aria-labelledby='revoto-analytics-heading'
-        className='space-y-6'
-      >
+      <section aria-labelledby='revoto-analytics-heading' className='space-y-6'>
         <div className='flex items-center gap-2'>
           <Repeat2 className='size-4 text-[#2f6f9f]' aria-hidden='true' />
           <h2

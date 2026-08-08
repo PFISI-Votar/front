@@ -33,18 +33,21 @@ vi.mock('@/features/dashboard-publico/api/revoto-stats-publica-api', () => ({
   obtenerRevotoStatsPublica: mocks.obtenerRevotoStatsPublica,
 }))
 
-vi.mock('@/features/dashboard-publico/components/revoto-overwrite-chart', () => ({
-  RevotoOverwriteChart: ({
-    serieTemporal,
-  }: {
-    serieTemporal: Array<{ etiqueta: string; overwriteRatio: number }>
-  }) => (
-    <div>
-      <h3>Tasa de sobreescritura acumulada</h3>
-      <p>{serieTemporal.length} puntos</p>
-    </div>
-  ),
-}))
+vi.mock(
+  '@/features/dashboard-publico/components/revoto-overwrite-chart',
+  () => ({
+    RevotoOverwriteChart: ({
+      serieTemporal,
+    }: {
+      serieTemporal: Array<{ etiqueta: string; overwriteRatio: number }>
+    }) => (
+      <div>
+        <h3>Tasa de sobreescritura acumulada</h3>
+        <p>{serieTemporal.length} puntos</p>
+      </div>
+    ),
+  })
+)
 
 const revotoMock = {
   idEleccion: 6,
@@ -53,8 +56,18 @@ const revotoMock = {
   uniqueVoters: 70,
   overwriteRatio: 0.3,
   serieTemporal: [
-    { etiqueta: '10:00', overwriteRatio: 0.2, totalRevotes: 10, totalEventos: 50 },
-    { etiqueta: '11:00', overwriteRatio: 0.3, totalRevotes: 30, totalEventos: 100 },
+    {
+      etiqueta: '10:00',
+      overwriteRatio: 0.2,
+      totalRevotes: 10,
+      totalEventos: 50,
+    },
+    {
+      etiqueta: '11:00',
+      overwriteRatio: 0.3,
+      totalRevotes: 30,
+      totalEventos: 100,
+    },
   ],
   fuenteDatos: 'AuditViewContract.getRevoteStats',
 }
