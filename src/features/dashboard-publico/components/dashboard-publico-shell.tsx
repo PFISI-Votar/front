@@ -4,7 +4,13 @@ import { cn } from '@/lib/utils'
 import { VotarLoginBackground } from '@/features/auth/sign-in/components/login-screen-shared'
 
 type DashboardSection =
-  'resumen' | 'padron' | 'estado' | 'resultados' | 'oferta' | 'participacion'
+  | 'resumen'
+  | 'padron'
+  | 'estado'
+  | 'resultados'
+  | 'oferta'
+  | 'participacion'
+  | 'revoto'
 
 type DashboardPublicoShellProps = {
   idEleccion: number
@@ -37,6 +43,11 @@ const navItems = [
     section: 'participacion' as const,
     label: 'Participación',
     to: '/comicios/$idEleccion/dashboard/participacion',
+  },
+  {
+    section: 'revoto' as const,
+    label: 'Re-voto',
+    to: '/comicios/$idEleccion/dashboard/revoto',
   },
   {
     section: 'estado' as const,
