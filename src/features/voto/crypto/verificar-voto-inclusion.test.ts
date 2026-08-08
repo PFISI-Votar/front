@@ -16,9 +16,14 @@ import {
 } from '@/features/voto/crypto/verificar-voto-inclusion'
 
 const BALLOT = '0x5FbDB2315678afecb367f032d93F642f64180aa3' as Hex
+const OTHER_BALLOT = '0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199' as Hex
+const ELECTION_FACTORY = '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0' as Hex
 const TX_HASH = `0x${'ab'.repeat(32)}` as Hex
 
-const buildSignedVoteCastLog = (electionId: number): Log => {
+const buildSignedVoteCastLog = (
+  electionId: number,
+  ballotAddress: Hex = BALLOT
+): Log => {
   const encodedTopics = encodeEventTopics({
     abi: BALLOT_CONTRACT_ABI,
     eventName: 'SignedVoteCast',
@@ -39,7 +44,7 @@ const buildSignedVoteCastLog = (electionId: number): Log => {
   )
 
   return {
-    address: BALLOT,
+    address: ballotAddress,
     topics,
     data,
     blockHash: `0x${'44'.repeat(32)}`,
@@ -50,6 +55,19 @@ const buildSignedVoteCastLog = (electionId: number): Log => {
     removed: false,
   }
 }
+
+const buildElectionDeployment = (ballot: Hex, exists = true) => ({
+  ballot,
+  voteRegistry: '0x0000000000000000000000000000000000000003' as Hex,
+  auditView: '0x0000000000000000000000000000000000000004' as Hex,
+  revoteConfig: {
+    enabled: false,
+    maxVotesPerVoter: 1,
+    minIntervalSeconds: 0,
+    policy: 0,
+  },
+  exists,
+})
 
 describe('verificarInclusionVotoLocal — VOTAR-366', () => {
   it('getBlockchainNetworkName mapea Sepolia y local', () => {
@@ -74,11 +92,12 @@ describe('verificarInclusionVotoLocal — VOTAR-366', () => {
         logs: [buildSignedVoteCastLog(7)],
       }),
       getBlock: vi.fn().mockResolvedValue({ timestamp: 1720708200n }),
+      readContract: vi.fn().mockResolvedValue(buildElectionDeployment(BALLOT)),
     }
 
     const result = await verificarInclusionVotoLocal(TX_HASH, {
       publicClient: publicClient as never,
-      ballotAddress: BALLOT,
+      electionFactoryAddress: ELECTION_FACTORY,
       chainId: 11_155_111,
     })
 
@@ -99,16 +118,42 @@ describe('verificarInclusionVotoLocal — VOTAR-366', () => {
     })
   })
 
+  it('VOTAR-439: confirma inclusión de un comicio cuyo BallotContract difiere de otros comicios', async () => {
+    const publicClient = {
+      getTransactionReceipt: vi.fn().mockResolvedValue({
+        transactionHash: TX_HASH,
+        status: 'success',
+        to: OTHER_BALLOT,
+        blockNumber: 4582193n,
+        logs: [buildSignedVoteCastLog(9, OTHER_BALLOT)],
+      }),
+      getBlock: vi.fn().mockResolvedValue({ timestamp: 1720708200n }),
+      readContract: vi
+        .fn()
+        .mockResolvedValue(buildElectionDeployment(OTHER_BALLOT)),
+    }
+
+    const result = await verificarInclusionVotoLocal(TX_HASH, {
+      publicClient: publicClient as never,
+      electionFactoryAddress: ELECTION_FACTORY,
+      chainId: 11_155_111,
+    })
+
+    expect(result.idEleccion).toBe(9)
+    expect(result.contractAddress).toBe(OTHER_BALLOT)
+  })
+
   it('UAT-02: rechaza recibos inexistentes o manipulados', async () => {
     const publicClient = {
       getTransactionReceipt: vi.fn().mockResolvedValue(null),
       getBlock: vi.fn(),
+      readContract: vi.fn(),
     }
 
     await expect(
       verificarInclusionVotoLocal(TX_HASH, {
         publicClient: publicClient as never,
-        ballotAddress: BALLOT,
+        electionFactoryAddress: ELECTION_FACTORY,
         chainId: 11_155_111,
       })
     ).rejects.toBeInstanceOf(VoteInclusionNotFoundError)
@@ -116,7 +161,7 @@ describe('verificarInclusionVotoLocal — VOTAR-366', () => {
     await expect(
       verificarInclusionVotoLocal(TX_HASH, {
         publicClient: publicClient as never,
-        ballotAddress: BALLOT,
+        electionFactoryAddress: ELECTION_FACTORY,
       })
     ).rejects.toThrow(VOTO_NO_ENCONTRADO_MENSAJE)
   })
@@ -131,12 +176,57 @@ describe('verificarInclusionVotoLocal — VOTAR-366', () => {
         logs: [],
       }),
       getBlock: vi.fn(),
+      readContract: vi.fn(),
     }
 
     await expect(
       verificarInclusionVotoLocal(TX_HASH, {
         publicClient: publicClient as never,
-        ballotAddress: BALLOT,
+        electionFactoryAddress: ELECTION_FACTORY,
+      })
+    ).rejects.toBeInstanceOf(VoteInclusionNotFoundError)
+  })
+
+  it('UAT-02: rechaza el evento si su dirección no coincide con el BallotContract resuelto por ElectionFactory', async () => {
+    const publicClient = {
+      getTransactionReceipt: vi.fn().mockResolvedValue({
+        transactionHash: TX_HASH,
+        status: 'success',
+        to: OTHER_BALLOT,
+        blockNumber: 4582193n,
+        logs: [buildSignedVoteCastLog(7, OTHER_BALLOT)],
+      }),
+      getBlock: vi.fn(),
+      readContract: vi.fn().mockResolvedValue(buildElectionDeployment(BALLOT)),
+    }
+
+    await expect(
+      verificarInclusionVotoLocal(TX_HASH, {
+        publicClient: publicClient as never,
+        electionFactoryAddress: ELECTION_FACTORY,
+      })
+    ).rejects.toBeInstanceOf(VoteInclusionNotFoundError)
+  })
+
+  it('UAT-02: rechaza comicios que ElectionFactory no reconoce como desplegados', async () => {
+    const publicClient = {
+      getTransactionReceipt: vi.fn().mockResolvedValue({
+        transactionHash: TX_HASH,
+        status: 'success',
+        to: BALLOT,
+        blockNumber: 4582193n,
+        logs: [buildSignedVoteCastLog(7)],
+      }),
+      getBlock: vi.fn(),
+      readContract: vi
+        .fn()
+        .mockResolvedValue(buildElectionDeployment(BALLOT, false)),
+    }
+
+    await expect(
+      verificarInclusionVotoLocal(TX_HASH, {
+        publicClient: publicClient as never,
+        electionFactoryAddress: ELECTION_FACTORY,
       })
     ).rejects.toBeInstanceOf(VoteInclusionNotFoundError)
   })
