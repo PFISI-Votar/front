@@ -39,6 +39,7 @@ export type BoletaDigital = {
   idBoleta: number
   titulo: string
   permitirVotoEnBlanco: boolean
+  permitirVotoNulo: boolean
   categorias: CategoriaBoletaDigital[]
   /** BallotContract address deployed by ElectionFactory for this comicio (only present on the authenticated voter's boleta). */
   ballotContractAddress?: `0x${string}`

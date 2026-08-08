@@ -40,6 +40,7 @@ const ofertaMock = {
   idBoleta: 10,
   titulo: 'Boleta oficial',
   permitirVotoEnBlanco: true,
+  permitirVotoNulo: true,
   categorias: [
     {
       idCategoria: 1,
