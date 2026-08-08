@@ -51,12 +51,8 @@ describe('buildComiciosBreadcrumbEntries', () => {
         label: 'Elecciones 2026',
         to: '/comicios/$idEleccion/oferta',
         params: { idEleccion: '42' },
-      },
-      {
-        label: 'Oferta electoral',
-        to: '/comicios/$idEleccion/oferta',
-        params: { idEleccion: '42' },
         menuItems: sectionMenuItems,
+        activeTo: '/comicios/$idEleccion/oferta',
       },
     ])
   })
@@ -74,12 +70,8 @@ describe('buildComiciosBreadcrumbEntries', () => {
         label: 'Elecciones 2026',
         to: '/comicios/$idEleccion/oferta',
         params: { idEleccion: '42' },
-      },
-      {
-        label: 'Padrón electoral',
-        to: '/comicios/$idEleccion/padron',
-        params: { idEleccion: '42' },
         menuItems: sectionMenuItems,
+        activeTo: '/comicios/$idEleccion/padron',
       },
     ])
   })
@@ -97,12 +89,8 @@ describe('buildComiciosBreadcrumbEntries', () => {
         label: 'Elecciones 2026',
         to: '/comicios/$idEleccion/oferta',
         params: { idEleccion: '42' },
-      },
-      {
-        label: 'Padrón electoral',
-        to: '/comicios/$idEleccion/padron',
-        params: { idEleccion: '42' },
         menuItems: sectionMenuItems,
+        activeTo: '/comicios/$idEleccion/padron',
       },
       { label: 'Previsualizar padrón' },
     ])
@@ -121,12 +109,8 @@ describe('buildComiciosBreadcrumbEntries', () => {
         label: 'Elecciones 2026',
         to: '/comicios/$idEleccion/oferta',
         params: { idEleccion: '42' },
-      },
-      {
-        label: 'Oferta electoral',
-        to: '/comicios/$idEleccion/oferta',
-        params: { idEleccion: '42' },
         menuItems: sectionMenuItems,
+        activeTo: '/comicios/$idEleccion/oferta',
       },
       { label: 'Editar comicio' },
     ])
@@ -148,14 +132,29 @@ describe('buildComiciosBreadcrumbEntries', () => {
         label: 'Elecciones 2026',
         to: '/comicios/$idEleccion/oferta',
         params: { idEleccion: '42' },
+        menuItems: sectionMenuItems,
+        activeTo: '/comicios/$idEleccion/oferta',
       },
+      { label: 'Lista A (LA)' },
+    ])
+  })
+
+  it('exposes the section switcher menu on the auditoria page', () => {
+    expect(
+      buildComiciosBreadcrumbEntries({
+        pathname: '/comicios/42/auditoria',
+        idEleccion,
+        eleccionNombre: 'Elecciones 2026',
+      })
+    ).toEqual([
+      { label: 'Comicios', to: '/comicios' },
       {
-        label: 'Oferta electoral',
+        label: 'Elecciones 2026',
         to: '/comicios/$idEleccion/oferta',
         params: { idEleccion: '42' },
         menuItems: sectionMenuItems,
+        activeTo: '/comicios/$idEleccion/auditoria',
       },
-      { label: 'Lista A (LA)' },
     ])
   })
 })
