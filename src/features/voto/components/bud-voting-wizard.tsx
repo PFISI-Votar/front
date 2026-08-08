@@ -17,7 +17,6 @@ import {
   PenLine,
   RefreshCw,
   ShieldCheck,
-  UserRoundCheck,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Hex } from 'viem'
@@ -876,7 +875,7 @@ const BudWizardShell = ({
 
 const WizardStepper = ({ currentStep }: { currentStep: WizardStep }) => {
   const steps = [
-    ['identity', 'Identidad'],
+    ['identity', 'Inicio'],
     ['selection', 'Voto'],
     ['review', 'Confirmación'],
     ['success', 'Éxito'],
@@ -987,11 +986,11 @@ const IdentityStep = ({
     <Card className='border-[#e4e7eb] bg-white/95 shadow-[0_1.5rem_5rem_rgba(30,64,95,0.07)]'>
       <CardHeader className='text-center'>
         <div className='mx-auto grid size-14 place-items-center rounded-full bg-[#d7e9f7] text-[#2f6f9f]'>
-          <UserRoundCheck className='size-7' />
+          <ShieldCheck className='size-7' />
         </div>
-        <CardTitle className='text-2xl'>Confirmar Identidad</CardTitle>
+        <CardTitle className='text-2xl'>Antes de votar</CardTitle>
         <CardDescription>
-          Verificá que tus datos sean correctos antes de abrir la boleta.
+          Verificá los datos del comicio antes de abrir la boleta.
         </CardDescription>
       </CardHeader>
       <CardContent className='grid gap-5'>
@@ -999,14 +998,13 @@ const IdentityStep = ({
           <div
             className='flex items-center justify-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800'
             role='status'
-            aria-label='Identidad criptográfica efímera generada'
+            aria-label='Clave de votación efímera generada'
           >
             <Fingerprint className='size-4' aria-hidden='true' />
-            Identidad criptográfica efímera generada
+            Clave de votación efímera generada
           </div>
         ) : null}
         <div className='grid gap-3 rounded-2xl bg-[#f7fbfd] p-4 sm:grid-cols-2'>
-          <IdentityItem label='Sesión' value='Votante autenticado' />
           <IdentityItem label='Comicio' value={boleta.nombreEleccion} />
           <IdentityItem label='Boleta' value={boleta.titulo} />
           <IdentityItem label='Estado' value={boleta.estadoEleccion} />
@@ -1017,11 +1015,11 @@ const IdentityStep = ({
         </div>
         <Alert className='border-amber-200 bg-amber-50 text-amber-950'>
           <AlertTriangle className='size-4' />
-          <AlertTitle>Validación obligatoria</AlertTitle>
+          <AlertTitle>Antes de continuar</AlertTitle>
           <AlertDescription>
-            La confirmación de identidad habilita una sesión de votación única.
-            Revisá tus datos con atención: luego la boleta se desvincula de tu
-            identidad para preservar el secreto del voto.
+            Este paso habilita tu sesión de votación única. Revisá los datos del
+            comicio con atención: una vez que continúes, tu boleta queda
+            desvinculada de tu sesión para preservar el secreto del voto.
           </AlertDescription>
         </Alert>
         {isEstadoRevotoError ? (
@@ -1045,7 +1043,7 @@ const IdentityStep = ({
       <CardFooter>
         <Button
           size='lg'
-          className='h-12 w-full rounded-xl bg-[#2f6f9f] text-base font-semibold hover:bg-[#285f88]'
+          className='h-12 w-full rounded-xl bg-[#2f6f9f] text-base font-semibold text-white hover:bg-[#285f88]'
           disabled={isLoadingProof}
           onClick={onConfirm}
         >
@@ -1056,7 +1054,7 @@ const IdentityStep = ({
             </>
           ) : (
             <>
-              Confirmar Identidad y Comenzar
+              Comenzar a votar
               <ArrowRight className='size-5' />
             </>
           )}
@@ -1261,7 +1259,7 @@ const RegisteredVoteStep = ({
         </Button>
         <Button
           size='lg'
-          className='h-12 bg-[#2f6f9f] hover:bg-[#285f88]'
+          className='h-12 bg-[#2f6f9f] text-white hover:bg-[#285f88]'
           onClick={onModify}
         >
           <PenLine className='size-4' />
@@ -1393,7 +1391,7 @@ const SelectionStep = ({
       <div className={BUD_STICKY_CTA_CLASS}>
         <Button
           size='lg'
-          className='h-12 w-full rounded-xl bg-[#2f6f9f] px-8 font-semibold shadow-lg shadow-slate-900/10 hover:bg-[#285f88] sm:w-auto sm:min-w-48'
+          className='h-12 w-full rounded-xl bg-[#2f6f9f] px-8 font-semibold text-white shadow-lg shadow-slate-900/10 hover:bg-[#285f88] sm:w-auto sm:min-w-48'
           disabled={!canContinue}
           onClick={onContinue}
         >
@@ -1537,7 +1535,7 @@ const ReviewStep = ({
           </Button>
           <Button
             size='lg'
-            className='h-12 bg-[#2f6f9f] font-semibold hover:bg-[#285f88]'
+            className='h-12 bg-[#2f6f9f] font-semibold text-white hover:bg-[#285f88]'
             disabled={isSigning}
             onClick={onSign}
             aria-label='Firmar y confirmar voto'
@@ -1829,7 +1827,7 @@ const TransmitStep = ({
           {txError?.canRetrySend && (
             <Button
               size='lg'
-              className='h-12 bg-[#2f6f9f] font-semibold hover:bg-[#285f88]'
+              className='h-12 bg-[#2f6f9f] font-semibold text-white hover:bg-[#285f88]'
               disabled={isBusy}
               onClick={onRetrySend}
               aria-label='Reintentar envío del voto'
@@ -2372,7 +2370,7 @@ const getStepLabel = (step: WizardStep) => {
   if (step === 'limit-reached') return 'Límite de intentos'
   if (step === 'cooldown') return 'Espera entre votos'
   if (step === 'registered') return 'Voto registrado'
-  if (step === 'identity') return 'Confirmación de identidad'
+  if (step === 'identity') return 'Antes de votar'
   if (step === 'selection') return 'Selección de voto'
   if (step === 'review') return 'Confirmación'
   if (step === 'transmitting') return 'Envío a la red'
