@@ -45,8 +45,8 @@ export const CurvaTemporalChart = ({
           Distribución temporal
         </CardTitle>
         <CardDescription className='text-sm leading-relaxed text-[#5f6368]'>
-          Ritmo acumulado de depósito de sufragios en las últimas horas de la
-          jornada.
+          Ritmo acumulado de sufragios emitidos durante las últimas 12 horas del
+          comicio o durante todo su período, si su duración fue menor.
         </CardDescription>
       </div>
     </CardHeader>

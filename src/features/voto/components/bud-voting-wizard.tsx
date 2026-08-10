@@ -714,6 +714,7 @@ export const BudVotingWizard = ({
             specialVote={specialVote}
             candidateSelections={candidateSelections}
             canContinue={canContinueSelection}
+            permitirVotoNulo={boleta.permitirVotoNulo}
             lists={lists}
             roles={roles}
             candidates={candidates}
@@ -1260,6 +1261,7 @@ const SelectionStep = ({
   specialVote,
   candidateSelections,
   canContinue,
+  permitirVotoNulo,
   lists,
   roles,
   candidates,
@@ -1274,6 +1276,7 @@ const SelectionStep = ({
   specialVote: SpecialVote
   candidateSelections: Record<string, string[]>
   canContinue: boolean
+  permitirVotoNulo: boolean
   lists: PartyList[]
   roles: CandidateRole[]
   candidates: Candidate[]
@@ -1283,8 +1286,9 @@ const SelectionStep = ({
   onSelectBlank: (roleId: string) => void
   onContinue: () => void
 }) => {
-  const specialDescription =
-    'También podés emitir tu voto en blanco o anular tu voto para este comicio.'
+  const specialDescription = permitirVotoNulo
+    ? 'También podés emitir tu voto en blanco o anularlo.'
+    : 'También podés emitir tu voto en blanco.'
 
   return (
     <div className='grid gap-5'>
@@ -1354,7 +1358,12 @@ const SelectionStep = ({
           <CardTitle>Opciones especiales</CardTitle>
           <CardDescription>{specialDescription}</CardDescription>
         </CardHeader>
-        <CardContent className='grid gap-3 md:grid-cols-2'>
+        <CardContent
+          className={cn(
+            'grid gap-3',
+            permitirVotoNulo ? 'md:grid-cols-2' : 'md:grid-cols-1'
+          )}
+        >
           <SpecialVoteCard
             title='Votar en blanco'
             description='No selecciona listas ni candidatos.'
@@ -1362,13 +1371,15 @@ const SelectionStep = ({
             selected={specialVote === 'blank'}
             onSelect={() => onSpecialVote('blank')}
           />
-          <SpecialVoteCard
-            title='Anular voto'
-            description='Registra una boleta anulada para este comicio.'
-            icon={<Ban className='size-14 sm:size-20' />}
-            selected={specialVote === 'null'}
-            onSelect={() => onSpecialVote('null')}
-          />
+          {permitirVotoNulo && (
+            <SpecialVoteCard
+              title='Anular voto'
+              description='Registra una boleta anulada para este comicio.'
+              icon={<Ban className='size-14 sm:size-20' />}
+              selected={specialVote === 'null'}
+              onSelect={() => onSpecialVote('null')}
+            />
+          )}
         </CardContent>
       </Card>
 
