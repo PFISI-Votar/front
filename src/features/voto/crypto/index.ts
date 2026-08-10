@@ -45,11 +45,19 @@ export {
 export { signDigestWithSecp256k1 } from '@/features/voto/crypto/secp256k1-digest-signer'
 export {
   transmitSignedVote,
+  waitForVoteTxReceipt,
   type TransmitProgressPhase,
   type TransmitSignedVoteInput,
   type TransmitSignedVoteOptions,
   type TransmitSignedVoteResult,
+  type WaitForVoteTxReceiptOptions,
 } from '@/features/voto/crypto/vote-transmitter'
+export {
+  clearPendingVoteCast,
+  loadPendingVoteCast,
+  savePendingVoteCast,
+  type PendingVoteCast,
+} from '@/features/voto/crypto/pending-vote-cast'
 export {
   logVoteTxError,
   type VoteTxErrorLogContext,

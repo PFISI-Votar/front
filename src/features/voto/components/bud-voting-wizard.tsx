@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { AxiosError } from 'axios'
 import {
   AlertTriangle,
@@ -61,7 +61,13 @@ import {
 } from '@/features/voto/crypto/nullifier'
 import { useEphemeralWallet } from '@/features/voto/crypto/use-ephemeral-wallet'
 import {
+  clearPendingVoteCast,
+  loadPendingVoteCast,
+  savePendingVoteCast,
+} from '@/features/voto/crypto/pending-vote-cast'
+import {
   transmitSignedVote,
+  waitForVoteTxReceipt,
   type TransmitProgressPhase,
 } from '@/features/voto/crypto/vote-transmitter'
 import { formatCooldownDuration } from '@/features/voto/crypto/vote-tx-error-catalog'
@@ -373,6 +379,8 @@ export const BudVotingWizard = ({
       ? voterStateOnChain.cooldownRemaining
       : (estadoRevoto?.proximoReintentoEnSegundos ?? 0)
   const cooldownActivo = cooldownRemainingSeconds > 0
+  const pendingResumeStartedRef = useRef(false)
+  const consumoCatchUpStartedRef = useRef(false)
   // Derive UI step when attempts are exhausted or cooldown is active.
   const effectiveStep: WizardStep =
     intentosAgotados && step !== 'success' && step !== 'transmitting'
@@ -380,6 +388,103 @@ export const BudVotingWizard = ({
       : cooldownActivo && step !== 'success' && step !== 'transmitting'
         ? 'cooldown'
         : step
+
+  const finalizeSuccessfulCast = async (receipt: {
+    txHash: Hex | null
+    blockNumber: number | null
+  }) => {
+    setTxHash(receipt.txHash)
+    setBlockNumber(receipt.blockNumber)
+    setTransmitPhase(null)
+    setTxError(null)
+    // VOTAR-328 / VOTAR-445: consumir intento mientras la sesión JWT sigue activa.
+    try {
+      await registrarConsumoMutation.mutateAsync()
+    } catch {
+      // El cast on-chain ya confirmó; no bloquear el recibo por el contador.
+    }
+    if (receipt.txHash) {
+      // VOTAR-373: index public tx for dashboard (no SSO cookies).
+      void registrarTransaccionPublica(boleta.idEleccion, receipt.txHash).catch(
+        () => {
+          // Recibo on-chain ya confirmado; el índice no debe bloquear la UX.
+        }
+      )
+    }
+    // VOTAR-379 UAT-05: anonymous audit before clearing SSO (no cookies on call).
+    void registrarVotoEmitidoAnonimo(boleta.idEleccion).catch(() => {
+      // Recibo on-chain ya confirmado; el audit no debe bloquear la UX.
+    })
+    // VOTAR-379 UAT-03: drop identity-linked crypto material after receipt.
+    setSignedVote(null)
+    setMerkleProofData(null)
+    setVoteReceiptReady(true)
+    setStep('success')
+    clearPendingVoteCast(boleta.idEleccion)
+    await clearVotanteSession()
+  }
+
+  // VOTAR-445: si F5 interrumpió el wait del receipt, reanudar y completar consumo.
+  useEffect(() => {
+    if (pendingResumeStartedRef.current) {
+      return
+    }
+    const pending = loadPendingVoteCast(boleta.idEleccion)
+    if (!pending) {
+      return
+    }
+    pendingResumeStartedRef.current = true
+    consumoCatchUpStartedRef.current = true
+
+    const resumePendingCast = async () => {
+      setStep('transmitting')
+      setTransmitPhase('confirming')
+      setTxHash(pending.txHash)
+      try {
+        const result = await waitForVoteTxReceipt(pending.txHash)
+        await finalizeSuccessfulCast({
+          txHash: result.txHash,
+          blockNumber: Number(result.blockNumber),
+        })
+      } catch (error) {
+        const mapped = mapVoteTxError(error)
+        if (mapped.code === 'already_registered') {
+          await finalizeSuccessfulCast({
+            txHash: pending.txHash,
+            blockNumber: null,
+          })
+          return
+        }
+        reportVoteTxError(mapped, boleta.idEleccion)
+        setTxError(mapped)
+        setTransmitPhase('error')
+      }
+    }
+
+    void resumePendingCast()
+    // Solo al montar / cambiar de comicio: el pending vive fuera de React.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boleta.idEleccion])
+
+  // VOTAR-445: si on-chain ya contabilizó votos y el backend no, sincronizar consumo.
+  useEffect(() => {
+    if (consumoCatchUpStartedRef.current) {
+      return
+    }
+    if (!voterStateOnChain || !estadoRevoto) {
+      return
+    }
+    if (voterStateOnChain.votesUsed <= estadoRevoto.votosConsumidos) {
+      return
+    }
+    if (step === 'success' || step === 'transmitting') {
+      return
+    }
+    consumoCatchUpStartedRef.current = true
+    void registrarConsumoMutation.mutateAsync().catch(() => {
+      consumoCatchUpStartedRef.current = false
+    })
+  }, [estadoRevoto, registrarConsumoMutation, step, voterStateOnChain])
 
   const lists = useMemo(() => buildListsFromBoleta(boleta), [boleta])
   const roles = useMemo(() => buildRolesFromBoleta(boleta), [boleta])
@@ -495,35 +600,28 @@ export const BudVotingWizard = ({
           onProgress: (phase) => {
             setTransmitPhase(phase)
           },
+          onTxHash: (hash) => {
+            // Persist before waiting for receipt so F5 can resume (VOTAR-445).
+            savePendingVoteCast(boleta.idEleccion, hash)
+            setTxHash(hash)
+          },
         }
       )
-      setTxHash(result.txHash)
-      setBlockNumber(Number(result.blockNumber))
-      setTransmitPhase(null)
-      // VOTAR-328: consumir intento mientras la sesión JWT sigue activa.
-      try {
-        await registrarConsumoMutation.mutateAsync()
-      } catch {
-        // El cast on-chain ya confirmó; no bloquear el recibo por el contador.
-      }
-      // VOTAR-373: index public tx for dashboard (no SSO cookies).
-      void registrarTransaccionPublica(boleta.idEleccion, result.txHash).catch(
-        () => {
-          // Recibo on-chain ya confirmado; el índice no debe bloquear la UX.
-        }
-      )
-      // VOTAR-379 UAT-05: anonymous audit before clearing SSO (no cookies on call).
-      void registrarVotoEmitidoAnonimo(boleta.idEleccion).catch(() => {
-        // Recibo on-chain ya confirmado; el audit no debe bloquear la UX.
+      await finalizeSuccessfulCast({
+        txHash: result.txHash,
+        blockNumber: Number(result.blockNumber),
       })
-      // VOTAR-379 UAT-03: drop identity-linked crypto material after receipt.
-      setSignedVote(null)
-      setMerkleProofData(null)
-      setVoteReceiptReady(true)
-      setStep('success')
-      await clearVotanteSession()
     } catch (error) {
       const mapped = mapVoteTxError(error)
+      // VOTAR-445: el cast ya quedó on-chain (p. ej. tras F5); reconciliar UX + consumo.
+      if (mapped.code === 'already_registered') {
+        const pending = loadPendingVoteCast(boleta.idEleccion)
+        await finalizeSuccessfulCast({
+          txHash: pending?.txHash ?? null,
+          blockNumber: null,
+        })
+        return
+      }
       reportVoteTxError(mapped, boleta.idEleccion)
       setTxError(mapped)
       setTransmitPhase('error')
@@ -662,7 +760,11 @@ export const BudVotingWizard = ({
   // en realidad debe ir a cooldown o límite de intentos.
   if (isLoadingEstadoRevoto) {
     return (
-      <BudWizardShell step='identity' estadoRevoto={estadoRevoto}>
+      <BudWizardShell
+        step='identity'
+        estadoRevoto={estadoRevoto}
+        onLogout={handleLogout}
+      >
         <div className='flex min-h-[24rem] items-center justify-center'>
           <p className='text-sm text-slate-600'>Preparando tu boleta…</p>
         </div>
@@ -671,7 +773,11 @@ export const BudVotingWizard = ({
   }
 
   return (
-    <BudWizardShell step={effectiveStep} estadoRevoto={estadoRevoto}>
+    <BudWizardShell
+      step={effectiveStep}
+      estadoRevoto={estadoRevoto}
+      onLogout={handleLogout}
+    >
       {effectiveStep !== 'limit-reached' && effectiveStep !== 'cooldown' ? (
         <WizardStepper currentStep={effectiveStep} />
       ) : null}
@@ -812,10 +918,12 @@ const BudWizardShell = ({
   children,
   step,
   estadoRevoto,
+  onLogout,
 }: {
   children: ReactNode
   step: WizardStep
   estadoRevoto?: EstadoRevoto
+  onLogout: () => void
 }) => (
   <main className='votar-light-surface relative min-h-svh overflow-x-clip overflow-y-auto bg-[#fdfcfa] text-[#202124]'>
     <div className='pointer-events-none absolute inset-0' aria-hidden='true'>
@@ -861,6 +969,19 @@ const BudWizardShell = ({
             <ShieldCheck className='size-3.5' />
             {getStepLabel(step)}
           </Badge>
+          {/* VOTAR-445: logout siempre visible; no toca contadores de revoto. */}
+          <Button
+            type='button'
+            variant='outline'
+            size='sm'
+            className='rounded-full border-slate-300 bg-white/90'
+            onClick={onLogout}
+            aria-label='Cerrar sesión'
+            data-testid='bud-logout'
+          >
+            <LogOut className='size-3.5' />
+            Cerrar sesión
+          </Button>
         </div>
       </header>
       {children}

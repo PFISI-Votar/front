@@ -75,13 +75,13 @@ vi.mock('@/features/voto/services/votante-session', () => ({
   clearVotanteSession: (...args: unknown[]) => clearVotanteSessionMock(...args),
 }))
 
-const transmitSignedVoteMock = vi.fn().mockResolvedValue({
-  txHash: '0x' + 'f'.repeat(64),
-  blockNumber: 42n,
-})
+const transmitSignedVoteMock = vi.fn()
+const waitForVoteTxReceiptMock = vi.fn()
 
 vi.mock('@/features/voto/crypto/vote-transmitter', () => ({
   transmitSignedVote: (...args: unknown[]) => transmitSignedVoteMock(...args),
+  waitForVoteTxReceipt: (...args: unknown[]) =>
+    waitForVoteTxReceiptMock(...args),
 }))
 
 const WALLET_PUBLIC_KEY = '0x02' + 'a'.repeat(64)
@@ -242,8 +242,10 @@ async function renderWizard(
 describe('BudVotingWizard', () => {
   beforeEach(() => {
     walletState.publicKeyHex = WALLET_PUBLIC_KEY
+    localStorage.clear()
     signVotePayloadMock.mockClear()
-    transmitSignedVoteMock.mockClear()
+    transmitSignedVoteMock.mockReset()
+    waitForVoteTxReceiptMock.mockReset()
     initializeWalletMock.mockClear()
     clearVotanteSessionMock.mockClear()
     registrarVotoEmitidoAnonimoMock.mockClear()
@@ -281,10 +283,19 @@ describe('BudVotingWizard', () => {
       expectedSigner: '0x' + 'd'.repeat(40),
       signature: '0x' + 'e'.repeat(130),
     })
-    transmitSignedVoteMock.mockResolvedValue({
-      txHash: '0x' + 'f'.repeat(64),
-      blockNumber: 42n,
-    })
+    transmitSignedVoteMock.mockImplementation(
+      async (
+        _input: unknown,
+        options?: { onTxHash?: (hash: string) => void }
+      ) => {
+        const result = {
+          txHash: ('0x' + 'f'.repeat(64)) as `0x${string}`,
+          blockNumber: 42n,
+        }
+        options?.onTxHash?.(result.txHash)
+        return result
+      }
+    )
   })
 
   it('aplica superficie clara en el shell bajo tema oscuro global (VOTAR-412)', async () => {
@@ -688,7 +699,7 @@ describe('BudVotingWizard', () => {
     expect(signVotePayloadMock).toHaveBeenCalledOnce()
   })
 
-  it('UAT-04: interpreta RevoteDisabled / already_registered como voto ya registrado', async () => {
+  it('UAT-04 / VOTAR-445: already_registered reconcilia consumo y muestra éxito', async () => {
     transmitSignedVoteMock.mockRejectedValueOnce({
       code: 'already_registered',
       message:
@@ -709,16 +720,67 @@ describe('BudVotingWizard', () => {
     )
 
     await expect
-      .element(screen.getByText('Voto ya registrado', { exact: true }))
+      .element(screen.getByText('Voto Exitoso', { exact: true }))
       .toBeInTheDocument()
-    await expect
-      .element(
-        screen.getByText(/Este voto ya está registrado en la blockchain/i)
-      )
-      .toBeInTheDocument()
+    expect(registrarConsumoIntentoMock).toHaveBeenCalledOnce()
+    expect(clearVotanteSessionMock).toHaveBeenCalledOnce()
     await expect
       .element(screen.getByRole('button', { name: /Reintentar envío/i }))
       .not.toBeInTheDocument()
+  })
+
+  it('VOTAR-445: muestra Cerrar sesión en pasos activos del wizard', async () => {
+    const onLogout = vi.fn()
+    const screen = await renderWizard(TIPOS_VOTACION.POR_CANDIDATO, onLogout)
+
+    await expect
+      .element(screen.getByTestId('bud-logout'))
+      .toBeInTheDocument()
+    await userEvent.click(screen.getByTestId('bud-logout'))
+    expect(onLogout).toHaveBeenCalledOnce()
+    expect(registrarConsumoIntentoMock).not.toHaveBeenCalled()
+  })
+
+  it('VOTAR-445: reanuda cast pendiente tras reload y completa el recibo', async () => {
+    const pendingHash = ('0x' + 'a'.repeat(64)) as `0x${string}`
+    localStorage.setItem(
+      'votar:pending-vote-cast:7',
+      JSON.stringify({
+        idEleccion: 7,
+        txHash: pendingHash,
+        startedAt: Date.now(),
+      })
+    )
+    waitForVoteTxReceiptMock.mockResolvedValueOnce({
+      txHash: pendingHash,
+      blockNumber: 99n,
+    })
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <EphemeralWalletProvider>
+          <BudVotingWizard
+            boleta={boleta}
+            tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            onLogout={vi.fn()}
+          />
+        </EphemeralWalletProvider>
+      </QueryClientProvider>
+    )
+
+    await expect
+      .element(screen.getByText(/Voto registrado exitosamente/i))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByLabelText(`Hash de transacción ${pendingHash}`))
+      .toBeInTheDocument()
+    expect(waitForVoteTxReceiptMock).toHaveBeenCalledWith(pendingHash)
+    expect(registrarConsumoIntentoMock).toHaveBeenCalledOnce()
+    expect(clearVotanteSessionMock).toHaveBeenCalledOnce()
+    expect(localStorage.getItem('votar:pending-vote-cast:7')).toBeNull()
   })
 
   it('muestra error cuando falla la reinicialización de la billetera efímera', async () => {

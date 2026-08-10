@@ -3,6 +3,7 @@ import type { SignedVotePayload } from '@/features/voto/crypto/vote-signer'
 import {
   applyGasMargin,
   transmitSignedVote,
+  waitForVoteTxReceipt,
   type TransmitSignedVoteInput,
 } from '@/features/voto/crypto/vote-transmitter'
 import type { VoteTxError } from '@/features/voto/crypto/vote-tx-errors'
@@ -59,12 +60,14 @@ describe('vote-transmitter — VOTAR-358', () => {
       status: 'success',
       blockNumber: 42n,
     })
+    const onTxHash = vi.fn()
 
     const result = await transmitSignedVote(input, {
       publicClient: publicClient as never,
       walletClient: walletClient as never,
       contractAddress: '0x0000000000000000000000000000000000000001',
       onProgress,
+      onTxHash,
     })
 
     expect(estimateContractGas).toHaveBeenCalledOnce()
@@ -82,11 +85,31 @@ describe('vote-transmitter — VOTAR-358', () => {
     expect(writeArgs.args[writeArgs.args.length - 1]).toBe(101n)
     expect(result.txHash).toBe('0x' + 'f'.repeat(64))
     expect(result.blockNumber).toBe(42n)
+    expect(onTxHash).toHaveBeenCalledWith('0x' + 'f'.repeat(64))
     expect(onProgress.mock.calls.map((call) => call[0])).toEqual([
       'estimating',
       'sending',
       'confirming',
     ])
+  })
+
+  it('VOTAR-445: waitForVoteTxReceipt resumes a broadcast cast', async () => {
+    waitForTransactionReceipt.mockResolvedValue({
+      status: 'success',
+      blockNumber: 77n,
+    })
+
+    const result = await waitForVoteTxReceipt(('0x' + 'a'.repeat(64)) as never, {
+      publicClient: publicClient as never,
+    })
+
+    expect(result).toEqual({
+      txHash: '0x' + 'a'.repeat(64),
+      blockNumber: 77n,
+    })
+    expect(waitForTransactionReceipt).toHaveBeenCalledWith(
+      expect.objectContaining({ hash: '0x' + 'a'.repeat(64) })
+    )
   })
 
   it('UAT-02: retries transient network errors up to 3 attempts', async () => {
