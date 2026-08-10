@@ -130,6 +130,7 @@ const boleta: BoletaDigital = {
   idBoleta: 70,
   titulo: 'Boleta - Centro de Estudiantes',
   permitirVotoEnBlanco: true,
+  permitirVotoNulo: true,
   ballotContractAddress: BALLOT_CONTRACT_ADDRESS,
   categorias: [
     {
@@ -207,7 +208,8 @@ const boleta: BoletaDigital = {
 
 async function renderWizard(
   tipoVotacion: TipoVotacion = TIPOS_VOTACION.POR_CANDIDATO,
-  onLogout: () => void = vi.fn()
+  onLogout: () => void = vi.fn(),
+  boletaOverride: BoletaDigital = boleta
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -216,7 +218,7 @@ async function renderWizard(
     <QueryClientProvider client={queryClient}>
       <EphemeralWalletProvider>
         <BudVotingWizard
-          boleta={boleta}
+          boleta={boletaOverride}
           tipoVotacion={tipoVotacion}
           onLogout={onLogout}
         />
@@ -441,6 +443,78 @@ describe('BudVotingWizard', () => {
     await expect
       .element(screen.getByRole('button', { name: /Anular voto/i }))
       .toBeInTheDocument()
+  })
+
+  it('VOTAR-443: no renderiza "Anular voto" si permitirVotoNulo es false', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <EphemeralWalletProvider>
+          <BudVotingWizard
+            boleta={{ ...boleta, permitirVotoNulo: false }}
+            tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            onLogout={vi.fn()}
+          />
+        </EphemeralWalletProvider>
+      </QueryClientProvider>
+    )
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /Comenzar a votar/i })
+    )
+    await expect
+      .element(screen.getByText('Opciones especiales'))
+      .toBeInTheDocument()
+
+    await expect
+      .element(screen.getByRole('button', { name: /Anular voto/i }))
+      .not.toBeInTheDocument()
+    await expect
+      .element(screen.getByRole('button', { name: /Votar en blanco/i }))
+      .toBeInTheDocument()
+  })
+
+  it('VOTAR-443: con ambos flags en false, mantiene "Votar en blanco" pero no "Anular voto"', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <EphemeralWalletProvider>
+          <BudVotingWizard
+            boleta={{
+              ...boleta,
+              permitirVotoEnBlanco: false,
+              permitirVotoNulo: false,
+            }}
+            tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            onLogout={vi.fn()}
+          />
+        </EphemeralWalletProvider>
+      </QueryClientProvider>
+    )
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /Comenzar a votar/i })
+    )
+    await expect
+      .element(screen.getByText('Opciones especiales'))
+      .toBeInTheDocument()
+
+    await expect
+      .element(screen.getByRole('button', { name: /Votar en blanco/i }))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByRole('button', { name: /Anular voto/i }))
+      .not.toBeInTheDocument()
   })
 
   it('permite un solo candidato seleccionado por rol', async () => {

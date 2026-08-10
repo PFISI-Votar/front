@@ -65,3 +65,17 @@ export type ConfiguracionRevoto = {
   politicaRevoto: z.infer<typeof politicaRevotoSchema>
   editable: boolean
 }
+
+export const guardarConfiguracionVotoNuloSchema = z.object({
+  permitirVotoNulo: z.boolean(),
+})
+
+export type GuardarConfiguracionVotoNuloInput = z.infer<
+  typeof guardarConfiguracionVotoNuloSchema
+>
+
+export type ConfiguracionVotoNulo = {
+  idEleccion: number
+  permitirVotoNulo: boolean
+  editable: boolean
+}
