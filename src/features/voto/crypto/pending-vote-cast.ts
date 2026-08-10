@@ -20,16 +20,16 @@ const isHexTxHash = (value: unknown): value is Hex =>
  * Uses localStorage (not sessionStorage) so closing the tab does not drop the
  * pending cast while the voter cookie may still be valid.
  */
-export const savePendingVoteCast = (
-  idEleccion: number,
-  txHash: Hex
-): void => {
+export const savePendingVoteCast = (idEleccion: number, txHash: Hex): void => {
   const payload: PendingVoteCast = {
     idEleccion,
     txHash,
     startedAt: Date.now(),
   }
-  globalThis.localStorage.setItem(storageKey(idEleccion), JSON.stringify(payload))
+  globalThis.localStorage.setItem(
+    storageKey(idEleccion),
+    JSON.stringify(payload)
+  )
 }
 
 export const loadPendingVoteCast = (

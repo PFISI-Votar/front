@@ -99,9 +99,12 @@ describe('vote-transmitter — VOTAR-358', () => {
       blockNumber: 77n,
     })
 
-    const result = await waitForVoteTxReceipt(('0x' + 'a'.repeat(64)) as never, {
-      publicClient: publicClient as never,
-    })
+    const result = await waitForVoteTxReceipt(
+      ('0x' + 'a'.repeat(64)) as never,
+      {
+        publicClient: publicClient as never,
+      }
+    )
 
     expect(result).toEqual({
       txHash: '0x' + 'a'.repeat(64),

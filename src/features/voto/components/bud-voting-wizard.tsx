@@ -59,12 +59,12 @@ import {
   calcularNullifier,
   CredencialNulificadorInvalidaError,
 } from '@/features/voto/crypto/nullifier'
-import { useEphemeralWallet } from '@/features/voto/crypto/use-ephemeral-wallet'
 import {
   clearPendingVoteCast,
   loadPendingVoteCast,
   savePendingVoteCast,
 } from '@/features/voto/crypto/pending-vote-cast'
+import { useEphemeralWallet } from '@/features/voto/crypto/use-ephemeral-wallet'
 import {
   transmitSignedVote,
   waitForVoteTxReceipt,

@@ -733,9 +733,7 @@ describe('BudVotingWizard', () => {
     const onLogout = vi.fn()
     const screen = await renderWizard(TIPOS_VOTACION.POR_CANDIDATO, onLogout)
 
-    await expect
-      .element(screen.getByTestId('bud-logout'))
-      .toBeInTheDocument()
+    await expect.element(screen.getByTestId('bud-logout')).toBeInTheDocument()
     await userEvent.click(screen.getByTestId('bud-logout'))
     expect(onLogout).toHaveBeenCalledOnce()
     expect(registrarConsumoIntentoMock).not.toHaveBeenCalled()
@@ -757,7 +755,10 @@ describe('BudVotingWizard', () => {
     })
 
     const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
     })
     const screen = await render(
       <QueryClientProvider client={queryClient}>
