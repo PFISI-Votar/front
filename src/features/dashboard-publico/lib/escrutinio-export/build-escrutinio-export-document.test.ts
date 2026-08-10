@@ -166,4 +166,18 @@ describe('buildEscrutinioExportDocument — VOTAR-369', () => {
       )
     ).toThrow()
   })
+
+  it('VOTAR-447: omite votosNulo del JSON cuando permitirVotoNulo es false', () => {
+    const actual = buildEscrutinioExportDocument(
+      { ...mockEscrutinioPorLista, permitirVotoNulo: false },
+      'json'
+    )
+    expect(actual.permitirVotoNulo).toBe(false)
+    const jsonPayload = buildEscrutinioJsonPayload(actual)
+    expect(jsonPayload.permitirVotoNulo).toBe(false)
+    expect(jsonPayload.participacion).not.toHaveProperty('votosNulo')
+    expect(jsonPayload.participacion).toMatchObject({
+      votosBlanco: 5,
+    })
+  })
 })

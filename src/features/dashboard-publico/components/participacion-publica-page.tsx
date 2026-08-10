@@ -140,11 +140,15 @@ export const ParticipacionPublicaPage = ({
           totalSufragios={data.formula.totalSufragios}
           totalPadron={data.formula.totalPadron}
         />
-        <FormulaTransparentePanel formula={data.formula} />
+        <FormulaTransparentePanel
+          formula={data.formula}
+          permitirVotoNulo={data.permitirVotoNulo ?? true}
+        />
         <CurvaTemporalChart serieTemporal={data.serieTemporal} />
         <DesgloseCategoriaPanel
           desglosePorCategoria={data.desglosePorCategoria}
           verificacionTotales={data.verificacionTotales}
+          permitirVotoNulo={data.permitirVotoNulo ?? true}
         />
         <p className='text-xs text-[#80868b]'>Fuente: {data.fuenteDatos}</p>
       </section>

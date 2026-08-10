@@ -17,12 +17,15 @@ type DesgloseCategoriaPanelProps = {
   desglosePorCategoria: DesgloseCategoria[]
   verificacionTotales: ParticipacionPublica['verificacionTotales']
   className?: string
+  /** VOTAR-447: blank votes always shown; null votes only when enabled. */
+  permitirVotoNulo?: boolean
 }
 
 export const DesgloseCategoriaPanel = ({
   desglosePorCategoria,
   verificacionTotales,
   className,
+  permitirVotoNulo = true,
 }: DesgloseCategoriaPanelProps) => (
   <Card
     className={cn(
@@ -65,9 +68,10 @@ export const DesgloseCategoriaPanel = ({
           Participación detallada por categoría
         </CardTitle>
         <CardDescription className='text-sm leading-relaxed text-[#5f6368]'>
-          Sumatoria de votos afirmativos por lista. Blanco y nulo se reportan
-          como tallies globales on-chain (limitación VOTAR-346: un candidateId
-          por nullifier).
+          Sumatoria de votos afirmativos por lista. Blanco
+          {permitirVotoNulo ? ' y nulo se reportan' : ' se reporta'} como
+          tallies globales on-chain (limitación VOTAR-346: un candidateId por
+          nullifier).
         </CardDescription>
       </div>
     </CardHeader>
@@ -129,14 +133,16 @@ export const DesgloseCategoriaPanel = ({
                       {categoria.votosEnBlancoGlobales.toLocaleString('es-AR')}
                     </td>
                   </tr>
-                  <tr className='border-t border-[#e4e7eb] bg-[#f8fafc]'>
-                    <td className='px-4 py-2.5 text-[#5f6368]'>
-                      Nulos (global)
-                    </td>
-                    <td className='px-4 py-2.5 text-right text-[#5f6368] tabular-nums'>
-                      {categoria.votosNulosGlobales.toLocaleString('es-AR')}
-                    </td>
-                  </tr>
+                  {permitirVotoNulo && (
+                    <tr className='border-t border-[#e4e7eb] bg-[#f8fafc]'>
+                      <td className='px-4 py-2.5 text-[#5f6368]'>
+                        Nulos (global)
+                      </td>
+                      <td className='px-4 py-2.5 text-right text-[#5f6368] tabular-nums'>
+                        {categoria.votosNulosGlobales.toLocaleString('es-AR')}
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
