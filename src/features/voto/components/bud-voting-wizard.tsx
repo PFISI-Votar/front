@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { AxiosError } from 'axios'
 import {
   AlertTriangle,
@@ -66,7 +66,6 @@ import {
 } from '@/features/voto/crypto/vote-transmitter'
 import { formatCooldownDuration } from '@/features/voto/crypto/vote-tx-error-catalog'
 import {
-  buildOffChainRetryTooSoonError,
   mapVoteTxError,
   type VoteTxError,
 } from '@/features/voto/crypto/vote-tx-errors'
@@ -358,12 +357,11 @@ export const BudVotingWizard = ({
     }
   }, [publicKeyHex, boleta.idEleccion])
 
-  const { data: voterStateOnChain, refetch: refetchVoterStateOnChain } =
-    useVoterStateOnChain(
-      boleta.idEleccion,
-      nullifier,
-      boleta.ballotContractAddress
-    )
+  const { data: voterStateOnChain } = useVoterStateOnChain(
+    boleta.idEleccion,
+    nullifier,
+    boleta.ballotContractAddress
+  )
 
   const intentosAgotados =
     Boolean(estadoRevoto) && (estadoRevoto?.intentosRestantes ?? 1) === 0
@@ -375,7 +373,6 @@ export const BudVotingWizard = ({
       ? voterStateOnChain.cooldownRemaining
       : (estadoRevoto?.proximoReintentoEnSegundos ?? 0)
   const cooldownActivo = cooldownRemainingSeconds > 0
-  const cooldownToastShownRef = useRef(false)
   // Derive UI step when attempts are exhausted or cooldown is active.
   const effectiveStep: WizardStep =
     intentosAgotados && step !== 'success' && step !== 'transmitting'
@@ -383,19 +380,6 @@ export const BudVotingWizard = ({
       : cooldownActivo && step !== 'success' && step !== 'transmitting'
         ? 'cooldown'
         : step
-
-  useEffect(() => {
-    if (!cooldownActivo) {
-      cooldownToastShownRef.current = false
-      return
-    }
-    if (cooldownToastShownRef.current) {
-      return
-    }
-    const mapped = buildOffChainRetryTooSoonError(cooldownRemainingSeconds)
-    reportVoteTxError(mapped, boleta.idEleccion)
-    cooldownToastShownRef.current = true
-  }, [boleta.idEleccion, cooldownActivo, cooldownRemainingSeconds])
 
   const lists = useMemo(() => buildListsFromBoleta(boleta), [boleta])
   const roles = useMemo(() => buildRolesFromBoleta(boleta), [boleta])
@@ -592,15 +576,6 @@ export const BudVotingWizard = ({
       return
     }
 
-    if (cooldownRemainingSeconds > 0) {
-      const mapped = buildOffChainRetryTooSoonError(cooldownRemainingSeconds)
-      reportVoteTxError(mapped, boleta.idEleccion)
-      setTxError(mapped)
-      setTransmitPhase('error')
-      setStep('transmitting')
-      return
-    }
-
     setIsSigning(true)
 
     try {
@@ -682,6 +657,19 @@ export const BudVotingWizard = ({
     setSpecialVote((current) => (current === value ? null : value))
   }
 
+  // Esperar a conocer el estado de revoto antes de decidir el paso inicial.
+  // Evita mostrar brevemente la pantalla de identidad cuando el usuario
+  // en realidad debe ir a cooldown o límite de intentos.
+  if (isLoadingEstadoRevoto) {
+    return (
+      <BudWizardShell step='identity' estadoRevoto={estadoRevoto}>
+        <div className='flex min-h-[24rem] items-center justify-center'>
+          <p className='text-sm text-slate-600'>Preparando tu boleta…</p>
+        </div>
+      </BudWizardShell>
+    )
+  }
+
   return (
     <BudWizardShell step={effectiveStep} estadoRevoto={estadoRevoto}>
       {effectiveStep !== 'limit-reached' && effectiveStep !== 'cooldown' ? (
@@ -700,9 +688,6 @@ export const BudVotingWizard = ({
         {effectiveStep === 'cooldown' && (
           <RetryTooSoonPanel
             proximoReintentoEnSegundos={cooldownRemainingSeconds}
-            onRefetch={
-              nullifier ? () => void refetchVoterStateOnChain() : undefined
-            }
             onLogout={handleLogout}
           />
         )}
@@ -738,6 +723,7 @@ export const BudVotingWizard = ({
             specialVote={specialVote}
             candidateSelections={candidateSelections}
             canContinue={canContinueSelection}
+            permitirVotoNulo={boleta.permitirVotoNulo}
             lists={lists}
             roles={roles}
             candidates={candidates}
@@ -1083,11 +1069,9 @@ const formatMmSs = (totalSeconds: number): string => {
 
 const RetryTooSoonPanel = ({
   proximoReintentoEnSegundos,
-  onRefetch,
   onLogout,
 }: {
   proximoReintentoEnSegundos: number
-  onRefetch?: () => void
   onLogout: () => void
 }) => {
   // VOTAR-325 UAT-02: el ancla (unlockAtMs) se resincroniza con Date.now()
@@ -1114,12 +1098,13 @@ const RetryTooSoonPanel = ({
   const remainingSeconds = Math.max(0, Math.ceil((unlockAtMs - now) / 1000))
 
   useEffect(() => {
-    if (remainingSeconds === 0) {
-      onRefetch?.()
-    }
-    // Solo dispara cuando el ticker local llega a cero, no en cada tick.
+    if (remainingSeconds > 0) return
+
+    onLogout()
+
+    // Solo dispara cuando el ticker local llega a cero o menos.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remainingSeconds === 0])
+  }, [remainingSeconds])
 
   const remainingDuration = formatCooldownDuration(remainingSeconds)
   const mmss = formatMmSs(remainingSeconds)
@@ -1285,6 +1270,7 @@ const SelectionStep = ({
   specialVote,
   candidateSelections,
   canContinue,
+  permitirVotoNulo,
   lists,
   roles,
   candidates,
@@ -1299,6 +1285,7 @@ const SelectionStep = ({
   specialVote: SpecialVote
   candidateSelections: Record<string, string[]>
   canContinue: boolean
+  permitirVotoNulo: boolean
   lists: PartyList[]
   roles: CandidateRole[]
   candidates: Candidate[]
@@ -1308,8 +1295,9 @@ const SelectionStep = ({
   onSelectBlank: (roleId: string) => void
   onContinue: () => void
 }) => {
-  const specialDescription =
-    'También podés emitir tu voto en blanco o anular tu voto para este comicio.'
+  const specialDescription = permitirVotoNulo
+    ? 'También podés emitir tu voto en blanco o anularlo.'
+    : 'También podés emitir tu voto en blanco.'
 
   return (
     <div className='grid gap-5'>
@@ -1379,7 +1367,12 @@ const SelectionStep = ({
           <CardTitle>Opciones especiales</CardTitle>
           <CardDescription>{specialDescription}</CardDescription>
         </CardHeader>
-        <CardContent className='grid gap-3 md:grid-cols-2'>
+        <CardContent
+          className={cn(
+            'grid gap-3',
+            permitirVotoNulo ? 'md:grid-cols-2' : 'md:grid-cols-1'
+          )}
+        >
           <SpecialVoteCard
             title='Votar en blanco'
             description='No selecciona listas ni candidatos.'
@@ -1387,13 +1380,15 @@ const SelectionStep = ({
             selected={specialVote === 'blank'}
             onSelect={() => onSpecialVote('blank')}
           />
-          <SpecialVoteCard
-            title='Anular voto'
-            description='Registra una boleta anulada para este comicio.'
-            icon={<Ban className='size-14 sm:size-20' />}
-            selected={specialVote === 'null'}
-            onSelect={() => onSpecialVote('null')}
-          />
+          {permitirVotoNulo && (
+            <SpecialVoteCard
+              title='Anular voto'
+              description='Registra una boleta anulada para este comicio.'
+              icon={<Ban className='size-14 sm:size-20' />}
+              selected={specialVote === 'null'}
+              onSelect={() => onSpecialVote('null')}
+            />
+          )}
         </CardContent>
       </Card>
 
