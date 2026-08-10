@@ -47,7 +47,7 @@ const transaccionesMock = {
       marcaTiempo: '2026-08-08T15:30:00.000Z',
       contratoEtiqueta: 'VoteRegistry',
       nombreEvento: 'VoteCast',
-      descripcionLegible: 'Sufragio contabilizado (candidato #3)',
+      descripcionLegible: 'Sufragio contabilizado',
       explorerUrl: `https://sepolia.etherscan.io/tx/${txHash}`,
     },
   ],
@@ -87,7 +87,7 @@ describe('TransaccionesPublicaPage — VOTAR-373', () => {
       .element(screen.getByText('Transacciones de la Urna Digital'))
       .toBeInTheDocument()
     await expect
-      .element(screen.getByText('Sufragio contabilizado (candidato #3)'))
+      .element(screen.getByText('Sufragio contabilizado'))
       .toBeInTheDocument()
 
     const explorerLink = screen.getByRole('link', { name: /Sepolia/i })

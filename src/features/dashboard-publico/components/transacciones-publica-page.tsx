@@ -113,7 +113,7 @@ export const TransaccionesPublicaPage = ({
         description={
           isFrozen || data.snapshotCongelado
             ? 'Snapshot congelado: el historial refleja las transacciones registradas al cierre del comicio.'
-            : 'Listado cronológico de transacciones detectadas en los contratos inteligentes del comicio.'
+            : 'Listado de transacciones on-chain, de más recientes a más antiguas.'
         }
       />
 

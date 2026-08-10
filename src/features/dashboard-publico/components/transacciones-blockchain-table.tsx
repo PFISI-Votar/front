@@ -35,8 +35,8 @@ export const TransaccionesBlockchainTable = ({
       <div className='overflow-x-auto'>
         <table className='min-w-full text-left text-sm'>
           <caption className='sr-only'>
-            Historial cronológico de transacciones blockchain del comicio en{' '}
-            {red}
+            Historial de transacciones blockchain del comicio en {red}, de más
+            recientes a más antiguas
           </caption>
           <thead className='border-b border-[#e4e7eb] bg-[#f8fafc] text-xs tracking-wide text-[#5f6368] uppercase'>
             <tr>
