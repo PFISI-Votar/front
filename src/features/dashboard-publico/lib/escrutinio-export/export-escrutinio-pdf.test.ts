@@ -98,4 +98,16 @@ describe('export-escrutinio-pdf — VOTAR-369 UAT-02', () => {
     )
     expect(mocks.mockText).toHaveBeenCalled()
   })
+
+  it('VOTAR-447: omite "Votos nulos" del PDF cuando permitirVotoNulo es false', async () => {
+    const document = buildEscrutinioExportDocument(
+      { ...mockEscrutinio, permitirVotoNulo: false },
+      'pdf',
+      '2026-07-21T12:00:00.000Z'
+    )
+    await exportEscrutinioPdf(document)
+    const textCalls = mocks.mockText.mock.calls.map((call) => call[0])
+    expect(textCalls).not.toContain('Votos nulos')
+    expect(textCalls).toContain('Votos en blanco')
+  })
 })
