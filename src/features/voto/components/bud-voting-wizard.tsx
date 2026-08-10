@@ -41,7 +41,10 @@ import {
   type TipoVotacion,
 } from '@/features/eleccion/lista/data/schema'
 import { firmarRecibo } from '@/features/voto/api/recibo-api'
-import { registrarVotoEmitidoAnonimo } from '@/features/voto/api/voto-api'
+import {
+  registrarTransaccionPublica,
+  registrarVotoEmitidoAnonimo,
+} from '@/features/voto/api/voto-api'
 import {
   BUD_CANDIDATE_GRID_CLASS,
   BUD_CATEGORY_GRID_CLASS,
@@ -503,6 +506,12 @@ export const BudVotingWizard = ({
       } catch {
         // El cast on-chain ya confirmó; no bloquear el recibo por el contador.
       }
+      // VOTAR-373: index public tx for dashboard (no SSO cookies).
+      void registrarTransaccionPublica(boleta.idEleccion, result.txHash).catch(
+        () => {
+          // Recibo on-chain ya confirmado; el índice no debe bloquear la UX.
+        }
+      )
       // VOTAR-379 UAT-05: anonymous audit before clearing SSO (no cookies on call).
       void registrarVotoEmitidoAnonimo(boleta.idEleccion).catch(() => {
         // Recibo on-chain ya confirmado; el audit no debe bloquear la UX.
