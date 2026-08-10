@@ -69,7 +69,8 @@ const revotoMock = {
       totalEventos: 100,
     },
   ],
-  fuenteDatos: 'AuditViewContract.getRevoteStats',
+  fuenteDatos:
+    'AuditViewContract.getRevoteStats + transaccion_blockchain (VOTAR-373)',
 }
 
 const renderPage = async (idEleccion: number) => {

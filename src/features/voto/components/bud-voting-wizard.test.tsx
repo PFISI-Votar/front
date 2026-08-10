@@ -34,6 +34,7 @@ vi.mock('@/features/voto/crypto/log-vote-tx-error', () => ({
 }))
 
 const registrarVotoEmitidoAnonimoMock = vi.fn().mockResolvedValue(undefined)
+const registrarTransaccionPublicaMock = vi.fn().mockResolvedValue(undefined)
 const registrarConsumoIntentoMock = vi.fn()
 const obtenerEstadoRevotoMock = vi.fn()
 const leerVoterStateMock = vi.fn()
@@ -61,6 +62,8 @@ vi.mock('@/features/voto/api/voto-api', () => ({
   }),
   registrarVotoEmitidoAnonimo: (...args: unknown[]) =>
     registrarVotoEmitidoAnonimoMock(...args),
+  registrarTransaccionPublica: (...args: unknown[]) =>
+    registrarTransaccionPublicaMock(...args),
   obtenerEstadoRevoto: (...args: unknown[]) => obtenerEstadoRevotoMock(...args),
   registrarConsumoIntento: (...args: unknown[]) =>
     registrarConsumoIntentoMock(...args),
@@ -242,6 +245,7 @@ describe('BudVotingWizard', () => {
     initializeWalletMock.mockClear()
     clearVotanteSessionMock.mockClear()
     registrarVotoEmitidoAnonimoMock.mockClear()
+    registrarTransaccionPublicaMock.mockClear()
     registrarConsumoIntentoMock.mockClear()
     toastWarningMock.mockClear()
     toastErrorMock.mockClear()
@@ -250,6 +254,7 @@ describe('BudVotingWizard', () => {
     leerVoterStateMock.mockReset()
     clearVotanteSessionMock.mockResolvedValue(undefined)
     registrarVotoEmitidoAnonimoMock.mockResolvedValue(undefined)
+    registrarTransaccionPublicaMock.mockResolvedValue(undefined)
     obtenerEstadoRevotoMock.mockResolvedValue({ ...defaultEstadoRevoto })
     // VOTAR-325: por defecto simula que el contrato aún no tiene despliegue
     // alcanzable; los tests existentes (que asumen el estado off-chain como
@@ -527,6 +532,10 @@ describe('BudVotingWizard', () => {
     expect(registrarVotoEmitidoAnonimoMock).toHaveBeenCalledWith(
       boleta.idEleccion
     )
+    expect(registrarTransaccionPublicaMock).toHaveBeenCalledWith(
+      boleta.idEleccion,
+      expectedTxHash
+    )
   })
 
   it('VOTAR-379 UAT-03: tras el recibo limpia sesión SSO y no deja nullifier en storage', async () => {
@@ -551,6 +560,10 @@ describe('BudVotingWizard', () => {
     expect(clearVotanteSessionMock).toHaveBeenCalledOnce()
     expect(registrarVotoEmitidoAnonimoMock).toHaveBeenCalledWith(
       boleta.idEleccion
+    )
+    expect(registrarTransaccionPublicaMock).toHaveBeenCalledWith(
+      boleta.idEleccion,
+      '0x' + 'f'.repeat(64)
     )
     expect(sessionStorage.getItem('nullifier')).toBeNull()
     expect(localStorage.getItem('nullifier')).toBeNull()
