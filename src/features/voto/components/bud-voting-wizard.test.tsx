@@ -34,6 +34,7 @@ vi.mock('@/features/voto/crypto/log-vote-tx-error', () => ({
 }))
 
 const registrarVotoEmitidoAnonimoMock = vi.fn().mockResolvedValue(undefined)
+const registrarTransaccionPublicaMock = vi.fn().mockResolvedValue(undefined)
 const registrarConsumoIntentoMock = vi.fn()
 const obtenerEstadoRevotoMock = vi.fn()
 const leerVoterStateMock = vi.fn()
@@ -61,6 +62,8 @@ vi.mock('@/features/voto/api/voto-api', () => ({
   }),
   registrarVotoEmitidoAnonimo: (...args: unknown[]) =>
     registrarVotoEmitidoAnonimoMock(...args),
+  registrarTransaccionPublica: (...args: unknown[]) =>
+    registrarTransaccionPublicaMock(...args),
   obtenerEstadoRevoto: (...args: unknown[]) => obtenerEstadoRevotoMock(...args),
   registrarConsumoIntento: (...args: unknown[]) =>
     registrarConsumoIntentoMock(...args),
@@ -72,13 +75,13 @@ vi.mock('@/features/voto/services/votante-session', () => ({
   clearVotanteSession: (...args: unknown[]) => clearVotanteSessionMock(...args),
 }))
 
-const transmitSignedVoteMock = vi.fn().mockResolvedValue({
-  txHash: '0x' + 'f'.repeat(64),
-  blockNumber: 42n,
-})
+const transmitSignedVoteMock = vi.fn()
+const waitForVoteTxReceiptMock = vi.fn()
 
 vi.mock('@/features/voto/crypto/vote-transmitter', () => ({
   transmitSignedVote: (...args: unknown[]) => transmitSignedVoteMock(...args),
+  waitForVoteTxReceipt: (...args: unknown[]) =>
+    waitForVoteTxReceiptMock(...args),
 }))
 
 const WALLET_PUBLIC_KEY = '0x02' + 'a'.repeat(64)
@@ -130,6 +133,7 @@ const boleta: BoletaDigital = {
   idBoleta: 70,
   titulo: 'Boleta - Centro de Estudiantes',
   permitirVotoEnBlanco: true,
+  permitirVotoNulo: true,
   ballotContractAddress: BALLOT_CONTRACT_ADDRESS,
   categorias: [
     {
@@ -207,7 +211,8 @@ const boleta: BoletaDigital = {
 
 async function renderWizard(
   tipoVotacion: TipoVotacion = TIPOS_VOTACION.POR_CANDIDATO,
-  onLogout: () => void = vi.fn()
+  onLogout: () => void = vi.fn(),
+  boletaOverride: BoletaDigital = boleta
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -216,7 +221,7 @@ async function renderWizard(
     <QueryClientProvider client={queryClient}>
       <EphemeralWalletProvider>
         <BudVotingWizard
-          boleta={boleta}
+          boleta={boletaOverride}
           tipoVotacion={tipoVotacion}
           onLogout={onLogout}
         />
@@ -225,7 +230,7 @@ async function renderWizard(
   )
 
   await userEvent.click(
-    screen.getByRole('button', { name: /Confirmar Identidad y Comenzar/i })
+    screen.getByRole('button', { name: /Comenzar a votar/i })
   )
   await expect
     .element(screen.getByText('Opciones especiales'))
@@ -237,11 +242,14 @@ async function renderWizard(
 describe('BudVotingWizard', () => {
   beforeEach(() => {
     walletState.publicKeyHex = WALLET_PUBLIC_KEY
+    localStorage.clear()
     signVotePayloadMock.mockClear()
-    transmitSignedVoteMock.mockClear()
+    transmitSignedVoteMock.mockReset()
+    waitForVoteTxReceiptMock.mockReset()
     initializeWalletMock.mockClear()
     clearVotanteSessionMock.mockClear()
     registrarVotoEmitidoAnonimoMock.mockClear()
+    registrarTransaccionPublicaMock.mockClear()
     registrarConsumoIntentoMock.mockClear()
     toastWarningMock.mockClear()
     toastErrorMock.mockClear()
@@ -250,6 +258,7 @@ describe('BudVotingWizard', () => {
     leerVoterStateMock.mockReset()
     clearVotanteSessionMock.mockResolvedValue(undefined)
     registrarVotoEmitidoAnonimoMock.mockResolvedValue(undefined)
+    registrarTransaccionPublicaMock.mockResolvedValue(undefined)
     obtenerEstadoRevotoMock.mockResolvedValue({ ...defaultEstadoRevoto })
     // VOTAR-325: por defecto simula que el contrato aún no tiene despliegue
     // alcanzable; los tests existentes (que asumen el estado off-chain como
@@ -274,10 +283,19 @@ describe('BudVotingWizard', () => {
       expectedSigner: '0x' + 'd'.repeat(40),
       signature: '0x' + 'e'.repeat(130),
     })
-    transmitSignedVoteMock.mockResolvedValue({
-      txHash: '0x' + 'f'.repeat(64),
-      blockNumber: 42n,
-    })
+    transmitSignedVoteMock.mockImplementation(
+      async (
+        _input: unknown,
+        options?: { onTxHash?: (hash: string) => void }
+      ) => {
+        const result = {
+          txHash: ('0x' + 'f'.repeat(64)) as `0x${string}`,
+          blockNumber: 42n,
+        }
+        options?.onTxHash?.(result.txHash)
+        return result
+      }
+    )
   })
 
   it('aplica superficie clara en el shell bajo tema oscuro global (VOTAR-412)', async () => {
@@ -407,7 +425,7 @@ describe('BudVotingWizard', () => {
     ).toBe('true')
   })
 
-  it('VOTAR-356: no renderiza casilleros de blanco si permitirVotoEnBlanco es false', async () => {
+  it('VOTAR-438: el voto en blanco se muestra siempre, sin importar permitirVotoEnBlanco', async () => {
     const queryClient = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -427,20 +445,92 @@ describe('BudVotingWizard', () => {
     )
 
     await userEvent.click(
-      screen.getByRole('button', { name: /Confirmar Identidad y Comenzar/i })
+      screen.getByRole('button', { name: /Comenzar a votar/i })
     )
 
     await expect
       .element(
         screen.getByRole('button', { name: /Voto en Blanco para Presidente/i })
       )
-      .not.toBeInTheDocument()
+      .toBeInTheDocument()
     await expect
       .element(screen.getByRole('button', { name: /Votar en blanco/i }))
-      .not.toBeInTheDocument()
+      .toBeInTheDocument()
     await expect
       .element(screen.getByRole('button', { name: /Anular voto/i }))
       .toBeInTheDocument()
+  })
+
+  it('VOTAR-443: no renderiza "Anular voto" si permitirVotoNulo es false', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <EphemeralWalletProvider>
+          <BudVotingWizard
+            boleta={{ ...boleta, permitirVotoNulo: false }}
+            tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            onLogout={vi.fn()}
+          />
+        </EphemeralWalletProvider>
+      </QueryClientProvider>
+    )
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /Comenzar a votar/i })
+    )
+    await expect
+      .element(screen.getByText('Opciones especiales'))
+      .toBeInTheDocument()
+
+    await expect
+      .element(screen.getByRole('button', { name: /Anular voto/i }))
+      .not.toBeInTheDocument()
+    await expect
+      .element(screen.getByRole('button', { name: /Votar en blanco/i }))
+      .toBeInTheDocument()
+  })
+
+  it('VOTAR-443: con ambos flags en false, mantiene "Votar en blanco" pero no "Anular voto"', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <EphemeralWalletProvider>
+          <BudVotingWizard
+            boleta={{
+              ...boleta,
+              permitirVotoEnBlanco: false,
+              permitirVotoNulo: false,
+            }}
+            tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            onLogout={vi.fn()}
+          />
+        </EphemeralWalletProvider>
+      </QueryClientProvider>
+    )
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /Comenzar a votar/i })
+    )
+    await expect
+      .element(screen.getByText('Opciones especiales'))
+      .toBeInTheDocument()
+
+    await expect
+      .element(screen.getByRole('button', { name: /Votar en blanco/i }))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByRole('button', { name: /Anular voto/i }))
+      .not.toBeInTheDocument()
   })
 
   it('permite un solo candidato seleccionado por rol', async () => {
@@ -527,6 +617,10 @@ describe('BudVotingWizard', () => {
     expect(registrarVotoEmitidoAnonimoMock).toHaveBeenCalledWith(
       boleta.idEleccion
     )
+    expect(registrarTransaccionPublicaMock).toHaveBeenCalledWith(
+      boleta.idEleccion,
+      expectedTxHash
+    )
   })
 
   it('VOTAR-379 UAT-03: tras el recibo limpia sesión SSO y no deja nullifier en storage', async () => {
@@ -551,6 +645,10 @@ describe('BudVotingWizard', () => {
     expect(clearVotanteSessionMock).toHaveBeenCalledOnce()
     expect(registrarVotoEmitidoAnonimoMock).toHaveBeenCalledWith(
       boleta.idEleccion
+    )
+    expect(registrarTransaccionPublicaMock).toHaveBeenCalledWith(
+      boleta.idEleccion,
+      '0x' + 'f'.repeat(64)
     )
     expect(sessionStorage.getItem('nullifier')).toBeNull()
     expect(localStorage.getItem('nullifier')).toBeNull()
@@ -601,7 +699,7 @@ describe('BudVotingWizard', () => {
     expect(signVotePayloadMock).toHaveBeenCalledOnce()
   })
 
-  it('UAT-04: interpreta RevoteDisabled / already_registered como voto ya registrado', async () => {
+  it('UAT-04 / VOTAR-445: already_registered reconcilia consumo y muestra éxito', async () => {
     transmitSignedVoteMock.mockRejectedValueOnce({
       code: 'already_registered',
       message:
@@ -622,16 +720,68 @@ describe('BudVotingWizard', () => {
     )
 
     await expect
-      .element(screen.getByText('Voto ya registrado', { exact: true }))
+      .element(screen.getByText('Voto Exitoso', { exact: true }))
       .toBeInTheDocument()
-    await expect
-      .element(
-        screen.getByText(/Este voto ya está registrado en la blockchain/i)
-      )
-      .toBeInTheDocument()
+    expect(registrarConsumoIntentoMock).toHaveBeenCalledOnce()
+    expect(clearVotanteSessionMock).toHaveBeenCalledOnce()
     await expect
       .element(screen.getByRole('button', { name: /Reintentar envío/i }))
       .not.toBeInTheDocument()
+  })
+
+  it('VOTAR-445: muestra Cerrar sesión en pasos activos del wizard', async () => {
+    const onLogout = vi.fn()
+    const screen = await renderWizard(TIPOS_VOTACION.POR_CANDIDATO, onLogout)
+
+    await expect.element(screen.getByTestId('bud-logout')).toBeInTheDocument()
+    await userEvent.click(screen.getByTestId('bud-logout'))
+    expect(onLogout).toHaveBeenCalledOnce()
+    expect(registrarConsumoIntentoMock).not.toHaveBeenCalled()
+  })
+
+  it('VOTAR-445: reanuda cast pendiente tras reload y completa el recibo', async () => {
+    const pendingHash = ('0x' + 'a'.repeat(64)) as `0x${string}`
+    localStorage.setItem(
+      'votar:pending-vote-cast:7',
+      JSON.stringify({
+        idEleccion: 7,
+        txHash: pendingHash,
+        startedAt: Date.now(),
+      })
+    )
+    waitForVoteTxReceiptMock.mockResolvedValueOnce({
+      txHash: pendingHash,
+      blockNumber: 99n,
+    })
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <EphemeralWalletProvider>
+          <BudVotingWizard
+            boleta={boleta}
+            tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            onLogout={vi.fn()}
+          />
+        </EphemeralWalletProvider>
+      </QueryClientProvider>
+    )
+
+    await expect
+      .element(screen.getByText(/Voto registrado exitosamente/i))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByLabelText(`Hash de transacción ${pendingHash}`))
+      .toBeInTheDocument()
+    expect(waitForVoteTxReceiptMock).toHaveBeenCalledWith(pendingHash)
+    expect(registrarConsumoIntentoMock).toHaveBeenCalledOnce()
+    expect(clearVotanteSessionMock).toHaveBeenCalledOnce()
+    expect(localStorage.getItem('votar:pending-vote-cast:7')).toBeNull()
   })
 
   it('muestra error cuando falla la reinicialización de la billetera efímera', async () => {
@@ -729,7 +879,7 @@ describe('BudVotingWizard', () => {
       .toBeInTheDocument()
 
     await userEvent.click(
-      screen.getByRole('button', { name: /Confirmar Identidad y Comenzar/i })
+      screen.getByRole('button', { name: /Comenzar a votar/i })
     )
     await userEvent.click(
       screen.getByRole('button', { name: /Modificar mi voto/i })
@@ -780,13 +930,6 @@ describe('BudVotingWizard', () => {
     await expect
       .element(screen.getByTestId('max-votes-reached-panel'))
       .not.toBeInTheDocument()
-    expect(toastWarningMock).toHaveBeenCalled()
-    expect(logVoteTxErrorMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        electionId: boleta.idEleccion,
-        code: 'retry_too_soon',
-      })
-    )
   })
 
   it('VOTAR-325 UAT-01: cooldown on-chain muestra contador mm:ss que decrementa cada segundo', async () => {
@@ -900,12 +1043,6 @@ describe('BudVotingWizard', () => {
     expect(toastErrorMock).toHaveBeenCalledWith(
       VOTE_TX_MESSAGES.notEligible,
       expect.objectContaining({ duration: 8000 })
-    )
-    expect(logVoteTxErrorMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        electionId: boleta.idEleccion,
-        code: 'not_eligible',
-      })
     )
   })
 

@@ -56,6 +56,7 @@ import { CategoriasPanel } from '@/features/eleccion/categoria/components/catego
 import { ComicioVentanaElectoral } from '@/features/eleccion/components/comicio-ventana-electoral'
 import { EliminarComicioDialog } from '@/features/eleccion/components/eliminar-comicio-dialog'
 import { ConfiguracionRevotoPanel } from '@/features/eleccion/configuracion-comicio/components/configuracion-revoto-panel'
+import { ConfiguracionVotoNuloPanel } from '@/features/eleccion/configuracion-comicio/components/configuracion-voto-nulo-panel'
 import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
 import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
 import {
@@ -145,6 +146,9 @@ export const OfertaElectoralPanel = ({
     [listasQuery.data]
   )
 
+  //fix: Collapsible abierto en la lista recien creada
+  const [nuevaListaId, setNuevaListaId] = useState<number | null>(null)
+
   const invalidateOferta = async () => {
     await queryClient.invalidateQueries({ queryKey: ['listas', idEleccion] })
     await queryClient.invalidateQueries({ queryKey: ['eleccion', idEleccion] })
@@ -179,8 +183,9 @@ export const OfertaElectoralPanel = ({
   const crearListaMutation = useMutation({
     mutationFn: (input: Parameters<typeof crearLista>[1]) =>
       crearLista(idEleccion, input),
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       setConflictMessage(null)
+      setNuevaListaId(data.idLista)
       toast.success('Lista creada correctamente')
       await invalidateOferta()
     },
@@ -488,6 +493,11 @@ export const OfertaElectoralPanel = ({
         isEditable={isEditable}
       />
 
+      <ConfiguracionVotoNuloPanel
+        idEleccion={idEleccion}
+        isEditable={isEditable}
+      />
+
       <ConfiguracionDatosCandidatoPanel
         idEleccion={idEleccion}
         isEditable={isEditable}
@@ -519,7 +529,10 @@ export const OfertaElectoralPanel = ({
           const candidatos = lista.candidatos ?? []
 
           return (
-            <Collapsible key={lista.idLista}>
+            <Collapsible
+              key={lista.idLista}
+              defaultOpen={lista.idLista === nuevaListaId}
+            >
               <Card>
                 <CardHeader className='flex flex-row items-start justify-between gap-4 space-y-0 pb-3'>
                   <CollapsibleTrigger asChild>

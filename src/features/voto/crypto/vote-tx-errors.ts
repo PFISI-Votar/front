@@ -6,7 +6,6 @@ import {
   UserRejectedRequestError,
 } from 'viem'
 import {
-  buildCooldownActiveMessage,
   getMessageForRevert,
   VOTE_TX_FALLBACK_MESSAGE,
   type VoteErrorSeverity,
@@ -76,22 +75,6 @@ export const getRevertErrorData = (error: unknown): RevertErrorData | null => {
   }
 }
 
-/** Off-chain cooldown from revotePolicyService HTTP 429 (VOTAR-325 / VOTAR-359 UAT-01). */
-export const buildOffChainCooldownActiveError = (
-  remainingSeconds: number
-): VoteTxError => {
-  return createVoteTxError({
-    code: 'retry_too_soon',
-    message: buildCooldownActiveMessage(remainingSeconds),
-    severity: 'warning',
-    revertName: 'CooldownActive',
-    remainingSeconds,
-    isTransient: false,
-    canRetrySend: false,
-    canResign: false,
-  })
-}
-
 /**
  * Maps RPC / contract failures to user-facing Spanish messages (VOTAR-358 / VOTAR-359).
  */
@@ -151,7 +134,7 @@ export const mapVoteTxError = (error: unknown): VoteTxError => {
     const mapped = getMessageForRevert(revertData.name, revertData.args)
     if (mapped) {
       const remainingSeconds =
-        revertData.name === 'CooldownActive'
+        revertData.name === 'RetryTooSoon'
           ? Number(revertData.args[1] ?? 0)
           : undefined
       return createVoteTxError({

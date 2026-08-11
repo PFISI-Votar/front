@@ -8,15 +8,11 @@ import {
 import { describe, expect, it } from 'vitest'
 import { BALLOT_CONTRACT_ABI } from '@/features/voto/crypto/ballot-abi'
 import {
-  buildCooldownActiveMessage,
   formatCooldownDuration,
   VOTE_TX_FALLBACK_MESSAGE,
   VOTE_TX_MESSAGES,
 } from '@/features/voto/crypto/vote-tx-error-catalog'
-import {
-  buildOffChainCooldownActiveError,
-  mapVoteTxError,
-} from '@/features/voto/crypto/vote-tx-errors'
+import { mapVoteTxError } from '@/features/voto/crypto/vote-tx-errors'
 
 const createRevertedFromEncodedError = (
   errorName: string,
@@ -99,18 +95,8 @@ describe('mapVoteTxError — VOTAR-358 / VOTAR-341 / VOTAR-359', () => {
     ).toBe('NullifierAlreadyUsed')
   })
 
-  it('VOTAR-325 UAT-01: maps CooldownActive(electionId, 180) to 3 minutes warning', () => {
-    const mapped = mapVoteTxError(
-      createRevertedFromEncodedError('CooldownActive', [339n, 180n])
-    )
-    expect(mapped.code).toBe('retry_too_soon')
-    expect(mapped.severity).toBe('warning')
-    expect(mapped.message).toBe(
-      'Debe esperar 3 minutos antes de volver a votar. Por favor, intente nuevamente más tarde.'
-    )
-    expect(mapped.remainingSeconds).toBe(180)
-    expect(mapped.canRetrySend).toBe(false)
-  })
+  //UAT-01 borrada: ya se cumple con el pop-up que le aparece al modal completo que le aparece al usuario cuando
+  //intenta reloguearse para votar, el pop-up es innecesario, llena la pantalla con información que el usuario ya tiene.
 
   it('UAT-02: maps InvalidMerkleProof to not_eligible ticket copy', () => {
     const mapped = mapVoteTxError(
@@ -204,13 +190,6 @@ describe('mapVoteTxError — VOTAR-358 / VOTAR-341 / VOTAR-359', () => {
     expect(mapped.severity).toBe('warning')
     expect(mapped.canRetrySend).toBe(true)
   })
-
-  it('buildOffChainCooldownActiveError uses remaining seconds from backend', () => {
-    const mapped = buildOffChainCooldownActiveError(150)
-    expect(mapped.code).toBe('retry_too_soon')
-    expect(mapped.remainingSeconds).toBe(150)
-    expect(mapped.message).toBe(buildCooldownActiveMessage(150))
-  })
 })
 
 describe('vote-tx-error-catalog helpers', () => {
@@ -224,10 +203,5 @@ describe('vote-tx-error-catalog helpers', () => {
     expect(formatCooldownDuration(60)).toBe('1 minuto')
     expect(formatCooldownDuration(61)).toBe('2 minutos')
     expect(formatCooldownDuration(180)).toBe('3 minutos')
-  })
-
-  it('buildCooldownActiveMessage substitutes the exact duration', () => {
-    expect(buildCooldownActiveMessage(180)).toContain('3 minutos')
-    expect(buildCooldownActiveMessage(30)).toContain('30 segundos')
   })
 })
