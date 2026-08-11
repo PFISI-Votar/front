@@ -10,6 +10,7 @@ type DashboardSection =
   | 'resultados'
   | 'oferta'
   | 'participacion'
+  | 'revoto'
   | 'transacciones'
 
 type DashboardPublicoShellProps = {
@@ -43,6 +44,11 @@ const navItems = [
     section: 'participacion' as const,
     label: 'Participación',
     to: '/comicios/$idEleccion/dashboard/participacion',
+  },
+  {
+    section: 'revoto' as const,
+    label: 'Re-voto',
+    to: '/comicios/$idEleccion/dashboard/revoto',
   },
   {
     section: 'transacciones' as const,
