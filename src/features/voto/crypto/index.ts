@@ -45,17 +45,24 @@ export {
 export { signDigestWithSecp256k1 } from '@/features/voto/crypto/secp256k1-digest-signer'
 export {
   transmitSignedVote,
+  waitForVoteTxReceipt,
   type TransmitProgressPhase,
   type TransmitSignedVoteInput,
   type TransmitSignedVoteOptions,
   type TransmitSignedVoteResult,
+  type WaitForVoteTxReceiptOptions,
 } from '@/features/voto/crypto/vote-transmitter'
+export {
+  clearPendingVoteCast,
+  loadPendingVoteCast,
+  savePendingVoteCast,
+  type PendingVoteCast,
+} from '@/features/voto/crypto/pending-vote-cast'
 export {
   logVoteTxError,
   type VoteTxErrorLogContext,
 } from '@/features/voto/crypto/log-vote-tx-error'
 export {
-  buildOffChainRetryTooSoonError,
   getRevertErrorData,
   mapVoteTxError,
   type RevertErrorData,
@@ -63,7 +70,6 @@ export {
   type VoteTxErrorCode,
 } from '@/features/voto/crypto/vote-tx-errors'
 export {
-  buildRetryTooSoonMessage,
   VOTE_TX_FALLBACK_MESSAGE,
   VOTE_TX_MESSAGES,
 } from '@/features/voto/crypto/vote-tx-error-catalog'
@@ -77,6 +83,14 @@ export {
   type VerificarInclusionVotoOptions,
   type VoteInclusionResult,
 } from '@/features/voto/crypto/verificar-voto-inclusion'
+export {
+  computeRemainingSeconds,
+  loadPersistedCooldownAnchor,
+  mergeCooldownAnchor,
+  persistCooldownAnchor,
+  resolveCooldownAnchor,
+  type CooldownAnchor,
+} from '@/features/voto/crypto/cooldown-clock'
 export {
   calcularNullifier,
   CredencialNulificadorInvalidaError,

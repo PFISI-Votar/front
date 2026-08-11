@@ -32,8 +32,6 @@ export const VOTE_TX_FALLBACK_MESSAGE =
   'Ha ocurrido un error inesperado al procesar su voto. Por favor, verifique su conexión e intente nuevamente.'
 
 export const VOTE_TX_MESSAGES = {
-  cooldownActive:
-    'Debe esperar [TIEMPO] antes de volver a votar. Por favor, intente nuevamente más tarde.',
   invalidSignature:
     'La firma de su voto no es válida. Por favor, asegúrese de que su sesión esté activa y vuelva a intentar.',
   electionPaused:
@@ -72,29 +70,10 @@ export const formatCooldownDuration = (remainingSeconds: number): string => {
   return `${minutes} minuto${minutes === 1 ? '' : 's'}`
 }
 
-export const buildRetryTooSoonMessage = (remainingSeconds: number): string =>
-  VOTE_TX_MESSAGES.cooldownActive.replace(
-    '[TIEMPO]',
-    formatCooldownDuration(remainingSeconds)
-  )
-
 export const getMessageForRevert = (
   revertName: string,
   args?: readonly unknown[]
 ): RevertErrorMapping | null => {
-  if (revertName === 'RetryTooSoon') {
-    // RetryTooSoon(electionId, remainingSeconds) — VOTAR-325.
-    const remainingSeconds = Number(args?.[1] ?? 60)
-    return {
-      code: 'retry_too_soon',
-      message: buildRetryTooSoonMessage(remainingSeconds),
-      severity: 'warning',
-      isTransient: false,
-      canRetrySend: false,
-      canResign: false,
-    }
-  }
-
   if (revertName === 'InvalidSignature') {
     return {
       code: 'invalid_signature',
@@ -202,6 +181,20 @@ export const getMessageForRevert = (
       isTransient: false,
       canRetrySend: true,
       canResign: false,
+    }
+  }
+
+  if (revertName === 'RetryTooSoon') {
+    return {
+      code: 'retry_too_soon',
+      message:
+        'Debe esperar antes de volver a votar. El tiempo restante se muestra en pantalla.',
+      severity: 'warning',
+      isTransient: false,
+      // VOTAR-449: permitir volver a firmar tras esperar; el wizard además
+      // rehidrata el panel de cooldown al detectar este código.
+      canRetrySend: false,
+      canResign: true,
     }
   }
 

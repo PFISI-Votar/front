@@ -6,7 +6,6 @@ import {
   UserRejectedRequestError,
 } from 'viem'
 import {
-  buildRetryTooSoonMessage,
   getMessageForRevert,
   VOTE_TX_FALLBACK_MESSAGE,
   type VoteErrorSeverity,
@@ -74,22 +73,6 @@ export const getRevertErrorData = (error: unknown): RevertErrorData | null => {
     name,
     args: reverted.data?.args ?? [],
   }
-}
-
-/** Off-chain cooldown from revotePolicyService HTTP 429 (VOTAR-325 / VOTAR-359 UAT-01). */
-export const buildOffChainRetryTooSoonError = (
-  remainingSeconds: number
-): VoteTxError => {
-  return createVoteTxError({
-    code: 'retry_too_soon',
-    message: buildRetryTooSoonMessage(remainingSeconds),
-    severity: 'warning',
-    revertName: 'RetryTooSoon',
-    remainingSeconds,
-    isTransient: false,
-    canRetrySend: false,
-    canResign: false,
-  })
 }
 
 /**
