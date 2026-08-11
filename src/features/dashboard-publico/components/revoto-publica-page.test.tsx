@@ -96,7 +96,7 @@ describe('RevotoPublicaPage — VOTAR-329', () => {
     mocks.obtenerRevotoStatsPublica.mockResolvedValue(revotoMock)
   })
 
-  it('UAT-01: muestra totalRevotes, uniqueVoters y overwriteRatio', async () => {
+  it('UAT-01: muestra re-votos, votantes únicos y tasa de sobreescritura', async () => {
     const screen = await renderPage(6)
 
     await vi.waitFor(() => {
@@ -105,10 +105,10 @@ describe('RevotoPublicaPage — VOTAR-329', () => {
       expect(screen.getByText('0,30')).toBeTruthy()
     })
 
-    expect(screen.getByText('totalRevotes')).toBeTruthy()
-    expect(screen.getByText('uniqueVoters')).toBeTruthy()
-    expect(screen.getByText('overwriteRatio')).toBeTruthy()
-    expect(screen.getByText(/AuditViewContract\.getRevoteStats/)).toBeTruthy()
+    expect(screen.getByText('Re-votos totales')).toBeTruthy()
+    expect(screen.getByText('Votantes únicos')).toBeTruthy()
+    expect(screen.getByText('Tasa de sobreescritura')).toBeTruthy()
+    expect(screen.getByText(/Fuente:/).query()).toBeNull()
   })
 
   it('muestra error cuando el comicio no tiene contratos on-chain', async () => {

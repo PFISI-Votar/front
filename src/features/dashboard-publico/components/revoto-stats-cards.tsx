@@ -61,24 +61,24 @@ export const RevotoStatsCards = ({
   >
     <StatCard
       icon={RefreshCw}
-      title='totalRevotes'
+      title='Re-votos totales'
       value={totalRevotes.toLocaleString('es-AR')}
       description='Acciones de sobreescritura registradas on-chain'
     />
     <StatCard
       icon={Users}
-      title='uniqueVoters'
+      title='Votantes únicos'
       value={uniqueVoters.toLocaleString('es-AR')}
       description='Votantes únicos con al menos un sufragio'
     />
     <StatCard
       icon={Vote}
-      title='overwriteRatio'
+      title='Tasa de sobreescritura'
       value={overwriteRatio.toLocaleString('es-AR', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       })}
-      description='Tasa de sobreescritura (re-votos / eventos totales)'
+      description='Proporción de re-votos sobre el total de eventos'
     />
   </div>
 )

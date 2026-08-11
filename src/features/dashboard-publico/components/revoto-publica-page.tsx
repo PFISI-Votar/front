@@ -122,7 +122,6 @@ export const RevotoPublicaPage = ({ idEleccion }: RevotoPublicaPageProps) => {
           overwriteRatio={data.overwriteRatio}
         />
         <RevotoOverwriteChart serieTemporal={data.serieTemporal} />
-        <p className='text-xs text-[#80868b]'>Fuente: {data.fuenteDatos}</p>
       </section>
     </DashboardPublicoShell>
   )
