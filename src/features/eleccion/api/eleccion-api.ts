@@ -2,6 +2,7 @@ import { apiClient } from '@/lib/api-client'
 import type {
   CreateComicioInput,
   Eleccion,
+  EleccionEstado,
 } from '@/features/eleccion/data/schema'
 
 export const crearEleccion = async (
@@ -26,8 +27,12 @@ export const eliminarEleccion = async (idEleccion: number): Promise<void> => {
   await apiClient.delete(`/elecciones/${idEleccion}`)
 }
 
-export const listarElecciones = async (): Promise<Eleccion[]> => {
-  const { data } = await apiClient.get<Eleccion[]>('/elecciones')
+export const listarElecciones = async (
+  estado?: EleccionEstado
+): Promise<Eleccion[]> => {
+  const { data } = await apiClient.get<Eleccion[]>('/elecciones', {
+    params: estado ? { estado } : undefined,
+  })
   return data
 }
 
@@ -48,6 +53,15 @@ export const abrirEleccion = async (idEleccion: number): Promise<Eleccion> => {
 export const cerrarEleccion = async (idEleccion: number): Promise<Eleccion> => {
   const { data } = await apiClient.post<Eleccion>(
     `/elecciones/${idEleccion}/cerrar`
+  )
+  return data
+}
+
+export const archivarEleccion = async (
+  idEleccion: number
+): Promise<Eleccion> => {
+  const { data } = await apiClient.post<Eleccion>(
+    `/elecciones/${idEleccion}/archivar`
   )
   return data
 }

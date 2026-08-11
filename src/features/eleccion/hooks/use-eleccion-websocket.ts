@@ -11,6 +11,10 @@ interface EleccionCerradaEvent {
   idEleccion: number
 }
 
+interface EleccionArchivadaEvent {
+  idEleccion: number
+}
+
 interface MerklePublicadoEvent {
   idEleccion: number
 }
@@ -18,6 +22,7 @@ interface MerklePublicadoEvent {
 interface UseEleccionWebSocketOptions {
   onEleccionAbierta?: (data: EleccionAbiertaEvent) => void
   onEleccionCerrada?: (data: EleccionCerradaEvent) => void
+  onEleccionArchivada?: (data: EleccionArchivadaEvent) => void
   onMerklePublicado?: (data: MerklePublicadoEvent) => void
 }
 
@@ -31,6 +36,7 @@ export function useEleccionWebSocket(
 ) {
   const onEleccionAbiertaRef = useRef(options.onEleccionAbierta)
   const onEleccionCerradaRef = useRef(options.onEleccionCerrada)
+  const onEleccionArchivadaRef = useRef(options.onEleccionArchivada)
   const onMerklePublicadoRef = useRef(options.onMerklePublicado)
   const socketRef = useRef<Socket | null>(null)
 
@@ -41,6 +47,10 @@ export function useEleccionWebSocket(
   useEffect(() => {
     onEleccionCerradaRef.current = options.onEleccionCerrada
   }, [options.onEleccionCerrada])
+
+  useEffect(() => {
+    onEleccionArchivadaRef.current = options.onEleccionArchivada
+  }, [options.onEleccionArchivada])
 
   useEffect(() => {
     onMerklePublicadoRef.current = options.onMerklePublicado
@@ -62,6 +72,10 @@ export function useEleccionWebSocket(
 
     socket.on('eleccion:cerrada', (data: EleccionCerradaEvent) => {
       onEleccionCerradaRef.current?.(data)
+    })
+
+    socket.on('eleccion:archivada', (data: EleccionArchivadaEvent) => {
+      onEleccionArchivadaRef.current?.(data)
     })
 
     socket.on('eleccion:merkle-publicado', (data: MerklePublicadoEvent) => {

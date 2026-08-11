@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
   AlertCircle,
+  Archive,
   BadgeCheck,
   Eye,
   FileSpreadsheet,
@@ -42,6 +43,7 @@ import { ComicioVentanaElectoral } from '@/features/eleccion/components/comicio-
 import { EliminarComicioDialog } from '@/features/eleccion/components/eliminar-comicio-dialog'
 import type { EleccionEstado } from '@/features/eleccion/data/schema'
 import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
+import { useArchivarEleccion } from '@/features/eleccion/hooks/use-archivar-eleccion'
 import { useCerrarEleccion } from '@/features/eleccion/hooks/use-cerrar-eleccion'
 import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
 import {
@@ -176,6 +178,47 @@ const CerrarComicioDialog = ({
   )
 }
 
+interface ArchivarComicioDialogProps {
+  idEleccion: number
+  nombreEleccion: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+const ArchivarComicioDialog = ({
+  idEleccion,
+  nombreEleccion,
+  open,
+  onOpenChange,
+}: ArchivarComicioDialogProps) => {
+  const { mutate: archivarEleccion, isPending } =
+    useArchivarEleccion(idEleccion)
+
+  return (
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title='¿Archivar el comicio?'
+      desc={
+        <>
+          El comicio <strong>{nombreEleccion}</strong> se removerá del panel de
+          gestión activa y pasará a la pestaña "Históricos". Los datos del
+          escrutinio y la evidencia on-chain en Sepolia permanecen públicos y
+          accesibles sin cambios.
+        </>
+      }
+      cancelBtnText='Cancelar'
+      confirmText='Sí, archivar comicio'
+      isLoading={isPending}
+      handleConfirm={() => {
+        archivarEleccion(undefined, {
+          onSuccess: () => onOpenChange(false),
+        })
+      }}
+    />
+  )
+}
+
 type ComicioActionTarget = {
   open: boolean
   idEleccion: number | null
@@ -188,7 +231,11 @@ const emptyActionTarget = (): ComicioActionTarget => ({
   nombreEleccion: '',
 })
 
-export const ComiciosList = () => {
+interface ComiciosListProps {
+  estado?: 'activos' | 'historicos'
+}
+
+export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [abrirDialog, setAbrirDialog] =
@@ -199,6 +246,8 @@ export const ComiciosList = () => {
     useState<ComicioActionTarget>(emptyActionTarget)
   const [eliminarDialog, setEliminarDialog] =
     useState<ComicioActionTarget>(emptyActionTarget)
+  const [archivarDialog, setArchivarDialog] =
+    useState<ComicioActionTarget>(emptyActionTarget)
   const [preconditionError, setPreconditionError] = useState<string | null>(
     null
   )
@@ -208,8 +257,9 @@ export const ComiciosList = () => {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ['elecciones'],
-    queryFn: listarElecciones,
+    queryKey: ['elecciones', estado],
+    queryFn: () =>
+      listarElecciones(estado === 'historicos' ? 'ARCHIVADA' : undefined),
   })
 
   useEleccionWebSocket({
@@ -217,6 +267,9 @@ export const ComiciosList = () => {
       queryClient.invalidateQueries({ queryKey: ['elecciones'] })
     },
     onEleccionCerrada: () => {
+      queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+    },
+    onEleccionArchivada: () => {
       queryClient.invalidateQueries({ queryKey: ['elecciones'] })
     },
   })
@@ -284,6 +337,13 @@ export const ComiciosList = () => {
     setEliminarDialog({ open: true, idEleccion, nombreEleccion })
   }
 
+  const handleOpenArchivarDialog = (
+    idEleccion: number,
+    nombreEleccion: string
+  ) => {
+    setArchivarDialog({ open: true, idEleccion, nombreEleccion })
+  }
+
   if (isLoading) {
     return (
       <p className='text-sm text-muted-foreground' aria-live='polite'>
@@ -302,6 +362,22 @@ export const ComiciosList = () => {
   }
 
   if (!comicios?.length) {
+    if (estado === 'historicos') {
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle className='flex items-center gap-2 text-lg'>
+              <Archive className='size-5' />
+              Sin comicios archivados
+            </CardTitle>
+            <CardDescription>
+              Los comicios que archive desde el panel de gestión activa
+              aparecerán aquí.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )
+    }
     return (
       <Card>
         <CardHeader>
@@ -451,6 +527,22 @@ export const ComiciosList = () => {
                       Cerrar comicio
                     </Button>
                   )}
+                  {comicio.estado === 'CERRADA' && (
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      onClick={() =>
+                        handleOpenArchivarDialog(
+                          comicio.idEleccion,
+                          comicio.nombre
+                        )
+                      }
+                      aria-label={`Archivar comicio ${comicio.nombre}`}
+                    >
+                      <Archive />
+                      Archivar Comicio
+                    </Button>
+                  )}
                 </div>
                 {comicio.estado === 'BORRADOR' && (
                   <div className='ms-auto flex flex-wrap justify-end gap-2'>
@@ -562,6 +654,19 @@ export const ComiciosList = () => {
           }
         }}
       />
+
+      {archivarDialog.idEleccion !== null && (
+        <ArchivarComicioDialog
+          idEleccion={archivarDialog.idEleccion}
+          nombreEleccion={archivarDialog.nombreEleccion}
+          open={archivarDialog.open}
+          onOpenChange={(open) =>
+            setArchivarDialog((prev) =>
+              open ? { ...prev, open } : emptyActionTarget()
+            )
+          }
+        />
+      )}
     </>
   )
 }
