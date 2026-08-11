@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { AxiosError } from 'axios'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -41,7 +42,11 @@ import {
   type TipoVotacion,
 } from '@/features/eleccion/lista/data/schema'
 import { firmarRecibo } from '@/features/voto/api/recibo-api'
-import { registrarVotoEmitidoAnonimo } from '@/features/voto/api/voto-api'
+import {
+  obtenerEstadoRevoto,
+  registrarTransaccionPublica,
+  registrarVotoEmitidoAnonimo,
+} from '@/features/voto/api/voto-api'
 import {
   BUD_CANDIDATE_GRID_CLASS,
   BUD_CATEGORY_GRID_CLASS,
@@ -51,19 +56,32 @@ import {
 import { VoteTransmitErrorAlert } from '@/features/voto/components/vote-transmit-error-alert'
 import type { SignedVotePayload } from '@/features/voto/crypto'
 import { getExplorerTxUrl } from '@/features/voto/crypto/constants'
+import {
+  computeRemainingSeconds,
+  loadPersistedCooldownAnchor,
+  mergeCooldownAnchor,
+  persistCooldownAnchor,
+  resolveCooldownAnchor,
+  type CooldownAnchor,
+} from '@/features/voto/crypto/cooldown-clock'
 import { logVoteTxError } from '@/features/voto/crypto/log-vote-tx-error'
 import {
   calcularNullifier,
   CredencialNulificadorInvalidaError,
 } from '@/features/voto/crypto/nullifier'
+import {
+  clearPendingVoteCast,
+  loadPendingVoteCast,
+  savePendingVoteCast,
+} from '@/features/voto/crypto/pending-vote-cast'
 import { useEphemeralWallet } from '@/features/voto/crypto/use-ephemeral-wallet'
 import {
   transmitSignedVote,
+  waitForVoteTxReceipt,
   type TransmitProgressPhase,
 } from '@/features/voto/crypto/vote-transmitter'
 import { formatCooldownDuration } from '@/features/voto/crypto/vote-tx-error-catalog'
 import {
-  buildOffChainRetryTooSoonError,
   mapVoteTxError,
   type VoteTxError,
 } from '@/features/voto/crypto/vote-tx-errors'
@@ -74,11 +92,15 @@ import type {
   VoterMerkleProof,
 } from '@/features/voto/data/schema'
 import {
+  estadoRevotoQueryKey,
   useEstadoRevoto,
   useRegistrarConsumoIntento,
 } from '@/features/voto/hooks/use-estado-revoto'
 import { useSolicitarMerkleProof } from '@/features/voto/hooks/use-merkle-proof'
-import { useVoterStateOnChain } from '@/features/voto/hooks/use-voter-state-onchain'
+import {
+  useVoterStateOnChain,
+  voterStateOnChainQueryKey,
+} from '@/features/voto/hooks/use-voter-state-onchain'
 import { generarReciboPDF } from '@/features/voto/lib/generar-recibo-pdf'
 import { clearVotanteSession } from '@/features/voto/services/votante-session'
 import {
@@ -306,6 +328,7 @@ export const BudVotingWizard = ({
   cryptoReady = false,
   onLogout,
 }: BudVotingWizardProps) => {
+  const queryClient = useQueryClient()
   const [step, setStep] = useState<WizardStep>('identity')
   const variant = getVotingVariant(tipoVotacion)
   const [selectedListId, setSelectedListId] = useState<string | null>(null)
@@ -327,6 +350,10 @@ export const BudVotingWizard = ({
   const [txError, setTxError] = useState<VoteTxError | null>(null)
   /** True once a vote was registered; survives clearing merkle/signed state (VOTAR-379). */
   const [voteReceiptReady, setVoteReceiptReady] = useState(false)
+  const [cooldownAnchor, setCooldownAnchor] = useState<CooldownAnchor | null>(
+    null
+  )
+  const [cooldownNowMs, setCooldownNowMs] = useState(() => Date.now())
   const merkleProofMutation = useSolicitarMerkleProof(boleta.idEleccion)
   const {
     data: estadoRevoto,
@@ -355,24 +382,76 @@ export const BudVotingWizard = ({
     }
   }, [publicKeyHex, boleta.idEleccion])
 
-  const { data: voterStateOnChain, refetch: refetchVoterStateOnChain } =
-    useVoterStateOnChain(
+  const cooldownScope = nullifier ?? 'pre-nullifier'
+
+  const { data: voterStateOnChain } = useVoterStateOnChain(
+    boleta.idEleccion,
+    nullifier,
+    boleta.ballotContractAddress
+  )
+
+  // VOTAR-449: ancla estable (extrapolación + sessionStorage) para no reiniciar
+  // el countdown cuando block.timestamp está congelado o al hidratar on-chain.
+  // Sincroniza estado React con sistemas externos (RPC / API / sessionStorage).
+  useEffect(() => {
+    const persisted = loadPersistedCooldownAnchor(
       boleta.idEleccion,
-      nullifier,
-      boleta.ballotContractAddress
+      cooldownScope
     )
+    const resolved = resolveCooldownAnchor({
+      voterState: voterStateOnChain,
+      minIntervalSeconds: estadoRevoto?.minIntervaloSegundos ?? 0,
+      backendRemainingSeconds: estadoRevoto?.proximoReintentoEnSegundos,
+    })
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- VOTAR-449: merge de ancla con getVoterState/estado-revoto/sessionStorage
+    setCooldownAnchor((previous) => {
+      const merged = mergeCooldownAnchor(
+        mergeCooldownAnchor(persisted, previous),
+        resolved
+      )
+      if (
+        previous &&
+        merged &&
+        previous.unlockAtNodeSeconds === merged.unlockAtNodeSeconds &&
+        previous.observedBlockTimestamp === merged.observedBlockTimestamp &&
+        previous.observedAtWallMs === merged.observedAtWallMs &&
+        previous.lastVoteAt === merged.lastVoteAt
+      ) {
+        return previous
+      }
+      if (previous === null && merged === null) {
+        return previous
+      }
+      persistCooldownAnchor(boleta.idEleccion, cooldownScope, merged)
+      return merged
+    })
+  }, [
+    boleta.idEleccion,
+    cooldownScope,
+    estadoRevoto?.minIntervaloSegundos,
+    estadoRevoto?.proximoReintentoEnSegundos,
+    voterStateOnChain,
+  ])
+
+  useEffect(() => {
+    if (!cooldownAnchor) {
+      return
+    }
+    const intervalId = window.setInterval(
+      () => setCooldownNowMs(Date.now()),
+      1_000
+    )
+    return () => window.clearInterval(intervalId)
+  }, [cooldownAnchor])
 
   const intentosAgotados =
     Boolean(estadoRevoto) && (estadoRevoto?.intentosRestantes ?? 1) === 0
-  // VOTAR-325 — el reloj del nodo manda en cuanto se conoce el nullifier
-  // (inmune a manipular el reloj del cliente, UAT-02); antes de eso (pre-
-  // identidad) se usa el valor advisory del backend.
-  const cooldownRemainingSeconds =
-    voterStateOnChain !== undefined
-      ? voterStateOnChain.cooldownRemaining
-      : (estadoRevoto?.proximoReintentoEnSegundos ?? 0)
+  const cooldownRemainingSeconds = cooldownAnchor
+    ? computeRemainingSeconds(cooldownAnchor, cooldownNowMs)
+    : 0
   const cooldownActivo = cooldownRemainingSeconds > 0
-  const cooldownToastShownRef = useRef(false)
+  const pendingResumeStartedRef = useRef(false)
+  const consumoCatchUpStartedRef = useRef(false)
   // Derive UI step when attempts are exhausted or cooldown is active.
   const effectiveStep: WizardStep =
     intentosAgotados && step !== 'success' && step !== 'transmitting'
@@ -381,18 +460,102 @@ export const BudVotingWizard = ({
         ? 'cooldown'
         : step
 
+  const finalizeSuccessfulCast = async (receipt: {
+    txHash: Hex | null
+    blockNumber: number | null
+  }) => {
+    setTxHash(receipt.txHash)
+    setBlockNumber(receipt.blockNumber)
+    setTransmitPhase(null)
+    setTxError(null)
+    // VOTAR-328 / VOTAR-445: consumir intento mientras la sesión JWT sigue activa.
+    try {
+      await registrarConsumoMutation.mutateAsync()
+    } catch {
+      // El cast on-chain ya confirmó; no bloquear el recibo por el contador.
+    }
+    if (receipt.txHash) {
+      // VOTAR-373: index public tx for dashboard (no SSO cookies).
+      void registrarTransaccionPublica(boleta.idEleccion, receipt.txHash).catch(
+        () => {
+          // Recibo on-chain ya confirmado; el índice no debe bloquear la UX.
+        }
+      )
+    }
+    // VOTAR-379 UAT-05: anonymous audit before clearing SSO (no cookies on call).
+    void registrarVotoEmitidoAnonimo(boleta.idEleccion).catch(() => {
+      // Recibo on-chain ya confirmado; el audit no debe bloquear la UX.
+    })
+    // VOTAR-379 UAT-03: drop identity-linked crypto material after receipt.
+    setSignedVote(null)
+    setMerkleProofData(null)
+    setVoteReceiptReady(true)
+    setStep('success')
+    clearPendingVoteCast(boleta.idEleccion)
+    await clearVotanteSession()
+  }
+
+  // VOTAR-445: si F5 interrumpió el wait del receipt, reanudar y completar consumo.
   useEffect(() => {
-    if (!cooldownActivo) {
-      cooldownToastShownRef.current = false
+    if (pendingResumeStartedRef.current) {
       return
     }
-    if (cooldownToastShownRef.current) {
+    const pending = loadPendingVoteCast(boleta.idEleccion)
+    if (!pending) {
       return
     }
-    const mapped = buildOffChainRetryTooSoonError(cooldownRemainingSeconds)
-    reportVoteTxError(mapped, boleta.idEleccion)
-    cooldownToastShownRef.current = true
-  }, [boleta.idEleccion, cooldownActivo, cooldownRemainingSeconds])
+    pendingResumeStartedRef.current = true
+    consumoCatchUpStartedRef.current = true
+
+    const resumePendingCast = async () => {
+      setStep('transmitting')
+      setTransmitPhase('confirming')
+      setTxHash(pending.txHash)
+      try {
+        const result = await waitForVoteTxReceipt(pending.txHash)
+        await finalizeSuccessfulCast({
+          txHash: result.txHash,
+          blockNumber: Number(result.blockNumber),
+        })
+      } catch (error) {
+        const mapped = mapVoteTxError(error)
+        if (mapped.code === 'already_registered') {
+          await finalizeSuccessfulCast({
+            txHash: pending.txHash,
+            blockNumber: null,
+          })
+          return
+        }
+        reportVoteTxError(mapped, boleta.idEleccion)
+        setTxError(mapped)
+        setTransmitPhase('error')
+      }
+    }
+
+    void resumePendingCast()
+    // Solo al montar / cambiar de comicio: el pending vive fuera de React.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boleta.idEleccion])
+
+  // VOTAR-445: si on-chain ya contabilizó votos y el backend no, sincronizar consumo.
+  useEffect(() => {
+    if (consumoCatchUpStartedRef.current) {
+      return
+    }
+    if (!voterStateOnChain || !estadoRevoto) {
+      return
+    }
+    if (voterStateOnChain.votesUsed <= estadoRevoto.votosConsumidos) {
+      return
+    }
+    if (step === 'success' || step === 'transmitting') {
+      return
+    }
+    consumoCatchUpStartedRef.current = true
+    void registrarConsumoMutation.mutateAsync().catch(() => {
+      consumoCatchUpStartedRef.current = false
+    })
+  }, [estadoRevoto, registrarConsumoMutation, step, voterStateOnChain])
 
   const lists = useMemo(() => buildListsFromBoleta(boleta), [boleta])
   const roles = useMemo(() => buildRolesFromBoleta(boleta), [boleta])
@@ -508,29 +671,47 @@ export const BudVotingWizard = ({
           onProgress: (phase) => {
             setTransmitPhase(phase)
           },
+          onTxHash: (hash) => {
+            // Persist before waiting for receipt so F5 can resume (VOTAR-445).
+            savePendingVoteCast(boleta.idEleccion, hash)
+            setTxHash(hash)
+          },
         }
       )
-      setTxHash(result.txHash)
-      setBlockNumber(Number(result.blockNumber))
-      setTransmitPhase(null)
-      // VOTAR-328: consumir intento mientras la sesión JWT sigue activa.
-      try {
-        await registrarConsumoMutation.mutateAsync()
-      } catch {
-        // El cast on-chain ya confirmó; no bloquear el recibo por el contador.
-      }
-      // VOTAR-379 UAT-05: anonymous audit before clearing SSO (no cookies on call).
-      void registrarVotoEmitidoAnonimo(boleta.idEleccion).catch(() => {
-        // Recibo on-chain ya confirmado; el audit no debe bloquear la UX.
+      await finalizeSuccessfulCast({
+        txHash: result.txHash,
+        blockNumber: Number(result.blockNumber),
       })
-      // VOTAR-379 UAT-03: drop identity-linked crypto material after receipt.
-      setSignedVote(null)
-      setMerkleProofData(null)
-      setVoteReceiptReady(true)
-      setStep('success')
-      await clearVotanteSession()
     } catch (error) {
       const mapped = mapVoteTxError(error)
+      // VOTAR-449: el nodo aún exige espera — volver al panel de cooldown en
+      // vez de dejar al votante atrapado en un error sin reintento (bug 3).
+      if (mapped.code === 'retry_too_soon') {
+        reportVoteTxError(mapped, boleta.idEleccion)
+        setTxError(null)
+        setTransmitPhase(null)
+        setStep('selection')
+        void queryClient.invalidateQueries({
+          queryKey: estadoRevotoQueryKey(boleta.idEleccion),
+        })
+        void queryClient.invalidateQueries({
+          queryKey: voterStateOnChainQueryKey(
+            boleta.idEleccion,
+            nullifier,
+            boleta.ballotContractAddress
+          ),
+        })
+        return
+      }
+      // VOTAR-445: el cast ya quedó on-chain (p. ej. tras F5); reconciliar UX + consumo.
+      if (mapped.code === 'already_registered') {
+        const pending = loadPendingVoteCast(boleta.idEleccion)
+        await finalizeSuccessfulCast({
+          txHash: pending?.txHash ?? null,
+          blockNumber: null,
+        })
+        return
+      }
       reportVoteTxError(mapped, boleta.idEleccion)
       setTxError(mapped)
       setTransmitPhase('error')
@@ -580,15 +761,6 @@ export const BudVotingWizard = ({
       setSigningError(
         'No se pudo resolver el contrato de la elección. Recargá la página e intentá de nuevo.'
       )
-      return
-    }
-
-    if (cooldownRemainingSeconds > 0) {
-      const mapped = buildOffChainRetryTooSoonError(cooldownRemainingSeconds)
-      reportVoteTxError(mapped, boleta.idEleccion)
-      setTxError(mapped)
-      setTransmitPhase('error')
-      setStep('transmitting')
       return
     }
 
@@ -673,8 +845,29 @@ export const BudVotingWizard = ({
     setSpecialVote((current) => (current === value ? null : value))
   }
 
+  // Esperar a conocer el estado de revoto antes de decidir el paso inicial.
+  // Evita mostrar brevemente la pantalla de identidad cuando el usuario
+  // en realidad debe ir a cooldown o límite de intentos.
+  if (isLoadingEstadoRevoto) {
+    return (
+      <BudWizardShell
+        step='identity'
+        estadoRevoto={estadoRevoto}
+        onLogout={handleLogout}
+      >
+        <div className='flex min-h-[24rem] items-center justify-center'>
+          <p className='text-sm text-slate-600'>Preparando tu boleta…</p>
+        </div>
+      </BudWizardShell>
+    )
+  }
+
   return (
-    <BudWizardShell step={effectiveStep} estadoRevoto={estadoRevoto}>
+    <BudWizardShell
+      step={effectiveStep}
+      estadoRevoto={estadoRevoto}
+      onLogout={handleLogout}
+    >
       {effectiveStep !== 'limit-reached' && effectiveStep !== 'cooldown' ? (
         <WizardStepper currentStep={effectiveStep} />
       ) : null}
@@ -690,10 +883,34 @@ export const BudVotingWizard = ({
         )}
         {effectiveStep === 'cooldown' && (
           <RetryTooSoonPanel
-            proximoReintentoEnSegundos={cooldownRemainingSeconds}
-            onRefetch={
-              nullifier ? () => void refetchVoterStateOnChain() : undefined
-            }
+            remainingSeconds={cooldownRemainingSeconds}
+            onCooldownFinished={async () => {
+              // VOTAR-448: al llegar a 0, mismo comportamiento que cerrar sesión.
+              // VOTAR-449: antes de logout, reconsultar por si el RPC aún reporta
+              // cooldown (block.timestamp atrasado) y evitar un falso desbloqueo.
+              await Promise.all([
+                queryClient.invalidateQueries({
+                  queryKey: estadoRevotoQueryKey(boleta.idEleccion),
+                }),
+                queryClient.invalidateQueries({
+                  queryKey: voterStateOnChainQueryKey(
+                    boleta.idEleccion,
+                    nullifier,
+                    boleta.ballotContractAddress
+                  ),
+                }),
+              ])
+              const fresh = await obtenerEstadoRevoto(boleta.idEleccion)
+              queryClient.setQueryData(
+                estadoRevotoQueryKey(boleta.idEleccion),
+                fresh
+              )
+              if ((fresh.proximoReintentoEnSegundos ?? 0) > 0) {
+                return
+              }
+              persistCooldownAnchor(boleta.idEleccion, cooldownScope, null)
+              handleLogout()
+            }}
             onLogout={handleLogout}
           />
         )}
@@ -729,6 +946,7 @@ export const BudVotingWizard = ({
             specialVote={specialVote}
             candidateSelections={candidateSelections}
             canContinue={canContinueSelection}
+            permitirVotoNulo={boleta.permitirVotoNulo}
             lists={lists}
             roles={roles}
             candidates={candidates}
@@ -817,10 +1035,12 @@ const BudWizardShell = ({
   children,
   step,
   estadoRevoto,
+  onLogout,
 }: {
   children: ReactNode
   step: WizardStep
   estadoRevoto?: EstadoRevoto
+  onLogout: () => void
 }) => (
   <main className='votar-light-surface relative min-h-svh overflow-x-clip overflow-y-auto bg-[#fdfcfa] text-[#202124]'>
     <div className='pointer-events-none absolute inset-0' aria-hidden='true'>
@@ -866,6 +1086,19 @@ const BudWizardShell = ({
             <ShieldCheck className='size-3.5' />
             {getStepLabel(step)}
           </Badge>
+          {/* VOTAR-445: logout siempre visible; no toca contadores de revoto. */}
+          <Button
+            type='button'
+            variant='outline'
+            size='sm'
+            className='rounded-full border-slate-300 bg-white/90'
+            onClick={onLogout}
+            aria-label='Cerrar sesión'
+            data-testid='bud-logout'
+          >
+            <LogOut className='size-3.5' />
+            Cerrar sesión
+          </Button>
         </div>
       </header>
       {children}
@@ -1073,44 +1306,30 @@ const formatMmSs = (totalSeconds: number): string => {
 }
 
 const RetryTooSoonPanel = ({
-  proximoReintentoEnSegundos,
-  onRefetch,
+  remainingSeconds,
+  onCooldownFinished,
   onLogout,
 }: {
-  proximoReintentoEnSegundos: number
-  onRefetch?: () => void
+  remainingSeconds: number
+  onCooldownFinished: () => void | Promise<void>
   onLogout: () => void
 }) => {
-  // VOTAR-325 UAT-02: el ancla (unlockAtMs) se resincroniza con Date.now()
-  // cada vez que llega un nuevo proximoReintentoEnSegundos del reloj de la
-  // red (on-chain refetch cada 30s); el ticker local solo interpola entre
-  // anclas, así que adelantar el reloj del SO no cambia el resultado final
-  // una vez el nodo resincroniza. Es un efecto legítimo de sincronización
-  // con un sistema externo (el reloj), no estado derivable en el render.
-  const [unlockAtMs, setUnlockAtMs] = useState(
-    () => Date.now() + proximoReintentoEnSegundos * 1000
-  )
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- resync de ancla con el reloj externo, ver comentario arriba.
-    setUnlockAtMs(Date.now() + proximoReintentoEnSegundos * 1000)
-  }, [proximoReintentoEnSegundos])
-
-  const [now, setNow] = useState(() => Date.now())
+  // VOTAR-449: el remaining lo calcula el padre con CooldownAnchor (extrapolación
+  // estable). Este panel solo renderiza y, al llegar a 0, dispara el cierre de
+  // sesión (VOTAR-448) sin re-anclar a un snapshot que pueda reiniciar el timer.
+  const finishStartedRef = useRef(false)
 
   useEffect(() => {
-    const intervalId = window.setInterval(() => setNow(Date.now()), 1_000)
-    return () => window.clearInterval(intervalId)
-  }, [])
-
-  const remainingSeconds = Math.max(0, Math.ceil((unlockAtMs - now) / 1000))
-
-  useEffect(() => {
-    if (remainingSeconds === 0) {
-      onRefetch?.()
+    if (remainingSeconds > 0) {
+      finishStartedRef.current = false
+      return
     }
-    // Solo dispara cuando el ticker local llega a cero, no en cada tick.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remainingSeconds === 0])
+    if (finishStartedRef.current) {
+      return
+    }
+    finishStartedRef.current = true
+    void onCooldownFinished()
+  }, [remainingSeconds, onCooldownFinished])
 
   const remainingDuration = formatCooldownDuration(remainingSeconds)
   const mmss = formatMmSs(remainingSeconds)
@@ -1276,6 +1495,7 @@ const SelectionStep = ({
   specialVote,
   candidateSelections,
   canContinue,
+  permitirVotoNulo,
   lists,
   roles,
   candidates,
@@ -1290,6 +1510,7 @@ const SelectionStep = ({
   specialVote: SpecialVote
   candidateSelections: Record<string, string[]>
   canContinue: boolean
+  permitirVotoNulo: boolean
   lists: PartyList[]
   roles: CandidateRole[]
   candidates: Candidate[]
@@ -1299,8 +1520,9 @@ const SelectionStep = ({
   onSelectBlank: (roleId: string) => void
   onContinue: () => void
 }) => {
-  const specialDescription =
-    'También podés emitir tu voto en blanco o anular tu voto para este comicio.'
+  const specialDescription = permitirVotoNulo
+    ? 'También podés emitir tu voto en blanco o anularlo.'
+    : 'También podés emitir tu voto en blanco.'
 
   return (
     <div className='grid gap-5'>
@@ -1370,7 +1592,12 @@ const SelectionStep = ({
           <CardTitle>Opciones especiales</CardTitle>
           <CardDescription>{specialDescription}</CardDescription>
         </CardHeader>
-        <CardContent className='grid gap-3 md:grid-cols-2'>
+        <CardContent
+          className={cn(
+            'grid gap-3',
+            permitirVotoNulo ? 'md:grid-cols-2' : 'md:grid-cols-1'
+          )}
+        >
           <SpecialVoteCard
             title='Votar en blanco'
             description='No selecciona listas ni candidatos.'
@@ -1378,13 +1605,15 @@ const SelectionStep = ({
             selected={specialVote === 'blank'}
             onSelect={() => onSpecialVote('blank')}
           />
-          <SpecialVoteCard
-            title='Anular voto'
-            description='Registra una boleta anulada para este comicio.'
-            icon={<Ban className='size-14 sm:size-20' />}
-            selected={specialVote === 'null'}
-            onSelect={() => onSpecialVote('null')}
-          />
+          {permitirVotoNulo && (
+            <SpecialVoteCard
+              title='Anular voto'
+              description='Registra una boleta anulada para este comicio.'
+              icon={<Ban className='size-14 sm:size-20' />}
+              selected={specialVote === 'null'}
+              onSelect={() => onSpecialVote('null')}
+            />
+          )}
         </CardContent>
       </Card>
 

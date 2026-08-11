@@ -1,4 +1,4 @@
-import { Activity } from 'lucide-react'
+import { TrendingUp } from 'lucide-react'
 import {
   Area,
   AreaChart,
@@ -16,17 +16,17 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import type { SerieTemporalPunto } from '@/features/dashboard-publico/api/participacion-publica-api'
+import type { RevotoOverwriteTimelinePunto } from '@/features/dashboard-publico/api/revoto-stats-publica-api'
 
-type CurvaTemporalChartProps = {
-  serieTemporal: SerieTemporalPunto[]
+type RevotoOverwriteChartProps = {
+  serieTemporal: RevotoOverwriteTimelinePunto[]
   className?: string
 }
 
-export const CurvaTemporalChart = ({
+export const RevotoOverwriteChart = ({
   serieTemporal,
   className,
-}: CurvaTemporalChartProps) => (
+}: RevotoOverwriteChartProps) => (
   <Card
     className={cn(
       'gap-0 overflow-hidden rounded-2xl border-[#e4e7eb] bg-white/95 py-0 shadow-[0_1rem_3rem_rgba(30,64,95,0.08)]',
@@ -38,27 +38,27 @@ export const CurvaTemporalChart = ({
         className='flex size-11 items-center justify-center rounded-xl bg-[#2f6f9f]/10 text-[#2f6f9f]'
         aria-hidden='true'
       >
-        <Activity className='size-5' />
+        <TrendingUp className='size-5' />
       </div>
       <div className='space-y-1.5'>
         <CardTitle className='text-lg font-semibold tracking-tight text-[#202124]'>
-          Distribución temporal
+          Tasa de sobreescritura acumulada
         </CardTitle>
         <CardDescription className='text-sm leading-relaxed text-[#5f6368]'>
-          Ritmo acumulado de sufragios emitidos durante las últimas 12 horas del
-          comicio o durante todo su período, si su duración fue menor.
+          Evolución de la proporción de re-votos sobre el total de eventos
+          VoteCast en las últimas horas.
         </CardDescription>
       </div>
     </CardHeader>
     <CardContent className='px-2 pb-6 sm:px-4'>
       {serieTemporal.length === 0 ? (
         <p className='px-4 text-sm text-[#5f6368]'>
-          Aún no hay eventos VoteCast para graficar la afluencia.
+          Aún no hay eventos VoteCast para graficar la tasa de sobreescritura.
         </p>
       ) : (
         <div
           role='img'
-          aria-label='Gráfico de participación acumulada por hora'
+          aria-label='Gráfico acumulativo de tasa de sobreescritura por hora'
           className='h-[280px] w-full'
         >
           <ResponsiveContainer width='100%' height='100%'>
@@ -76,7 +76,13 @@ export const CurvaTemporalChart = ({
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
-                allowDecimals={false}
+                domain={[0, 1]}
+                tickFormatter={(value) =>
+                  Number(value).toLocaleString('es-AR', {
+                    style: 'percent',
+                    maximumFractionDigits: 0,
+                  })
+                }
               />
               <Tooltip
                 contentStyle={{
@@ -84,17 +90,18 @@ export const CurvaTemporalChart = ({
                   borderColor: '#e4e7eb',
                   fontSize: '0.875rem',
                 }}
-                formatter={(value, name) => {
-                  const numeric =
-                    typeof value === 'number' ? value : Number(value)
-                  const label =
-                    name === 'acumulado' ? 'Acumulado' : 'Nuevos en la hora'
-                  return [numeric.toLocaleString('es-AR'), label]
-                }}
+                formatter={(value) => [
+                  Number(value).toLocaleString('es-AR', {
+                    style: 'percent',
+                    minimumFractionDigits: 1,
+                    maximumFractionDigits: 1,
+                  }),
+                  'Tasa acumulada',
+                ]}
               />
               <Area
                 type='monotone'
-                dataKey='acumulado'
+                dataKey='overwriteRatio'
                 stroke='#2f6f9f'
                 fill='#2f6f9f'
                 fillOpacity={0.15}

@@ -75,3 +75,29 @@ export const registrarVotoEmitidoAnonimo = async (
     throw new Error(`Anonymous vote audit failed (${response.status})`)
   }
 }
+
+/**
+ * VOTAR-373: indexes the confirmed vote tx for the public dashboard.
+ * Separate from VOTAR-379; credentials omitted to avoid SSO linkage.
+ */
+export const registrarTransaccionPublica = async (
+  idEleccion: number,
+  txHash: string
+): Promise<void> => {
+  const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+  const response = await fetch(
+    `${baseUrl}/elecciones/${idEleccion}/votos/transaccion-publica`,
+    {
+      method: 'POST',
+      credentials: 'omit',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ txHash }),
+    }
+  )
+  if (!response.ok) {
+    throw new Error(`Public transaction index failed (${response.status})`)
+  }
+}
