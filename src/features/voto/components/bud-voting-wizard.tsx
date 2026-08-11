@@ -700,9 +700,9 @@ export const BudVotingWizard = ({
             nullifier,
             boleta.ballotContractAddress
           ),
-         })
-         return
-       }
+        })
+        return
+      }
       // VOTAR-445: el cast ya quedó on-chain (p. ej. tras F5); reconciliar UX + consumo.
       if (mapped.code === 'already_registered') {
         const pending = loadPendingVoteCast(boleta.idEleccion)
