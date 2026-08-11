@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { AxiosError } from 'axios'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -42,6 +43,7 @@ import {
 } from '@/features/eleccion/lista/data/schema'
 import { firmarRecibo } from '@/features/voto/api/recibo-api'
 import {
+  obtenerEstadoRevoto,
   registrarTransaccionPublica,
   registrarVotoEmitidoAnonimo,
 } from '@/features/voto/api/voto-api'
@@ -54,6 +56,14 @@ import {
 import { VoteTransmitErrorAlert } from '@/features/voto/components/vote-transmit-error-alert'
 import type { SignedVotePayload } from '@/features/voto/crypto'
 import { getExplorerTxUrl } from '@/features/voto/crypto/constants'
+import {
+  computeRemainingSeconds,
+  loadPersistedCooldownAnchor,
+  mergeCooldownAnchor,
+  persistCooldownAnchor,
+  resolveCooldownAnchor,
+  type CooldownAnchor,
+} from '@/features/voto/crypto/cooldown-clock'
 import { logVoteTxError } from '@/features/voto/crypto/log-vote-tx-error'
 import {
   calcularNullifier,
@@ -82,11 +92,15 @@ import type {
   VoterMerkleProof,
 } from '@/features/voto/data/schema'
 import {
+  estadoRevotoQueryKey,
   useEstadoRevoto,
   useRegistrarConsumoIntento,
 } from '@/features/voto/hooks/use-estado-revoto'
 import { useSolicitarMerkleProof } from '@/features/voto/hooks/use-merkle-proof'
-import { useVoterStateOnChain } from '@/features/voto/hooks/use-voter-state-onchain'
+import {
+  useVoterStateOnChain,
+  voterStateOnChainQueryKey,
+} from '@/features/voto/hooks/use-voter-state-onchain'
 import { generarReciboPDF } from '@/features/voto/lib/generar-recibo-pdf'
 import { clearVotanteSession } from '@/features/voto/services/votante-session'
 import {
@@ -314,6 +328,7 @@ export const BudVotingWizard = ({
   cryptoReady = false,
   onLogout,
 }: BudVotingWizardProps) => {
+  const queryClient = useQueryClient()
   const [step, setStep] = useState<WizardStep>('identity')
   const variant = getVotingVariant(tipoVotacion)
   const [selectedListId, setSelectedListId] = useState<string | null>(null)
@@ -335,6 +350,10 @@ export const BudVotingWizard = ({
   const [txError, setTxError] = useState<VoteTxError | null>(null)
   /** True once a vote was registered; survives clearing merkle/signed state (VOTAR-379). */
   const [voteReceiptReady, setVoteReceiptReady] = useState(false)
+  const [cooldownAnchor, setCooldownAnchor] = useState<CooldownAnchor | null>(
+    null
+  )
+  const [cooldownNowMs, setCooldownNowMs] = useState(() => Date.now())
   const merkleProofMutation = useSolicitarMerkleProof(boleta.idEleccion)
   const {
     data: estadoRevoto,
@@ -363,21 +382,73 @@ export const BudVotingWizard = ({
     }
   }, [publicKeyHex, boleta.idEleccion])
 
+  const cooldownScope = nullifier ?? 'pre-nullifier'
+
   const { data: voterStateOnChain } = useVoterStateOnChain(
     boleta.idEleccion,
     nullifier,
     boleta.ballotContractAddress
   )
 
+  // VOTAR-449: ancla estable (extrapolación + sessionStorage) para no reiniciar
+  // el countdown cuando block.timestamp está congelado o al hidratar on-chain.
+  // Sincroniza estado React con sistemas externos (RPC / API / sessionStorage).
+  useEffect(() => {
+    const persisted = loadPersistedCooldownAnchor(
+      boleta.idEleccion,
+      cooldownScope
+    )
+    const resolved = resolveCooldownAnchor({
+      voterState: voterStateOnChain,
+      minIntervalSeconds: estadoRevoto?.minIntervaloSegundos ?? 0,
+      backendRemainingSeconds: estadoRevoto?.proximoReintentoEnSegundos,
+    })
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- VOTAR-449: merge de ancla con getVoterState/estado-revoto/sessionStorage
+    setCooldownAnchor((previous) => {
+      const merged = mergeCooldownAnchor(
+        mergeCooldownAnchor(persisted, previous),
+        resolved
+      )
+      if (
+        previous &&
+        merged &&
+        previous.unlockAtNodeSeconds === merged.unlockAtNodeSeconds &&
+        previous.observedBlockTimestamp === merged.observedBlockTimestamp &&
+        previous.observedAtWallMs === merged.observedAtWallMs &&
+        previous.lastVoteAt === merged.lastVoteAt
+      ) {
+        return previous
+      }
+      if (previous === null && merged === null) {
+        return previous
+      }
+      persistCooldownAnchor(boleta.idEleccion, cooldownScope, merged)
+      return merged
+    })
+  }, [
+    boleta.idEleccion,
+    cooldownScope,
+    estadoRevoto?.minIntervaloSegundos,
+    estadoRevoto?.proximoReintentoEnSegundos,
+    voterStateOnChain,
+  ])
+
+  useEffect(() => {
+    if (!cooldownAnchor) {
+      return
+    }
+    const intervalId = window.setInterval(
+      () => setCooldownNowMs(Date.now()),
+      1_000
+    )
+    return () => window.clearInterval(intervalId)
+  }, [cooldownAnchor])
+
   const intentosAgotados =
     Boolean(estadoRevoto) && (estadoRevoto?.intentosRestantes ?? 1) === 0
-  // VOTAR-325 — el reloj del nodo manda en cuanto se conoce el nullifier
-  // (inmune a manipular el reloj del cliente, UAT-02); antes de eso (pre-
-  // identidad) se usa el valor advisory del backend.
-  const cooldownRemainingSeconds =
-    voterStateOnChain !== undefined
-      ? voterStateOnChain.cooldownRemaining
-      : (estadoRevoto?.proximoReintentoEnSegundos ?? 0)
+  const cooldownRemainingSeconds = cooldownAnchor
+    ? computeRemainingSeconds(cooldownAnchor, cooldownNowMs)
+    : 0
   const cooldownActivo = cooldownRemainingSeconds > 0
   const pendingResumeStartedRef = useRef(false)
   const consumoCatchUpStartedRef = useRef(false)
@@ -613,6 +684,25 @@ export const BudVotingWizard = ({
       })
     } catch (error) {
       const mapped = mapVoteTxError(error)
+      // VOTAR-449: el nodo aún exige espera — volver al panel de cooldown en
+      // vez de dejar al votante atrapado en un error sin reintento (bug 3).
+      if (mapped.code === 'retry_too_soon') {
+        reportVoteTxError(mapped, boleta.idEleccion)
+        setTxError(null)
+        setTransmitPhase(null)
+        setStep('selection')
+        void queryClient.invalidateQueries({
+          queryKey: estadoRevotoQueryKey(boleta.idEleccion),
+        })
+        void queryClient.invalidateQueries({
+          queryKey: voterStateOnChainQueryKey(
+            boleta.idEleccion,
+            nullifier,
+            boleta.ballotContractAddress
+          ),
+        })
+        return
+      }
       // VOTAR-445: el cast ya quedó on-chain (p. ej. tras F5); reconciliar UX + consumo.
       if (mapped.code === 'already_registered') {
         const pending = loadPendingVoteCast(boleta.idEleccion)
@@ -793,7 +883,34 @@ export const BudVotingWizard = ({
         )}
         {effectiveStep === 'cooldown' && (
           <RetryTooSoonPanel
-            proximoReintentoEnSegundos={cooldownRemainingSeconds}
+            remainingSeconds={cooldownRemainingSeconds}
+            onCooldownFinished={async () => {
+              // VOTAR-448: al llegar a 0, mismo comportamiento que cerrar sesión.
+              // VOTAR-449: antes de logout, reconsultar por si el RPC aún reporta
+              // cooldown (block.timestamp atrasado) y evitar un falso desbloqueo.
+              await Promise.all([
+                queryClient.invalidateQueries({
+                  queryKey: estadoRevotoQueryKey(boleta.idEleccion),
+                }),
+                queryClient.invalidateQueries({
+                  queryKey: voterStateOnChainQueryKey(
+                    boleta.idEleccion,
+                    nullifier,
+                    boleta.ballotContractAddress
+                  ),
+                }),
+              ])
+              const fresh = await obtenerEstadoRevoto(boleta.idEleccion)
+              queryClient.setQueryData(
+                estadoRevotoQueryKey(boleta.idEleccion),
+                fresh
+              )
+              if ((fresh.proximoReintentoEnSegundos ?? 0) > 0) {
+                return
+              }
+              persistCooldownAnchor(boleta.idEleccion, cooldownScope, null)
+              handleLogout()
+            }}
             onLogout={handleLogout}
           />
         )}
@@ -1189,43 +1306,30 @@ const formatMmSs = (totalSeconds: number): string => {
 }
 
 const RetryTooSoonPanel = ({
-  proximoReintentoEnSegundos,
+  remainingSeconds,
+  onCooldownFinished,
   onLogout,
 }: {
-  proximoReintentoEnSegundos: number
+  remainingSeconds: number
+  onCooldownFinished: () => void | Promise<void>
   onLogout: () => void
 }) => {
-  // VOTAR-325 UAT-02: el ancla (unlockAtMs) se resincroniza con Date.now()
-  // cada vez que llega un nuevo proximoReintentoEnSegundos del reloj de la
-  // red (on-chain refetch cada 30s); el ticker local solo interpola entre
-  // anclas, así que adelantar el reloj del SO no cambia el resultado final
-  // una vez el nodo resincroniza. Es un efecto legítimo de sincronización
-  // con un sistema externo (el reloj), no estado derivable en el render.
-  const [unlockAtMs, setUnlockAtMs] = useState(
-    () => Date.now() + proximoReintentoEnSegundos * 1000
-  )
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- resync de ancla con el reloj externo, ver comentario arriba.
-    setUnlockAtMs(Date.now() + proximoReintentoEnSegundos * 1000)
-  }, [proximoReintentoEnSegundos])
-
-  const [now, setNow] = useState(() => Date.now())
+  // VOTAR-449: el remaining lo calcula el padre con CooldownAnchor (extrapolación
+  // estable). Este panel solo renderiza y, al llegar a 0, dispara el cierre de
+  // sesión (VOTAR-448) sin re-anclar a un snapshot que pueda reiniciar el timer.
+  const finishStartedRef = useRef(false)
 
   useEffect(() => {
-    const intervalId = window.setInterval(() => setNow(Date.now()), 1_000)
-    return () => window.clearInterval(intervalId)
-  }, [])
-
-  const remainingSeconds = Math.max(0, Math.ceil((unlockAtMs - now) / 1000))
-
-  useEffect(() => {
-    if (remainingSeconds > 0) return
-
-    onLogout()
-
-    // Solo dispara cuando el ticker local llega a cero o menos.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remainingSeconds])
+    if (remainingSeconds > 0) {
+      finishStartedRef.current = false
+      return
+    }
+    if (finishStartedRef.current) {
+      return
+    }
+    finishStartedRef.current = true
+    void onCooldownFinished()
+  }, [remainingSeconds, onCooldownFinished])
 
   const remainingDuration = formatCooldownDuration(remainingSeconds)
   const mmss = formatMmSs(remainingSeconds)
