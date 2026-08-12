@@ -6,6 +6,7 @@ import { page, userEvent } from 'vitest/browser'
 import {
   listarElecciones,
   abrirEleccion,
+  archivarEleccion,
   eliminarEleccion,
 } from '@/features/eleccion/api/eleccion-api'
 import type { Eleccion } from '@/features/eleccion/data/schema'
@@ -44,6 +45,7 @@ vi.mock('@/features/eleccion/api/eleccion-api', () => ({
   listarElecciones: vi.fn(),
   abrirEleccion: vi.fn(),
   cerrarEleccion: vi.fn(),
+  archivarEleccion: vi.fn(),
   eliminarEleccion: vi.fn(),
 }))
 
@@ -88,6 +90,15 @@ const mockElecciones: Eleccion[] = [
     estado: 'BORRADOR',
   },
 ] as Eleccion[]
+
+const mockComicioCerrado: Eleccion = {
+  idEleccion: 3,
+  nombre: 'Elección Cerrada 2025',
+  descripcion: 'Elección ya finalizada',
+  fechaInicio: '2025-05-15T08:00:00Z',
+  fechaFin: '2025-05-15T18:00:00Z',
+  estado: 'CERRADA',
+} as Eleccion
 
 describe('ComiciosList', () => {
   let queryClient: QueryClient
@@ -486,5 +497,59 @@ describe('ComiciosList', () => {
     await expect
       .element(page.getByRole('heading', { name: 'Abrir comicio' }))
       .toBeInTheDocument()
+  })
+
+  it('muestra botón "Archivar Comicio" solo para elecciones en estado CERRADA', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue([
+      ...mockElecciones,
+      mockComicioCerrado,
+    ])
+
+    await renderComiciosList()
+
+    await expect
+      .element(
+        page.getByRole('button', {
+          name: 'Archivar comicio Elección Cerrada 2025',
+        })
+      )
+      .toBeInTheDocument()
+    expect(
+      page
+        .getByRole('button', {
+          name: 'Archivar comicio Elección Municipal 2025',
+        })
+        .query()
+    ).toBeNull()
+  })
+
+  it('archiva un comicio en CERRADA tras confirmar', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue([
+      ...mockElecciones,
+      mockComicioCerrado,
+    ])
+    vi.mocked(archivarEleccion).mockResolvedValue({
+      ...mockComicioCerrado,
+      estado: 'ARCHIVADA',
+    })
+
+    await renderComiciosList()
+
+    await userEvent.click(
+      page.getByRole('button', {
+        name: 'Archivar comicio Elección Cerrada 2025',
+      })
+    )
+    await expect
+      .element(page.getByRole('heading', { name: '¿Archivar el comicio?' }))
+      .toBeInTheDocument()
+
+    await userEvent.click(
+      page.getByRole('button', { name: 'Sí, archivar comicio' })
+    )
+
+    await vi.waitFor(() => {
+      expect(archivarEleccion).toHaveBeenCalledWith(3)
+    })
   })
 })

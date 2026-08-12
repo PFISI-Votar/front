@@ -43,8 +43,16 @@ export const AuditLogPage = ({ search, idEleccionFijo }: AuditLogPageProps) => {
   const [detailOpen, setDetailOpen] = useState(false)
 
   const eleccionesQuery = useQuery({
-    queryKey: ['elecciones'],
-    queryFn: listarElecciones,
+    queryKey: ['elecciones', 'todas'],
+    queryFn: async () => {
+      // Incluye comicios ARCHIVADA: el registro de auditoría de un comicio
+      // archivado debe seguir siendo consultable por la Autoridad Electoral.
+      const [activos, historicos] = await Promise.all([
+        listarElecciones(),
+        listarElecciones('ARCHIVADA'),
+      ])
+      return [...activos, ...historicos]
+    },
     enabled: idEleccionFijo == null,
   })
 
