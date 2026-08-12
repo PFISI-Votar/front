@@ -42,6 +42,18 @@ Objetivo: elección funcional extremo a extremo. Alcance cubierto en esta versi�
 
 Además de lo planificado, esta versión incorpora funcionalidades adicionales no previstas originalmente para v1, como auditoría (audit log inmutable) y re-voto (política de último voto cuenta), entre otras.
 
+## Estado del proyecto — v2.0.0
+
+**Versión 2 — Dashboard público, re-voto y trazabilidad on-chain** (agosto de 2026).
+
+Incremento post-MVP (Sprint 4). Alcance cubierto en esta versión:
+
+- **Dashboard público:** estado técnico del smart contract, estadísticas de re-voto y transacciones on-chain (Urna Digital)
+- **Configuración electoral:** voto nulo configurable por comicio e intervalo mínimo entre sufragios
+- **Re-voto (BUD):** cooldown persistente entre recargas, reconciliación on-chain tras reload y mejoras UX en modales
+- **Verificabilidad:** registro de transacciones públicas tras el cast y verificador de recibo por contrato Ballot por elección
+- **Correcciones:** breadcrumbs, resultados en dashboard, comprobante de voto, pantallas BUD e integración Alchemy
+
 ## Arquitectura del ecosistema
 
 | Contenedor                                | Repositorio                                             | Tecnología                                            |
