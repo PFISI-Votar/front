@@ -21,8 +21,9 @@ export const useEstadoRevoto = (idEleccion: number, enabled = true) => {
 
 export const useRegistrarConsumoIntento = (idEleccion: number) => {
   const queryClient = useQueryClient()
-  return useMutation<EstadoRevoto, Error>({
-    mutationFn: () => registrarConsumoIntento(idEleccion),
+  return useMutation<EstadoRevoto, Error, number | undefined>({
+    mutationFn: (votosObjetivo) =>
+      registrarConsumoIntento(idEleccion, votosObjetivo),
     onSuccess: (data) => {
       queryClient.setQueryData(estadoRevotoQueryKey(idEleccion), data)
     },
