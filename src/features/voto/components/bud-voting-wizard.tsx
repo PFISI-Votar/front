@@ -76,10 +76,6 @@ import {
 } from '@/features/voto/crypto/pending-vote-cast'
 import { useEphemeralWallet } from '@/features/voto/crypto/use-ephemeral-wallet'
 import {
-  leerHasVoted,
-  leerIsNullifierUsed,
-} from '@/features/voto/crypto/voter-state'
-import {
   transmitSignedVote,
   waitForVoteTxReceipt,
   type TransmitProgressPhase,
@@ -89,6 +85,10 @@ import {
   mapVoteTxError,
   type VoteTxError,
 } from '@/features/voto/crypto/vote-tx-errors'
+import {
+  leerHasVoted,
+  leerIsNullifierUsed,
+} from '@/features/voto/crypto/voter-state'
 import type {
   BoletaDigital,
   CandidatoBoletaDigital,
@@ -478,8 +478,7 @@ export const BudVotingWizard = ({
     setTransmitPhase(null)
     setTxError(null)
     const votosObjetivo =
-      receipt.votosObjetivo ??
-      Math.max(1, voterStateOnChain?.votesUsed ?? 1)
+      receipt.votosObjetivo ?? Math.max(1, voterStateOnChain?.votesUsed ?? 1)
     // VOTAR-328 / VOTAR-445 / VOTAR-451: sync consumo while JWT session is alive.
     try {
       await registrarConsumoMutation.mutateAsync(votosObjetivo)
