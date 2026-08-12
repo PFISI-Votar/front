@@ -25,10 +25,26 @@ export type Eleccion = {
   fechaInicio: string
   fechaFin: string
   estado: EleccionEstado
+  /** VOTAR-347: eje ortogonal a `estado` — puede estar ABIERTA y pausada a la vez. */
+  pausada: boolean
+  pausadaEn?: string | null
   tipoVotacion: TipoVotacion
   roles: RolCandidato[]
   metodosAutenticacion: MetodoAutenticacion[]
 }
+
+/** VOTAR-347 */
+export type SolicitudPausaTipo = 'PAUSAR' | 'REANUDAR'
+
+export type EstadoSolicitudPausa = {
+  tipo: SolicitudPausaTipo
+  confirmaciones: number
+  requeridas: number
+  ejecutada: boolean
+  razon?: string | null
+  txHashBallot?: string | null
+  txHashVoteRegistry?: string | null
+} | null
 
 const utcIsoDateTimeSchema = z
   .string()

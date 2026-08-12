@@ -2,6 +2,7 @@ import { apiClient } from '@/lib/api-client'
 import type {
   CreateComicioInput,
   Eleccion,
+  EstadoSolicitudPausa,
 } from '@/features/eleccion/data/schema'
 
 export const crearEleccion = async (
@@ -48,6 +49,48 @@ export const abrirEleccion = async (idEleccion: number): Promise<Eleccion> => {
 export const cerrarEleccion = async (idEleccion: number): Promise<Eleccion> => {
   const { data } = await apiClient.post<Eleccion>(
     `/elecciones/${idEleccion}/cerrar`
+  )
+  return data
+}
+
+/**
+ * VOTAR-347 — solicita o confirma la pausa de emergencia. La primera autoridad
+ * crea la solicitud (queda confirmada automáticamente); autoridades PAUSER
+ * distintas que llamen después van sumando confirmaciones hasta el umbral,
+ * momento en el que el backend ejecuta la transacción on-chain.
+ */
+export const pausarEleccion = async (
+  idEleccion: number,
+  razon: string
+): Promise<EstadoSolicitudPausa> => {
+  const { data } = await apiClient.post<EstadoSolicitudPausa>(
+    `/elecciones/${idEleccion}/pausar`,
+    { razon }
+  )
+  return data
+}
+
+/**
+ * VOTAR-347 — mismo esquema de confirmación que pausarEleccion. La
+ * justificación es obligatoria: queda vinculada al hash de la tx on-chain
+ * en el Audit Log.
+ */
+export const reanudarEleccion = async (
+  idEleccion: number,
+  razon: string
+): Promise<EstadoSolicitudPausa> => {
+  const { data } = await apiClient.post<EstadoSolicitudPausa>(
+    `/elecciones/${idEleccion}/reanudar`,
+    { razon }
+  )
+  return data
+}
+
+export const obtenerEstadoPausa = async (
+  idEleccion: number
+): Promise<EstadoSolicitudPausa> => {
+  const { data } = await apiClient.get<EstadoSolicitudPausa>(
+    `/elecciones/${idEleccion}/pausar/estado`
   )
   return data
 }
