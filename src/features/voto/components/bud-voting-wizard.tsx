@@ -85,6 +85,10 @@ import {
   mapVoteTxError,
   type VoteTxError,
 } from '@/features/voto/crypto/vote-tx-errors'
+import {
+  leerHasVoted,
+  leerIsNullifierUsed,
+} from '@/features/voto/crypto/voter-state'
 import type {
   BoletaDigital,
   CandidatoBoletaDigital,
@@ -463,15 +467,24 @@ export const BudVotingWizard = ({
   const finalizeSuccessfulCast = async (receipt: {
     txHash: Hex | null
     blockNumber: number | null
+    /** On-chain votesUsed for this nullifier; drives idempotent backend sync. */
+    votosObjetivo?: number
   }) => {
+    // VOTAR-451: claim the consumo lock before awaiting so the catch-up effect
+    // cannot race a second POST for the same cast.
+    consumoCatchUpStartedRef.current = true
     setTxHash(receipt.txHash)
     setBlockNumber(receipt.blockNumber)
     setTransmitPhase(null)
     setTxError(null)
-    // VOTAR-328 / VOTAR-445: consumir intento mientras la sesión JWT sigue activa.
+    const votosObjetivo =
+      receipt.votosObjetivo ?? Math.max(1, voterStateOnChain?.votesUsed ?? 1)
+    // VOTAR-328 / VOTAR-445 / VOTAR-451: sync consumo while JWT session is alive.
     try {
-      await registrarConsumoMutation.mutateAsync()
+      await registrarConsumoMutation.mutateAsync(votosObjetivo)
     } catch {
+      // Allow catch-up to retry if the sync failed while the cast is on-chain.
+      consumoCatchUpStartedRef.current = false
       // El cast on-chain ya confirmó; no bloquear el recibo por el contador.
     }
     if (receipt.txHash) {
@@ -537,7 +550,7 @@ export const BudVotingWizard = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boleta.idEleccion])
 
-  // VOTAR-445: si on-chain ya contabilizó votos y el backend no, sincronizar consumo.
+  // VOTAR-445 / VOTAR-451: si on-chain ya contabilizó votos y el backend no, sync idempotente.
   useEffect(() => {
     if (consumoCatchUpStartedRef.current) {
       return
@@ -552,9 +565,11 @@ export const BudVotingWizard = ({
       return
     }
     consumoCatchUpStartedRef.current = true
-    void registrarConsumoMutation.mutateAsync().catch(() => {
-      consumoCatchUpStartedRef.current = false
-    })
+    void registrarConsumoMutation
+      .mutateAsync(voterStateOnChain.votesUsed)
+      .catch(() => {
+        consumoCatchUpStartedRef.current = false
+      })
   }, [estadoRevoto, registrarConsumoMutation, step, voterStateOnChain])
 
   const lists = useMemo(() => buildListsFromBoleta(boleta), [boleta])
@@ -660,14 +675,41 @@ export const BudVotingWizard = ({
     setTransmitPhase('estimating')
 
     try {
+      // VOTAR-451: leaf already voted under another nullifier (tab reopen) →
+      // do not broadcast a second unique VoteCast.
+      const leaf = merkleProofData.hashHoja as Hex
+      const ballotAddress = merkleProofData.ballotContractAddress
+      const leafAlreadyVoted = await leerHasVoted(
+        boleta.idEleccion,
+        leaf,
+        ballotAddress
+      )
+      if (leafAlreadyVoted) {
+        const nullifierAlreadyUsed = nullifier
+          ? await leerIsNullifierUsed(
+              boleta.idEleccion,
+              nullifier,
+              ballotAddress
+            )
+          : false
+        if (!nullifierAlreadyUsed) {
+          await finalizeSuccessfulCast({
+            txHash: loadPendingVoteCast(boleta.idEleccion)?.txHash ?? null,
+            blockNumber: null,
+            votosObjetivo: Math.max(1, estadoRevoto?.votosConsumidos ?? 1),
+          })
+          return
+        }
+      }
+
       const result = await transmitSignedVote(
         {
           signed,
-          voterLeaf: merkleProofData.hashHoja as Hex,
+          voterLeaf: leaf,
           merkleProof: merkleProofData.merkleProof as Hex[],
         },
         {
-          contractAddress: merkleProofData.ballotContractAddress,
+          contractAddress: ballotAddress,
           onProgress: (phase) => {
             setTransmitPhase(phase)
           },
@@ -681,6 +723,7 @@ export const BudVotingWizard = ({
       await finalizeSuccessfulCast({
         txHash: result.txHash,
         blockNumber: Number(result.blockNumber),
+        votosObjetivo: Math.max(1, (voterStateOnChain?.votesUsed ?? 0) + 1),
       })
     } catch (error) {
       const mapped = mapVoteTxError(error)

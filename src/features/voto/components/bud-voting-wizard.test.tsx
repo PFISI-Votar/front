@@ -38,9 +38,13 @@ const registrarTransaccionPublicaMock = vi.fn().mockResolvedValue(undefined)
 const registrarConsumoIntentoMock = vi.fn()
 const obtenerEstadoRevotoMock = vi.fn()
 const leerVoterStateMock = vi.fn()
+const leerHasVotedMock = vi.fn()
+const leerIsNullifierUsedMock = vi.fn()
 
 vi.mock('@/features/voto/crypto/voter-state', () => ({
   leerVoterState: (...args: unknown[]) => leerVoterStateMock(...args),
+  leerHasVoted: (...args: unknown[]) => leerHasVotedMock(...args),
+  leerIsNullifierUsed: (...args: unknown[]) => leerIsNullifierUsedMock(...args),
 }))
 
 const defaultEstadoRevoto: EstadoRevoto = {
@@ -256,6 +260,8 @@ describe('BudVotingWizard', () => {
     logVoteTxErrorMock.mockClear()
     obtenerEstadoRevotoMock.mockReset()
     leerVoterStateMock.mockReset()
+    leerHasVotedMock.mockReset()
+    leerIsNullifierUsedMock.mockReset()
     clearVotanteSessionMock.mockResolvedValue(undefined)
     registrarVotoEmitidoAnonimoMock.mockResolvedValue(undefined)
     registrarTransaccionPublicaMock.mockResolvedValue(undefined)
@@ -264,6 +270,9 @@ describe('BudVotingWizard', () => {
     // alcanzable; los tests existentes (que asumen el estado off-chain como
     // única fuente) siguen valiendo sin cambios. Los tests on-chain overridean esto.
     leerVoterStateMock.mockRejectedValue(new Error('contract not reachable'))
+    // VOTAR-451: leaf libre por defecto → el camino feliz sigue transmitiendo.
+    leerHasVotedMock.mockResolvedValue(false)
+    leerIsNullifierUsedMock.mockResolvedValue(false)
     registrarConsumoIntentoMock.mockResolvedValue({
       ...defaultEstadoRevoto,
       votosConsumidos: 1,
@@ -727,6 +736,27 @@ describe('BudVotingWizard', () => {
     await expect
       .element(screen.getByRole('button', { name: /Reintentar envío/i }))
       .not.toBeInTheDocument()
+  })
+
+  it('VOTAR-451: si el leaf ya votó con otro nullifier, no retransmite y muestra éxito', async () => {
+    leerHasVotedMock.mockResolvedValue(true)
+    leerIsNullifierUsedMock.mockResolvedValue(false)
+
+    const screen = await renderWizard()
+    await userEvent.click(
+      screen.getByRole('button', { name: /Votar en blanco/i })
+    )
+    await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
+    await userEvent.click(
+      screen.getByRole('button', { name: /Firmar y confirmar/i })
+    )
+
+    await expect
+      .element(screen.getByText('Voto Exitoso', { exact: true }))
+      .toBeInTheDocument()
+    expect(transmitSignedVoteMock).not.toHaveBeenCalled()
+    expect(registrarConsumoIntentoMock).toHaveBeenCalledOnce()
+    expect(registrarConsumoIntentoMock).toHaveBeenCalledWith(7, 1)
   })
 
   it('VOTAR-445: muestra Cerrar sesión en pasos activos del wizard', async () => {
