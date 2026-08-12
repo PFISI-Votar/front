@@ -35,6 +35,9 @@ vi.mock('@/features/eleccion/api/eleccion-api', () => ({
   obtenerEleccion: vi.fn(),
   abrirEleccion: vi.fn(),
   cerrarEleccion: vi.fn(),
+  pausarEleccion: vi.fn(),
+  reanudarEleccion: vi.fn(),
+  obtenerEstadoPausa: vi.fn().mockResolvedValue(null),
 }))
 
 vi.mock('@/features/eleccion/lista/api/lista-api', () => ({
