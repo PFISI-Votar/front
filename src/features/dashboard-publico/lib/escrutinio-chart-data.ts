@@ -36,7 +36,11 @@ export const toBarChartData = (escrutinio: Escrutinio): BarChartDatum[] =>
     fill: candidato.colorLista ?? DEFAULT_COLORS[index % DEFAULT_COLORS.length],
   }))
 
-export const toDonutChartData = (escrutinio: Escrutinio): DonutChartDatum[] => {
+export const toDonutChartData = (
+  escrutinio: Escrutinio,
+  options: { permitirVotoNulo?: boolean } = {}
+): DonutChartDatum[] => {
+  const permitirVotoNulo = options.permitirVotoNulo ?? true
   const partisan = escrutinio.candidatos
     .filter((c) => c.votos > 0)
     .slice(0, 6)
@@ -54,7 +58,7 @@ export const toDonutChartData = (escrutinio: Escrutinio): DonutChartDatum[] => {
       fill: '#9aa0a6',
     })
   }
-  if (escrutinio.participacion.votosNulo > 0) {
+  if (permitirVotoNulo && escrutinio.participacion.votosNulo > 0) {
     extras.push({
       name: 'Nulos',
       value: escrutinio.participacion.votosNulo,
