@@ -1,6 +1,7 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ComiciosList } from '@/features/eleccion/components/comicios-list'
 
 export const Route = createFileRoute('/_authenticated/comicios/')({
@@ -26,7 +27,18 @@ function ComiciosIndexPage() {
           </Link>
         </Button>
       </div>
-      <ComiciosList />
+      <Tabs defaultValue='activos' className='space-y-4'>
+        <TabsList>
+          <TabsTrigger value='activos'>Activos</TabsTrigger>
+          <TabsTrigger value='historicos'>Históricos</TabsTrigger>
+        </TabsList>
+        <TabsContent value='activos'>
+          <ComiciosList estado='activos' />
+        </TabsContent>
+        <TabsContent value='historicos'>
+          <ComiciosList estado='historicos' />
+        </TabsContent>
+      </Tabs>
     </>
   )
 }
