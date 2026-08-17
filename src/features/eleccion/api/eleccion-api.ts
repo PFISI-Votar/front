@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api-client'
+import type { ActaAperturaData } from '@/features/eleccion/data/acta-apertura-schema'
 import type {
   CreateComicioInput,
   Eleccion,
@@ -62,6 +63,15 @@ export const archivarEleccion = async (
 ): Promise<Eleccion> => {
   const { data } = await apiClient.post<Eleccion>(
     `/elecciones/${idEleccion}/archivar`
+  )
+  return data
+}
+
+export const obtenerActaApertura = async (
+  idEleccion: number
+): Promise<ActaAperturaData> => {
+  const { data } = await apiClient.get<ActaAperturaData>(
+    `/elecciones/${idEleccion}/acta-apertura`
   )
   return data
 }
