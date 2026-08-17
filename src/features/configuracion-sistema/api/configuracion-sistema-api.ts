@@ -2,6 +2,7 @@ import { apiClient } from '@/lib/api-client'
 import type {
   ActaAperturaModo,
   ActaAperturaPlantilla,
+  ActaCierrePlantilla,
   ConfiguracionSistema,
 } from '@/features/configuracion-sistema/data/schema'
 
@@ -50,6 +51,27 @@ export const actualizarFormatoPersonalizadoActaApertura = async (patch: {
 }): Promise<ConfiguracionSistema> => {
   const { data } = await apiClient.patch<ConfiguracionSistema>(
     '/configuracion-sistema/acta-apertura-formato',
+    patch
+  )
+  return data
+}
+
+export const actualizarPlantillaActaCierre = async (
+  patch: Partial<ActaCierrePlantilla>
+): Promise<ConfiguracionSistema> => {
+  const { data } = await apiClient.patch<ConfiguracionSistema>(
+    '/configuracion-sistema/acta-cierre-plantilla',
+    patch
+  )
+  return data
+}
+
+export const actualizarFormatoPersonalizadoActaCierre = async (patch: {
+  modo?: ActaAperturaModo
+  plantillaTexto?: string
+}): Promise<ConfiguracionSistema> => {
+  const { data } = await apiClient.patch<ConfiguracionSistema>(
+    '/configuracion-sistema/acta-cierre-formato',
     patch
   )
   return data

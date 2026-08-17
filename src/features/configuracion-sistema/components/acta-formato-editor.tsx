@@ -13,32 +13,42 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  ACTA_APERTURA_SAMPLE_DATA,
-  ACTA_APERTURA_SAMPLE_TEMPLATE,
-} from '@/features/eleccion/lib/acta-apertura-sample-data'
-import {
-  ACTA_APERTURA_VARIABLES,
-  buildActaAperturaViewModel,
-  interpolarPlantillaActaApertura,
-} from '@/features/eleccion/lib/acta-apertura-template'
+import { interpolarPlantilla } from '@/features/eleccion/lib/plantilla-interpolacion'
 
-type ActaAperturaFormatoEditorProps = {
+export type ActaFormatoVariable = {
+  grupo: string
+  token: string
+  label: string
+}
+
+export type ActaFormatoEditorProps<T> = {
+  variables: ActaFormatoVariable[]
+  sampleData: T
+  sampleTemplate: string
+  buildViewModel: (data: T) => Record<string, string>
   plantillaTextoGuardada: string | null
   onGuardar: (texto: string) => void
   isPending: boolean
 }
 
-const VARIABLE_GRUPOS = Array.from(
-  new Set(ACTA_APERTURA_VARIABLES.map((variable) => variable.grupo))
-)
-
-export function ActaAperturaFormatoEditor({
+/**
+ * Editor de formato personalizado reutilizable por cualquier acta oficial
+ * (Apertura, Cierre, futuras): paleta de variables oculta detrás de un
+ * popover, textarea compacto que crece hacia abajo, y preview colapsable
+ * contra datos de prueba. La parte específica de cada documento (qué
+ * variables existen, cómo se arma el view model, el texto de ejemplo) se
+ * inyecta por props — este componente no sabe qué acta está editando.
+ */
+export function ActaFormatoEditor<T>({
+  variables,
+  sampleData,
+  sampleTemplate,
+  buildViewModel,
   plantillaTextoGuardada,
   onGuardar,
   isPending,
-}: ActaAperturaFormatoEditorProps) {
-  const textoInicial = plantillaTextoGuardada ?? ACTA_APERTURA_SAMPLE_TEMPLATE
+}: ActaFormatoEditorProps<T>) {
+  const textoInicial = plantillaTextoGuardada ?? sampleTemplate
   const [texto, setTexto] = useState(textoInicial)
   const [variablesAbiertas, setVariablesAbiertas] = useState(false)
   const [previewAbierto, setPreviewAbierto] = useState(false)
@@ -46,10 +56,15 @@ export function ActaAperturaFormatoEditor({
 
   const hayCambiosSinGuardar = texto !== (plantillaTextoGuardada ?? '')
 
+  const variableGrupos = useMemo(
+    () => Array.from(new Set(variables.map((variable) => variable.grupo))),
+    [variables]
+  )
+
   const preview = useMemo(() => {
-    const viewModel = buildActaAperturaViewModel(ACTA_APERTURA_SAMPLE_DATA)
-    return interpolarPlantillaActaApertura(texto, viewModel)
-  }, [texto])
+    const viewModel = buildViewModel(sampleData)
+    return interpolarPlantilla(texto, viewModel)
+  }, [texto, sampleData, buildViewModel])
 
   const insertarVariable = (token: string) => {
     const textarea = textareaRef.current
@@ -85,24 +100,24 @@ export function ActaAperturaFormatoEditor({
             className='max-h-80 w-80 overflow-y-auto p-2'
           >
             <div className='space-y-3'>
-              {VARIABLE_GRUPOS.map((grupo) => (
+              {variableGrupos.map((grupo) => (
                 <div key={grupo} className='space-y-1'>
                   <p className='px-1 text-xs font-medium text-muted-foreground'>
                     {grupo}
                   </p>
-                  {ACTA_APERTURA_VARIABLES.filter(
-                    (variable) => variable.grupo === grupo
-                  ).map((variable) => (
-                    <button
-                      key={variable.token}
-                      type='button'
-                      title={variable.label}
-                      onClick={() => insertarVariable(variable.token)}
-                      className='block w-full rounded-sm px-1 py-1 text-left font-mono text-[11px] hover:bg-accent'
-                    >
-                      {`{{${variable.token}}}`}
-                    </button>
-                  ))}
+                  {variables
+                    .filter((variable) => variable.grupo === grupo)
+                    .map((variable) => (
+                      <button
+                        key={variable.token}
+                        type='button'
+                        title={variable.label}
+                        onClick={() => insertarVariable(variable.token)}
+                        className='block w-full rounded-sm px-1 py-1 text-left font-mono text-[11px] hover:bg-accent'
+                      >
+                        {`{{${variable.token}}}`}
+                      </button>
+                    ))}
                 </div>
               ))}
             </div>

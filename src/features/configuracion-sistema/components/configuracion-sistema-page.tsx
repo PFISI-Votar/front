@@ -1,28 +1,45 @@
 import { useState } from 'react'
 import { Trash2, Upload } from 'lucide-react'
 import { resolveMediaUrl } from '@/lib/media-url'
-import { Button } from '@/components/ui/button'
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
-import { Switch } from '@/components/ui/switch'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ActaAperturaFormatoEditor } from '@/features/configuracion-sistema/components/acta-apertura-formato-editor'
-import type { ActaAperturaPlantilla } from '@/features/configuracion-sistema/data/schema'
+import { ActaFormatoContenido } from '@/features/configuracion-sistema/components/acta-formato-contenido'
+import type {
+  ActaAperturaPlantilla,
+  ActaCierrePlantilla,
+} from '@/features/configuracion-sistema/data/schema'
 import {
   useActualizarFormatoPersonalizadoActaApertura,
+  useActualizarFormatoPersonalizadoActaCierre,
   useActualizarPlantillaActaApertura,
+  useActualizarPlantillaActaCierre,
   useConfiguracionSistema,
   useEliminarLogoInstitucional,
   useSubirLogoInstitucional,
 } from '@/features/configuracion-sistema/hooks/use-configuracion-sistema'
+import {
+  ACTA_APERTURA_SAMPLE_DATA,
+  ACTA_APERTURA_SAMPLE_TEMPLATE,
+} from '@/features/eleccion/lib/acta-apertura-sample-data'
+import {
+  ACTA_APERTURA_VARIABLES,
+  buildActaAperturaViewModel,
+} from '@/features/eleccion/lib/acta-apertura-template'
+import {
+  ACTA_CIERRE_SAMPLE_DATA,
+  ACTA_CIERRE_SAMPLE_TEMPLATE,
+} from '@/features/eleccion/lib/acta-cierre-sample-data'
+import {
+  ACTA_CIERRE_VARIABLES,
+  buildActaCierreViewModel,
+} from '@/features/eleccion/lib/acta-cierre-template'
 import {
   IMAGE_FILE_REQUIREMENTS,
   validateElectoralImageFile,
@@ -66,12 +83,49 @@ const PLANTILLA_ACTA_APERTURA_ITEMS: Array<{
   },
 ]
 
+const PLANTILLA_ACTA_CIERRE_ITEMS: Array<{
+  key: keyof ActaCierrePlantilla
+  label: string
+  description?: string
+}> = [
+  {
+    key: 'incluirDescripcion',
+    label: 'Descripción del comicio',
+  },
+  {
+    key: 'incluirParticipacion',
+    label: 'Participación y escrutinio',
+    description: 'Votos totales, blancos, nulos y % de participación.',
+  },
+  {
+    key: 'incluirResultadosPorLista',
+    label: 'Resultados del escrutinio',
+    description: 'Votos por lista o candidato, según el tipo de votación.',
+  },
+  {
+    key: 'incluirVerificacionCriptografica',
+    label: 'Verificación criptográfica',
+    description:
+      'Raíz de Merkle y direcciones de los contratos on-chain (incluye el ' +
+      'contrato de escrutinio AuditView, consultable en Sepolia).',
+  },
+  {
+    key: 'incluirLogo',
+    label: 'Logo institucional',
+  },
+]
+
+const ACCORDION_ITEMS = ['logo', 'acta-apertura', 'acta-cierre']
+
 export function ConfiguracionSistemaPage() {
   const { data: configuracion, isLoading } = useConfiguracionSistema()
   const subirLogo = useSubirLogoInstitucional()
   const eliminarLogo = useEliminarLogoInstitucional()
-  const actualizarPlantilla = useActualizarPlantillaActaApertura()
-  const actualizarFormato = useActualizarFormatoPersonalizadoActaApertura()
+  const actualizarPlantillaApertura = useActualizarPlantillaActaApertura()
+  const actualizarFormatoApertura =
+    useActualizarFormatoPersonalizadoActaApertura()
+  const actualizarPlantillaCierre = useActualizarPlantillaActaCierre()
+  const actualizarFormatoCierre = useActualizarFormatoPersonalizadoActaCierre()
   const [fileError, setFileError] = useState<string | null>(null)
 
   const handleFileChange = (file?: File) => {
@@ -101,138 +155,165 @@ export function ConfiguracionSistemaPage() {
         </p>
       </div>
       <Separator className='my-4 lg:my-6' />
-      <Card className='max-w-xl'>
-        <CardHeader>
-          <CardTitle>Logo institucional</CardTitle>
-          <CardDescription>
-            Se embebe en los reportes institucionales generados por la
-            plataforma (ej. Acta de Apertura).
-          </CardDescription>
-        </CardHeader>
-        <CardContent className='space-y-4'>
-          {isLoading ? (
-            <p className='text-sm text-muted-foreground'>Cargando…</p>
-          ) : (
-            <>
-              {logoPreview ? (
-                <img
-                  src={logoPreview}
-                  alt='Logo institucional'
-                  className='h-32 w-full rounded-md border bg-muted object-contain p-2'
-                />
+
+      <div className='w-full rounded-lg border px-6'>
+        <Accordion type='multiple' defaultValue={ACCORDION_ITEMS}>
+          <AccordionItem value='logo'>
+            <AccordionTrigger>
+              <div className='space-y-1 text-left'>
+                <p className='text-base font-semibold'>Logo institucional</p>
+                <p className='text-sm font-normal text-muted-foreground'>
+                  Se embebe en los reportes institucionales generados por la
+                  plataforma (Acta de Apertura, Acta de Cierre).
+                </p>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              {isLoading ? (
+                <p className='text-sm text-muted-foreground'>Cargando…</p>
               ) : (
-                <div className='grid h-32 place-items-center rounded-md border bg-muted text-sm text-muted-foreground'>
-                  Sin logo institucional
+                <div className='max-w-xl space-y-4'>
+                  {logoPreview ? (
+                    <img
+                      src={logoPreview}
+                      alt='Logo institucional'
+                      className='h-32 w-full rounded-md border bg-muted object-contain p-2'
+                    />
+                  ) : (
+                    <div className='grid h-32 place-items-center rounded-md border bg-muted text-sm text-muted-foreground'>
+                      Sin logo institucional
+                    </div>
+                  )}
+                  <p className='text-xs text-muted-foreground'>
+                    {IMAGE_FILE_REQUIREMENTS}
+                  </p>
+                  <div className='flex flex-wrap items-center gap-2'>
+                    <Input
+                      type='file'
+                      accept='image/png,image/jpeg,.png,.jpg,.jpeg'
+                      disabled={isPending}
+                      onChange={(event) =>
+                        handleFileChange(event.target.files?.[0])
+                      }
+                      className='max-w-xs'
+                    />
+                    {logoPreview && (
+                      <Button
+                        type='button'
+                        variant='outline'
+                        size='sm'
+                        disabled={isPending}
+                        onClick={() => eliminarLogo.mutate()}
+                      >
+                        <Trash2 />
+                        Eliminar
+                      </Button>
+                    )}
+                  </div>
+                  {fileError && (
+                    <p className='text-sm text-destructive' role='alert'>
+                      {fileError}
+                    </p>
+                  )}
+                  {subirLogo.isPending && (
+                    <p className='flex items-center gap-1 text-sm text-muted-foreground'>
+                      <Upload className='size-4' />
+                      Subiendo logo…
+                    </p>
+                  )}
                 </div>
               )}
-              <p className='text-xs text-muted-foreground'>
-                {IMAGE_FILE_REQUIREMENTS}
-              </p>
-              <div className='flex flex-wrap items-center gap-2'>
-                <Input
-                  type='file'
-                  accept='image/png,image/jpeg,.png,.jpg,.jpeg'
-                  disabled={isPending}
-                  onChange={(event) =>
-                    handleFileChange(event.target.files?.[0])
-                  }
-                  className='max-w-xs'
-                />
-                {logoPreview && (
-                  <Button
-                    type='button'
-                    variant='outline'
-                    size='sm'
-                    disabled={isPending}
-                    onClick={() => eliminarLogo.mutate()}
-                  >
-                    <Trash2 />
-                    Eliminar
-                  </Button>
-                )}
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value='acta-apertura'>
+            <AccordionTrigger>
+              <div className='space-y-1 text-left'>
+                <p className='text-base font-semibold'>
+                  Formato del Acta de Apertura
+                </p>
+                <p className='text-sm font-normal text-muted-foreground'>
+                  Secciones fijas (Simple) o un texto propio que combina con los
+                  datos del comicio (Personalizado).
+                </p>
               </div>
-              {fileError && (
-                <p className='text-sm text-destructive' role='alert'>
-                  {fileError}
+            </AccordionTrigger>
+            <AccordionContent>
+              <ActaFormatoContenido
+                isLoading={isLoading}
+                modo={configuracion?.actaAperturaModo ?? 'SIMPLE'}
+                onModoChange={(modo) =>
+                  actualizarFormatoApertura.mutate({ modo })
+                }
+                toggles={PLANTILLA_ACTA_APERTURA_ITEMS.map((item) => ({
+                  ...item,
+                  checked:
+                    configuracion?.actaAperturaPlantilla[item.key] ?? true,
+                }))}
+                onToggleChange={(key, checked) =>
+                  actualizarPlantillaApertura.mutate({ [key]: checked })
+                }
+                togglesPending={actualizarPlantillaApertura.isPending}
+                editorProps={{
+                  variables: ACTA_APERTURA_VARIABLES,
+                  sampleData: ACTA_APERTURA_SAMPLE_DATA,
+                  sampleTemplate: ACTA_APERTURA_SAMPLE_TEMPLATE,
+                  buildViewModel: buildActaAperturaViewModel,
+                  plantillaTextoGuardada:
+                    configuracion?.actaAperturaPlantillaTexto ?? null,
+                  isPending: actualizarFormatoApertura.isPending,
+                  onGuardar: (texto) =>
+                    actualizarFormatoApertura.mutate({
+                      plantillaTexto: texto,
+                    }),
+                }}
+              />
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value='acta-cierre'>
+            <AccordionTrigger>
+              <div className='space-y-1 text-left'>
+                <p className='text-base font-semibold'>
+                  Formato del Acta de Cierre
                 </p>
-              )}
-              {subirLogo.isPending && (
-                <p className='flex items-center gap-1 text-sm text-muted-foreground'>
-                  <Upload className='size-4' />
-                  Subiendo logo…
+                <p className='text-sm font-normal text-muted-foreground'>
+                  Secciones fijas (Simple) o un texto propio (Personalizado)
+                  para el escrutinio final.
                 </p>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className='mt-4 max-w-xl lg:mt-6'>
-        <CardHeader>
-          <CardTitle>Formato del Acta de Apertura</CardTitle>
-          <CardDescription>
-            Elegí cómo se arma el PDF del Acta de Apertura: con secciones fijas
-            (Simple) o con un texto propio que combina con los datos del comicio
-            (Personalizado).
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className='text-sm text-muted-foreground'>Cargando…</p>
-          ) : (
-            <Tabs
-              value={configuracion?.actaAperturaModo ?? 'SIMPLE'}
-              onValueChange={(modo) =>
-                actualizarFormato.mutate({
-                  modo: modo as 'SIMPLE' | 'PERSONALIZADO',
-                })
-              }
-            >
-              <TabsList>
-                <TabsTrigger value='SIMPLE'>Simple</TabsTrigger>
-                <TabsTrigger value='PERSONALIZADO'>Personalizado</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value='SIMPLE' className='space-y-5 pt-2'>
-                {PLANTILLA_ACTA_APERTURA_ITEMS.map((item) => (
-                  <div key={item.key} className='flex items-start gap-3'>
-                    <Switch
-                      id={item.key}
-                      checked={
-                        configuracion?.actaAperturaPlantilla[item.key] ?? true
-                      }
-                      disabled={actualizarPlantilla.isPending}
-                      onCheckedChange={(checked) =>
-                        actualizarPlantilla.mutate({ [item.key]: checked })
-                      }
-                    />
-                    <div className='space-y-0.5'>
-                      <Label htmlFor={item.key}>{item.label}</Label>
-                      {item.description && (
-                        <p className='text-xs text-muted-foreground'>
-                          {item.description}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </TabsContent>
-
-              <TabsContent value='PERSONALIZADO' className='pt-2'>
-                <ActaAperturaFormatoEditor
-                  plantillaTextoGuardada={
-                    configuracion?.actaAperturaPlantillaTexto ?? null
-                  }
-                  isPending={actualizarFormato.isPending}
-                  onGuardar={(texto) =>
-                    actualizarFormato.mutate({ plantillaTexto: texto })
-                  }
-                />
-              </TabsContent>
-            </Tabs>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <ActaFormatoContenido
+                isLoading={isLoading}
+                modo={configuracion?.actaCierreModo ?? 'SIMPLE'}
+                onModoChange={(modo) =>
+                  actualizarFormatoCierre.mutate({ modo })
+                }
+                toggles={PLANTILLA_ACTA_CIERRE_ITEMS.map((item) => ({
+                  ...item,
+                  checked: configuracion?.actaCierrePlantilla[item.key] ?? true,
+                }))}
+                onToggleChange={(key, checked) =>
+                  actualizarPlantillaCierre.mutate({ [key]: checked })
+                }
+                togglesPending={actualizarPlantillaCierre.isPending}
+                editorProps={{
+                  variables: ACTA_CIERRE_VARIABLES,
+                  sampleData: ACTA_CIERRE_SAMPLE_DATA,
+                  sampleTemplate: ACTA_CIERRE_SAMPLE_TEMPLATE,
+                  buildViewModel: buildActaCierreViewModel,
+                  plantillaTextoGuardada:
+                    configuracion?.actaCierrePlantillaTexto ?? null,
+                  isPending: actualizarFormatoCierre.isPending,
+                  onGuardar: (texto) =>
+                    actualizarFormatoCierre.mutate({ plantillaTexto: texto }),
+                }}
+              />
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </div>
     </>
   )
 }

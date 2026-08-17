@@ -3,7 +3,9 @@ import { toast } from 'sonner'
 import { getApiErrorMessage } from '@/lib/api-client'
 import {
   actualizarFormatoPersonalizadoActaApertura,
+  actualizarFormatoPersonalizadoActaCierre,
   actualizarPlantillaActaApertura,
+  actualizarPlantillaActaCierre,
   eliminarLogoInstitucional,
   obtenerConfiguracionSistema,
   subirLogoInstitucional,
@@ -11,6 +13,7 @@ import {
 import type {
   ActaAperturaModo,
   ActaAperturaPlantilla,
+  ActaCierrePlantilla,
 } from '@/features/configuracion-sistema/data/schema'
 
 const CONFIGURACION_SISTEMA_QUERY_KEY = ['configuracion-sistema']
@@ -81,6 +84,42 @@ export const useActualizarPlantillaActaApertura = () => {
       actualizarPlantillaActaApertura(patch),
     onSuccess: () => {
       toast.success('Plantilla del Acta de Apertura actualizada.')
+      queryClient.invalidateQueries({
+        queryKey: CONFIGURACION_SISTEMA_QUERY_KEY,
+      })
+    },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error))
+    },
+  })
+}
+
+export const useActualizarFormatoPersonalizadoActaCierre = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (patch: { modo?: ActaAperturaModo; plantillaTexto?: string }) =>
+      actualizarFormatoPersonalizadoActaCierre(patch),
+    onSuccess: () => {
+      toast.success('Formato del Acta de Cierre actualizado.')
+      queryClient.invalidateQueries({
+        queryKey: CONFIGURACION_SISTEMA_QUERY_KEY,
+      })
+    },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error))
+    },
+  })
+}
+
+export const useActualizarPlantillaActaCierre = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (patch: Partial<ActaCierrePlantilla>) =>
+      actualizarPlantillaActaCierre(patch),
+    onSuccess: () => {
+      toast.success('Plantilla del Acta de Cierre actualizada.')
       queryClient.invalidateQueries({
         queryKey: CONFIGURACION_SISTEMA_QUERY_KEY,
       })

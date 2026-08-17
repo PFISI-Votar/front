@@ -3,12 +3,12 @@ import type {
   ActaAperturaData,
   ActaAperturaDatosApertura,
 } from '@/features/eleccion/data/acta-apertura-schema'
+import {
+  formatFecha,
+  interpolarPlantilla,
+} from '@/features/eleccion/lib/plantilla-interpolacion'
 
-export const formatFecha = (iso: string): string =>
-  new Date(iso).toLocaleString('es-AR', {
-    dateStyle: 'long',
-    timeStyle: 'short',
-  })
+export { formatFecha } from '@/features/eleccion/lib/plantilla-interpolacion'
 
 export const formatActorApertura = (
   datosApertura: ActaAperturaDatosApertura
@@ -160,17 +160,5 @@ export const buildActaAperturaViewModel = (
   'contratos.merkleRootStore': data.contratos.merkleRootStore.direccion,
 })
 
-const TOKEN_PATTERN = /\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}/g
-
-/**
- * Interpola `{{token}}` en `template` usando `viewModel`. Un token no
- * reconocido se deja literal — así el admin nota un typo en el preview en
- * vez de perder el dato silenciosamente.
- */
-export const interpolarPlantillaActaApertura = (
-  template: string,
-  viewModel: Record<string, string>
-): string =>
-  template.replace(TOKEN_PATTERN, (match, token: string) =>
-    token in viewModel ? viewModel[token] : match
-  )
+/** @deprecated usar `interpolarPlantilla` de `plantilla-interpolacion.ts` directamente. */
+export const interpolarPlantillaActaApertura = interpolarPlantilla

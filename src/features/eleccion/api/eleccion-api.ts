@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/api-client'
 import type { ActaAperturaData } from '@/features/eleccion/data/acta-apertura-schema'
+import type { ActaCierreData } from '@/features/eleccion/data/acta-cierre-schema'
 import type {
   CreateComicioInput,
   Eleccion,
@@ -74,4 +75,22 @@ export const obtenerActaApertura = async (
     `/elecciones/${idEleccion}/acta-apertura`
   )
   return data
+}
+
+export const obtenerActaCierre = async (
+  idEleccion: number
+): Promise<ActaCierreData> => {
+  const { data } = await apiClient.get<ActaCierreData>(
+    `/elecciones/${idEleccion}/acta-cierre`
+  )
+  return data
+}
+
+export const registrarHashActaCierre = async (
+  idEleccion: number,
+  hashPdf: string
+): Promise<void> => {
+  await apiClient.post(`/elecciones/${idEleccion}/acta-cierre/hash`, {
+    hashPdf,
+  })
 }
