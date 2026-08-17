@@ -19,11 +19,22 @@ interface MerklePublicadoEvent {
   idEleccion: number
 }
 
+interface EleccionPausadaEvent {
+  idEleccion: number
+  razon: string
+}
+
+interface EleccionReanudadaEvent {
+  idEleccion: number
+}
+
 interface UseEleccionWebSocketOptions {
   onEleccionAbierta?: (data: EleccionAbiertaEvent) => void
   onEleccionCerrada?: (data: EleccionCerradaEvent) => void
   onEleccionArchivada?: (data: EleccionArchivadaEvent) => void
   onMerklePublicado?: (data: MerklePublicadoEvent) => void
+  onEleccionPausada?: (data: EleccionPausadaEvent) => void
+  onEleccionReanudada?: (data: EleccionReanudadaEvent) => void
 }
 
 /**
@@ -38,6 +49,8 @@ export function useEleccionWebSocket(
   const onEleccionCerradaRef = useRef(options.onEleccionCerrada)
   const onEleccionArchivadaRef = useRef(options.onEleccionArchivada)
   const onMerklePublicadoRef = useRef(options.onMerklePublicado)
+  const onEleccionPausadaRef = useRef(options.onEleccionPausada)
+  const onEleccionReanudadaRef = useRef(options.onEleccionReanudada)
   const socketRef = useRef<Socket | null>(null)
 
   useEffect(() => {
@@ -55,6 +68,14 @@ export function useEleccionWebSocket(
   useEffect(() => {
     onMerklePublicadoRef.current = options.onMerklePublicado
   }, [options.onMerklePublicado])
+
+  useEffect(() => {
+    onEleccionPausadaRef.current = options.onEleccionPausada
+  }, [options.onEleccionPausada])
+
+  useEffect(() => {
+    onEleccionReanudadaRef.current = options.onEleccionReanudada
+  }, [options.onEleccionReanudada])
 
   useEffect(() => {
     const socket = io(`${BACKEND_URL}/elecciones`, {
@@ -80,6 +101,14 @@ export function useEleccionWebSocket(
 
     socket.on('eleccion:merkle-publicado', (data: MerklePublicadoEvent) => {
       onMerklePublicadoRef.current?.(data)
+    })
+
+    socket.on('eleccion:pausada', (data: EleccionPausadaEvent) => {
+      onEleccionPausadaRef.current?.(data)
+    })
+
+    socket.on('eleccion:reanudada', (data: EleccionReanudadaEvent) => {
+      onEleccionReanudadaRef.current?.(data)
     })
 
     return () => {
