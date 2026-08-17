@@ -53,6 +53,8 @@ export type BudConfig = {
   metodosAutenticacion: string[]
   resultadosDefinitivos?: boolean
   snapshotCongelado?: boolean
+  /** VOTAR-347 — true si la urna digital está pausada; bloquea el envío de votos. */
+  pausada?: boolean
 }
 
 /** VOTAR-328 — respuesta de revotePolicyService para feedback en BUD. */

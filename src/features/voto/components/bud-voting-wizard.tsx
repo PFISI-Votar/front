@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { AxiosError } from 'axios'
 import { useQueryClient } from '@tanstack/react-query'
 import {
+  AlertCircle,
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
@@ -80,7 +81,10 @@ import {
   waitForVoteTxReceipt,
   type TransmitProgressPhase,
 } from '@/features/voto/crypto/vote-transmitter'
-import { formatCooldownDuration } from '@/features/voto/crypto/vote-tx-error-catalog'
+import {
+  formatCooldownDuration,
+  getMessageForRevert,
+} from '@/features/voto/crypto/vote-tx-error-catalog'
 import {
   mapVoteTxError,
   type VoteTxError,
@@ -158,6 +162,8 @@ type BudVotingWizardProps = {
   boleta: BoletaDigital
   tipoVotacion: TipoVotacion
   cryptoReady?: boolean
+  /** VOTAR-347 — true mientras la urna digital está pausada por incidente. */
+  pausada?: boolean
   onLogout: () => void
 }
 
@@ -326,6 +332,7 @@ export const BudVotingWizard = ({
   boleta,
   tipoVotacion,
   cryptoReady = false,
+  pausada = false,
   onLogout,
 }: BudVotingWizardProps) => {
   const queryClient = useQueryClient()
@@ -637,6 +644,29 @@ export const BudVotingWizard = ({
   }
 
   const transmitVote = async (signed: SignedVotePayload) => {
+    // VOTAR-347 — corta antes de gastar gas en una tx que el contrato va a
+    // revertir igual (EnforcedPause): mismo código/mensaje que un revert real,
+    // pero instantáneo y sin round-trip a la red.
+    if (pausada) {
+      const mapped = getMessageForRevert('EnforcedPause')
+      if (mapped) {
+        const pausedError: VoteTxError = {
+          code: mapped.code,
+          message: mapped.message,
+          severity: mapped.severity,
+          isTransient: mapped.isTransient,
+          canRetrySend: mapped.canRetrySend,
+          canResign: mapped.canResign,
+          revertName: 'EnforcedPause',
+        }
+        reportVoteTxError(pausedError, boleta.idEleccion)
+        setTxError(pausedError)
+        setTransmitPhase('error')
+        setStep('transmitting')
+        return
+      }
+    }
+
     if (!merkleProofData?.hashHoja) {
       const missingProofError = mapVoteTxError(
         new Error('Merkle proof or hashHoja is missing')
@@ -868,6 +898,17 @@ export const BudVotingWizard = ({
       estadoRevoto={estadoRevoto}
       onLogout={handleLogout}
     >
+      {pausada && (
+        <Alert variant='destructive' className='mb-4'>
+          <AlertCircle className='size-4' aria-hidden='true' />
+          <AlertTitle>Sistema en pausa</AlertTitle>
+          <AlertDescription>
+            La autoridad electoral pausó temporalmente la urna digital por
+            medidas de seguridad. Podés seguir revisando la boleta, pero el
+            envío de votos está deshabilitado hasta que se reanude el comicio.
+          </AlertDescription>
+        </Alert>
+      )}
       {effectiveStep !== 'limit-reached' && effectiveStep !== 'cooldown' ? (
         <WizardStepper currentStep={effectiveStep} />
       ) : null}
@@ -984,6 +1025,7 @@ export const BudVotingWizard = ({
             candidates={candidates}
             signingError={signingError}
             isSigning={isSigning}
+            pausada={pausada}
             onBack={goToSelection}
             onSign={() => {
               void handleSignVote()
@@ -1643,6 +1685,7 @@ const ReviewStep = ({
   candidates,
   signingError,
   isSigning,
+  pausada = false,
   onBack,
   onSign,
 }: {
@@ -1656,6 +1699,7 @@ const ReviewStep = ({
   candidates: Candidate[]
   signingError: string | null
   isSigning: boolean
+  pausada?: boolean
   onBack: () => void
   onSign: () => void
 }) => {
@@ -1765,14 +1809,23 @@ const ReviewStep = ({
           <Button
             size='lg'
             className='h-12 bg-[#2f6f9f] font-semibold text-white hover:bg-[#285f88]'
-            disabled={isSigning}
+            disabled={isSigning || pausada}
             onClick={onSign}
-            aria-label='Firmar y confirmar voto'
+            aria-label={
+              pausada
+                ? 'Votación deshabilitada: comicio en pausa'
+                : 'Firmar y confirmar voto'
+            }
           >
             {isSigning ? (
               <>
                 <Loader2 className='size-5 animate-spin' />
                 Firmando voto...
+              </>
+            ) : pausada ? (
+              <>
+                <AlertCircle className='size-5' />
+                Votación pausada
               </>
             ) : (
               <>

@@ -8,6 +8,8 @@ export const tipoEventoAuditSchema = z.enum([
   'COMICIO_ABIERTO',
   'COMICIO_CERRADO',
   'VOTO_EMITIDO',
+  'COMICIO_PAUSADO',
+  'COMICIO_REANUDADO',
 ])
 
 export type TipoEventoAudit = z.infer<typeof tipoEventoAuditSchema>

@@ -7,8 +7,10 @@ import {
   BadgeCheck,
   Eye,
   FileSpreadsheet,
+  Pause,
   Pencil,
   Play,
+  PlayCircle,
   Square,
   Trash2,
   Vote,
@@ -41,6 +43,8 @@ import {
 } from '@/features/eleccion/api/eleccion-api'
 import { ComicioVentanaElectoral } from '@/features/eleccion/components/comicio-ventana-electoral'
 import { EliminarComicioDialog } from '@/features/eleccion/components/eliminar-comicio-dialog'
+import { PausarComicioDialog } from '@/features/eleccion/components/pausar-comicio-dialog'
+import { ReanudarComicioDialog } from '@/features/eleccion/components/reanudar-comicio-dialog'
 import type { EleccionEstado } from '@/features/eleccion/data/schema'
 import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
 import { useArchivarEleccion } from '@/features/eleccion/hooks/use-archivar-eleccion'
@@ -242,6 +246,10 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
     useState<ComicioActionTarget>(emptyActionTarget)
   const [cerrarDialog, setCerrarDialog] =
     useState<ComicioActionTarget>(emptyActionTarget)
+  const [pausarDialog, setPausarDialog] =
+    useState<ComicioActionTarget>(emptyActionTarget)
+  const [reanudarDialog, setReanudarDialog] =
+    useState<ComicioActionTarget>(emptyActionTarget)
   const [oficializarDialog, setOficializarDialog] =
     useState<ComicioActionTarget>(emptyActionTarget)
   const [eliminarDialog, setEliminarDialog] =
@@ -267,6 +275,12 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
       queryClient.invalidateQueries({ queryKey: ['elecciones'] })
     },
     onEleccionCerrada: () => {
+      queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+    },
+    onEleccionPausada: () => {
+      queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+    },
+    onEleccionReanudada: () => {
       queryClient.invalidateQueries({ queryKey: ['elecciones'] })
     },
     onEleccionArchivada: () => {
@@ -321,6 +335,20 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
     nombreEleccion: string
   ) => {
     setCerrarDialog({ open: true, idEleccion, nombreEleccion })
+  }
+
+  const handleOpenPausarDialog = (
+    idEleccion: number,
+    nombreEleccion: string
+  ) => {
+    setPausarDialog({ open: true, idEleccion, nombreEleccion })
+  }
+
+  const handleOpenReanudarDialog = (
+    idEleccion: number,
+    nombreEleccion: string
+  ) => {
+    setReanudarDialog({ open: true, idEleccion, nombreEleccion })
   }
 
   const handleOpenOficializarDialog = (
@@ -439,9 +467,20 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
                     fechaFin={comicio.fechaFin}
                   />
                 </div>
-                <Badge variant={estadoVariant(comicio.estado)}>
-                  {getEstadoEleccionLabel(comicio.estado)}
-                </Badge>
+                <div className='flex items-center gap-2'>
+                  {comicio.pausada && (
+                    <Badge
+                      variant='destructive'
+                      aria-label={`${comicio.nombre} está pausada`}
+                    >
+                      <Pause className='size-3' />
+                      Pausada
+                    </Badge>
+                  )}
+                  <Badge variant={estadoVariant(comicio.estado)}>
+                    {getEstadoEleccionLabel(comicio.estado)}
+                  </Badge>
+                </div>
               </CardHeader>
               <CardContent
                 className='flex flex-wrap items-end justify-between gap-3'
@@ -527,6 +566,37 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
                       Cerrar comicio
                     </Button>
                   )}
+                  {comicio.estado === 'ABIERTA' && !comicio.pausada && (
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      onClick={() =>
+                        handleOpenPausarDialog(
+                          comicio.idEleccion,
+                          comicio.nombre
+                        )
+                      }
+                      aria-label={`Pausar comicio ${comicio.nombre}`}
+                    >
+                      <Pause />
+                      Pausar comicio
+                    </Button>
+                  )}
+                  {comicio.pausada && (
+                    <Button
+                      size='sm'
+                      onClick={() =>
+                        handleOpenReanudarDialog(
+                          comicio.idEleccion,
+                          comicio.nombre
+                        )
+                      }
+                      aria-label={`Reanudar comicio ${comicio.nombre}`}
+                    >
+                      <PlayCircle />
+                      Reanudar comicio
+                    </Button>
+                  )}
                   {comicio.estado === 'CERRADA' && (
                     <Button
                       variant='outline'
@@ -604,6 +674,36 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
           open={cerrarDialog.open}
           onOpenChange={(open) =>
             setCerrarDialog((prev) => ({
+              ...prev,
+              open,
+              ...(open ? {} : { idEleccion: null, nombreEleccion: '' }),
+            }))
+          }
+        />
+      )}
+
+      {pausarDialog.idEleccion !== null && (
+        <PausarComicioDialog
+          idEleccion={pausarDialog.idEleccion}
+          nombreEleccion={pausarDialog.nombreEleccion}
+          open={pausarDialog.open}
+          onOpenChange={(open) =>
+            setPausarDialog((prev) => ({
+              ...prev,
+              open,
+              ...(open ? {} : { idEleccion: null, nombreEleccion: '' }),
+            }))
+          }
+        />
+      )}
+
+      {reanudarDialog.idEleccion !== null && (
+        <ReanudarComicioDialog
+          idEleccion={reanudarDialog.idEleccion}
+          nombreEleccion={reanudarDialog.nombreEleccion}
+          open={reanudarDialog.open}
+          onOpenChange={(open) =>
+            setReanudarDialog((prev) => ({
               ...prev,
               open,
               ...(open ? {} : { idEleccion: null, nombreEleccion: '' }),
