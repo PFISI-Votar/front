@@ -8,7 +8,9 @@ import {
   BadgeCheck,
   ChevronDown,
   Lock,
+  Pause,
   Pencil,
+  PlayCircle,
   Plus,
   Square,
   Trash2,
@@ -56,6 +58,8 @@ import { CategoriasPanel } from '@/features/eleccion/categoria/components/catego
 import { ComicioVentanaElectoral } from '@/features/eleccion/components/comicio-ventana-electoral'
 import { DocumentosComicioMenu } from '@/features/eleccion/components/documentos-comicio-menu'
 import { EliminarComicioDialog } from '@/features/eleccion/components/eliminar-comicio-dialog'
+import { PausarComicioDialog } from '@/features/eleccion/components/pausar-comicio-dialog'
+import { ReanudarComicioDialog } from '@/features/eleccion/components/reanudar-comicio-dialog'
 import { ConfiguracionRevotoPanel } from '@/features/eleccion/configuracion-comicio/components/configuracion-revoto-panel'
 import { ConfiguracionVotoNuloPanel } from '@/features/eleccion/configuracion-comicio/components/configuracion-voto-nulo-panel'
 import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
@@ -107,6 +111,8 @@ export const OfertaElectoralPanel = ({
   const [oficializarDialogOpen, setOficializarDialogOpen] = useState(false)
   const [abrirDialogOpen, setAbrirDialogOpen] = useState(false)
   const [cerrarDialogOpen, setCerrarDialogOpen] = useState(false)
+  const [pausarDialogOpen, setPausarDialogOpen] = useState(false)
+  const [reanudarDialogOpen, setReanudarDialogOpen] = useState(false)
   const [eliminarDialogOpen, setEliminarDialogOpen] = useState(false)
   const [listaAEliminar, setListaAEliminar] = useState<Lista | null>(null)
 
@@ -164,6 +170,18 @@ export const OfertaElectoralPanel = ({
       }
     },
     onEleccionCerrada: (data) => {
+      if (data.idEleccion === idEleccion) {
+        invalidateOferta()
+        queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+      }
+    },
+    onEleccionPausada: (data) => {
+      if (data.idEleccion === idEleccion) {
+        invalidateOferta()
+        queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+      }
+    },
+    onEleccionReanudada: (data) => {
       if (data.idEleccion === idEleccion) {
         invalidateOferta()
         queryClient.invalidateQueries({ queryKey: ['elecciones'] })
@@ -335,6 +353,12 @@ export const OfertaElectoralPanel = ({
           ) : null}
         </div>
         <div className='flex flex-wrap items-center gap-3'>
+          {eleccionQuery.data?.pausada && (
+            <Badge variant='destructive' aria-label='Comicio pausado'>
+              <Pause className='size-3' />
+              Pausada
+            </Badge>
+          )}
           {eleccionQuery.data && (
             <Badge
               variant={getEstadoEleccionBadgeVariant(eleccionQuery.data.estado)}
@@ -395,6 +419,28 @@ export const OfertaElectoralPanel = ({
             >
               <Square className='me-2 size-4' />
               Cerrar comicio
+            </Button>
+          )}
+          {eleccionQuery.data?.estado === 'ABIERTA' &&
+            !eleccionQuery.data.pausada && (
+              <Button
+                variant='outline'
+                onClick={() => setPausarDialogOpen(true)}
+                aria-haspopup='dialog'
+                aria-label='Pausar comicio'
+              >
+                <Pause className='me-2 size-4' />
+                Pausar comicio
+              </Button>
+            )}
+          {eleccionQuery.data?.pausada && (
+            <Button
+              onClick={() => setReanudarDialogOpen(true)}
+              aria-haspopup='dialog'
+              aria-label='Reanudar comicio'
+            >
+              <PlayCircle className='me-2 size-4' />
+              Reanudar comicio
             </Button>
           )}
         </div>
@@ -832,6 +878,20 @@ export const OfertaElectoralPanel = ({
         destructive
         isLoading={oficializarMutation.isPending}
         handleConfirm={handleConfirmOficializar}
+      />
+
+      <PausarComicioDialog
+        idEleccion={idEleccion}
+        nombreEleccion={eleccionQuery.data?.nombre ?? ''}
+        open={pausarDialogOpen}
+        onOpenChange={setPausarDialogOpen}
+      />
+
+      <ReanudarComicioDialog
+        idEleccion={idEleccion}
+        nombreEleccion={eleccionQuery.data?.nombre ?? ''}
+        open={reanudarDialogOpen}
+        onOpenChange={setReanudarDialogOpen}
       />
 
       <EliminarComicioDialog

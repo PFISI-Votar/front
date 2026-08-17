@@ -33,6 +33,16 @@ export const AUDIT_EVENT_LABELS: AuditEventLabel[] = [
     variant: 'outline',
   },
   {
+    value: 'COMICIO_PAUSADO',
+    label: 'Pausa de emergencia',
+    variant: 'destructive',
+  },
+  {
+    value: 'COMICIO_REANUDADO',
+    label: 'Reanudación de comicio',
+    variant: 'default',
+  },
+  {
     value: 'VOTO_EMITIDO',
     label: 'Voto emitido (anónimo)',
     variant: 'secondary',
@@ -48,6 +58,8 @@ export const CRITICAL_EVENT_TYPES: TipoEventoAudit[] = [
   'COMICIO_ABIERTO',
   'COMICIO_CERRADO',
   'PADRON_CARGADO',
+  'COMICIO_PAUSADO',
+  'COMICIO_REANUDADO',
 ]
 
 export const getAuditEventLabel = (

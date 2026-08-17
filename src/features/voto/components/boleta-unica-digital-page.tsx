@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AxiosError } from 'axios'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { AlertCircle, Eye } from 'lucide-react'
 import budFingerprint from '@/assets/bud-fingerprint.png'
@@ -10,6 +10,7 @@ import {
   METODOS_AUTENTICACION,
   type MetodoAutenticacion,
 } from '@/features/eleccion/configuracion-comicio/data/constants'
+import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
 import type { TipoVotacion } from '@/features/eleccion/lista/data/schema'
 import {
   obtenerBoletaDigital,
@@ -56,6 +57,7 @@ const BoletaUnicaDigitalPageContent = ({
     destroy: destroyWallet,
     isReady,
   } = useEphemeralWallet()
+  const queryClient = useQueryClient()
   const [introVisible, setIntroVisible] = useState(() => showIntro)
   const [votanteSession, setVotanteSession] = useState<VotanteAuthUser | null>(
     null
@@ -80,6 +82,21 @@ const BoletaUnicaDigitalPageContent = ({
     queryFn: () => obtenerConfiguracionBud(idEleccion),
     retry: false,
     enabled: !introVisible,
+  })
+
+  // VOTAR-347 — refresca en vivo cuando la autoridad pausa/reanuda el
+  // comicio, para retirar/mostrar el bloqueo de voto sin recargar la página.
+  useEleccionWebSocket({
+    onEleccionPausada: (data) => {
+      if (data.idEleccion === idEleccion) {
+        queryClient.invalidateQueries({ queryKey: ['bud-config', idEleccion] })
+      }
+    },
+    onEleccionReanudada: (data) => {
+      if (data.idEleccion === idEleccion) {
+        queryClient.invalidateQueries({ queryKey: ['bud-config', idEleccion] })
+      }
+    },
   })
 
   useEffect(() => {
@@ -292,6 +309,7 @@ const BoletaUnicaDigitalPageContent = ({
       boleta={boleta}
       tipoVotacion={budConfigQuery.data.tipoVotacion as TipoVotacion}
       cryptoReady={isReady}
+      pausada={budConfigQuery.data.pausada ?? false}
       onLogout={() => {
         destroyWallet()
         void clearVotanteSession().finally(() => {
