@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { resolveMediaUrl } from '@/lib/media-url'
+import { resolveMediaUrl, toSafeImageSrc } from '@/lib/media-url'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -81,9 +81,10 @@ const ListaFormDialogContent = ({
     name: 'nombre',
   })
 
-  const logoPreview =
+  const logoPreview = toSafeImageSrc(
     localLogoPreview ??
-    (hasRemovedLogo ? undefined : resolveMediaUrl(lista?.logoUrl))
+      (hasRemovedLogo ? undefined : resolveMediaUrl(lista?.logoUrl))
+  )
 
   useEffect(() => {
     return () => {
@@ -208,9 +209,12 @@ const ListaFormDialogContent = ({
                 </Button>
               )}
             </div>
-            {logoPreview ? (
+            {logoPreview &&
+            (logoPreview.startsWith('blob:') ||
+              logoPreview.startsWith('https:') ||
+              logoPreview.startsWith('http:')) ? (
               <img
-                src={logoPreview}
+                src={logoPreview.replace(/[<>]/g, '')}
                 alt={`Logotipo de ${nombreLista || 'la lista'}`}
                 className='h-28 w-full rounded-md border bg-muted object-cover'
               />
