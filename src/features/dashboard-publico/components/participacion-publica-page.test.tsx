@@ -1,3 +1,4 @@
+import { forwardRef } from 'react'
 import { AxiosError } from 'axios'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -7,6 +8,8 @@ import { ParticipacionPublicaPage } from './participacion-publica-page'
 const mocks = vi.hoisted(() => ({
   obtenerConfiguracionBud: vi.fn(),
   obtenerParticipacionPublica: vi.fn(),
+  exportParticipacionPng: vi.fn(),
+  toastError: vi.fn(),
 }))
 
 vi.mock('@tanstack/react-router', () => ({
@@ -34,16 +37,32 @@ vi.mock('@/features/dashboard-publico/api/participacion-publica-api', () => ({
 }))
 
 vi.mock('@/features/dashboard-publico/components/curva-temporal-chart', () => ({
-  CurvaTemporalChart: ({
-    serieTemporal,
-  }: {
-    serieTemporal: Array<{ etiqueta: string; acumulado: number }>
-  }) => (
-    <div>
+  CurvaTemporalChart: forwardRef<
+    HTMLDivElement,
+    {
+      serieTemporal: Array<{ etiqueta: string; acumulado: number }>
+      nombreComicio?: string
+      fecha?: string
+    }
+  >(({ serieTemporal, nombreComicio, fecha }, ref) => (
+    <div ref={ref}>
       <h3>Distribución temporal</h3>
       <p>{serieTemporal.length} puntos</p>
+      {nombreComicio && <p>{nombreComicio}</p>}
+      {fecha && <p>{fecha}</p>}
     </div>
-  ),
+  )),
+}))
+
+vi.mock(
+  '@/features/dashboard-publico/lib/participacion-export/export-participacion-png',
+  () => ({
+    exportParticipacionPng: mocks.exportParticipacionPng,
+  })
+)
+
+vi.mock('sonner', () => ({
+  toast: { error: mocks.toastError },
 }))
 
 const participacionMock = {
@@ -191,5 +210,62 @@ describe('ParticipacionPublicaPage — VOTAR-365', () => {
     await expect
       .element(screen.getByText(/contratos electorales desplegados/i))
       .toBeInTheDocument()
+  })
+
+  describe('VOTAR-376: exportación PNG de la curva de participación', () => {
+    it('el botón de descarga PNG dispara la exportación con los datos correctos', async () => {
+      mocks.exportParticipacionPng.mockResolvedValue(undefined)
+      const screen = await renderPage(6)
+
+      await screen
+        .getByRole('button', {
+          name: /Descargar curva de participación en PNG/i,
+        })
+        .click()
+
+      expect(mocks.exportParticipacionPng).toHaveBeenCalledTimes(1)
+      const callArgs = mocks.exportParticipacionPng.mock.calls[0][0]
+      expect(callArgs.idEleccion).toBe(6)
+      expect(callArgs.nombreComicio).toBe('Elección Centro de Estudiantes')
+      expect(callArgs.node).toBeInstanceOf(HTMLElement)
+    })
+
+    it('muestra un toast de error si la exportación falla', async () => {
+      mocks.exportParticipacionPng.mockRejectedValue(new Error('boom'))
+      const screen = await renderPage(6)
+
+      await screen
+        .getByRole('button', {
+          name: /Descargar curva de participación en PNG/i,
+        })
+        .click()
+
+      await vi.waitFor(() => {
+        expect(mocks.toastError).toHaveBeenCalledWith(
+          'No se pudo generar la imagen PNG de la curva de participación.'
+        )
+      })
+    })
+
+    it('deshabilita el botón mientras la exportación está en curso', async () => {
+      let resolveExport: () => void = () => {}
+      mocks.exportParticipacionPng.mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveExport = resolve
+          })
+      )
+      const screen = await renderPage(6)
+      const boton = screen.getByRole('button', {
+        name: /Descargar curva de participación en PNG/i,
+      })
+
+      const clickPromise = boton.click()
+      await clickPromise
+      await expect.element(boton).toHaveAttribute('aria-busy', 'true')
+
+      resolveExport()
+      await expect.element(boton).toHaveAttribute('aria-busy', 'false')
+    })
   })
 })
