@@ -14,7 +14,6 @@ type StaticRouteConfig = {
 }
 
 const STATIC_ROUTE_BREADCRUMBS: Record<string, StaticRouteConfig> = {
-  '/': { label: 'Dashboard' },
   '/users': { label: 'Users' },
   '/tasks': { label: 'Tasks' },
   '/apps': { label: 'Apps' },
