@@ -55,6 +55,11 @@ export const sidebarData: SidebarData = {
           url: '/auditoria',
           icon: ScrollText,
         },
+        {
+          title: 'Configuración',
+          url: '/configuracion',
+          icon: Settings,
+        },
       ],
     },
     {
