@@ -125,7 +125,9 @@ describe('SearchProvider and CommandMenu', () => {
 
     await openCommandPalette(screen)
 
-    await userEvent.click(getByRole('option', { name: 'Comicios Nuevo comicio' }))
+    await userEvent.click(
+      getByRole('option', { name: 'Comicios Nuevo comicio' })
+    )
 
     expect(mocks.navigate).toHaveBeenCalledWith({ to: '/comicios/nuevo' })
     await expect
