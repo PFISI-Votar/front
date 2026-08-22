@@ -1,4 +1,4 @@
-import { Command, Vote, ScrollText } from 'lucide-react'
+import { Command, Vote, ScrollText, Settings } from 'lucide-react'
 import { type SidebarData } from '../types'
 
 export const sidebarData: SidebarData = {
@@ -36,6 +36,11 @@ export const sidebarData: SidebarData = {
           title: 'Auditoría',
           url: '/auditoria',
           icon: ScrollText,
+        },
+        {
+          title: 'Configuración',
+          url: '/configuracion',
+          icon: Settings,
         },
       ],
     },
