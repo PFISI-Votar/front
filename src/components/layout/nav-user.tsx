@@ -1,9 +1,6 @@
-import {
-  ChevronsUpDown,
-  LogOut,
-} from 'lucide-react'
-import useDialogState from '@/hooks/use-dialog-state'
+import { ChevronsUpDown, LogOut } from 'lucide-react'
 import { getPersonNameInitials } from '@/lib/person-name'
+import useDialogState from '@/hooks/use-dialog-state'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   DropdownMenu,

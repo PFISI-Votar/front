@@ -37,24 +37,24 @@ const STATIC_ROUTE_BREADCRUMBS: Record<string, StaticRouteConfig> = {
     label: 'Display',
   },
   '/errors/unauthorized': {
-    parent: { label: 'Errors', href: '/errors/unauthorized' },
-    label: 'Unauthorized',
+    parent: { label: 'Errores', href: '/errors/unauthorized' },
+    label: 'No autorizado',
   },
   '/errors/forbidden': {
-    parent: { label: 'Errors', href: '/errors/forbidden' },
-    label: 'Forbidden',
+    parent: { label: 'Errores', href: '/errors/forbidden' },
+    label: 'Acceso denegado',
   },
   '/errors/not-found': {
-    parent: { label: 'Errors', href: '/errors/not-found' },
-    label: 'Not Found',
+    parent: { label: 'Errores', href: '/errors/not-found' },
+    label: 'No encontrada',
   },
   '/errors/internal-server-error': {
-    parent: { label: 'Errors', href: '/errors/internal-server-error' },
-    label: 'Internal Server Error',
+    parent: { label: 'Errores', href: '/errors/internal-server-error' },
+    label: 'Error interno del servidor',
   },
   '/errors/maintenance-error': {
-    parent: { label: 'Errors', href: '/errors/maintenance-error' },
-    label: 'Maintenance Error',
+    parent: { label: 'Errores', href: '/errors/maintenance-error' },
+    label: 'Mantenimiento',
   },
 }
 
