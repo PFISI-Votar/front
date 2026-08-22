@@ -56,6 +56,7 @@ import type { Candidato } from '@/features/eleccion/candidato/data/schema'
 import { buildResumenDatosAdicionales } from '@/features/eleccion/candidato/utils/format-datos-adicionales'
 import { CategoriasPanel } from '@/features/eleccion/categoria/components/categorias-panel'
 import { ComicioVentanaElectoral } from '@/features/eleccion/components/comicio-ventana-electoral'
+import { DocumentosComicioMenu } from '@/features/eleccion/components/documentos-comicio-menu'
 import { EliminarComicioDialog } from '@/features/eleccion/components/eliminar-comicio-dialog'
 import { PausarComicioDialog } from '@/features/eleccion/components/pausar-comicio-dialog'
 import { ReanudarComicioDialog } from '@/features/eleccion/components/reanudar-comicio-dialog'
@@ -401,6 +402,12 @@ export const OfertaElectoralPanel = ({
               <Vote className='me-2 size-4' />
               Abrir comicio
             </Button>
+          )}
+          {eleccionQuery.data && (
+            <DocumentosComicioMenu
+              idEleccion={idEleccion}
+              estado={eleccionQuery.data.estado}
+            />
           )}
           {eleccionQuery.data?.estado === 'ABIERTA' && (
             <Button
