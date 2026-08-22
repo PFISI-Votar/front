@@ -5,28 +5,40 @@ import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import { playwright } from '@vitest/browser-playwright'
 import { buildSecurityHeaders } from './src/config/security-headers'
+import {
+  parseRpcUrls,
+  rpcUrlToOrigin,
+} from './src/features/voto/crypto/rpc-failover.ts'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiOrigin = env.VITE_API_URL ?? 'http://localhost:3000'
-  const rpcOrigin = env.VITE_RPC_URL ?? 'http://127.0.0.1:8545'
+  const rpcUrls = parseRpcUrls(env.VITE_RPC_URL, env.VITE_RPC_FALLBACK_URLS)
+  const rpcOrigins = rpcUrls
+    .map((url) => rpcUrlToOrigin(url))
+    .filter((origin) => origin.length > 0)
   const isDev = mode === 'development'
-  const extraConnectSrc = isDev
-    ? [
-        rpcOrigin,
-        // Hardhat accepts both hostnames; CSP treats them as distinct origins.
-        'http://127.0.0.1:8545',
-        'http://localhost:8545',
-      ]
-    : []
-  const devHeaders = buildSecurityHeaders({
+  const extraConnectSrc = [
+    ...rpcOrigins,
+    ...(isDev
+      ? [
+          // Hardhat accepts both hostnames; CSP treats them as distinct origins.
+          'http://127.0.0.1:8545',
+          'http://localhost:8545',
+        ]
+      : []),
+  ]
+  const headerOptions = {
     apiOrigin,
-    isDev: true,
     extraConnectSrc,
+  }
+  const devHeaders = buildSecurityHeaders({
+    ...headerOptions,
+    isDev: true,
   })
   const previewHeaders = buildSecurityHeaders({
-    apiOrigin,
+    ...headerOptions,
     isDev: false,
     isHttps: true,
   })

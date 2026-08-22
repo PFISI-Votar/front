@@ -9,6 +9,7 @@ export type SecurityHeadersOptions = {
 const PERMISSIONS_POLICY = 'camera=(), microphone=(), geolocation=()'
 
 export const NGINX_API_ORIGIN_PLACEHOLDER = '${API_ORIGIN}' as const
+export const NGINX_RPC_ORIGINS_PLACEHOLDER = '${RPC_ORIGINS}' as const
 
 const normalizeOrigin = (apiOrigin: string): string => {
   if (apiOrigin === NGINX_API_ORIGIN_PLACEHOLDER) {
@@ -91,6 +92,7 @@ export const buildNginxSecurityHeaderLines = (): string[] => {
     apiOrigin: NGINX_API_ORIGIN_PLACEHOLDER,
     isDev: false,
     isHttps: true,
+    extraConnectSrc: [NGINX_RPC_ORIGINS_PLACEHOLDER],
   })
 
   return Object.entries(headers).map(
