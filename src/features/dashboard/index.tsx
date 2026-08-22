@@ -3,7 +3,10 @@ import { PlusCircle, ScrollText, Vote } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { useAppLayoutConfig } from '@/components/layout/app-layout'
+import {
+  AppHeaderActions,
+  useAppLayoutConfig,
+} from '@/components/layout/app-layout'
 import { VotarLoginBackground } from '@/features/auth/sign-in/components/login-screen-shared'
 
 type AccesoRapido = {
@@ -21,8 +24,11 @@ const ACCESOS_RAPIDOS: AccesoRapido[] = [
 export function Dashboard() {
   useAppLayoutConfig({
     fixed: false,
-    headerClassName: 'hidden',
+    headerClassName:
+      'absolute top-0 inset-x-0 bg-transparent shadow-none border-none',
     mainClassName: 'p-0 @7xl/content:max-w-none',
+    headerLeading: <div className='me-auto' />,
+    headerTrailing: <AppHeaderActions />,
   })
 
   const { auth } = useAuthStore()
