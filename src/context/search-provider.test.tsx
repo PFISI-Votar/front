@@ -69,7 +69,7 @@ describe('SearchProvider and CommandMenu', () => {
     await expect
       .element(getByPlaceholder(COMMAND_MENU_PLACEHOLDER))
       .toBeInTheDocument()
-    await expect.element(getByText('Tema')).toBeInTheDocument()
+    await expect.element(getByText('Tema', { exact: true })).toBeInTheDocument()
     await expect.element(getByText('Claro')).toBeInTheDocument()
     await expect.element(getByText('Oscuro')).toBeInTheDocument()
     await expect.element(getByText('Sistema')).toBeInTheDocument()
