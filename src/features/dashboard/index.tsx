@@ -51,7 +51,7 @@ export function Dashboard() {
             'text-[#2f6f9f] dark:text-[#7ab3d4]'
           )}
         >
-          VOTAR · Panel de administración
+          VOTAR - Panel de administración
         </p>
 
         <div className='flex animate-in flex-col items-center gap-5 duration-700 ease-out fade-in-0 slide-in-from-bottom-4'>
@@ -77,12 +77,12 @@ export function Dashboard() {
               size='lg'
               className={cn(
                 'h-16 flex-1 text-base shadow-none',
-                'border-[#c9cdd2] bg-white/90 text-[#2f3337] hover:border-[#2f6f9f] hover:bg-[#f2f7fb] hover:text-[#2f6f9f]',
-                'dark:border-[#2a2a2e] dark:bg-[#0f1629]/80 dark:text-[#e2e8f0] dark:hover:border-[#7ab3d4] dark:hover:bg-[#1a2535] dark:hover:text-[#7ab3d4]'
+                'border-[#c9cdd2] bg-white/90 text-[#2f6f9f] hover:border-[#2f6f9f] hover:bg-[#f2f7fb] hover:text-[#2f6f9f]',
+                'dark:border-[#2a2a2e] dark:bg-[#0f1629]/80 dark:text-[#7ab3d4] dark:hover:border-[#7ab3d4] dark:hover:bg-[#1a2535] dark:hover:text-[#7ab3d4]'
               )}
             >
               <Link to={acceso.href}>
-                <acceso.icon className='size-5' />
+                <acceso.icon className='size-5 text-[#2f6f9f] dark:text-[#7ab3d4]' />
                 {acceso.title}
               </Link>
             </Button>

@@ -1,5 +1,24 @@
 import { describe, expect, it } from 'vitest'
-import { PERSON_NAME_PATTERN, sanitizePersonNameInput } from '@/lib/person-name'
+import {
+  PERSON_NAME_PATTERN,
+  getPersonNameInitials,
+  sanitizePersonNameInput,
+} from '@/lib/person-name'
+
+describe('getPersonNameInitials', () => {
+  it('usa la inicial del nombre y del apellido', () => {
+    expect(getPersonNameInitials('Valentino Alejandro Terreno')).toBe('VT')
+    expect(getPersonNameInitials('Ana García')).toBe('AG')
+  })
+
+  it('usa las dos primeras letras si solo hay un nombre', () => {
+    expect(getPersonNameInitials('Ana')).toBe('AN')
+  })
+
+  it('devuelve ?? si el nombre está vacío', () => {
+    expect(getPersonNameInitials('   ')).toBe('??')
+  })
+})
 
 describe('sanitizePersonNameInput', () => {
   it('elimina símbolos especiales al escribir', () => {
