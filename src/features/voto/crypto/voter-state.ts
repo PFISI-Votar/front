@@ -1,5 +1,6 @@
 import { BALLOT_CONTRACT_ABI } from '@/features/voto/crypto/ballot-abi'
 import { createVotePublicClient } from '@/features/voto/crypto/rpc-client'
+import { toBytes32 } from '@/features/voto/crypto/vote-transmitter'
 
 export type VoterStateOnChain = {
   votesUsed: number
@@ -27,7 +28,7 @@ export const leerVoterState = async (
       address: ballotContractAddress,
       abi: BALLOT_CONTRACT_ABI,
       functionName: 'getVoterState',
-      args: [BigInt(idEleccion), nullifier],
+      args: [BigInt(idEleccion), toBytes32(nullifier)],
     })
 
   return {
@@ -52,7 +53,7 @@ export const leerHasVoted = async (
     address: ballotContractAddress,
     abi: BALLOT_CONTRACT_ABI,
     functionName: 'hasVoted',
-    args: [BigInt(idEleccion), voterLeaf],
+    args: [BigInt(idEleccion), toBytes32(voterLeaf)],
   })
 }
 
@@ -69,6 +70,6 @@ export const leerIsNullifierUsed = async (
     address: ballotContractAddress,
     abi: BALLOT_CONTRACT_ABI,
     functionName: 'isNullifierUsed',
-    args: [BigInt(idEleccion), nullifier],
+    args: [BigInt(idEleccion), toBytes32(nullifier)],
   })
 }
