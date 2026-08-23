@@ -127,7 +127,7 @@ type WizardStep =
   | 'limit-reached'
   | 'cooldown'
 
-type TransmitUiPhase = TransmitProgressPhase | 'error'
+type TransmitUiPhase = TransmitProgressPhase | 'reconciling' | 'error'
 
 type Candidate = {
   id: string
@@ -470,8 +470,7 @@ export const BudVotingWizard = ({
     /** On-chain votesUsed for this nullifier; drives idempotent backend sync. */
     votosObjetivo?: number
   }) => {
-    // VOTAR-451: claim the consumo lock before awaiting so the catch-up effect
-    // cannot race a second POST for the same cast.
+    // VOTAR-451: claim the consumo lock before background sync so catch-up cannot race.
     consumoCatchUpStartedRef.current = true
     setTxHash(receipt.txHash)
     setBlockNumber(receipt.blockNumber)
@@ -479,33 +478,29 @@ export const BudVotingWizard = ({
     setTxError(null)
     const votosObjetivo =
       receipt.votosObjetivo ?? Math.max(1, voterStateOnChain?.votesUsed ?? 1)
-    // VOTAR-328 / VOTAR-445 / VOTAR-451: sync consumo while JWT session is alive.
-    try {
-      await registrarConsumoMutation.mutateAsync(votosObjetivo)
-    } catch {
-      // Allow catch-up to retry if the sync failed while the cast is on-chain.
+
+    // On-chain cast is authoritative — show receipt immediately (VOTAR-451 UAT).
+    setSignedVote(null)
+    setMerkleProofData(null)
+    setVoteReceiptReady(true)
+    setStep('success')
+    clearPendingVoteCast(boleta.idEleccion)
+
+    // VOTAR-328 / VOTAR-445 / VOTAR-451: sync consumo without blocking success UX.
+    void registrarConsumoMutation.mutateAsync(votosObjetivo).catch(() => {
       consumoCatchUpStartedRef.current = false
-      // El cast on-chain ya confirmó; no bloquear el recibo por el contador.
-    }
+    })
     if (receipt.txHash) {
-      // VOTAR-373: index public tx for dashboard (no SSO cookies).
       void registrarTransaccionPublica(boleta.idEleccion, receipt.txHash).catch(
         () => {
           // Recibo on-chain ya confirmado; el índice no debe bloquear la UX.
         }
       )
     }
-    // VOTAR-379 UAT-05: anonymous audit before clearing SSO (no cookies on call).
     void registrarVotoEmitidoAnonimo(boleta.idEleccion).catch(() => {
       // Recibo on-chain ya confirmado; el audit no debe bloquear la UX.
     })
-    // VOTAR-379 UAT-03: drop identity-linked crypto material after receipt.
-    setSignedVote(null)
-    setMerkleProofData(null)
-    setVoteReceiptReady(true)
-    setStep('success')
-    clearPendingVoteCast(boleta.idEleccion)
-    await clearVotanteSession()
+    void clearVotanteSession()
   }
 
   // VOTAR-445: si F5 interrumpió el wait del receipt, reanudar y completar consumo.
@@ -538,6 +533,9 @@ export const BudVotingWizard = ({
             blockNumber: null,
           })
           return
+        }
+        if (mapped.code === 'timeout' || mapped.code === 'network') {
+          clearPendingVoteCast(boleta.idEleccion)
         }
         reportVoteTxError(mapped, boleta.idEleccion)
         setTxError(mapped)
@@ -679,6 +677,7 @@ export const BudVotingWizard = ({
       // do not broadcast a second unique VoteCast.
       const leaf = merkleProofData.hashHoja as Hex
       const ballotAddress = merkleProofData.ballotContractAddress
+      setTransmitPhase('reconciling')
       const leafAlreadyVoted = await leerHasVoted(
         boleta.idEleccion,
         leaf,
@@ -696,12 +695,18 @@ export const BudVotingWizard = ({
           await finalizeSuccessfulCast({
             txHash: loadPendingVoteCast(boleta.idEleccion)?.txHash ?? null,
             blockNumber: null,
-            votosObjetivo: Math.max(1, estadoRevoto?.votosConsumidos ?? 1),
+            votosObjetivo: Math.max(
+              1,
+              voterStateOnChain?.votesUsed ??
+                estadoRevoto?.votosConsumidos ??
+                1
+            ),
           })
           return
         }
       }
 
+      setTransmitPhase('estimating')
       const result = await transmitSignedVote(
         {
           signed,
@@ -2039,9 +2044,11 @@ const TransmitStep = ({
       ? 'Enviando...'
       : phase === 'confirming'
         ? 'Esperando confirmación de red (minado)...'
-        : phase === 'error'
-          ? 'No se pudo completar el envío'
-          : 'Preparando envío...'
+        : phase === 'reconciling'
+          ? 'Reconciliando voto registrado previamente...'
+          : phase === 'error'
+            ? 'No se pudo completar el envío'
+            : 'Preparando envío...'
   const blankRoles = roles.filter((role) =>
     roleHasBlankSelection(candidateSelections, role.id)
   )
