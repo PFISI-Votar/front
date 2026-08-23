@@ -1,6 +1,6 @@
 {
   "contractName": "BallotContract",
-  "abiHash": "0xecf28424093bdba123aec6c5643579b56e5ec17651263e0d076004260779371c",
+  "abiHash": "0x0830e0eed8fef4f5aecc401868c6c1496ab2f4b8e8573c3d0a8b6461fa09bae2",
   "abi": [
     {
       "inputs": [
@@ -62,6 +62,11 @@
     {
       "inputs": [],
       "name": "AdminIsZeroAddress",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "AlreadyVoted",
       "type": "error"
     },
     {
@@ -898,6 +903,6 @@
       "type": "function"
     }
   ],
-  "exportedAt": "2026-08-12T18:30:50.207Z",
+  "exportedAt": "2026-08-12T01:34:01.574Z",
   "source": "blockchain/scripts/lib/export-abis.ts (VOTAR-385)"
 }
