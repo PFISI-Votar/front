@@ -65,25 +65,27 @@ describe('createVoteRpcTransport — VOTAR-386', () => {
 
   it('skips a lagging backup when block skew exceeds the threshold', async () => {
     const onFailover = vi.fn()
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input)
-      const body =
-        init?.body && typeof init.body === 'string'
-          ? (JSON.parse(init.body) as { method?: string })
-          : null
-      const method = body?.method
+    const fetchImpl = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        const body =
+          init?.body && typeof init.body === 'string'
+            ? (JSON.parse(init.body) as { method?: string })
+            : null
+        const method = body?.method
 
-      if (url.includes('infura')) {
-        if (method === 'eth_blockNumber') {
-          return jsonRpc('0x64')
+        if (url.includes('infura')) {
+          if (method === 'eth_blockNumber') {
+            return jsonRpc('0x64')
+          }
+          return new Response('Too Many Requests', { status: 429 })
         }
-        return new Response('Too Many Requests', { status: 429 })
+        if (url.includes('alchemy')) {
+          return jsonRpc(method === 'eth_blockNumber' ? '0x50' : '0x1')
+        }
+        return jsonRpc(method === 'eth_blockNumber' ? '0x64' : '0xaa36a7')
       }
-      if (url.includes('alchemy')) {
-        return jsonRpc(method === 'eth_blockNumber' ? '0x50' : '0x1')
-      }
-      return jsonRpc(method === 'eth_blockNumber' ? '0x64' : '0xaa36a7')
-    })
+    )
 
     const client = createPublicClient({
       chain: sepolia,
@@ -101,8 +103,8 @@ describe('createVoteRpcTransport — VOTAR-386', () => {
     expect(
       onFailover.mock.calls.some((args) => String(args[0]).includes('skew='))
     ).toBe(true)
-    expect(fetchImpl.mock.calls.some(([url]) => String(url).includes('quiknode'))).toBe(
-      true
-    )
+    expect(
+      fetchImpl.mock.calls.some(([url]) => String(url).includes('quiknode'))
+    ).toBe(true)
   })
 })
