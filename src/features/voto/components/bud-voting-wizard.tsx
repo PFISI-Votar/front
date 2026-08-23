@@ -697,9 +697,7 @@ export const BudVotingWizard = ({
             blockNumber: null,
             votosObjetivo: Math.max(
               1,
-              voterStateOnChain?.votesUsed ??
-                estadoRevoto?.votosConsumidos ??
-                1
+              voterStateOnChain?.votesUsed ?? estadoRevoto?.votosConsumidos ?? 1
             ),
           })
           return
