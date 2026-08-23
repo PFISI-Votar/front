@@ -1,4 +1,4 @@
-import { http, type Transport } from 'viem'
+import { custom, fallback, http, type Transport } from 'viem'
 import {
   classifyRpcFailoverReason,
   formatRpcFailoverLog,
@@ -58,6 +58,125 @@ const fetchEthBlockNumber = async (
   return Number.parseInt(payload.result, 16)
 }
 
+const createSkewAwareTransport = (
+  url: string,
+  index: number,
+  urls: readonly string[],
+  options: {
+    timeoutMs: number
+    fetchFn?: typeof fetch
+    onFailover: RpcFailoverLogFn
+    getReferenceBlock: () => number | null
+    setReferenceBlock: (block: number) => void
+  }
+): Transport => {
+  const backupUrl = urls[index + 1]
+  const innerHttp = http(url, {
+    timeout: options.timeoutMs,
+    retryCount: 0,
+    fetchFn: options.fetchFn,
+  })
+
+  return (params) => {
+    const inner = innerHttp(params)
+
+    return custom(
+      {
+        request: async (...args: Parameters<typeof inner.request>) => {
+          const [rpcArgs, reqOptions] = args
+
+          if (index > 0) {
+            let referenceBlock = options.getReferenceBlock()
+            if (referenceBlock == null) {
+              try {
+                referenceBlock = await fetchEthBlockNumber(
+                  urls[0],
+                  options.timeoutMs,
+                  options.fetchFn
+                )
+                options.setReferenceBlock(referenceBlock)
+              } catch {
+                // Primary may be unavailable; skew check is best-effort.
+              }
+            }
+            if (referenceBlock != null) {
+              try {
+                const candidateBlock = await fetchEthBlockNumber(
+                  url,
+                  options.timeoutMs,
+                  options.fetchFn
+                )
+                const skew = Math.abs(referenceBlock - candidateBlock)
+                if (
+                  !isBlockSkewAcceptable(
+                    referenceBlock,
+                    candidateBlock,
+                    RPC_MAX_BLOCK_SKEW
+                  )
+                ) {
+                  options.onFailover(
+                    formatRpcFailoverLog({
+                      at: new Date().toISOString(),
+                      reason: 'unavailable',
+                      failedEndpoint: sanitizeRpcUrl(url),
+                      backupEndpoint: backupUrl
+                        ? sanitizeRpcUrl(backupUrl)
+                        : '(none)',
+                      message: `skipped backup: block skew ${skew} (ref=${referenceBlock}, backup=${candidateBlock})`,
+                      blockSkew: skew,
+                    })
+                  )
+                  throw new Error('503 Service Unavailable')
+                }
+              } catch (error) {
+                if (isRpcFailoverError(error)) {
+                  throw error
+                }
+                throw new Error('503 Service Unavailable')
+              }
+            }
+          }
+
+          try {
+            return await inner.request(rpcArgs, reqOptions)
+          } catch (error) {
+            if (backupUrl && isRpcFailoverError(error)) {
+              options.onFailover(
+                formatRpcFailoverLog({
+                  at: new Date().toISOString(),
+                  reason: classifyRpcFailoverReason(error) ?? 'network',
+                  failedEndpoint: sanitizeRpcUrl(url),
+                  backupEndpoint: sanitizeRpcUrl(backupUrl),
+                  message: error instanceof Error ? error.name : 'RPC error',
+                })
+              )
+              if (options.getReferenceBlock() == null) {
+                try {
+                  options.setReferenceBlock(
+                    await fetchEthBlockNumber(
+                      url,
+                      options.timeoutMs,
+                      options.fetchFn
+                    )
+                  )
+                } catch {
+                  // ignore
+                }
+              }
+            }
+            throw error
+          }
+        },
+      },
+      {
+        key: `vote-rpc-${index}`,
+        name: `Vote RPC node ${index + 1}`,
+        retryCount: 0,
+      }
+    )(params)
+  }
+}
+
 /**
  * Sequential Infura → Alchemy → QuickNode transport.
  * Each hop times out under 1s (VOTAR-386) and skips backups with excessive block skew.
@@ -81,110 +200,20 @@ export const createVoteRpcTransport = (
     })
   }
 
-  return ({ chain, pollingInterval }) => {
-    const buildTransport = (url: string) =>
-      http(url, {
-        timeout: timeoutMs,
-        retryCount: 0,
+  let referenceBlock: number | null = null
+
+  return fallback(
+    urls.map((url, index) =>
+      createSkewAwareTransport(url, index, urls, {
+        timeoutMs,
         fetchFn: options.fetchFn,
-      })({
-        chain,
-        pollingInterval,
-        retryCount: 0,
-        timeout: timeoutMs,
+        onFailover,
+        getReferenceBlock: () => referenceBlock,
+        setReferenceBlock: (block) => {
+          referenceBlock = block
+        },
       })
-
-    return {
-      config: { type: 'http' as const },
-      type: 'http' as const,
-      name: 'vote-rpc-failover',
-      async request(args, reqOptions) {
-        let referenceBlock: number | null = null
-        let lastError: unknown
-
-        for (let index = 0; index < urls.length; index += 1) {
-          const url = urls[index]
-          const backupUrl = urls[index + 1]
-
-          if (index > 0) {
-            if (referenceBlock == null) {
-              try {
-                referenceBlock = await fetchEthBlockNumber(
-                  urls[0],
-                  timeoutMs,
-                  options.fetchFn
-                )
-              } catch {
-                // Primary may be unavailable; skew check is best-effort.
-              }
-            }
-            if (referenceBlock != null) {
-              try {
-                const candidateBlock = await fetchEthBlockNumber(
-                  url,
-                  timeoutMs,
-                  options.fetchFn
-                )
-                const skew = Math.abs(referenceBlock - candidateBlock)
-                if (
-                  !isBlockSkewAcceptable(
-                    referenceBlock,
-                    candidateBlock,
-                    RPC_MAX_BLOCK_SKEW
-                  )
-                ) {
-                  onFailover(
-                    formatRpcFailoverLog({
-                      at: new Date().toISOString(),
-                      reason: 'unavailable',
-                      failedEndpoint: sanitizeRpcUrl(url),
-                      backupEndpoint: backupUrl
-                        ? sanitizeRpcUrl(backupUrl)
-                        : '(none)',
-                      message: `skipped backup: block skew ${skew} (ref=${referenceBlock}, backup=${candidateBlock})`,
-                      blockSkew: skew,
-                    })
-                  )
-                  continue
-                }
-              } catch {
-                continue
-              }
-            }
-          }
-
-          try {
-            return await buildTransport(url).request(args, reqOptions)
-          } catch (error) {
-            lastError = error
-            if (!backupUrl || !isRpcFailoverError(error)) {
-              throw error
-            }
-            onFailover(
-              formatRpcFailoverLog({
-                at: new Date().toISOString(),
-                reason: classifyRpcFailoverReason(error) ?? 'network',
-                failedEndpoint: sanitizeRpcUrl(url),
-                backupEndpoint: sanitizeRpcUrl(backupUrl),
-                message: error instanceof Error ? error.name : 'RPC error',
-              })
-            )
-            if (referenceBlock == null) {
-              try {
-                referenceBlock = await fetchEthBlockNumber(
-                  url,
-                  timeoutMs,
-                  options.fetchFn
-                )
-              } catch {
-                // ignore
-              }
-            }
-          }
-        }
-
-        throw lastError
-      },
-    }
-  }
+    ),
+    { retryCount: 0, rank: false }
+  )
 }
