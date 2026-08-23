@@ -5,8 +5,10 @@ import {
 } from '@/features/voto/api/voto-api'
 import type { EstadoRevoto } from '@/features/voto/data/schema'
 
-export const estadoRevotoQueryKey = (idEleccion: number, votanteScope: string) =>
-  ['estado-revoto', idEleccion, votanteScope] as const
+export const estadoRevotoQueryKey = (
+  idEleccion: number,
+  votanteScope: string
+) => ['estado-revoto', idEleccion, votanteScope] as const
 
 /** VOTAR-328: estado de intentos restantes desde revotePolicyService. */
 export const useEstadoRevoto = (

@@ -815,7 +815,10 @@ export const BudVotingWizard = ({
     try {
       // After a successful sign the ephemeral key is zeroized (VOTAR-357).
       // Re-initialize so retries / second attempts always have signing material.
-      const session = await initializeEphemeralWallet(boleta.idEleccion, votanteScope)
+      const session = await initializeEphemeralWallet(
+        boleta.idEleccion,
+        votanteScope
+      )
       const signingPublicKey = session.publicKeyHex
 
       let nullifier: `0x${string}`

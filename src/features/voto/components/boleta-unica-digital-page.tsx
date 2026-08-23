@@ -22,9 +22,7 @@ import { CryptoUnsupportedScreen } from '@/features/voto/crypto/components/crypt
 import { EphemeralWalletProvider } from '@/features/voto/crypto/ephemeral-wallet-context'
 import { useEphemeralWallet } from '@/features/voto/crypto/use-ephemeral-wallet'
 import { isWebCryptoSupported } from '@/features/voto/crypto/web-crypto-support'
-import {
-  estadoRevotoQueryKey,
-} from '@/features/voto/hooks/use-estado-revoto'
+import { estadoRevotoQueryKey } from '@/features/voto/hooks/use-estado-revoto'
 import {
   clearVotanteSession,
   ensureVotanteSession,

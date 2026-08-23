@@ -84,10 +84,12 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
     // same voter reaches the same nullifier across sign attempts — but the
     // seed is not the private/public key, and never appears verbatim in it.
     expect(localStorageMock.length).toBe(1)
-    expect(localStorageMock.getItem(seedStorageKey(7, VOTANTE_SCOPE_A))).toMatch(
-      /^0x[0-9a-f]{64}$/
-    )
-    expect(localStorageMock.getItem(seedStorageKey(7, VOTANTE_SCOPE_A))).not.toBe(publicKeyHex)
+    expect(
+      localStorageMock.getItem(seedStorageKey(7, VOTANTE_SCOPE_A))
+    ).toMatch(/^0x[0-9a-f]{64}$/)
+    expect(
+      localStorageMock.getItem(seedStorageKey(7, VOTANTE_SCOPE_A))
+    ).not.toBe(publicKeyHex)
     expect(sessionStorageMock.length).toBe(0)
     expect(document.cookie).not.toContain(publicKeyHex.slice(2))
     expect(document.cookie.toLowerCase()).not.toContain('private')
@@ -119,12 +121,12 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
     const voterB = await manager.initialize(7, VOTANTE_SCOPE_B)
 
     expect(voterB.publicKeyHex).not.toBe(voterA.publicKeyHex)
-    expect(localStorageMock.getItem(seedStorageKey(7, VOTANTE_SCOPE_A))).toMatch(
-      /^0x[0-9a-f]{64}$/
-    )
-    expect(localStorageMock.getItem(seedStorageKey(7, VOTANTE_SCOPE_B))).toMatch(
-      /^0x[0-9a-f]{64}$/
-    )
+    expect(
+      localStorageMock.getItem(seedStorageKey(7, VOTANTE_SCOPE_A))
+    ).toMatch(/^0x[0-9a-f]{64}$/)
+    expect(
+      localStorageMock.getItem(seedStorageKey(7, VOTANTE_SCOPE_B))
+    ).toMatch(/^0x[0-9a-f]{64}$/)
   })
 
   it('UAT-03: does not expose private key accessors on the public API or window', async () => {
