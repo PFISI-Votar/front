@@ -89,6 +89,10 @@ import {
   mapVoteTxError,
   type VoteTxError,
 } from '@/features/voto/crypto/vote-tx-errors'
+import {
+  leerHasVoted,
+  leerIsNullifierUsed,
+} from '@/features/voto/crypto/voter-state'
 import type {
   BoletaDigital,
   CandidatoBoletaDigital,
@@ -127,7 +131,7 @@ type WizardStep =
   | 'limit-reached'
   | 'cooldown'
 
-type TransmitUiPhase = TransmitProgressPhase | 'error'
+type TransmitUiPhase = TransmitProgressPhase | 'reconciling' | 'error'
 
 type Candidate = {
   id: string
@@ -479,7 +483,7 @@ export const BudVotingWizard = ({
     /** On-chain votesUsed for this nullifier; drives idempotent backend sync. */
     votosObjetivo?: number
   }) => {
-    // VOTAR-452: claim the consumo lock before awaiting so catch-up cannot race.
+    // VOTAR-451 / VOTAR-452: claim the consumo lock before background sync so catch-up cannot race.
     consumoCatchUpStartedRef.current = true
     setTxHash(receipt.txHash)
     setBlockNumber(receipt.blockNumber)
@@ -487,32 +491,29 @@ export const BudVotingWizard = ({
     setTxError(null)
     const votosObjetivo =
       receipt.votosObjetivo ?? Math.max(1, voterStateOnChain?.votesUsed ?? 1)
-    // VOTAR-328 / VOTAR-445 / VOTAR-452: sync consumo while JWT session is alive.
-    try {
-      await registrarConsumoMutation.mutateAsync(votosObjetivo)
-    } catch {
+
+    // On-chain cast is authoritative — show receipt immediately (VOTAR-451 UAT).
+    setSignedVote(null)
+    setMerkleProofData(null)
+    setVoteReceiptReady(true)
+    setStep('success')
+    clearPendingVoteCast(boleta.idEleccion)
+
+    // VOTAR-328 / VOTAR-445 / VOTAR-451 / VOTAR-452: sync consumo without blocking success UX.
+    void registrarConsumoMutation.mutateAsync(votosObjetivo).catch(() => {
       consumoCatchUpStartedRef.current = false
-      // El cast on-chain ya confirmó; no bloquear el recibo por el contador.
-    }
+    })
     if (receipt.txHash) {
-      // VOTAR-373: index public tx for dashboard (no SSO cookies).
       void registrarTransaccionPublica(boleta.idEleccion, receipt.txHash).catch(
         () => {
           // Recibo on-chain ya confirmado; el índice no debe bloquear la UX.
         }
       )
     }
-    // VOTAR-379 UAT-05: anonymous audit before clearing SSO (no cookies on call).
     void registrarVotoEmitidoAnonimo(boleta.idEleccion).catch(() => {
       // Recibo on-chain ya confirmado; el audit no debe bloquear la UX.
     })
-    // VOTAR-379 UAT-03: drop identity-linked crypto material after receipt.
-    setSignedVote(null)
-    setMerkleProofData(null)
-    setVoteReceiptReady(true)
-    setStep('success')
-    clearPendingVoteCast(boleta.idEleccion)
-    await clearVotanteSession()
+    void clearVotanteSession()
   }
 
   // VOTAR-445: si F5 interrumpió el wait del receipt, reanudar y completar consumo.
@@ -546,6 +547,9 @@ export const BudVotingWizard = ({
           })
           return
         }
+        if (mapped.code === 'timeout' || mapped.code === 'network') {
+          clearPendingVoteCast(boleta.idEleccion)
+        }
         reportVoteTxError(mapped, boleta.idEleccion)
         setTxError(mapped)
         setTransmitPhase('error')
@@ -557,7 +561,7 @@ export const BudVotingWizard = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boleta.idEleccion])
 
-  // VOTAR-445: si on-chain ya contabilizó votos y el backend no, sincronizar consumo.
+  // VOTAR-445 / VOTAR-451: si on-chain ya contabilizó votos y el backend no, sync idempotente.
   useEffect(() => {
     if (consumoCatchUpStartedRef.current) {
       return
@@ -705,14 +709,46 @@ export const BudVotingWizard = ({
     setTransmitPhase('estimating')
 
     try {
+      // VOTAR-451: leaf already voted under another nullifier (tab reopen) →
+      // do not broadcast a second unique VoteCast.
+      const leaf = merkleProofData.hashHoja as Hex
+      const ballotAddress = merkleProofData.ballotContractAddress
+      setTransmitPhase('reconciling')
+      const leafAlreadyVoted = await leerHasVoted(
+        boleta.idEleccion,
+        leaf,
+        ballotAddress
+      )
+      if (leafAlreadyVoted) {
+        const nullifierAlreadyUsed = nullifier
+          ? await leerIsNullifierUsed(
+              boleta.idEleccion,
+              nullifier,
+              ballotAddress
+            )
+          : false
+        if (!nullifierAlreadyUsed) {
+          await finalizeSuccessfulCast({
+            txHash: loadPendingVoteCast(boleta.idEleccion)?.txHash ?? null,
+            blockNumber: null,
+            votosObjetivo: Math.max(
+              1,
+              voterStateOnChain?.votesUsed ?? estadoRevoto?.votosConsumidos ?? 1
+            ),
+          })
+          return
+        }
+      }
+
+      setTransmitPhase('estimating')
       const result = await transmitSignedVote(
         {
           signed,
-          voterLeaf: merkleProofData.hashHoja as Hex,
+          voterLeaf: leaf,
           merkleProof: merkleProofData.merkleProof as Hex[],
         },
         {
-          contractAddress: merkleProofData.ballotContractAddress,
+          contractAddress: ballotAddress,
           onProgress: (phase) => {
             setTransmitPhase(phase)
           },
@@ -2071,9 +2107,11 @@ const TransmitStep = ({
       ? 'Enviando...'
       : phase === 'confirming'
         ? 'Esperando confirmación de red (minado)...'
-        : phase === 'error'
-          ? 'No se pudo completar el envío'
-          : 'Preparando envío...'
+        : phase === 'reconciling'
+          ? 'Reconciliando voto registrado previamente...'
+          : phase === 'error'
+            ? 'No se pudo completar el envío'
+            : 'Preparando envío...'
   const blankRoles = roles.filter((role) =>
     roleHasBlankSelection(candidateSelections, role.id)
   )

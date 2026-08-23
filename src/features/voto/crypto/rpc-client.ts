@@ -14,6 +14,7 @@ import {
   getChainId,
   getRpcUrl,
   getVoteTransmitterPrivateKey,
+  VOTE_RPC_REQUEST_TIMEOUT_MS,
 } from '@/features/voto/crypto/constants'
 
 export type VotePublicClient = PublicClient<Transport, Chain>
@@ -55,7 +56,7 @@ export const createVotePublicClient = (
 
   return createPublicClient({
     chain: resolveChain(chainId),
-    transport: http(rpcUrl),
+    transport: http(rpcUrl, { timeout: VOTE_RPC_REQUEST_TIMEOUT_MS }),
     // Polling más agresivo en desarrollo (1s vs 4s default)
     // para respuesta instantánea con Hardhat
     pollingInterval: isDev ? 1_000 : 4_000,
@@ -74,6 +75,6 @@ export const createVoteTransmitterWalletClient = (
   return createWalletClient({
     account,
     chain: resolveChain(chainId),
-    transport: http(rpcUrl),
+    transport: http(rpcUrl, { timeout: VOTE_RPC_REQUEST_TIMEOUT_MS }),
   })
 }
