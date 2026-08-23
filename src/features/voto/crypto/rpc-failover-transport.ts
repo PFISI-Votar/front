@@ -132,7 +132,7 @@ const createSkewAwareTransport = (
                 if (isRpcFailoverError(error)) {
                   throw error
                 }
-                throw new Error('503 Service Unavailable')
+                throw new Error('503 Service Unavailable', { cause: error })
               }
             }
           }
