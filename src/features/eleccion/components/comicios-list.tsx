@@ -3,11 +3,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
   AlertCircle,
+  Archive,
   BadgeCheck,
   Eye,
   FileSpreadsheet,
+  Pause,
   Pencil,
   Play,
+  PlayCircle,
   Square,
   Trash2,
   Vote,
@@ -40,8 +43,11 @@ import {
 } from '@/features/eleccion/api/eleccion-api'
 import { ComicioVentanaElectoral } from '@/features/eleccion/components/comicio-ventana-electoral'
 import { EliminarComicioDialog } from '@/features/eleccion/components/eliminar-comicio-dialog'
+import { PausarComicioDialog } from '@/features/eleccion/components/pausar-comicio-dialog'
+import { ReanudarComicioDialog } from '@/features/eleccion/components/reanudar-comicio-dialog'
 import type { EleccionEstado } from '@/features/eleccion/data/schema'
 import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
+import { useArchivarEleccion } from '@/features/eleccion/hooks/use-archivar-eleccion'
 import { useCerrarEleccion } from '@/features/eleccion/hooks/use-cerrar-eleccion'
 import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
 import {
@@ -176,6 +182,47 @@ const CerrarComicioDialog = ({
   )
 }
 
+interface ArchivarComicioDialogProps {
+  idEleccion: number
+  nombreEleccion: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+const ArchivarComicioDialog = ({
+  idEleccion,
+  nombreEleccion,
+  open,
+  onOpenChange,
+}: ArchivarComicioDialogProps) => {
+  const { mutate: archivarEleccion, isPending } =
+    useArchivarEleccion(idEleccion)
+
+  return (
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title='¿Archivar el comicio?'
+      desc={
+        <>
+          El comicio <strong>{nombreEleccion}</strong> se removerá del panel de
+          gestión activa y pasará a la pestaña "Históricos". Los datos del
+          escrutinio y la evidencia on-chain en Sepolia permanecen públicos y
+          accesibles sin cambios.
+        </>
+      }
+      cancelBtnText='Cancelar'
+      confirmText='Sí, archivar comicio'
+      isLoading={isPending}
+      handleConfirm={() => {
+        archivarEleccion(undefined, {
+          onSuccess: () => onOpenChange(false),
+        })
+      }}
+    />
+  )
+}
+
 type ComicioActionTarget = {
   open: boolean
   idEleccion: number | null
@@ -188,16 +235,26 @@ const emptyActionTarget = (): ComicioActionTarget => ({
   nombreEleccion: '',
 })
 
-export const ComiciosList = () => {
+interface ComiciosListProps {
+  estado?: 'activos' | 'historicos'
+}
+
+export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [abrirDialog, setAbrirDialog] =
     useState<ComicioActionTarget>(emptyActionTarget)
   const [cerrarDialog, setCerrarDialog] =
     useState<ComicioActionTarget>(emptyActionTarget)
+  const [pausarDialog, setPausarDialog] =
+    useState<ComicioActionTarget>(emptyActionTarget)
+  const [reanudarDialog, setReanudarDialog] =
+    useState<ComicioActionTarget>(emptyActionTarget)
   const [oficializarDialog, setOficializarDialog] =
     useState<ComicioActionTarget>(emptyActionTarget)
   const [eliminarDialog, setEliminarDialog] =
+    useState<ComicioActionTarget>(emptyActionTarget)
+  const [archivarDialog, setArchivarDialog] =
     useState<ComicioActionTarget>(emptyActionTarget)
   const [preconditionError, setPreconditionError] = useState<string | null>(
     null
@@ -208,8 +265,9 @@ export const ComiciosList = () => {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ['elecciones'],
-    queryFn: listarElecciones,
+    queryKey: ['elecciones', estado],
+    queryFn: () =>
+      listarElecciones(estado === 'historicos' ? 'ARCHIVADA' : undefined),
   })
 
   useEleccionWebSocket({
@@ -217,6 +275,15 @@ export const ComiciosList = () => {
       queryClient.invalidateQueries({ queryKey: ['elecciones'] })
     },
     onEleccionCerrada: () => {
+      queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+    },
+    onEleccionPausada: () => {
+      queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+    },
+    onEleccionReanudada: () => {
+      queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+    },
+    onEleccionArchivada: () => {
       queryClient.invalidateQueries({ queryKey: ['elecciones'] })
     },
   })
@@ -270,6 +337,20 @@ export const ComiciosList = () => {
     setCerrarDialog({ open: true, idEleccion, nombreEleccion })
   }
 
+  const handleOpenPausarDialog = (
+    idEleccion: number,
+    nombreEleccion: string
+  ) => {
+    setPausarDialog({ open: true, idEleccion, nombreEleccion })
+  }
+
+  const handleOpenReanudarDialog = (
+    idEleccion: number,
+    nombreEleccion: string
+  ) => {
+    setReanudarDialog({ open: true, idEleccion, nombreEleccion })
+  }
+
   const handleOpenOficializarDialog = (
     idEleccion: number,
     nombreEleccion: string
@@ -282,6 +363,13 @@ export const ComiciosList = () => {
     nombreEleccion: string
   ) => {
     setEliminarDialog({ open: true, idEleccion, nombreEleccion })
+  }
+
+  const handleOpenArchivarDialog = (
+    idEleccion: number,
+    nombreEleccion: string
+  ) => {
+    setArchivarDialog({ open: true, idEleccion, nombreEleccion })
   }
 
   if (isLoading) {
@@ -302,6 +390,22 @@ export const ComiciosList = () => {
   }
 
   if (!comicios?.length) {
+    if (estado === 'historicos') {
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle className='flex items-center gap-2 text-lg'>
+              <Archive className='size-5' />
+              Sin comicios archivados
+            </CardTitle>
+            <CardDescription>
+              Los comicios que archive desde el panel de gestión activa
+              aparecerán aquí.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )
+    }
     return (
       <Card>
         <CardHeader>
@@ -363,9 +467,20 @@ export const ComiciosList = () => {
                     fechaFin={comicio.fechaFin}
                   />
                 </div>
-                <Badge variant={estadoVariant(comicio.estado)}>
-                  {getEstadoEleccionLabel(comicio.estado)}
-                </Badge>
+                <div className='flex items-center gap-2'>
+                  {comicio.pausada && (
+                    <Badge
+                      variant='destructive'
+                      aria-label={`${comicio.nombre} está pausada`}
+                    >
+                      <Pause className='size-3' />
+                      Pausada
+                    </Badge>
+                  )}
+                  <Badge variant={estadoVariant(comicio.estado)}>
+                    {getEstadoEleccionLabel(comicio.estado)}
+                  </Badge>
+                </div>
               </CardHeader>
               <CardContent
                 className='flex flex-wrap items-end justify-between gap-3'
@@ -451,6 +566,53 @@ export const ComiciosList = () => {
                       Cerrar comicio
                     </Button>
                   )}
+                  {comicio.estado === 'ABIERTA' && !comicio.pausada && (
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      onClick={() =>
+                        handleOpenPausarDialog(
+                          comicio.idEleccion,
+                          comicio.nombre
+                        )
+                      }
+                      aria-label={`Pausar comicio ${comicio.nombre}`}
+                    >
+                      <Pause />
+                      Pausar comicio
+                    </Button>
+                  )}
+                  {comicio.pausada && (
+                    <Button
+                      size='sm'
+                      onClick={() =>
+                        handleOpenReanudarDialog(
+                          comicio.idEleccion,
+                          comicio.nombre
+                        )
+                      }
+                      aria-label={`Reanudar comicio ${comicio.nombre}`}
+                    >
+                      <PlayCircle />
+                      Reanudar comicio
+                    </Button>
+                  )}
+                  {comicio.estado === 'CERRADA' && (
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      onClick={() =>
+                        handleOpenArchivarDialog(
+                          comicio.idEleccion,
+                          comicio.nombre
+                        )
+                      }
+                      aria-label={`Archivar comicio ${comicio.nombre}`}
+                    >
+                      <Archive />
+                      Archivar Comicio
+                    </Button>
+                  )}
                 </div>
                 {comicio.estado === 'BORRADOR' && (
                   <div className='ms-auto flex flex-wrap justify-end gap-2'>
@@ -520,6 +682,36 @@ export const ComiciosList = () => {
         />
       )}
 
+      {pausarDialog.idEleccion !== null && (
+        <PausarComicioDialog
+          idEleccion={pausarDialog.idEleccion}
+          nombreEleccion={pausarDialog.nombreEleccion}
+          open={pausarDialog.open}
+          onOpenChange={(open) =>
+            setPausarDialog((prev) => ({
+              ...prev,
+              open,
+              ...(open ? {} : { idEleccion: null, nombreEleccion: '' }),
+            }))
+          }
+        />
+      )}
+
+      {reanudarDialog.idEleccion !== null && (
+        <ReanudarComicioDialog
+          idEleccion={reanudarDialog.idEleccion}
+          nombreEleccion={reanudarDialog.nombreEleccion}
+          open={reanudarDialog.open}
+          onOpenChange={(open) =>
+            setReanudarDialog((prev) => ({
+              ...prev,
+              open,
+              ...(open ? {} : { idEleccion: null, nombreEleccion: '' }),
+            }))
+          }
+        />
+      )}
+
       <ConfirmDialog
         open={oficializarDialog.open}
         onOpenChange={(open) =>
@@ -562,6 +754,19 @@ export const ComiciosList = () => {
           }
         }}
       />
+
+      {archivarDialog.idEleccion !== null && (
+        <ArchivarComicioDialog
+          idEleccion={archivarDialog.idEleccion}
+          nombreEleccion={archivarDialog.nombreEleccion}
+          open={archivarDialog.open}
+          onOpenChange={(open) =>
+            setArchivarDialog((prev) =>
+              open ? { ...prev, open } : emptyActionTarget()
+            )
+          }
+        />
+      )}
     </>
   )
 }
