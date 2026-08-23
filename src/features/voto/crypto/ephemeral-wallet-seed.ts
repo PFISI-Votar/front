@@ -4,14 +4,15 @@ import { bytesToHex, hexToBytes, keccak256, toBytes, type Hex } from 'viem'
 const SEED_BYTES = 32
 const MAX_DERIVE_ATTEMPTS = 16
 const STORAGE_PREFIX = 'votar:vote-seed:'
+
+const storageKey = (idEleccion: number, votanteScope: string): string =>
+  `${STORAGE_PREFIX}${idEleccion}:${votanteScope}`
+
 const SEED_HEX_REGEX = /^0x[0-9a-f]{64}$/i
 
-const storageKey = (idEleccion: number): string =>
-  `${STORAGE_PREFIX}${idEleccion}`
-
 /**
- * Returns the per-(browser, idEleccion) random seed used to deterministically
- * derive the voter's ephemeral wallet.
+ * Returns the per-(browser, idEleccion, votanteScope) random seed used to
+ * deterministically derive the voter's ephemeral wallet.
  *
  * The seed itself is random — never derived from `votanteHash`, dni, email
  * or any padron data — so it never lets an outside party (including someone
@@ -22,13 +23,16 @@ const storageKey = (idEleccion: number): string =>
  * voter's previous on-chain vote instead of registering as a brand-new
  * anonymous voter.
  *
- * Persisted in localStorage (not sessionStorage) so revotes still resolve
- * to the same nullifier across logout/login cycles, matching the
- * server-side revote-attempt tracking in `estado-revoto` (VOTAR-328), which
- * is also keyed per voter across sessions.
+ * Scoped by `votanteScope` (JWT sub) so two legajos on the same browser do
+ * not share a nullifier or on-chain cooldown (VOTAR-452 bug 4). Persisted
+ * in localStorage so revotes resolve to the same nullifier across logout/login
+ * cycles, matching server-side `estado-revoto` (VOTAR-328).
  */
-export const getOrCreateElectionSeed = (idEleccion: number): Uint8Array => {
-  const key = storageKey(idEleccion)
+export const getOrCreateElectionSeed = (
+  idEleccion: number,
+  votanteScope: string
+): Uint8Array => {
+  const key = storageKey(idEleccion, votanteScope)
   const stored = globalThis.localStorage.getItem(key)
   if (stored && SEED_HEX_REGEX.test(stored)) {
     return hexToBytes(stored as Hex)

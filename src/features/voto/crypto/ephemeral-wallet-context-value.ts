@@ -9,7 +9,10 @@ export type EphemeralWalletContextValue = {
   isReady: boolean
   publicKeyHex: string | null
   session: EphemeralWalletSession | null
-  initialize: (idEleccion: number) => Promise<EphemeralWalletSession>
+  initialize: (
+    idEleccion: number,
+    votanteScope: string
+  ) => Promise<EphemeralWalletSession>
   signVotePayload: (
     selection: SelectionPayload,
     nullifier: Hex,

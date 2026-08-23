@@ -38,9 +38,13 @@ const registrarTransaccionPublicaMock = vi.fn().mockResolvedValue(undefined)
 const registrarConsumoIntentoMock = vi.fn()
 const obtenerEstadoRevotoMock = vi.fn()
 const leerVoterStateMock = vi.fn()
+const leerHasVotedMock = vi.fn()
+const leerIsNullifierUsedMock = vi.fn()
 
 vi.mock('@/features/voto/crypto/voter-state', () => ({
   leerVoterState: (...args: unknown[]) => leerVoterStateMock(...args),
+  leerHasVoted: (...args: unknown[]) => leerHasVotedMock(...args),
+  leerIsNullifierUsed: (...args: unknown[]) => leerIsNullifierUsedMock(...args),
 }))
 
 const defaultEstadoRevoto: EstadoRevoto = {
@@ -209,6 +213,8 @@ const boleta: BoletaDigital = {
   ],
 }
 
+const VOTANTE_SCOPE = 'test-voter-sub'
+
 async function renderWizard(
   tipoVotacion: TipoVotacion = TIPOS_VOTACION.POR_CANDIDATO,
   onLogout: () => void = vi.fn(),
@@ -223,6 +229,7 @@ async function renderWizard(
         <BudVotingWizard
           boleta={boletaOverride}
           tipoVotacion={tipoVotacion}
+          votanteScope={VOTANTE_SCOPE}
           onLogout={onLogout}
         />
       </EphemeralWalletProvider>
@@ -256,6 +263,8 @@ describe('BudVotingWizard', () => {
     logVoteTxErrorMock.mockClear()
     obtenerEstadoRevotoMock.mockReset()
     leerVoterStateMock.mockReset()
+    leerHasVotedMock.mockReset()
+    leerIsNullifierUsedMock.mockReset()
     clearVotanteSessionMock.mockResolvedValue(undefined)
     registrarVotoEmitidoAnonimoMock.mockResolvedValue(undefined)
     registrarTransaccionPublicaMock.mockResolvedValue(undefined)
@@ -264,6 +273,9 @@ describe('BudVotingWizard', () => {
     // alcanzable; los tests existentes (que asumen el estado off-chain como
     // única fuente) siguen valiendo sin cambios. Los tests on-chain overridean esto.
     leerVoterStateMock.mockRejectedValue(new Error('contract not reachable'))
+    // VOTAR-451: leaf libre por defecto → el camino feliz sigue transmitiendo.
+    leerHasVotedMock.mockResolvedValue(false)
+    leerIsNullifierUsedMock.mockResolvedValue(false)
     registrarConsumoIntentoMock.mockResolvedValue({
       ...defaultEstadoRevoto,
       votosConsumidos: 1,
@@ -438,6 +450,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={{ ...boleta, permitirVotoEnBlanco: false }}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -474,6 +487,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={{ ...boleta, permitirVotoNulo: false }}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -512,6 +526,7 @@ describe('BudVotingWizard', () => {
               permitirVotoNulo: false,
             }}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -729,6 +744,27 @@ describe('BudVotingWizard', () => {
       .not.toBeInTheDocument()
   })
 
+  it('VOTAR-451: si el leaf ya votó con otro nullifier, no retransmite y muestra éxito', async () => {
+    leerHasVotedMock.mockResolvedValue(true)
+    leerIsNullifierUsedMock.mockResolvedValue(false)
+
+    const screen = await renderWizard()
+    await userEvent.click(
+      screen.getByRole('button', { name: /Votar en blanco/i })
+    )
+    await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
+    await userEvent.click(
+      screen.getByRole('button', { name: /Firmar y confirmar/i })
+    )
+
+    await expect
+      .element(screen.getByText('Voto Exitoso', { exact: true }))
+      .toBeInTheDocument()
+    expect(transmitSignedVoteMock).not.toHaveBeenCalled()
+    expect(registrarConsumoIntentoMock).toHaveBeenCalledOnce()
+    expect(registrarConsumoIntentoMock).toHaveBeenCalledWith(7, 1)
+  })
+
   it('VOTAR-445: muestra Cerrar sesión en pasos activos del wizard', async () => {
     const onLogout = vi.fn()
     const screen = await renderWizard(TIPOS_VOTACION.POR_CANDIDATO, onLogout)
@@ -766,6 +802,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={boleta}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -868,6 +905,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={boleta}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -915,6 +953,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={boleta}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -953,6 +992,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={boleta}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -1000,6 +1040,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={boleta}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -1067,6 +1108,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={boleta}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>

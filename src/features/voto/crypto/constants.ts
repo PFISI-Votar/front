@@ -134,3 +134,16 @@ export const VOTE_TX_MAX_ATTEMPTS = 3
  */
 export const VOTE_TX_CONFIRMATION_TIMEOUT_MS =
   import.meta.env.DEV || import.meta.env.MODE === 'test' ? 30_000 : 90_000
+
+/** Per-request JSON-RPC timeout so estimate/gas reads cannot hang forever (VOTAR-451). */
+export const VOTE_RPC_REQUEST_TIMEOUT_MS = 30_000
+
+/** Axios timeout for voter-scoped API calls during cast finalization (VOTAR-451). */
+export const VOTANTE_API_TIMEOUT_MS = 30_000
+
+/**
+ * Pending casts older than receipt wait + buffer are discarded on load (VOTAR-451).
+ * Avoids auto-resuming a stale txHash that traps the wizard on mount.
+ */
+export const PENDING_VOTE_CAST_MAX_AGE_MS =
+  VOTE_TX_CONFIRMATION_TIMEOUT_MS + 60_000

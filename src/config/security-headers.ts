@@ -45,7 +45,7 @@ export const buildContentSecurityPolicy = (
   const { apiOrigin, isDev, isHttps = !isDev } = options
   const api = normalizeOrigin(apiOrigin)
   const scriptSrc = isDev
-    ? "script-src 'self' 'unsafe-inline'"
+    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
     : "script-src 'self'"
   const directives = [
     "default-src 'self'",
