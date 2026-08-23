@@ -161,6 +161,8 @@ type PartyList = {
 type BudVotingWizardProps = {
   boleta: BoletaDigital
   tipoVotacion: TipoVotacion
+  /** JWT sub — scopes revote cache, cooldown anchor and ephemeral wallet per voter (VOTAR-452). */
+  votanteScope: string
   cryptoReady?: boolean
   /** VOTAR-347 — true mientras la urna digital está pausada por incidente. */
   pausada?: boolean
@@ -331,6 +333,7 @@ const reportVoteTxError = (error: VoteTxError, electionId: number): void => {
 export const BudVotingWizard = ({
   boleta,
   tipoVotacion,
+  votanteScope,
   cryptoReady = false,
   pausada = false,
   onLogout,
@@ -366,8 +369,11 @@ export const BudVotingWizard = ({
     data: estadoRevoto,
     isLoading: isLoadingEstadoRevoto,
     isError: isEstadoRevotoError,
-  } = useEstadoRevoto(boleta.idEleccion)
-  const registrarConsumoMutation = useRegistrarConsumoIntento(boleta.idEleccion)
+  } = useEstadoRevoto(boleta.idEleccion, votanteScope)
+  const registrarConsumoMutation = useRegistrarConsumoIntento(
+    boleta.idEleccion,
+    votanteScope
+  )
   const {
     signVotePayload,
     initialize: initializeEphemeralWallet,
@@ -389,7 +395,7 @@ export const BudVotingWizard = ({
     }
   }, [publicKeyHex, boleta.idEleccion])
 
-  const cooldownScope = nullifier ?? 'pre-nullifier'
+  const cooldownScope = nullifier ?? `pre-nullifier:${votanteScope}`
 
   const { data: voterStateOnChain } = useVoterStateOnChain(
     boleta.idEleccion,
@@ -470,15 +476,22 @@ export const BudVotingWizard = ({
   const finalizeSuccessfulCast = async (receipt: {
     txHash: Hex | null
     blockNumber: number | null
+    /** On-chain votesUsed for this nullifier; drives idempotent backend sync. */
+    votosObjetivo?: number
   }) => {
+    // VOTAR-452: claim the consumo lock before awaiting so catch-up cannot race.
+    consumoCatchUpStartedRef.current = true
     setTxHash(receipt.txHash)
     setBlockNumber(receipt.blockNumber)
     setTransmitPhase(null)
     setTxError(null)
-    // VOTAR-328 / VOTAR-445: consumir intento mientras la sesión JWT sigue activa.
+    const votosObjetivo =
+      receipt.votosObjetivo ?? Math.max(1, voterStateOnChain?.votesUsed ?? 1)
+    // VOTAR-328 / VOTAR-445 / VOTAR-452: sync consumo while JWT session is alive.
     try {
-      await registrarConsumoMutation.mutateAsync()
+      await registrarConsumoMutation.mutateAsync(votosObjetivo)
     } catch {
+      consumoCatchUpStartedRef.current = false
       // El cast on-chain ya confirmó; no bloquear el recibo por el contador.
     }
     if (receipt.txHash) {
@@ -559,9 +572,11 @@ export const BudVotingWizard = ({
       return
     }
     consumoCatchUpStartedRef.current = true
-    void registrarConsumoMutation.mutateAsync().catch(() => {
-      consumoCatchUpStartedRef.current = false
-    })
+    void registrarConsumoMutation
+      .mutateAsync(voterStateOnChain.votesUsed)
+      .catch(() => {
+        consumoCatchUpStartedRef.current = false
+      })
   }, [estadoRevoto, registrarConsumoMutation, step, voterStateOnChain])
 
   const lists = useMemo(() => buildListsFromBoleta(boleta), [boleta])
@@ -622,7 +637,7 @@ export const BudVotingWizard = ({
     setSigningError(null)
     try {
       // VOTAR-418: post-sign destroy() cleared the key; mint a fresh wallet to re-sign.
-      await initializeEphemeralWallet(boleta.idEleccion)
+      await initializeEphemeralWallet(boleta.idEleccion, votanteScope)
       resetVote()
       goToSelection()
     } catch {
@@ -711,6 +726,7 @@ export const BudVotingWizard = ({
       await finalizeSuccessfulCast({
         txHash: result.txHash,
         blockNumber: Number(result.blockNumber),
+        votosObjetivo: Math.max(1, (voterStateOnChain?.votesUsed ?? 0) + 1),
       })
     } catch (error) {
       const mapped = mapVoteTxError(error)
@@ -722,7 +738,7 @@ export const BudVotingWizard = ({
         setTransmitPhase(null)
         setStep('selection')
         void queryClient.invalidateQueries({
-          queryKey: estadoRevotoQueryKey(boleta.idEleccion),
+          queryKey: estadoRevotoQueryKey(boleta.idEleccion, votanteScope),
         })
         void queryClient.invalidateQueries({
           queryKey: voterStateOnChainQueryKey(
@@ -799,7 +815,7 @@ export const BudVotingWizard = ({
     try {
       // After a successful sign the ephemeral key is zeroized (VOTAR-357).
       // Re-initialize so retries / second attempts always have signing material.
-      const session = await initializeEphemeralWallet(boleta.idEleccion)
+      const session = await initializeEphemeralWallet(boleta.idEleccion, votanteScope)
       const signingPublicKey = session.publicKeyHex
 
       let nullifier: `0x${string}`
@@ -854,7 +870,7 @@ export const BudVotingWizard = ({
     setSignedVote(null)
     setSigningError(null)
     try {
-      await initializeEphemeralWallet(boleta.idEleccion)
+      await initializeEphemeralWallet(boleta.idEleccion, votanteScope)
       setStep('review')
     } catch {
       setSigningError(
@@ -931,7 +947,10 @@ export const BudVotingWizard = ({
               // cooldown (block.timestamp atrasado) y evitar un falso desbloqueo.
               await Promise.all([
                 queryClient.invalidateQueries({
-                  queryKey: estadoRevotoQueryKey(boleta.idEleccion),
+                  queryKey: estadoRevotoQueryKey(
+                    boleta.idEleccion,
+                    votanteScope
+                  ),
                 }),
                 queryClient.invalidateQueries({
                   queryKey: voterStateOnChainQueryKey(
@@ -943,7 +962,7 @@ export const BudVotingWizard = ({
               ])
               const fresh = await obtenerEstadoRevoto(boleta.idEleccion)
               queryClient.setQueryData(
-                estadoRevotoQueryKey(boleta.idEleccion),
+                estadoRevotoQueryKey(boleta.idEleccion, votanteScope),
                 fresh
               )
               if ((fresh.proximoReintentoEnSegundos ?? 0) > 0) {

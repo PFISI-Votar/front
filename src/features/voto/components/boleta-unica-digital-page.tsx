@@ -23,6 +23,9 @@ import { EphemeralWalletProvider } from '@/features/voto/crypto/ephemeral-wallet
 import { useEphemeralWallet } from '@/features/voto/crypto/use-ephemeral-wallet'
 import { isWebCryptoSupported } from '@/features/voto/crypto/web-crypto-support'
 import {
+  estadoRevotoQueryKey,
+} from '@/features/voto/hooks/use-estado-revoto'
+import {
   clearVotanteSession,
   ensureVotanteSession,
 } from '@/features/voto/services/votante-session'
@@ -108,26 +111,41 @@ const BoletaUnicaDigitalPageContent = ({
     return () => window.clearTimeout(timeout)
   }, [introVisible])
 
+  const clearVoterScopedCache = useCallback(
+    (votanteScope?: string) => {
+      if (votanteScope) {
+        queryClient.removeQueries({
+          queryKey: estadoRevotoQueryKey(idEleccion, votanteScope),
+        })
+      }
+    },
+    [idEleccion, queryClient]
+  )
+
   const handleSessionExpired = useCallback(async () => {
+    clearVoterScopedCache(votanteSession?.sub)
     destroyWallet()
     await clearVotanteSession()
     setVotanteSession(null)
     setSessionExpiredMessage(
       'Tu sesión expiró. Volvé a iniciar sesión para continuar.'
     )
-  }, [destroyWallet])
+  }, [clearVoterScopedCache, destroyWallet, votanteSession?.sub])
 
-  const prepareEphemeralWallet = useCallback(async (): Promise<boolean> => {
-    try {
-      await initializeWallet(idEleccion)
-      setWalletError(null)
-      return true
-    } catch {
-      destroyWallet()
-      setWalletError(WALLET_INIT_ERROR)
-      return false
-    }
-  }, [destroyWallet, idEleccion, initializeWallet])
+  const prepareEphemeralWallet = useCallback(
+    async (votanteScope: string): Promise<boolean> => {
+      try {
+        await initializeWallet(idEleccion, votanteScope)
+        setWalletError(null)
+        return true
+      } catch {
+        destroyWallet()
+        setWalletError(WALLET_INIT_ERROR)
+        return false
+      }
+    },
+    [destroyWallet, idEleccion, initializeWallet]
+  )
 
   useEffect(() => {
     if (introVisible || sessionBootstrapComplete) {
@@ -144,7 +162,7 @@ const BoletaUnicaDigitalPageContent = ({
           setVotanteSession(null)
           return
         }
-        const isWalletReady = await prepareEphemeralWallet()
+        const isWalletReady = await prepareEphemeralWallet(user.sub)
         if (cancelled) {
           return
         }
@@ -238,7 +256,7 @@ const BoletaUnicaDigitalPageContent = ({
             void (async () => {
               setIsWalletBootstrapping(true)
               setSessionExpiredMessage(null)
-              const isWalletReady = await prepareEphemeralWallet()
+              const isWalletReady = await prepareEphemeralWallet(user.sub)
               setIsWalletBootstrapping(false)
               if (!isWalletReady) {
                 await clearVotanteSession()
@@ -308,9 +326,11 @@ const BoletaUnicaDigitalPageContent = ({
     <BudVotingWizard
       boleta={boleta}
       tipoVotacion={budConfigQuery.data.tipoVotacion as TipoVotacion}
+      votanteScope={votanteSession.sub}
       cryptoReady={isReady}
       pausada={budConfigQuery.data.pausada ?? false}
       onLogout={() => {
+        clearVoterScopedCache(votanteSession.sub)
         destroyWallet()
         void clearVotanteSession().finally(() => {
           setVotanteSession(null)
