@@ -1,7 +1,6 @@
 import {
   createPublicClient,
   createWalletClient,
-  http,
   type Chain,
   type Hex,
   type PublicClient,
@@ -13,9 +12,10 @@ import { hardhat, localhost, sepolia } from 'viem/chains'
 import {
   getChainId,
   getRpcUrl,
+  getRpcUrls,
   getVoteTransmitterPrivateKey,
-  VOTE_RPC_REQUEST_TIMEOUT_MS,
 } from '@/features/voto/crypto/constants'
+import { createVoteRpcTransport } from '@/features/voto/crypto/rpc-failover-transport'
 
 export type VotePublicClient = PublicClient<Transport, Chain>
 export type VoteWalletClient = WalletClient<Transport, Chain>
@@ -45,9 +45,10 @@ const resolveChain = (chainId: number): Chain => {
  * Uses faster polling (1s) in development for instant Hardhat blocks.
  */
 export const createVotePublicClient = (
-  rpcUrl = getRpcUrl(),
+  rpcUrl?: string,
   chainId = getChainId()
 ): VotePublicClient => {
+  const urls = rpcUrl ? [rpcUrl] : getRpcUrls()
   const isDev =
     chainId === hardhat.id ||
     chainId === localhost.id ||
@@ -56,7 +57,7 @@ export const createVotePublicClient = (
 
   return createPublicClient({
     chain: resolveChain(chainId),
-    transport: http(rpcUrl, { timeout: VOTE_RPC_REQUEST_TIMEOUT_MS }),
+    transport: createVoteRpcTransport(urls),
     // Polling más agresivo en desarrollo (1s vs 4s default)
     // para respuesta instantánea con Hardhat
     pollingInterval: isDev ? 1_000 : 4_000,
@@ -68,13 +69,14 @@ export const createVotePublicClient = (
  */
 export const createVoteTransmitterWalletClient = (
   privateKey: Hex = getVoteTransmitterPrivateKey(),
-  rpcUrl = getRpcUrl(),
+  rpcUrl?: string,
   chainId = getChainId()
 ): VoteWalletClient => {
   const account = privateKeyToAccount(privateKey)
+  const urls = rpcUrl ? [rpcUrl] : getRpcUrls()
   return createWalletClient({
     account,
     chain: resolveChain(chainId),
-    transport: http(rpcUrl, { timeout: VOTE_RPC_REQUEST_TIMEOUT_MS }),
+    transport: createVoteRpcTransport(urls),
   })
 }

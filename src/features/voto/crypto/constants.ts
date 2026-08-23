@@ -1,3 +1,5 @@
+import { parseRpcUrls } from '@/features/voto/crypto/rpc-failover'
+
 /**
  * Cross-repo EIP-712 contract for VOTAR-357 / VOTAR-346 (must match BallotContract.sol).
  *
@@ -68,13 +70,22 @@ const DEV_RPC_URL = 'http://127.0.0.1:8545'
 /**
  * JSON-RPC endpoint for vote transmission (VOTAR-358).
  */
-export const getRpcUrl = (): string => {
-  const value = import.meta.env.VITE_RPC_URL
-  if (typeof value === 'string' && value.trim().length > 0) {
-    return value.trim()
+export const getRpcUrl = (): string => getRpcUrls()[0]
+
+/**
+ * Primary + backup RPC endpoints (VOTAR-386).
+ * `VITE_RPC_FALLBACK_URLS` is a comma-separated Infura/Alchemy/QuickNode list.
+ */
+export const getRpcUrls = (): string[] => {
+  const urls = parseRpcUrls(
+    import.meta.env.VITE_RPC_URL,
+    import.meta.env.VITE_RPC_FALLBACK_URLS
+  )
+  if (urls.length > 0) {
+    return urls
   }
   if (import.meta.env.DEV || import.meta.env.MODE === 'test') {
-    return DEV_RPC_URL
+    return [DEV_RPC_URL]
   }
   throw new Error('VITE_RPC_URL no está configurada para transmitir el voto')
 }
