@@ -14,7 +14,7 @@ describe('EphemeralWalletProvider (VOTAR-418)', () => {
       wrapper,
     })
 
-    await act(() => result.current.initialize(418))
+    await act(() => result.current.initialize(418, 'voter-scope-a'))
 
     expect(result.current.isReady).toBe(true)
     expect(result.current.publicKeyHex).toMatch(/^0x0[23][0-9a-f]{64}$/)

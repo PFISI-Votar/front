@@ -213,6 +213,8 @@ const boleta: BoletaDigital = {
   ],
 }
 
+const VOTANTE_SCOPE = 'test-voter-sub'
+
 async function renderWizard(
   tipoVotacion: TipoVotacion = TIPOS_VOTACION.POR_CANDIDATO,
   onLogout: () => void = vi.fn(),
@@ -227,6 +229,7 @@ async function renderWizard(
         <BudVotingWizard
           boleta={boletaOverride}
           tipoVotacion={tipoVotacion}
+          votanteScope={VOTANTE_SCOPE}
           onLogout={onLogout}
         />
       </EphemeralWalletProvider>
@@ -447,6 +450,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={{ ...boleta, permitirVotoEnBlanco: false }}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -483,6 +487,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={{ ...boleta, permitirVotoNulo: false }}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -521,6 +526,7 @@ describe('BudVotingWizard', () => {
               permitirVotoNulo: false,
             }}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -796,6 +802,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={boleta}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -898,6 +905,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={boleta}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -945,6 +953,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={boleta}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -983,6 +992,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={boleta}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -1030,6 +1040,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={boleta}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -1097,6 +1108,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={boleta}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>

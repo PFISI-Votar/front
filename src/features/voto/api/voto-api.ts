@@ -45,7 +45,7 @@ export const obtenerEstadoRevoto = async (
   return data
 }
 
-/** VOTAR-328 / VOTAR-451: sync consumo to on-chain count (idempotent). */
+/** VOTAR-328 / VOTAR-451 / VOTAR-452: sync consumo to on-chain count (idempotent). */
 export const registrarConsumoIntento = async (
   idEleccion: number,
   votosObjetivo?: number
