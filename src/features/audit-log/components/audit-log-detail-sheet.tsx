@@ -29,6 +29,8 @@ export const AuditLogDetailSheet = ({
   }
 
   const eventLabel = getAuditEventLabel(item.tipoEvento)
+  const razon = item.datosAdicionales?.razon
+  const hashTransaccion = item.datosAdicionales?.hashTransaccion
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -80,6 +82,18 @@ export const AuditLogDetailSheet = ({
             />
             <DetailRow label='Endpoint' value={item.endpoint} mono />
             <DetailRow label='Descripción' value={item.descripcion ?? '—'} />
+            {typeof razon === 'string' && razon.length > 0 && (
+              <DetailRow label='Razón / justificación' value={razon} />
+            )}
+            {typeof hashTransaccion === 'string' &&
+              hashTransaccion.length > 0 && (
+                <DetailRow
+                  label='Hash de transacción on-chain'
+                  value={truncateHash(hashTransaccion)}
+                  mono
+                  title={hashTransaccion}
+                />
+              )}
           </div>
 
           {(item.hashAnterior != null || item.hashRegistro != null) && (

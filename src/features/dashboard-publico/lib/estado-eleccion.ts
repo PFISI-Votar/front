@@ -6,6 +6,7 @@ const ESTADO_LABEL: Record<EleccionEstado, string> = {
   ABIERTA: 'Abierta',
   CERRADA: 'Cerrada',
   ESCRUTADA: 'Escrutada',
+  ARCHIVADA: 'Archivada',
 }
 
 export const getEstadoEleccionLabel = (estado: string): string => {
@@ -22,8 +23,15 @@ export const getEstadoEleccionBadgeClass = (estado: string): string => {
   if (estado === 'CONFIGURADA') {
     return 'border-sky-200 bg-sky-50 text-sky-800'
   }
-  if (estado === 'CERRADA' || estado === 'ESCRUTADA') {
+  if (
+    estado === 'CERRADA' ||
+    estado === 'ESCRUTADA' ||
+    estado === 'ARCHIVADA'
+  ) {
     return 'border-slate-200 bg-slate-100 text-slate-700'
+  }
+  if (estado === 'DESCONOCIDO') {
+    return 'border-red-200 bg-red-50 text-red-800'
   }
   return 'border-amber-200 bg-amber-50 text-amber-900'
 }

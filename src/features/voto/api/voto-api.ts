@@ -45,12 +45,14 @@ export const obtenerEstadoRevoto = async (
   return data
 }
 
-/** VOTAR-328: registra consumo de intento tras cast on-chain (antes del logout). */
+/** VOTAR-328 / VOTAR-451 / VOTAR-452: sync consumo to on-chain count (idempotent). */
 export const registrarConsumoIntento = async (
-  idEleccion: number
+  idEleccion: number,
+  votosObjetivo?: number
 ): Promise<EstadoRevoto> => {
   const { data } = await votanteApiClient.post<EstadoRevoto>(
-    `/elecciones/${idEleccion}/estado-revoto/consumo`
+    `/elecciones/${idEleccion}/estado-revoto/consumo`,
+    typeof votosObjetivo === 'number' ? { votosObjetivo } : undefined
   )
   return data
 }
@@ -73,5 +75,31 @@ export const registrarVotoEmitidoAnonimo = async (
   )
   if (!response.ok) {
     throw new Error(`Anonymous vote audit failed (${response.status})`)
+  }
+}
+
+/**
+ * VOTAR-373: indexes the confirmed vote tx for the public dashboard.
+ * Separate from VOTAR-379; credentials omitted to avoid SSO linkage.
+ */
+export const registrarTransaccionPublica = async (
+  idEleccion: number,
+  txHash: string
+): Promise<void> => {
+  const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+  const response = await fetch(
+    `${baseUrl}/elecciones/${idEleccion}/votos/transaccion-publica`,
+    {
+      method: 'POST',
+      credentials: 'omit',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ txHash }),
+    }
+  )
+  if (!response.ok) {
+    throw new Error(`Public transaction index failed (${response.status})`)
   }
 }

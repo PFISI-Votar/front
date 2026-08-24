@@ -22,6 +22,7 @@ export type OnChainRevertName =
   | 'InvalidMerkleProof'
   | 'ElectionClosed'
   | 'RevoteDisabled'
+  | 'AlreadyVoted'
   | 'NullifierAlreadyUsed'
   | 'MerkleRootNotPublished'
   | 'MaxVotesReached'
@@ -120,6 +121,7 @@ export const getMessageForRevert = (
 
   if (
     revertName === 'RevoteDisabled' ||
+    revertName === 'AlreadyVoted' ||
     revertName === 'NullifierAlreadyUsed'
   ) {
     return {
@@ -191,8 +193,10 @@ export const getMessageForRevert = (
         'Debe esperar antes de volver a votar. El tiempo restante se muestra en pantalla.',
       severity: 'warning',
       isTransient: false,
+      // VOTAR-449: permitir volver a firmar tras esperar; el wizard además
+      // rehidrata el panel de cooldown al detectar este código.
       canRetrySend: false,
-      canResign: false,
+      canResign: true,
     }
   }
 

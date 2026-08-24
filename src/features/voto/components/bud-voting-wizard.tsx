@@ -1,6 +1,8 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { AxiosError } from 'axios'
+import { useQueryClient } from '@tanstack/react-query'
 import {
+  AlertCircle,
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
@@ -41,7 +43,11 @@ import {
   type TipoVotacion,
 } from '@/features/eleccion/lista/data/schema'
 import { firmarRecibo } from '@/features/voto/api/recibo-api'
-import { registrarVotoEmitidoAnonimo } from '@/features/voto/api/voto-api'
+import {
+  obtenerEstadoRevoto,
+  registrarTransaccionPublica,
+  registrarVotoEmitidoAnonimo,
+} from '@/features/voto/api/voto-api'
 import {
   BUD_CANDIDATE_GRID_CLASS,
   BUD_CATEGORY_GRID_CLASS,
@@ -51,21 +57,42 @@ import {
 import { VoteTransmitErrorAlert } from '@/features/voto/components/vote-transmit-error-alert'
 import type { SignedVotePayload } from '@/features/voto/crypto'
 import { getExplorerTxUrl } from '@/features/voto/crypto/constants'
+import {
+  computeRemainingSeconds,
+  loadPersistedCooldownAnchor,
+  mergeCooldownAnchor,
+  persistCooldownAnchor,
+  resolveCooldownAnchor,
+  type CooldownAnchor,
+} from '@/features/voto/crypto/cooldown-clock'
 import { logVoteTxError } from '@/features/voto/crypto/log-vote-tx-error'
 import {
   calcularNullifier,
   CredencialNulificadorInvalidaError,
 } from '@/features/voto/crypto/nullifier'
+import {
+  clearPendingVoteCast,
+  loadPendingVoteCast,
+  savePendingVoteCast,
+} from '@/features/voto/crypto/pending-vote-cast'
 import { useEphemeralWallet } from '@/features/voto/crypto/use-ephemeral-wallet'
 import {
   transmitSignedVote,
+  waitForVoteTxReceipt,
   type TransmitProgressPhase,
 } from '@/features/voto/crypto/vote-transmitter'
-import { formatCooldownDuration } from '@/features/voto/crypto/vote-tx-error-catalog'
+import {
+  formatCooldownDuration,
+  getMessageForRevert,
+} from '@/features/voto/crypto/vote-tx-error-catalog'
 import {
   mapVoteTxError,
   type VoteTxError,
 } from '@/features/voto/crypto/vote-tx-errors'
+import {
+  leerHasVoted,
+  leerIsNullifierUsed,
+} from '@/features/voto/crypto/voter-state'
 import type {
   BoletaDigital,
   CandidatoBoletaDigital,
@@ -73,11 +100,15 @@ import type {
   VoterMerkleProof,
 } from '@/features/voto/data/schema'
 import {
+  estadoRevotoQueryKey,
   useEstadoRevoto,
   useRegistrarConsumoIntento,
 } from '@/features/voto/hooks/use-estado-revoto'
 import { useSolicitarMerkleProof } from '@/features/voto/hooks/use-merkle-proof'
-import { useVoterStateOnChain } from '@/features/voto/hooks/use-voter-state-onchain'
+import {
+  useVoterStateOnChain,
+  voterStateOnChainQueryKey,
+} from '@/features/voto/hooks/use-voter-state-onchain'
 import { generarReciboPDF } from '@/features/voto/lib/generar-recibo-pdf'
 import { clearVotanteSession } from '@/features/voto/services/votante-session'
 import {
@@ -100,7 +131,7 @@ type WizardStep =
   | 'limit-reached'
   | 'cooldown'
 
-type TransmitUiPhase = TransmitProgressPhase | 'error'
+type TransmitUiPhase = TransmitProgressPhase | 'reconciling' | 'error'
 
 type Candidate = {
   id: string
@@ -134,7 +165,11 @@ type PartyList = {
 type BudVotingWizardProps = {
   boleta: BoletaDigital
   tipoVotacion: TipoVotacion
+  /** JWT sub — scopes revote cache, cooldown anchor and ephemeral wallet per voter (VOTAR-452). */
+  votanteScope: string
   cryptoReady?: boolean
+  /** VOTAR-347 — true mientras la urna digital está pausada por incidente. */
+  pausada?: boolean
   onLogout: () => void
 }
 
@@ -302,9 +337,12 @@ const reportVoteTxError = (error: VoteTxError, electionId: number): void => {
 export const BudVotingWizard = ({
   boleta,
   tipoVotacion,
+  votanteScope,
   cryptoReady = false,
+  pausada = false,
   onLogout,
 }: BudVotingWizardProps) => {
+  const queryClient = useQueryClient()
   const [step, setStep] = useState<WizardStep>('identity')
   const variant = getVotingVariant(tipoVotacion)
   const [selectedListId, setSelectedListId] = useState<string | null>(null)
@@ -326,13 +364,20 @@ export const BudVotingWizard = ({
   const [txError, setTxError] = useState<VoteTxError | null>(null)
   /** True once a vote was registered; survives clearing merkle/signed state (VOTAR-379). */
   const [voteReceiptReady, setVoteReceiptReady] = useState(false)
+  const [cooldownAnchor, setCooldownAnchor] = useState<CooldownAnchor | null>(
+    null
+  )
+  const [cooldownNowMs, setCooldownNowMs] = useState(() => Date.now())
   const merkleProofMutation = useSolicitarMerkleProof(boleta.idEleccion)
   const {
     data: estadoRevoto,
     isLoading: isLoadingEstadoRevoto,
     isError: isEstadoRevotoError,
-  } = useEstadoRevoto(boleta.idEleccion)
-  const registrarConsumoMutation = useRegistrarConsumoIntento(boleta.idEleccion)
+  } = useEstadoRevoto(boleta.idEleccion, votanteScope)
+  const registrarConsumoMutation = useRegistrarConsumoIntento(
+    boleta.idEleccion,
+    votanteScope
+  )
   const {
     signVotePayload,
     initialize: initializeEphemeralWallet,
@@ -354,22 +399,76 @@ export const BudVotingWizard = ({
     }
   }, [publicKeyHex, boleta.idEleccion])
 
+  const cooldownScope = nullifier ?? `pre-nullifier:${votanteScope}`
+
   const { data: voterStateOnChain } = useVoterStateOnChain(
     boleta.idEleccion,
     nullifier,
     boleta.ballotContractAddress
   )
 
+  // VOTAR-449: ancla estable (extrapolación + sessionStorage) para no reiniciar
+  // el countdown cuando block.timestamp está congelado o al hidratar on-chain.
+  // Sincroniza estado React con sistemas externos (RPC / API / sessionStorage).
+  useEffect(() => {
+    const persisted = loadPersistedCooldownAnchor(
+      boleta.idEleccion,
+      cooldownScope
+    )
+    const resolved = resolveCooldownAnchor({
+      voterState: voterStateOnChain,
+      minIntervalSeconds: estadoRevoto?.minIntervaloSegundos ?? 0,
+      backendRemainingSeconds: estadoRevoto?.proximoReintentoEnSegundos,
+    })
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- VOTAR-449: merge de ancla con getVoterState/estado-revoto/sessionStorage
+    setCooldownAnchor((previous) => {
+      const merged = mergeCooldownAnchor(
+        mergeCooldownAnchor(persisted, previous),
+        resolved
+      )
+      if (
+        previous &&
+        merged &&
+        previous.unlockAtNodeSeconds === merged.unlockAtNodeSeconds &&
+        previous.observedBlockTimestamp === merged.observedBlockTimestamp &&
+        previous.observedAtWallMs === merged.observedAtWallMs &&
+        previous.lastVoteAt === merged.lastVoteAt
+      ) {
+        return previous
+      }
+      if (previous === null && merged === null) {
+        return previous
+      }
+      persistCooldownAnchor(boleta.idEleccion, cooldownScope, merged)
+      return merged
+    })
+  }, [
+    boleta.idEleccion,
+    cooldownScope,
+    estadoRevoto?.minIntervaloSegundos,
+    estadoRevoto?.proximoReintentoEnSegundos,
+    voterStateOnChain,
+  ])
+
+  useEffect(() => {
+    if (!cooldownAnchor) {
+      return
+    }
+    const intervalId = window.setInterval(
+      () => setCooldownNowMs(Date.now()),
+      1_000
+    )
+    return () => window.clearInterval(intervalId)
+  }, [cooldownAnchor])
+
   const intentosAgotados =
     Boolean(estadoRevoto) && (estadoRevoto?.intentosRestantes ?? 1) === 0
-  // VOTAR-325 — el reloj del nodo manda en cuanto se conoce el nullifier
-  // (inmune a manipular el reloj del cliente, UAT-02); antes de eso (pre-
-  // identidad) se usa el valor advisory del backend.
-  const cooldownRemainingSeconds =
-    voterStateOnChain !== undefined
-      ? voterStateOnChain.cooldownRemaining
-      : (estadoRevoto?.proximoReintentoEnSegundos ?? 0)
+  const cooldownRemainingSeconds = cooldownAnchor
+    ? computeRemainingSeconds(cooldownAnchor, cooldownNowMs)
+    : 0
   const cooldownActivo = cooldownRemainingSeconds > 0
+  const pendingResumeStartedRef = useRef(false)
+  const consumoCatchUpStartedRef = useRef(false)
   // Derive UI step when attempts are exhausted or cooldown is active.
   const effectiveStep: WizardStep =
     intentosAgotados && step !== 'success' && step !== 'transmitting'
@@ -377,6 +476,112 @@ export const BudVotingWizard = ({
       : cooldownActivo && step !== 'success' && step !== 'transmitting'
         ? 'cooldown'
         : step
+
+  const finalizeSuccessfulCast = async (receipt: {
+    txHash: Hex | null
+    blockNumber: number | null
+    /** On-chain votesUsed for this nullifier; drives idempotent backend sync. */
+    votosObjetivo?: number
+  }) => {
+    // VOTAR-451 / VOTAR-452: claim the consumo lock before background sync so catch-up cannot race.
+    consumoCatchUpStartedRef.current = true
+    setTxHash(receipt.txHash)
+    setBlockNumber(receipt.blockNumber)
+    setTransmitPhase(null)
+    setTxError(null)
+    const votosObjetivo =
+      receipt.votosObjetivo ?? Math.max(1, voterStateOnChain?.votesUsed ?? 1)
+
+    // On-chain cast is authoritative — show receipt immediately (VOTAR-451 UAT).
+    setSignedVote(null)
+    setMerkleProofData(null)
+    setVoteReceiptReady(true)
+    setStep('success')
+    clearPendingVoteCast(boleta.idEleccion)
+
+    // VOTAR-328 / VOTAR-445 / VOTAR-451 / VOTAR-452: sync consumo without blocking success UX.
+    void registrarConsumoMutation.mutateAsync(votosObjetivo).catch(() => {
+      consumoCatchUpStartedRef.current = false
+    })
+    if (receipt.txHash) {
+      void registrarTransaccionPublica(boleta.idEleccion, receipt.txHash).catch(
+        () => {
+          // Recibo on-chain ya confirmado; el índice no debe bloquear la UX.
+        }
+      )
+    }
+    void registrarVotoEmitidoAnonimo(boleta.idEleccion).catch(() => {
+      // Recibo on-chain ya confirmado; el audit no debe bloquear la UX.
+    })
+    void clearVotanteSession()
+  }
+
+  // VOTAR-445: si F5 interrumpió el wait del receipt, reanudar y completar consumo.
+  useEffect(() => {
+    if (pendingResumeStartedRef.current) {
+      return
+    }
+    const pending = loadPendingVoteCast(boleta.idEleccion)
+    if (!pending) {
+      return
+    }
+    pendingResumeStartedRef.current = true
+    consumoCatchUpStartedRef.current = true
+
+    const resumePendingCast = async () => {
+      setStep('transmitting')
+      setTransmitPhase('confirming')
+      setTxHash(pending.txHash)
+      try {
+        const result = await waitForVoteTxReceipt(pending.txHash)
+        await finalizeSuccessfulCast({
+          txHash: result.txHash,
+          blockNumber: Number(result.blockNumber),
+        })
+      } catch (error) {
+        const mapped = mapVoteTxError(error)
+        if (mapped.code === 'already_registered') {
+          await finalizeSuccessfulCast({
+            txHash: pending.txHash,
+            blockNumber: null,
+          })
+          return
+        }
+        if (mapped.code === 'timeout' || mapped.code === 'network') {
+          clearPendingVoteCast(boleta.idEleccion)
+        }
+        reportVoteTxError(mapped, boleta.idEleccion)
+        setTxError(mapped)
+        setTransmitPhase('error')
+      }
+    }
+
+    void resumePendingCast()
+    // Solo al montar / cambiar de comicio: el pending vive fuera de React.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boleta.idEleccion])
+
+  // VOTAR-445 / VOTAR-451: si on-chain ya contabilizó votos y el backend no, sync idempotente.
+  useEffect(() => {
+    if (consumoCatchUpStartedRef.current) {
+      return
+    }
+    if (!voterStateOnChain || !estadoRevoto) {
+      return
+    }
+    if (voterStateOnChain.votesUsed <= estadoRevoto.votosConsumidos) {
+      return
+    }
+    if (step === 'success' || step === 'transmitting') {
+      return
+    }
+    consumoCatchUpStartedRef.current = true
+    void registrarConsumoMutation
+      .mutateAsync(voterStateOnChain.votesUsed)
+      .catch(() => {
+        consumoCatchUpStartedRef.current = false
+      })
+  }, [estadoRevoto, registrarConsumoMutation, step, voterStateOnChain])
 
   const lists = useMemo(() => buildListsFromBoleta(boleta), [boleta])
   const roles = useMemo(() => buildRolesFromBoleta(boleta), [boleta])
@@ -436,7 +641,7 @@ export const BudVotingWizard = ({
     setSigningError(null)
     try {
       // VOTAR-418: post-sign destroy() cleared the key; mint a fresh wallet to re-sign.
-      await initializeEphemeralWallet(boleta.idEleccion)
+      await initializeEphemeralWallet(boleta.idEleccion, votanteScope)
       resetVote()
       goToSelection()
     } catch {
@@ -458,6 +663,29 @@ export const BudVotingWizard = ({
   }
 
   const transmitVote = async (signed: SignedVotePayload) => {
+    // VOTAR-347 — corta antes de gastar gas en una tx que el contrato va a
+    // revertir igual (EnforcedPause): mismo código/mensaje que un revert real,
+    // pero instantáneo y sin round-trip a la red.
+    if (pausada) {
+      const mapped = getMessageForRevert('EnforcedPause')
+      if (mapped) {
+        const pausedError: VoteTxError = {
+          code: mapped.code,
+          message: mapped.message,
+          severity: mapped.severity,
+          isTransient: mapped.isTransient,
+          canRetrySend: mapped.canRetrySend,
+          canResign: mapped.canResign,
+          revertName: 'EnforcedPause',
+        }
+        reportVoteTxError(pausedError, boleta.idEleccion)
+        setTxError(pausedError)
+        setTransmitPhase('error')
+        setStep('transmitting')
+        return
+      }
+    }
+
     if (!merkleProofData?.hashHoja) {
       const missingProofError = mapVoteTxError(
         new Error('Merkle proof or hashHoja is missing')
@@ -481,40 +709,91 @@ export const BudVotingWizard = ({
     setTransmitPhase('estimating')
 
     try {
+      // VOTAR-451: leaf already voted under another nullifier (tab reopen) →
+      // do not broadcast a second unique VoteCast.
+      const leaf = merkleProofData.hashHoja as Hex
+      const ballotAddress = merkleProofData.ballotContractAddress
+      setTransmitPhase('reconciling')
+      const leafAlreadyVoted = await leerHasVoted(
+        boleta.idEleccion,
+        leaf,
+        ballotAddress
+      )
+      if (leafAlreadyVoted) {
+        const nullifierAlreadyUsed = nullifier
+          ? await leerIsNullifierUsed(
+              boleta.idEleccion,
+              nullifier,
+              ballotAddress
+            )
+          : false
+        if (!nullifierAlreadyUsed) {
+          await finalizeSuccessfulCast({
+            txHash: loadPendingVoteCast(boleta.idEleccion)?.txHash ?? null,
+            blockNumber: null,
+            votosObjetivo: Math.max(
+              1,
+              voterStateOnChain?.votesUsed ?? estadoRevoto?.votosConsumidos ?? 1
+            ),
+          })
+          return
+        }
+      }
+
+      setTransmitPhase('estimating')
       const result = await transmitSignedVote(
         {
           signed,
-          voterLeaf: merkleProofData.hashHoja as Hex,
+          voterLeaf: leaf,
           merkleProof: merkleProofData.merkleProof as Hex[],
         },
         {
-          contractAddress: merkleProofData.ballotContractAddress,
+          contractAddress: ballotAddress,
           onProgress: (phase) => {
             setTransmitPhase(phase)
           },
+          onTxHash: (hash) => {
+            // Persist before waiting for receipt so F5 can resume (VOTAR-445).
+            savePendingVoteCast(boleta.idEleccion, hash)
+            setTxHash(hash)
+          },
         }
       )
-      setTxHash(result.txHash)
-      setBlockNumber(Number(result.blockNumber))
-      setTransmitPhase(null)
-      // VOTAR-328: consumir intento mientras la sesión JWT sigue activa.
-      try {
-        await registrarConsumoMutation.mutateAsync()
-      } catch {
-        // El cast on-chain ya confirmó; no bloquear el recibo por el contador.
-      }
-      // VOTAR-379 UAT-05: anonymous audit before clearing SSO (no cookies on call).
-      void registrarVotoEmitidoAnonimo(boleta.idEleccion).catch(() => {
-        // Recibo on-chain ya confirmado; el audit no debe bloquear la UX.
+      await finalizeSuccessfulCast({
+        txHash: result.txHash,
+        blockNumber: Number(result.blockNumber),
+        votosObjetivo: Math.max(1, (voterStateOnChain?.votesUsed ?? 0) + 1),
       })
-      // VOTAR-379 UAT-03: drop identity-linked crypto material after receipt.
-      setSignedVote(null)
-      setMerkleProofData(null)
-      setVoteReceiptReady(true)
-      setStep('success')
-      await clearVotanteSession()
     } catch (error) {
       const mapped = mapVoteTxError(error)
+      // VOTAR-449: el nodo aún exige espera — volver al panel de cooldown en
+      // vez de dejar al votante atrapado en un error sin reintento (bug 3).
+      if (mapped.code === 'retry_too_soon') {
+        reportVoteTxError(mapped, boleta.idEleccion)
+        setTxError(null)
+        setTransmitPhase(null)
+        setStep('selection')
+        void queryClient.invalidateQueries({
+          queryKey: estadoRevotoQueryKey(boleta.idEleccion, votanteScope),
+        })
+        void queryClient.invalidateQueries({
+          queryKey: voterStateOnChainQueryKey(
+            boleta.idEleccion,
+            nullifier,
+            boleta.ballotContractAddress
+          ),
+        })
+        return
+      }
+      // VOTAR-445: el cast ya quedó on-chain (p. ej. tras F5); reconciliar UX + consumo.
+      if (mapped.code === 'already_registered') {
+        const pending = loadPendingVoteCast(boleta.idEleccion)
+        await finalizeSuccessfulCast({
+          txHash: pending?.txHash ?? null,
+          blockNumber: null,
+        })
+        return
+      }
       reportVoteTxError(mapped, boleta.idEleccion)
       setTxError(mapped)
       setTransmitPhase('error')
@@ -572,7 +851,10 @@ export const BudVotingWizard = ({
     try {
       // After a successful sign the ephemeral key is zeroized (VOTAR-357).
       // Re-initialize so retries / second attempts always have signing material.
-      const session = await initializeEphemeralWallet(boleta.idEleccion)
+      const session = await initializeEphemeralWallet(
+        boleta.idEleccion,
+        votanteScope
+      )
       const signingPublicKey = session.publicKeyHex
 
       let nullifier: `0x${string}`
@@ -627,7 +909,7 @@ export const BudVotingWizard = ({
     setSignedVote(null)
     setSigningError(null)
     try {
-      await initializeEphemeralWallet(boleta.idEleccion)
+      await initializeEphemeralWallet(boleta.idEleccion, votanteScope)
       setStep('review')
     } catch {
       setSigningError(
@@ -653,7 +935,11 @@ export const BudVotingWizard = ({
   // en realidad debe ir a cooldown o límite de intentos.
   if (isLoadingEstadoRevoto) {
     return (
-      <BudWizardShell step='identity' estadoRevoto={estadoRevoto}>
+      <BudWizardShell
+        step='identity'
+        estadoRevoto={estadoRevoto}
+        onLogout={handleLogout}
+      >
         <div className='flex min-h-[24rem] items-center justify-center'>
           <p className='text-sm text-slate-600'>Preparando tu boleta…</p>
         </div>
@@ -662,7 +948,22 @@ export const BudVotingWizard = ({
   }
 
   return (
-    <BudWizardShell step={effectiveStep} estadoRevoto={estadoRevoto}>
+    <BudWizardShell
+      step={effectiveStep}
+      estadoRevoto={estadoRevoto}
+      onLogout={handleLogout}
+    >
+      {pausada && (
+        <Alert variant='destructive' className='mb-4'>
+          <AlertCircle className='size-4' aria-hidden='true' />
+          <AlertTitle>Sistema en pausa</AlertTitle>
+          <AlertDescription>
+            La autoridad electoral pausó temporalmente la urna digital por
+            medidas de seguridad. Podés seguir revisando la boleta, pero el
+            envío de votos está deshabilitado hasta que se reanude el comicio.
+          </AlertDescription>
+        </Alert>
+      )}
       {effectiveStep !== 'limit-reached' && effectiveStep !== 'cooldown' ? (
         <WizardStepper currentStep={effectiveStep} />
       ) : null}
@@ -678,7 +979,37 @@ export const BudVotingWizard = ({
         )}
         {effectiveStep === 'cooldown' && (
           <RetryTooSoonPanel
-            proximoReintentoEnSegundos={cooldownRemainingSeconds}
+            remainingSeconds={cooldownRemainingSeconds}
+            onCooldownFinished={async () => {
+              // VOTAR-448: al llegar a 0, mismo comportamiento que cerrar sesión.
+              // VOTAR-449: antes de logout, reconsultar por si el RPC aún reporta
+              // cooldown (block.timestamp atrasado) y evitar un falso desbloqueo.
+              await Promise.all([
+                queryClient.invalidateQueries({
+                  queryKey: estadoRevotoQueryKey(
+                    boleta.idEleccion,
+                    votanteScope
+                  ),
+                }),
+                queryClient.invalidateQueries({
+                  queryKey: voterStateOnChainQueryKey(
+                    boleta.idEleccion,
+                    nullifier,
+                    boleta.ballotContractAddress
+                  ),
+                }),
+              ])
+              const fresh = await obtenerEstadoRevoto(boleta.idEleccion)
+              queryClient.setQueryData(
+                estadoRevotoQueryKey(boleta.idEleccion, votanteScope),
+                fresh
+              )
+              if ((fresh.proximoReintentoEnSegundos ?? 0) > 0) {
+                return
+              }
+              persistCooldownAnchor(boleta.idEleccion, cooldownScope, null)
+              handleLogout()
+            }}
             onLogout={handleLogout}
           />
         )}
@@ -752,6 +1083,7 @@ export const BudVotingWizard = ({
             candidates={candidates}
             signingError={signingError}
             isSigning={isSigning}
+            pausada={pausada}
             onBack={goToSelection}
             onSign={() => {
               void handleSignVote()
@@ -803,10 +1135,12 @@ const BudWizardShell = ({
   children,
   step,
   estadoRevoto,
+  onLogout,
 }: {
   children: ReactNode
   step: WizardStep
   estadoRevoto?: EstadoRevoto
+  onLogout: () => void
 }) => (
   <main className='votar-light-surface relative min-h-svh overflow-x-clip overflow-y-auto bg-[#fdfcfa] text-[#202124]'>
     <div className='pointer-events-none absolute inset-0' aria-hidden='true'>
@@ -852,6 +1186,19 @@ const BudWizardShell = ({
             <ShieldCheck className='size-3.5' />
             {getStepLabel(step)}
           </Badge>
+          {/* VOTAR-445: logout siempre visible; no toca contadores de revoto. */}
+          <Button
+            type='button'
+            variant='outline'
+            size='sm'
+            className='rounded-full border-slate-300 bg-white/90'
+            onClick={onLogout}
+            aria-label='Cerrar sesión'
+            data-testid='bud-logout'
+          >
+            <LogOut className='size-3.5' />
+            Cerrar sesión
+          </Button>
         </div>
       </header>
       {children}
@@ -1059,43 +1406,30 @@ const formatMmSs = (totalSeconds: number): string => {
 }
 
 const RetryTooSoonPanel = ({
-  proximoReintentoEnSegundos,
+  remainingSeconds,
+  onCooldownFinished,
   onLogout,
 }: {
-  proximoReintentoEnSegundos: number
+  remainingSeconds: number
+  onCooldownFinished: () => void | Promise<void>
   onLogout: () => void
 }) => {
-  // VOTAR-325 UAT-02: el ancla (unlockAtMs) se resincroniza con Date.now()
-  // cada vez que llega un nuevo proximoReintentoEnSegundos del reloj de la
-  // red (on-chain refetch cada 30s); el ticker local solo interpola entre
-  // anclas, así que adelantar el reloj del SO no cambia el resultado final
-  // una vez el nodo resincroniza. Es un efecto legítimo de sincronización
-  // con un sistema externo (el reloj), no estado derivable en el render.
-  const [unlockAtMs, setUnlockAtMs] = useState(
-    () => Date.now() + proximoReintentoEnSegundos * 1000
-  )
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- resync de ancla con el reloj externo, ver comentario arriba.
-    setUnlockAtMs(Date.now() + proximoReintentoEnSegundos * 1000)
-  }, [proximoReintentoEnSegundos])
-
-  const [now, setNow] = useState(() => Date.now())
+  // VOTAR-449: el remaining lo calcula el padre con CooldownAnchor (extrapolación
+  // estable). Este panel solo renderiza y, al llegar a 0, dispara el cierre de
+  // sesión (VOTAR-448) sin re-anclar a un snapshot que pueda reiniciar el timer.
+  const finishStartedRef = useRef(false)
 
   useEffect(() => {
-    const intervalId = window.setInterval(() => setNow(Date.now()), 1_000)
-    return () => window.clearInterval(intervalId)
-  }, [])
-
-  const remainingSeconds = Math.max(0, Math.ceil((unlockAtMs - now) / 1000))
-
-  useEffect(() => {
-    if (remainingSeconds > 0) return
-
-    onLogout()
-
-    // Solo dispara cuando el ticker local llega a cero o menos.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remainingSeconds])
+    if (remainingSeconds > 0) {
+      finishStartedRef.current = false
+      return
+    }
+    if (finishStartedRef.current) {
+      return
+    }
+    finishStartedRef.current = true
+    void onCooldownFinished()
+  }, [remainingSeconds, onCooldownFinished])
 
   const remainingDuration = formatCooldownDuration(remainingSeconds)
   const mmss = formatMmSs(remainingSeconds)
@@ -1409,6 +1743,7 @@ const ReviewStep = ({
   candidates,
   signingError,
   isSigning,
+  pausada = false,
   onBack,
   onSign,
 }: {
@@ -1422,6 +1757,7 @@ const ReviewStep = ({
   candidates: Candidate[]
   signingError: string | null
   isSigning: boolean
+  pausada?: boolean
   onBack: () => void
   onSign: () => void
 }) => {
@@ -1531,14 +1867,23 @@ const ReviewStep = ({
           <Button
             size='lg'
             className='h-12 bg-[#2f6f9f] font-semibold text-white hover:bg-[#285f88]'
-            disabled={isSigning}
+            disabled={isSigning || pausada}
             onClick={onSign}
-            aria-label='Firmar y confirmar voto'
+            aria-label={
+              pausada
+                ? 'Votación deshabilitada: comicio en pausa'
+                : 'Firmar y confirmar voto'
+            }
           >
             {isSigning ? (
               <>
                 <Loader2 className='size-5 animate-spin' />
                 Firmando voto...
+              </>
+            ) : pausada ? (
+              <>
+                <AlertCircle className='size-5' />
+                Votación pausada
               </>
             ) : (
               <>
@@ -1762,9 +2107,11 @@ const TransmitStep = ({
       ? 'Enviando...'
       : phase === 'confirming'
         ? 'Esperando confirmación de red (minado)...'
-        : phase === 'error'
-          ? 'No se pudo completar el envío'
-          : 'Preparando envío...'
+        : phase === 'reconciling'
+          ? 'Reconciliando voto registrado previamente...'
+          : phase === 'error'
+            ? 'No se pudo completar el envío'
+            : 'Preparando envío...'
   const blankRoles = roles.filter((role) =>
     roleHasBlankSelection(candidateSelections, role.id)
   )

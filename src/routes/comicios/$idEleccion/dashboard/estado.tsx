@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { DashboardPublicoPage } from '@/features/dashboard-publico'
+import { EstadoContratoPublicaPage } from '@/features/dashboard-publico/components/estado-contrato-publica-page'
 
 export const Route = createFileRoute('/comicios/$idEleccion/dashboard/estado')({
   component: DashboardPublicoEstadoRoute,
@@ -8,7 +8,5 @@ export const Route = createFileRoute('/comicios/$idEleccion/dashboard/estado')({
 function DashboardPublicoEstadoRoute() {
   const { idEleccion } = Route.useParams()
 
-  return (
-    <DashboardPublicoPage idEleccion={Number(idEleccion)} section='estado' />
-  )
+  return <EstadoContratoPublicaPage idEleccion={Number(idEleccion)} />
 }

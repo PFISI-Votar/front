@@ -29,6 +29,7 @@ import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedTasksIndexRouteImport } from './routes/_authenticated/tasks/index'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
 import { Route as AuthenticatedHelpCenterIndexRouteImport } from './routes/_authenticated/help-center/index'
+import { Route as AuthenticatedConfiguracionIndexRouteImport } from './routes/_authenticated/configuracion/index'
 import { Route as AuthenticatedComiciosIndexRouteImport } from './routes/_authenticated/comicios/index'
 import { Route as AuthenticatedChatsIndexRouteImport } from './routes/_authenticated/chats/index'
 import { Route as AuthenticatedAuditoriaIndexRouteImport } from './routes/_authenticated/auditoria/index'
@@ -42,6 +43,8 @@ import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenti
 import { Route as AuthenticatedComiciosNuevoRouteImport } from './routes/_authenticated/comicios/nuevo'
 import { Route as ComiciosIdEleccionDashboardRouteRouteImport } from './routes/comicios/$idEleccion/dashboard/route'
 import { Route as ComiciosIdEleccionDashboardIndexRouteImport } from './routes/comicios/$idEleccion/dashboard/index'
+import { Route as ComiciosIdEleccionDashboardTransaccionesRouteImport } from './routes/comicios/$idEleccion/dashboard/transacciones'
+import { Route as ComiciosIdEleccionDashboardRevotoRouteImport } from './routes/comicios/$idEleccion/dashboard/revoto'
 import { Route as ComiciosIdEleccionDashboardResultadosRouteImport } from './routes/comicios/$idEleccion/dashboard/resultados'
 import { Route as ComiciosIdEleccionDashboardParticipacionRouteImport } from './routes/comicios/$idEleccion/dashboard/participacion'
 import { Route as ComiciosIdEleccionDashboardPadronRouteImport } from './routes/comicios/$idEleccion/dashboard/padron'
@@ -157,6 +160,12 @@ const AuthenticatedHelpCenterIndexRoute =
     path: '/help-center/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedConfiguracionIndexRoute =
+  AuthenticatedConfiguracionIndexRouteImport.update({
+    id: '/configuracion/',
+    path: '/configuracion/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedComiciosIndexRoute =
   AuthenticatedComiciosIndexRouteImport.update({
     id: '/',
@@ -230,6 +239,18 @@ const ComiciosIdEleccionDashboardIndexRoute =
   ComiciosIdEleccionDashboardIndexRouteImport.update({
     id: '/',
     path: '/',
+    getParentRoute: () => ComiciosIdEleccionDashboardRouteRoute,
+  } as any)
+const ComiciosIdEleccionDashboardTransaccionesRoute =
+  ComiciosIdEleccionDashboardTransaccionesRouteImport.update({
+    id: '/transacciones',
+    path: '/transacciones',
+    getParentRoute: () => ComiciosIdEleccionDashboardRouteRoute,
+  } as any)
+const ComiciosIdEleccionDashboardRevotoRoute =
+  ComiciosIdEleccionDashboardRevotoRouteImport.update({
+    id: '/revoto',
+    path: '/revoto',
     getParentRoute: () => ComiciosIdEleccionDashboardRouteRoute,
   } as any)
 const ComiciosIdEleccionDashboardResultadosRoute =
@@ -327,6 +348,7 @@ export interface FileRoutesByFullPath {
   '/auditoria/': typeof AuthenticatedAuditoriaIndexRoute
   '/chats/': typeof AuthenticatedChatsIndexRoute
   '/comicios/': typeof AuthenticatedComiciosIndexRoute
+  '/configuracion/': typeof AuthenticatedConfiguracionIndexRoute
   '/help-center/': typeof AuthenticatedHelpCenterIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/tasks/': typeof AuthenticatedTasksIndexRoute
@@ -340,6 +362,8 @@ export interface FileRoutesByFullPath {
   '/comicios/$idEleccion/dashboard/padron': typeof ComiciosIdEleccionDashboardPadronRoute
   '/comicios/$idEleccion/dashboard/participacion': typeof ComiciosIdEleccionDashboardParticipacionRoute
   '/comicios/$idEleccion/dashboard/resultados': typeof ComiciosIdEleccionDashboardResultadosRoute
+  '/comicios/$idEleccion/dashboard/revoto': typeof ComiciosIdEleccionDashboardRevotoRoute
+  '/comicios/$idEleccion/dashboard/transacciones': typeof ComiciosIdEleccionDashboardTransaccionesRoute
   '/comicios/$idEleccion/dashboard/': typeof ComiciosIdEleccionDashboardIndexRoute
   '/comicios/$idEleccion/padron/preview': typeof AuthenticatedComiciosIdEleccionPadronPreviewRoute
   '/comicios/$idEleccion/listas/$idLista/': typeof AuthenticatedComiciosIdEleccionListasIdListaIndexRoute
@@ -369,6 +393,7 @@ export interface FileRoutesByTo {
   '/auditoria': typeof AuthenticatedAuditoriaIndexRoute
   '/chats': typeof AuthenticatedChatsIndexRoute
   '/comicios': typeof AuthenticatedComiciosIndexRoute
+  '/configuracion': typeof AuthenticatedConfiguracionIndexRoute
   '/help-center': typeof AuthenticatedHelpCenterIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/tasks': typeof AuthenticatedTasksIndexRoute
@@ -382,6 +407,8 @@ export interface FileRoutesByTo {
   '/comicios/$idEleccion/dashboard/padron': typeof ComiciosIdEleccionDashboardPadronRoute
   '/comicios/$idEleccion/dashboard/participacion': typeof ComiciosIdEleccionDashboardParticipacionRoute
   '/comicios/$idEleccion/dashboard/resultados': typeof ComiciosIdEleccionDashboardResultadosRoute
+  '/comicios/$idEleccion/dashboard/revoto': typeof ComiciosIdEleccionDashboardRevotoRoute
+  '/comicios/$idEleccion/dashboard/transacciones': typeof ComiciosIdEleccionDashboardTransaccionesRoute
   '/comicios/$idEleccion/dashboard': typeof ComiciosIdEleccionDashboardIndexRoute
   '/comicios/$idEleccion/padron/preview': typeof AuthenticatedComiciosIdEleccionPadronPreviewRoute
   '/comicios/$idEleccion/listas/$idLista': typeof AuthenticatedComiciosIdEleccionListasIdListaIndexRoute
@@ -416,6 +443,7 @@ export interface FileRoutesById {
   '/_authenticated/auditoria/': typeof AuthenticatedAuditoriaIndexRoute
   '/_authenticated/chats/': typeof AuthenticatedChatsIndexRoute
   '/_authenticated/comicios/': typeof AuthenticatedComiciosIndexRoute
+  '/_authenticated/configuracion/': typeof AuthenticatedConfiguracionIndexRoute
   '/_authenticated/help-center/': typeof AuthenticatedHelpCenterIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
@@ -429,6 +457,8 @@ export interface FileRoutesById {
   '/comicios/$idEleccion/dashboard/padron': typeof ComiciosIdEleccionDashboardPadronRoute
   '/comicios/$idEleccion/dashboard/participacion': typeof ComiciosIdEleccionDashboardParticipacionRoute
   '/comicios/$idEleccion/dashboard/resultados': typeof ComiciosIdEleccionDashboardResultadosRoute
+  '/comicios/$idEleccion/dashboard/revoto': typeof ComiciosIdEleccionDashboardRevotoRoute
+  '/comicios/$idEleccion/dashboard/transacciones': typeof ComiciosIdEleccionDashboardTransaccionesRoute
   '/comicios/$idEleccion/dashboard/': typeof ComiciosIdEleccionDashboardIndexRoute
   '/_authenticated/comicios/$idEleccion/padron_/preview': typeof AuthenticatedComiciosIdEleccionPadronPreviewRoute
   '/_authenticated/comicios/$idEleccion/listas/$idLista/': typeof AuthenticatedComiciosIdEleccionListasIdListaIndexRoute
@@ -463,6 +493,7 @@ export interface FileRouteTypes {
     | '/auditoria/'
     | '/chats/'
     | '/comicios/'
+    | '/configuracion/'
     | '/help-center/'
     | '/settings/'
     | '/tasks/'
@@ -476,6 +507,8 @@ export interface FileRouteTypes {
     | '/comicios/$idEleccion/dashboard/padron'
     | '/comicios/$idEleccion/dashboard/participacion'
     | '/comicios/$idEleccion/dashboard/resultados'
+    | '/comicios/$idEleccion/dashboard/revoto'
+    | '/comicios/$idEleccion/dashboard/transacciones'
     | '/comicios/$idEleccion/dashboard/'
     | '/comicios/$idEleccion/padron/preview'
     | '/comicios/$idEleccion/listas/$idLista/'
@@ -505,6 +538,7 @@ export interface FileRouteTypes {
     | '/auditoria'
     | '/chats'
     | '/comicios'
+    | '/configuracion'
     | '/help-center'
     | '/settings'
     | '/tasks'
@@ -518,6 +552,8 @@ export interface FileRouteTypes {
     | '/comicios/$idEleccion/dashboard/padron'
     | '/comicios/$idEleccion/dashboard/participacion'
     | '/comicios/$idEleccion/dashboard/resultados'
+    | '/comicios/$idEleccion/dashboard/revoto'
+    | '/comicios/$idEleccion/dashboard/transacciones'
     | '/comicios/$idEleccion/dashboard'
     | '/comicios/$idEleccion/padron/preview'
     | '/comicios/$idEleccion/listas/$idLista'
@@ -551,6 +587,7 @@ export interface FileRouteTypes {
     | '/_authenticated/auditoria/'
     | '/_authenticated/chats/'
     | '/_authenticated/comicios/'
+    | '/_authenticated/configuracion/'
     | '/_authenticated/help-center/'
     | '/_authenticated/settings/'
     | '/_authenticated/tasks/'
@@ -564,6 +601,8 @@ export interface FileRouteTypes {
     | '/comicios/$idEleccion/dashboard/padron'
     | '/comicios/$idEleccion/dashboard/participacion'
     | '/comicios/$idEleccion/dashboard/resultados'
+    | '/comicios/$idEleccion/dashboard/revoto'
+    | '/comicios/$idEleccion/dashboard/transacciones'
     | '/comicios/$idEleccion/dashboard/'
     | '/_authenticated/comicios/$idEleccion/padron_/preview'
     | '/_authenticated/comicios/$idEleccion/listas/$idLista/'
@@ -729,6 +768,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHelpCenterIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/configuracion/': {
+      id: '/_authenticated/configuracion/'
+      path: '/configuracion'
+      fullPath: '/configuracion/'
+      preLoaderRoute: typeof AuthenticatedConfiguracionIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/comicios/': {
       id: '/_authenticated/comicios/'
       path: '/'
@@ -818,6 +864,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/comicios/$idEleccion/dashboard/'
       preLoaderRoute: typeof ComiciosIdEleccionDashboardIndexRouteImport
+      parentRoute: typeof ComiciosIdEleccionDashboardRouteRoute
+    }
+    '/comicios/$idEleccion/dashboard/transacciones': {
+      id: '/comicios/$idEleccion/dashboard/transacciones'
+      path: '/transacciones'
+      fullPath: '/comicios/$idEleccion/dashboard/transacciones'
+      preLoaderRoute: typeof ComiciosIdEleccionDashboardTransaccionesRouteImport
+      parentRoute: typeof ComiciosIdEleccionDashboardRouteRoute
+    }
+    '/comicios/$idEleccion/dashboard/revoto': {
+      id: '/comicios/$idEleccion/dashboard/revoto'
+      path: '/revoto'
+      fullPath: '/comicios/$idEleccion/dashboard/revoto'
+      preLoaderRoute: typeof ComiciosIdEleccionDashboardRevotoRouteImport
       parentRoute: typeof ComiciosIdEleccionDashboardRouteRoute
     }
     '/comicios/$idEleccion/dashboard/resultados': {
@@ -965,6 +1025,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAppsIndexRoute: typeof AuthenticatedAppsIndexRoute
   AuthenticatedAuditoriaIndexRoute: typeof AuthenticatedAuditoriaIndexRoute
   AuthenticatedChatsIndexRoute: typeof AuthenticatedChatsIndexRoute
+  AuthenticatedConfiguracionIndexRoute: typeof AuthenticatedConfiguracionIndexRoute
   AuthenticatedHelpCenterIndexRoute: typeof AuthenticatedHelpCenterIndexRoute
   AuthenticatedTasksIndexRoute: typeof AuthenticatedTasksIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
@@ -978,6 +1039,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAppsIndexRoute: AuthenticatedAppsIndexRoute,
   AuthenticatedAuditoriaIndexRoute: AuthenticatedAuditoriaIndexRoute,
   AuthenticatedChatsIndexRoute: AuthenticatedChatsIndexRoute,
+  AuthenticatedConfiguracionIndexRoute: AuthenticatedConfiguracionIndexRoute,
   AuthenticatedHelpCenterIndexRoute: AuthenticatedHelpCenterIndexRoute,
   AuthenticatedTasksIndexRoute: AuthenticatedTasksIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
@@ -992,6 +1054,8 @@ interface ComiciosIdEleccionDashboardRouteRouteChildren {
   ComiciosIdEleccionDashboardPadronRoute: typeof ComiciosIdEleccionDashboardPadronRoute
   ComiciosIdEleccionDashboardParticipacionRoute: typeof ComiciosIdEleccionDashboardParticipacionRoute
   ComiciosIdEleccionDashboardResultadosRoute: typeof ComiciosIdEleccionDashboardResultadosRoute
+  ComiciosIdEleccionDashboardRevotoRoute: typeof ComiciosIdEleccionDashboardRevotoRoute
+  ComiciosIdEleccionDashboardTransaccionesRoute: typeof ComiciosIdEleccionDashboardTransaccionesRoute
   ComiciosIdEleccionDashboardIndexRoute: typeof ComiciosIdEleccionDashboardIndexRoute
 }
 
@@ -1007,6 +1071,10 @@ const ComiciosIdEleccionDashboardRouteRouteChildren: ComiciosIdEleccionDashboard
       ComiciosIdEleccionDashboardParticipacionRoute,
     ComiciosIdEleccionDashboardResultadosRoute:
       ComiciosIdEleccionDashboardResultadosRoute,
+    ComiciosIdEleccionDashboardRevotoRoute:
+      ComiciosIdEleccionDashboardRevotoRoute,
+    ComiciosIdEleccionDashboardTransaccionesRoute:
+      ComiciosIdEleccionDashboardTransaccionesRoute,
     ComiciosIdEleccionDashboardIndexRoute:
       ComiciosIdEleccionDashboardIndexRoute,
   }

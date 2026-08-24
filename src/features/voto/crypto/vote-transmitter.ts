@@ -40,6 +40,13 @@ export type TransmitSignedVoteOptions = {
   maxAttempts?: number
   confirmationTimeoutMs?: number
   onProgress?: (phase: TransmitProgressPhase) => void
+  /** VOTAR-445: fired as soon as writeContract returns, before receipt wait. */
+  onTxHash?: (txHash: Hex) => void
+}
+
+export type WaitForVoteTxReceiptOptions = {
+  publicClient?: VotePublicClient
+  confirmationTimeoutMs?: number
 }
 
 const sleep = (ms: number): Promise<void> =>
@@ -130,23 +137,13 @@ export const transmitSignedVote = async (
         chain: walletClient.chain,
         gas,
       })
+      options.onTxHash?.(txHash)
 
       options.onProgress?.('confirming')
-      const receipt = await publicClient.waitForTransactionReceipt({
-        hash: txHash,
-        timeout: confirmationTimeoutMs,
+      return await waitForVoteTxReceipt(txHash, {
+        publicClient,
+        confirmationTimeoutMs,
       })
-
-      if (receipt.status === 'reverted') {
-        throw mapVoteTxError(
-          new Error('Transaction reverted while waiting for confirmation')
-        )
-      }
-
-      return {
-        txHash,
-        blockNumber: receipt.blockNumber,
-      }
     } catch (error) {
       const mapped = mapVoteTxError(error)
       lastError = mapped
@@ -163,6 +160,34 @@ export const transmitSignedVote = async (
     lastError ??
     mapVoteTxError(new Error('Vote transmission failed after retries'))
   )
+}
+
+/**
+ * VOTAR-445 — Resume waiting for a cast that was already broadcast (e.g. after F5).
+ */
+export const waitForVoteTxReceipt = async (
+  txHash: Hex,
+  options: WaitForVoteTxReceiptOptions = {}
+): Promise<TransmitSignedVoteResult> => {
+  const publicClient = options.publicClient ?? createVotePublicClient()
+  const confirmationTimeoutMs =
+    options.confirmationTimeoutMs ?? VOTE_TX_CONFIRMATION_TIMEOUT_MS
+
+  const receipt = await publicClient.waitForTransactionReceipt({
+    hash: txHash,
+    timeout: confirmationTimeoutMs,
+  })
+
+  if (receipt.status === 'reverted') {
+    throw mapVoteTxError(
+      new Error('Transaction reverted while waiting for confirmation')
+    )
+  }
+
+  return {
+    txHash,
+    blockNumber: receipt.blockNumber,
+  }
 }
 
 export { applyGasMargin, isTransientVoteTxError, toBytes32 }

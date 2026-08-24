@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   obtenerConfiguracionBud: vi.fn(),
   solicitarMerkleProof: vi.fn(),
   registrarVotoEmitidoAnonimo: vi.fn(),
+  registrarTransaccionPublica: vi.fn(),
   obtenerEstadoRevoto: vi.fn(),
   registrarConsumoIntento: vi.fn(),
   ensureVotanteSession: vi.fn(),
@@ -38,6 +39,7 @@ vi.mock('@/features/voto/api/voto-api', () => ({
   obtenerConfiguracionBud: mocks.obtenerConfiguracionBud,
   solicitarMerkleProof: mocks.solicitarMerkleProof,
   registrarVotoEmitidoAnonimo: mocks.registrarVotoEmitidoAnonimo,
+  registrarTransaccionPublica: mocks.registrarTransaccionPublica,
   obtenerEstadoRevoto: mocks.obtenerEstadoRevoto,
   registrarConsumoIntento: mocks.registrarConsumoIntento,
 }))
@@ -121,6 +123,7 @@ describe('BoletaUnicaDigitalPage', () => {
     mocks.obtenerConfiguracionBud.mockReset()
     mocks.solicitarMerkleProof.mockReset()
     mocks.registrarVotoEmitidoAnonimo.mockReset()
+    mocks.registrarTransaccionPublica.mockReset()
     mocks.obtenerEstadoRevoto.mockReset()
     mocks.registrarConsumoIntento.mockReset()
     mocks.ensureVotanteSession.mockReset()
@@ -129,6 +132,7 @@ describe('BoletaUnicaDigitalPage', () => {
     mocks.ensureVotanteSession.mockResolvedValue(null)
     mocks.clearVotanteSession.mockResolvedValue(undefined)
     mocks.registrarVotoEmitidoAnonimo.mockResolvedValue(undefined)
+    mocks.registrarTransaccionPublica.mockResolvedValue(undefined)
     mocks.obtenerConfiguracionBud.mockResolvedValue(budConfig)
     mocks.obtenerEstadoRevoto.mockResolvedValue({
       revoteHabilitado: true,

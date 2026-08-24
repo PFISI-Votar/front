@@ -13,7 +13,10 @@ export type EphemeralWalletSession = {
 }
 
 export type EphemeralWalletManager = {
-  initialize: (idEleccion: number) => Promise<EphemeralWalletSession>
+  initialize: (
+    idEleccion: number,
+    votanteScope: string
+  ) => Promise<EphemeralWalletSession>
   getSession: () => EphemeralWalletSession | null
   getPublicKeyHex: () => string | null
   /**

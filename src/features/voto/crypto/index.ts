@@ -9,6 +9,7 @@ export {
   getChainId,
   getExplorerTxUrl,
   getRpcUrl,
+  getRpcUrls,
   getVoteTransmitterPrivateKey,
 } from '@/features/voto/crypto/constants'
 export { BALLOT_CONTRACT_ABI } from '@/features/voto/crypto/ballot-abi'
@@ -45,11 +46,19 @@ export {
 export { signDigestWithSecp256k1 } from '@/features/voto/crypto/secp256k1-digest-signer'
 export {
   transmitSignedVote,
+  waitForVoteTxReceipt,
   type TransmitProgressPhase,
   type TransmitSignedVoteInput,
   type TransmitSignedVoteOptions,
   type TransmitSignedVoteResult,
+  type WaitForVoteTxReceiptOptions,
 } from '@/features/voto/crypto/vote-transmitter'
+export {
+  clearPendingVoteCast,
+  loadPendingVoteCast,
+  savePendingVoteCast,
+  type PendingVoteCast,
+} from '@/features/voto/crypto/pending-vote-cast'
 export {
   logVoteTxError,
   type VoteTxErrorLogContext,
@@ -75,6 +84,14 @@ export {
   type VerificarInclusionVotoOptions,
   type VoteInclusionResult,
 } from '@/features/voto/crypto/verificar-voto-inclusion'
+export {
+  computeRemainingSeconds,
+  loadPersistedCooldownAnchor,
+  mergeCooldownAnchor,
+  persistCooldownAnchor,
+  resolveCooldownAnchor,
+  type CooldownAnchor,
+} from '@/features/voto/crypto/cooldown-clock'
 export {
   calcularNullifier,
   CredencialNulificadorInvalidaError,

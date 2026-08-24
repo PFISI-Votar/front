@@ -55,6 +55,8 @@ export type BudConfig = {
   snapshotCongelado?: boolean
   /** VOTAR-447: si el comicio habilita voto nulo (y su recuento en el dashboard). */
   permitirVotoNulo?: boolean
+  /** VOTAR-347 — true si la urna digital está pausada; bloquea el envío de votos. */
+  pausada?: boolean
 }
 
 /** VOTAR-328 — respuesta de revotePolicyService para feedback en BUD. */
