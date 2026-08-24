@@ -62,6 +62,16 @@ describe('escrutinio-chart-data — VOTAR-364', () => {
     )
   })
 
+  it('VOTAR-447: omits nulos from donut when permitirVotoNulo is false', () => {
+    const actual = toDonutChartData(sample, { permitirVotoNulo: false })
+    expect(actual).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'En blanco', value: 2 }),
+      ])
+    )
+    expect(actual.find((d) => d.name === 'Nulos')).toBeUndefined()
+  })
+
   it('formats relative update timestamps', () => {
     const now = Date.parse('2026-07-20T12:00:00.000Z')
     expect(formatRelativeUpdate('2026-07-20T11:59:55.000Z', now)).toBe(
