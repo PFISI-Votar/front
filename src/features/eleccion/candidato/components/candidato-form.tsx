@@ -7,7 +7,7 @@ import {
   getApiFieldErrors,
   isConflictError,
 } from '@/lib/api-client'
-import { resolveMediaUrl } from '@/lib/media-url'
+import { resolveMediaUrl, toSafeImageSrc } from '@/lib/media-url'
 import { bindPersonNameInput } from '@/lib/person-name'
 import { Button } from '@/components/ui/button'
 import {
@@ -153,9 +153,10 @@ export const CandidatoForm = ({
     setFotoError(null)
   }
 
-  const fotoPreview =
+  const fotoPreview = toSafeImageSrc(
     localFotoPreview ??
-    (hasRemovedFoto ? undefined : resolveMediaUrl(currentFotoUrl))
+      (hasRemovedFoto ? undefined : resolveMediaUrl(currentFotoUrl))
+  )
 
   useEffect(() => {
     return () => {
@@ -310,9 +311,12 @@ export const CandidatoForm = ({
               </Button>
             )}
           </div>
-          {fotoPreview ? (
+          {fotoPreview &&
+          (fotoPreview.startsWith('blob:') ||
+            fotoPreview.startsWith('https:') ||
+            fotoPreview.startsWith('http:')) ? (
             <img
-              src={fotoPreview}
+              src={fotoPreview.replace(/[<>]/g, '')}
               alt='Vista previa de la fotografía del candidato'
               className='size-32 rounded-xl border bg-muted object-cover'
             />
