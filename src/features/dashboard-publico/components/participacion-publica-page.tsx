@@ -38,7 +38,7 @@ export const ParticipacionPublicaPage = ({
   const visible = useSeccionDashboardVisible(idEleccion, 'participacion')
   const participacionQuery = useParticipacionPublica(idEleccion, {
     isFrozen,
-    enabled: visible === true,
+    enabled: visible !== false,
   })
 
   const chartRef = useRef<HTMLDivElement>(null)

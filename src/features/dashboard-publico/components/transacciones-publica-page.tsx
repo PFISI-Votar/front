@@ -28,7 +28,7 @@ export const TransaccionesPublicaPage = ({
   const visible = useSeccionDashboardVisible(idEleccion, 'transacciones')
   const transaccionesQuery = useTransaccionesPublica(idEleccion, {
     isFrozen,
-    enabled: visible === true,
+    enabled: visible !== false,
   })
 
   if (!Number.isFinite(idEleccion) || idEleccion <= 0) {

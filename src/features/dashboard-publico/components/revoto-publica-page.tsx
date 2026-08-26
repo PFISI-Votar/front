@@ -27,7 +27,7 @@ export const RevotoPublicaPage = ({ idEleccion }: RevotoPublicaPageProps) => {
   const visible = useSeccionDashboardVisible(idEleccion, 'revoto')
   const revotoQuery = useRevotoStatsPublica(idEleccion, {
     isFrozen,
-    enabled: visible === true,
+    enabled: visible !== false,
   })
 
   if (!Number.isFinite(idEleccion) || idEleccion <= 0) {
