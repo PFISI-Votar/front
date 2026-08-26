@@ -38,7 +38,11 @@ export const ParticipacionPublicaPage = ({
   const visible = useSeccionDashboardVisible(idEleccion, 'participacion')
   const participacionQuery = useParticipacionPublica(idEleccion, {
     isFrozen,
-    enabled: visible !== false,
+    // VOTAR-459: esperar a que comicioQuery resuelva antes de decidir si se
+    // habilita — de lo contrario, en el primer render `visible` es `undefined`
+    // (aún no sabemos si está oculta) y la query dispara igual, filtrando un
+    // request a una sección oculta antes de que el guard del backend importe.
+    enabled: comicioQuery.isSuccess ? visible !== false : false,
   })
 
   const chartRef = useRef<HTMLDivElement>(null)

@@ -27,7 +27,11 @@ export const RevotoPublicaPage = ({ idEleccion }: RevotoPublicaPageProps) => {
   const visible = useSeccionDashboardVisible(idEleccion, 'revoto')
   const revotoQuery = useRevotoStatsPublica(idEleccion, {
     isFrozen,
-    enabled: visible !== false,
+    // VOTAR-459: esperar a que comicioQuery resuelva antes de decidir si se
+    // habilita — de lo contrario, en el primer render `visible` es `undefined`
+    // (aún no sabemos si está oculta) y la query dispara igual, filtrando un
+    // request a una sección oculta antes de que el guard del backend importe.
+    enabled: comicioQuery.isSuccess ? visible !== false : false,
   })
 
   if (!Number.isFinite(idEleccion) || idEleccion <= 0) {
