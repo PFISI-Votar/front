@@ -11,6 +11,7 @@ import {
   isDashboardFrozen,
   useDashboardPublicoComicio,
 } from '@/features/dashboard-publico/hooks/use-dashboard-publico-comicio'
+import { useSeccionDashboardVisible } from '@/features/dashboard-publico/hooks/use-seccion-dashboard-visible'
 import { useTransaccionesPublica } from '@/features/dashboard-publico/hooks/use-transacciones-publica'
 
 type TransaccionesPublicaPageProps = {
@@ -24,7 +25,11 @@ export const TransaccionesPublicaPage = ({
   const isFrozen = comicioQuery.data
     ? isDashboardFrozen(comicioQuery.data)
     : false
-  const transaccionesQuery = useTransaccionesPublica(idEleccion, { isFrozen })
+  const visible = useSeccionDashboardVisible(idEleccion, 'transacciones')
+  const transaccionesQuery = useTransaccionesPublica(idEleccion, {
+    isFrozen,
+    enabled: visible === true,
+  })
 
   if (!Number.isFinite(idEleccion) || idEleccion <= 0) {
     return (
@@ -68,6 +73,26 @@ export const TransaccionesPublicaPage = ({
   }
 
   const { nombre, estado } = comicioQuery.data
+
+  if (visible === false) {
+    return (
+      <DashboardPublicoShell
+        idEleccion={idEleccion}
+        activeSection='transacciones'
+      >
+        <DashboardPublicoHeader
+          nombre={nombre}
+          estado={estado}
+          isFrozen={isFrozen}
+          description='Auditoría pública del historial transaccional de la urna digital.'
+        />
+        <DashboardPublicoErrorPanel
+          title='Sección no disponible'
+          description='La autoridad electoral no publica esta información mientras el comicio está en curso. Estará disponible al cierre.'
+        />
+      </DashboardPublicoShell>
+    )
+  }
 
   if (transaccionesQuery.isError || !transaccionesQuery.data) {
     const status = isAxiosError(transaccionesQuery.error)

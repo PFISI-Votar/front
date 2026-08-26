@@ -18,6 +18,7 @@ import {
   useDashboardPublicoComicio,
 } from '@/features/dashboard-publico/hooks/use-dashboard-publico-comicio'
 import { useParticipacionPublica } from '@/features/dashboard-publico/hooks/use-participacion-publica'
+import { useSeccionDashboardVisible } from '@/features/dashboard-publico/hooks/use-seccion-dashboard-visible'
 import { exportParticipacionPng } from '@/features/dashboard-publico/lib/participacion-export/export-participacion-png'
 
 type ParticipacionPublicaPageProps = {
@@ -34,7 +35,11 @@ export const ParticipacionPublicaPage = ({
   const isFrozen = comicioQuery.data
     ? isDashboardFrozen(comicioQuery.data)
     : false
-  const participacionQuery = useParticipacionPublica(idEleccion, { isFrozen })
+  const visible = useSeccionDashboardVisible(idEleccion, 'participacion')
+  const participacionQuery = useParticipacionPublica(idEleccion, {
+    isFrozen,
+    enabled: visible === true,
+  })
 
   const chartRef = useRef<HTMLDivElement>(null)
   const [isExportingPng, setIsExportingPng] = useState(false)
@@ -99,6 +104,26 @@ export const ParticipacionPublicaPage = ({
         <DashboardPublicoErrorPanel
           title='Comicio no encontrado'
           description='No existe un comicio público con este identificador, o aún no fue configurado.'
+        />
+      </DashboardPublicoShell>
+    )
+  }
+
+  if (visible === false) {
+    return (
+      <DashboardPublicoShell
+        idEleccion={idEleccion}
+        activeSection='participacion'
+      >
+        <DashboardPublicoHeader
+          nombre={comicioQuery.data.nombre}
+          estado={comicioQuery.data.estado}
+          isFrozen={isFrozen}
+          description='Analíticas públicas de afluencia electoral.'
+        />
+        <DashboardPublicoErrorPanel
+          title='Sección no disponible'
+          description='La autoridad electoral no publica esta información mientras el comicio está en curso. Estará disponible al cierre.'
         />
       </DashboardPublicoShell>
     )
