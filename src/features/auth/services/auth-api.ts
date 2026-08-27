@@ -31,10 +31,12 @@ export const verifyTwoFactor = async (
   return data
 }
 
-export const getTwoFactorStatus = async (): Promise<TwoFactorStatusResponse> => {
-  const { data } = await apiClient.get<TwoFactorStatusResponse>('/auth/2fa/status')
-  return data
-}
+export const getTwoFactorStatus =
+  async (): Promise<TwoFactorStatusResponse> => {
+    const { data } =
+      await apiClient.get<TwoFactorStatusResponse>('/auth/2fa/status')
+    return data
+  }
 
 export const resetTwoFactor = async (
   input: ResetTwoFactorInput

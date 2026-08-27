@@ -93,11 +93,13 @@ export function SettingsProfile() {
             <div className='space-y-1'>
               <p className='text-sm font-medium'>Autenticación en dos pasos</p>
               {isLoadingStatus ? (
-                <p className='text-muted-foreground text-sm'>Consultando estado…</p>
+                <p className='text-sm text-muted-foreground'>
+                  Consultando estado…
+                </p>
               ) : (
-                <p className='text-muted-foreground text-sm'>
+                <p className='text-sm text-muted-foreground'>
                   Estado:{' '}
-                  <span className='text-foreground font-medium'>
+                  <span className='font-medium text-foreground'>
                     {enabled ? 'Activo' : 'No configurado'}
                   </span>
                 </p>
@@ -128,14 +130,18 @@ export function SettingsProfile() {
                     </FormControl>
                     <FormDescription>
                       Confirme su contraseña institucional para invalidar el
-                      setup actual. En el siguiente acceso deberá escanear un
-                      QR nuevo.
+                      setup actual. En el siguiente acceso deberá escanear un QR
+                      nuevo.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type='submit' variant='destructive' disabled={isResetting}>
+              <Button
+                type='submit'
+                variant='destructive'
+                disabled={isResetting}
+              >
                 {isResetting ? (
                   <Loader2 className='size-4 animate-spin' aria-hidden='true' />
                 ) : null}

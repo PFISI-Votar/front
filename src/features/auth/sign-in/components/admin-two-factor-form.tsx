@@ -3,8 +3,8 @@ import { z } from 'zod'
 import { AxiosError } from 'axios'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import QRCode from 'qrcode'
 import { Loader2 } from 'lucide-react'
+import QRCode from 'qrcode'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -22,11 +22,11 @@ import {
   InputOTPSeparator,
 } from '@/components/ui/input-otp'
 import { verifyTwoFactor } from '@/features/auth/services/auth-api'
+import { LoginField } from '@/features/auth/sign-in/components/login-screen-shared'
 import type {
   AuthUser,
   TwoFactorChallenge,
 } from '@/features/auth/types/auth.types'
-import { LoginField } from '@/features/auth/sign-in/components/login-screen-shared'
 
 const formSchema = z.object({
   code: z
@@ -125,7 +125,7 @@ export function AdminTwoFactorForm({
             />
           ) : null}
           {challenge.secret ? (
-            <p className='break-all font-mono text-xs tracking-wide text-[#202124]'>
+            <p className='font-mono text-xs tracking-wide break-all text-[#202124]'>
               {challenge.secret}
             </p>
           ) : null}
@@ -137,10 +137,7 @@ export function AdminTwoFactorForm({
       )}
 
       <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(handleSubmit)}
-          className='space-y-4'
-        >
+        <form onSubmit={form.handleSubmit(handleSubmit)} className='space-y-4'>
           <FormField
             control={form.control}
             name='code'

@@ -179,9 +179,7 @@ describe('UserAuthForm', () => {
     await userEvent.click(getByRole('button', { name: /Ingresar al panel/i }))
 
     await vi.waitFor(() => expect(loginMock).toHaveBeenCalledOnce())
-    await expect
-      .element(getByText(/código de 6 dígitos/i))
-      .toBeInTheDocument()
+    await expect.element(getByText(/código de 6 dígitos/i)).toBeInTheDocument()
     expect(setSessionMock).not.toHaveBeenCalled()
     expect(navigate).not.toHaveBeenCalled()
   })
