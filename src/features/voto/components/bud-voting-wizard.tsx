@@ -1637,22 +1637,21 @@ const SelectionStep = ({
               Elegí una lista para tomar toda la boleta como base.
             </CardDescription>
           </CardHeader>
-          <CardContent
-            className={BUD_LIST_GRID_CLASS}
-            data-testid='bud-list-grid'
-          >
-            {lists.map((list) => (
-              <ListCard
-                key={list.id}
-                list={list}
-                roles={roles}
-                candidates={candidates}
-                selected={selectedListId === list.id}
-                onSelect={() =>
-                  onSelectList(selectedListId === list.id ? null : list.id)
-                }
-              />
-            ))}
+          <CardContent>
+            <div className={BUD_LIST_GRID_CLASS} data-testid='bud-list-grid'>
+              {lists.map((list) => (
+                <ListCard
+                  key={list.id}
+                  list={list}
+                  roles={roles}
+                  candidates={candidates}
+                  selected={selectedListId === list.id}
+                  onSelect={() =>
+                    onSelectList(selectedListId === list.id ? null : list.id)
+                  }
+                />
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
