@@ -311,7 +311,9 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     )
 
     await expect
-      .poll(() => page.getByRole('heading', { name: '¿Cerrar el comicio?' }).query())
+      .poll(() =>
+        page.getByRole('heading', { name: '¿Cerrar el comicio?' }).query()
+      )
       .toBeNull()
 
     resolveCerrar({

@@ -384,7 +384,9 @@ describe('ComiciosList', () => {
     )
 
     await expect
-      .poll(() => page.getByRole('heading', { name: '¿Oficializar el comicio?' }).query())
+      .poll(() =>
+        page.getByRole('heading', { name: '¿Oficializar el comicio?' }).query()
+      )
       .toBeNull()
 
     resolveOficializar({
