@@ -29,14 +29,15 @@ vi.mock('@/stores/auth-store', () => ({
   }),
 }))
 
-vi.mock('@/features/auth/services/auth-api', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('@/features/auth/services/auth-api')>()
-  return {
-    ...actual,
-    login: (...args: unknown[]) => loginMock(...args),
-  }
-})
+vi.mock('@/features/auth/services/auth-api', () => ({
+  login: (...args: unknown[]) => loginMock(...args),
+  verifyTwoFactor: vi.fn(),
+  getTwoFactorStatus: vi.fn(),
+  resetTwoFactor: vi.fn(),
+  getCurrentUser: vi.fn(),
+  refreshSession: vi.fn(),
+  logout: vi.fn(),
+}))
 
 vi.mock('@/features/auth/services/auth-session', () => ({
   scheduleAccessTokenRefresh: vi.fn(),
