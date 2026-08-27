@@ -130,11 +130,7 @@ export const Ley25326Page = () => (
         ))}
       </div>
 
-      <footer className='mt-10 flex flex-col gap-3 border-t border-[#e4e7eb] pt-6 text-sm text-[#5f6368] sm:flex-row sm:items-center sm:justify-between'>
-        <p>
-          Referencia técnica del ticket{' '}
-          <span className='font-medium text-[#2f6f9f]'>VOTAR-378</span>.
-        </p>
+      <footer className='mt-10 border-t border-[#e4e7eb] pt-6 text-sm'>
         <Link
           to='/verificar'
           className='inline-flex items-center gap-1.5 font-medium text-[#2f6f9f] hover:underline'
