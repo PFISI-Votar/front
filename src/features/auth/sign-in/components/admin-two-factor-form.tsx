@@ -49,8 +49,14 @@ export function AdminTwoFactorForm({
   className,
 }: AdminTwoFactorFormProps) {
   const [isLoading, setIsLoading] = useState(false)
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
+  const [qrState, setQrState] = useState<{
+    otpauthUrl: string
+    dataUrl: string
+  } | null>(null)
   const isSetup = challenge.status === 'setup_required'
+  const otpauthUrl = challenge.otpauthUrl
+  const qrDataUrl =
+    otpauthUrl && qrState?.otpauthUrl === otpauthUrl ? qrState.dataUrl : null
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -60,24 +66,23 @@ export function AdminTwoFactorForm({
   const code = useWatch({ control: form.control, name: 'code' })
 
   useEffect(() => {
-    let cancelled = false
-    if (!challenge.otpauthUrl) {
-      setQrDataUrl(null)
+    if (!otpauthUrl) {
       return
     }
-    void QRCode.toDataURL(challenge.otpauthUrl, {
+    let cancelled = false
+    void QRCode.toDataURL(otpauthUrl, {
       width: 200,
       margin: 1,
       errorCorrectionLevel: 'M',
-    }).then((url) => {
+    }).then((dataUrl) => {
       if (!cancelled) {
-        setQrDataUrl(url)
+        setQrState({ otpauthUrl, dataUrl })
       }
     })
     return () => {
       cancelled = true
     }
-  }, [challenge.otpauthUrl])
+  }, [otpauthUrl])
 
   const handleSubmit = async (data: z.infer<typeof formSchema>) => {
     setIsLoading(true)
