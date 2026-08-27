@@ -291,6 +291,39 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     expect(cerrarEleccion).toHaveBeenCalledWith(1)
   })
 
+  it('cierra el diálogo de cierre de inmediato y continúa en segundo plano', async () => {
+    let resolveCerrar!: (value: Eleccion) => void
+    const pendingCerrar = new Promise<Eleccion>((resolve) => {
+      resolveCerrar = resolve
+    })
+
+    vi.mocked(obtenerEleccion).mockResolvedValue({
+      ...mockEleccionConfigurada,
+      estado: 'ABIERTA',
+    })
+    vi.mocked(cerrarEleccion).mockReturnValue(pendingCerrar)
+
+    await renderPanel()
+
+    await userEvent.click(page.getByRole('button', { name: 'Cerrar comicio' }))
+    await userEvent.click(
+      page.getByRole('button', { name: 'Sí, cerrar comicio' })
+    )
+
+    await expect
+      .poll(() => page.getByRole('heading', { name: '¿Cerrar el comicio?' }).query())
+      .toBeNull()
+
+    resolveCerrar({
+      ...mockEleccionConfigurada,
+      estado: 'CERRADA',
+    })
+
+    await vi.waitFor(() => {
+      expect(cerrarEleccion).toHaveBeenCalledWith(1)
+    })
+  })
+
   it('muestra texto de precondiciones en diálogo de confirmación', async () => {
     await renderPanel()
 

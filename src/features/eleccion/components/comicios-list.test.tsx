@@ -336,8 +336,8 @@ describe('ComiciosList', () => {
     vi.mocked(oficializarEleccion).mockResolvedValue({
       idEleccion: 2,
       estado: 'CONFIGURADA',
-      mapeoListas: [],
-    } as never)
+      mapeo: [],
+    })
 
     await renderComiciosList()
 
@@ -349,6 +349,49 @@ describe('ComiciosList', () => {
     await userEvent.click(
       page.getByRole('button', { name: 'Sí, oficializar comicio' })
     )
+
+    await vi.waitFor(() => {
+      expect(oficializarEleccion).toHaveBeenCalledWith(2)
+    })
+  })
+
+  it('cierra el diálogo de oficializar de inmediato y continúa en segundo plano', async () => {
+    let resolveOficializar!: (value: {
+      idEleccion: number
+      estado: 'CONFIGURADA'
+      mapeo: []
+    }) => void
+    const pendingOficializar = new Promise<{
+      idEleccion: number
+      estado: 'CONFIGURADA'
+      mapeo: []
+    }>((resolve) => {
+      resolveOficializar = resolve
+    })
+
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+    vi.mocked(oficializarEleccion).mockReturnValue(pendingOficializar)
+
+    await renderComiciosList()
+
+    await userEvent.click(
+      page.getByRole('button', {
+        name: 'Oficializar comicio Elección Provincial 2025',
+      })
+    )
+    await userEvent.click(
+      page.getByRole('button', { name: 'Sí, oficializar comicio' })
+    )
+
+    await expect
+      .poll(() => page.getByRole('heading', { name: '¿Oficializar el comicio?' }).query())
+      .toBeNull()
+
+    resolveOficializar({
+      idEleccion: 2,
+      estado: 'CONFIGURADA',
+      mapeo: [],
+    })
 
     await vi.waitFor(() => {
       expect(oficializarEleccion).toHaveBeenCalledWith(2)
