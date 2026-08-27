@@ -160,4 +160,29 @@ describe('UserAuthForm', () => {
       'Acceso denegado. Su cuenta no tiene privilegios de Autoridad Electoral.'
     )
   })
+
+  it('shows 2FA step when login returns a challenge', async () => {
+    vi.clearAllMocks()
+    loginMock.mockResolvedValue({
+      twoFactor: {
+        status: 'verification_required',
+        challengeToken: 'challenge-token',
+      },
+    })
+
+    const { getByRole, getByLabelText, getByText } = await render(
+      <UserAuthForm variant='panel' />
+    )
+
+    await userEvent.fill(getByRole('textbox', { name: /^Usuario$/i }), '14988')
+    await userEvent.fill(getByLabelText(/^Contraseña$/i), 'secret')
+    await userEvent.click(getByRole('button', { name: /Ingresar al panel/i }))
+
+    await vi.waitFor(() => expect(loginMock).toHaveBeenCalledOnce())
+    await expect
+      .element(getByText(/código de 6 dígitos/i))
+      .toBeInTheDocument()
+    expect(setSessionMock).not.toHaveBeenCalled()
+    expect(navigate).not.toHaveBeenCalled()
+  })
 })

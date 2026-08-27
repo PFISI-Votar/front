@@ -29,6 +29,9 @@ const processRefreshQueue = (error: unknown): void => {
 
 export const refreshAccessToken = async (): Promise<AuthResponse> => {
   const { data } = await apiClient.post<AuthResponse>('/auth/refresh')
+  if (!data.user) {
+    throw new Error('Refresh sin usuario autenticado')
+  }
   useAuthStore.getState().auth.setSession(data.user)
   return data
 }
@@ -38,6 +41,7 @@ const isAuthEndpoint = (url: string): boolean =>
   url.includes('/auth/refresh') ||
   url.includes('/auth/logout') ||
   url.includes('/auth/me') ||
+  url.includes('/auth/2fa/') ||
   url.includes('/auth/votante/')
 
 const isVotanteProtectedEndpoint = (url: string): boolean =>

@@ -1,4 +1,5 @@
-import { ChevronsUpDown, LogOut } from 'lucide-react'
+import { ChevronsUpDown, LogOut, UserCog } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 import { getPersonNameInitials } from '@/lib/person-name'
 import useDialogState from '@/hooks/use-dialog-state'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -75,6 +76,12 @@ export function NavUser({ user }: NavUserProps) {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem asChild className='cursor-pointer'>
+                <Link to='/settings'>
+                  <UserCog className='text-[#2f6f9f] dark:text-[#7ab3d4]' />
+                  Perfil y seguridad
+                </Link>
+              </DropdownMenuItem>
               <DropdownMenuItem
                 variant='destructive'
                 className='cursor-pointer'
