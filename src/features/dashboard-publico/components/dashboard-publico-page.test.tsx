@@ -360,6 +360,31 @@ describe('DashboardPublicoPage', () => {
       .toBeInTheDocument()
   })
 
+  it('VOTAR-459: no dispara fetch/WS de resultados mientras la solapa está oculta', async () => {
+    mocks.obtenerConfiguracionBud.mockResolvedValue({
+      idEleccion: 6,
+      nombre: 'Elección Centro de Estudiantes',
+      estado: 'ABIERTA',
+      tipoVotacion: 'POR_LISTA',
+      metodosAutenticacion: ['SSO_INSTITUCIONAL'],
+      visibilidadDashboard: {
+        resultados: false,
+        participacion: true,
+        revoto: true,
+        transacciones: true,
+      },
+    })
+
+    const screen = await renderPage(6, 'resultados')
+
+    await expect
+      .element(screen.getByText(/Sección no disponible/i))
+      .toBeInTheDocument()
+
+    expect(mocks.useEscrutinio).not.toHaveBeenCalled()
+    expect(mocks.useDashboardResultadosWebSocket).not.toHaveBeenCalled()
+  })
+
   it('VOTAR-459: muestra "Sección no disponible" al navegar directo a /resultados si está oculta', async () => {
     mocks.obtenerConfiguracionBud.mockResolvedValue({
       idEleccion: 6,

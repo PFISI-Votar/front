@@ -116,6 +116,13 @@ export const DashboardPublicoPage = ({
               idEleccion={idEleccion}
               fullCharts={section === 'resultados'}
               estadoComicio={estado}
+              // VOTAR-459: gatear explícitamente por comicioQuery.isSuccess —
+              // de lo contrario, mientras configuracion-bud carga,
+              // visibleResultados es `undefined` (!== false) y el panel se
+              // monta con `enabled` en su default `true`, disparando
+              // fetch/WS de resultados antes de saber si la solapa está
+              // oculta (fuga de información a una sección no publicada).
+              enabled={comicioQuery.isSuccess && visibleResultados !== false}
             />
           </section>
         )}
