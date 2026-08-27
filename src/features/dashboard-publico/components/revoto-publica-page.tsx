@@ -13,6 +13,7 @@ import {
   useDashboardPublicoComicio,
 } from '@/features/dashboard-publico/hooks/use-dashboard-publico-comicio'
 import { useRevotoStatsPublica } from '@/features/dashboard-publico/hooks/use-revoto-stats-publica'
+import { useSeccionDashboardVisible } from '@/features/dashboard-publico/hooks/use-seccion-dashboard-visible'
 
 type RevotoPublicaPageProps = {
   idEleccion: number
@@ -23,7 +24,15 @@ export const RevotoPublicaPage = ({ idEleccion }: RevotoPublicaPageProps) => {
   const isFrozen = comicioQuery.data
     ? isDashboardFrozen(comicioQuery.data)
     : false
-  const revotoQuery = useRevotoStatsPublica(idEleccion, { isFrozen })
+  const visible = useSeccionDashboardVisible(idEleccion, 'revoto')
+  const revotoQuery = useRevotoStatsPublica(idEleccion, {
+    isFrozen,
+    // VOTAR-459: esperar a que comicioQuery resuelva antes de decidir si se
+    // habilita — de lo contrario, en el primer render `visible` es `undefined`
+    // (aún no sabemos si está oculta) y la query dispara igual, filtrando un
+    // request a una sección oculta antes de que el guard del backend importe.
+    enabled: comicioQuery.isSuccess ? visible !== false : false,
+  })
 
   if (!Number.isFinite(idEleccion) || idEleccion <= 0) {
     return (
@@ -58,6 +67,23 @@ export const RevotoPublicaPage = ({ idEleccion }: RevotoPublicaPageProps) => {
         <DashboardPublicoErrorPanel
           title='Comicio no encontrado'
           description='No existe un comicio público con este identificador, o aún no fue configurado.'
+        />
+      </DashboardPublicoShell>
+    )
+  }
+
+  if (visible === false) {
+    return (
+      <DashboardPublicoShell idEleccion={idEleccion} activeSection='revoto'>
+        <DashboardPublicoHeader
+          nombre={comicioQuery.data.nombre}
+          estado={comicioQuery.data.estado}
+          isFrozen={isFrozen}
+          description='Analíticas públicas de dinámica de re-voto.'
+        />
+        <DashboardPublicoErrorPanel
+          title='Sección no disponible'
+          description='La autoridad electoral no publica esta información mientras el comicio está en curso. Estará disponible al cierre.'
         />
       </DashboardPublicoShell>
     )

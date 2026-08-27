@@ -61,6 +61,7 @@ import { PausarComicioDialog } from '@/features/eleccion/components/pausar-comic
 import { ReanudarComicioDialog } from '@/features/eleccion/components/reanudar-comicio-dialog'
 import { ConfiguracionRevotoPanel } from '@/features/eleccion/configuracion-comicio/components/configuracion-revoto-panel'
 import { ConfiguracionVotoNuloPanel } from '@/features/eleccion/configuracion-comicio/components/configuracion-voto-nulo-panel'
+import { VisibilidadDashboardPanel } from '@/features/eleccion/configuracion-comicio/components/visibilidad-dashboard-panel'
 import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
 import { useCerrarEleccion } from '@/features/eleccion/hooks/use-cerrar-eleccion'
 import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
@@ -544,6 +545,8 @@ export const OfertaElectoralPanel = ({
         idEleccion={idEleccion}
         isEditable={isEditable}
       />
+
+      <VisibilidadDashboardPanel idEleccion={idEleccion} />
 
       <ConfiguracionDatosCandidatoPanel
         idEleccion={idEleccion}
