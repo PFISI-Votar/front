@@ -1,3 +1,4 @@
+import { forwardRef } from 'react'
 import { Activity } from 'lucide-react'
 import {
   Area,
@@ -20,14 +21,17 @@ import type { SerieTemporalPunto } from '@/features/dashboard-publico/api/partic
 
 type CurvaTemporalChartProps = {
   serieTemporal: SerieTemporalPunto[]
+  nombreComicio?: string
+  fecha?: string
   className?: string
 }
 
-export const CurvaTemporalChart = ({
-  serieTemporal,
-  className,
-}: CurvaTemporalChartProps) => (
+export const CurvaTemporalChart = forwardRef<
+  HTMLDivElement,
+  CurvaTemporalChartProps
+>(({ serieTemporal, nombreComicio, fecha, className }, ref) => (
   <Card
+    ref={ref}
     className={cn(
       'gap-0 overflow-hidden rounded-2xl border-[#e4e7eb] bg-white/95 py-0 shadow-[0_1rem_3rem_rgba(30,64,95,0.08)]',
       className
@@ -48,6 +52,13 @@ export const CurvaTemporalChart = ({
           Ritmo acumulado de sufragios emitidos durante las últimas 12 horas del
           comicio o durante todo su período, si su duración fue menor.
         </CardDescription>
+        {(nombreComicio || fecha) && (
+          <p className='text-xs font-medium text-[#80868b]'>
+            {nombreComicio}
+            {nombreComicio && fecha ? ' · ' : ''}
+            {fecha}
+          </p>
+        )}
       </div>
     </CardHeader>
     <CardContent className='px-2 pb-6 sm:px-4'>
@@ -106,4 +117,6 @@ export const CurvaTemporalChart = ({
       )}
     </CardContent>
   </Card>
-)
+))
+
+CurvaTemporalChart.displayName = 'CurvaTemporalChart'

@@ -3,6 +3,8 @@
  * Must stay aligned with blockchain/contracts/ballot/BallotContract.sol.
  * VOTAR-346 adds candidateId for VoteRegistry audit VoteCast emission.
  * VOTAR-341: RevoteDisabled is the current double-vote error when revote is off.
+ * VOTAR-451: AlreadyVoted rejects a fresh nullifier after the leaf already voted
+ * (tab close / ephemeral key rotation must not inflate participation).
  * VOTAR-324: MaxVotesReached fires once a nullifier reaches maxVotesPerVoter signed votes.
  * VOTAR-325: RetryTooSoon fires when a nullifier re-votes before minIntervalSeconds
  * elapsed; getVoterState exposes the node's cooldownRemaining/blockTimestamp so the
@@ -34,6 +36,16 @@ export const BALLOT_CONTRACT_ABI = [
     inputs: [
       { name: 'electionId', type: 'uint256' },
       { name: 'nullifier', type: 'bytes32' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+  {
+    type: 'function',
+    name: 'hasVoted',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'electionId', type: 'uint256' },
+      { name: 'voterLeaf', type: 'bytes32' },
     ],
     outputs: [{ name: '', type: 'bool' }],
   },
@@ -75,6 +87,11 @@ export const BALLOT_CONTRACT_ABI = [
   {
     type: 'error',
     name: 'RevoteDisabled',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'AlreadyVoted',
     inputs: [],
   },
   {

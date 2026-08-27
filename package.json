@@ -68,6 +68,7 @@
     "clsx": "^2.1.1",
     "cmdk": "1.1.1",
     "date-fns": "^4.1.0",
+    "html-to-image": "^1.11.13",
     "input-otp": "^1.4.2",
     "js-sha3": "^0.9.3",
     "jspdf": "^4.2.1",
@@ -123,7 +124,7 @@
   },
   "optionalDependencies": {
     "@rolldown/binding-linux-x64-gnu": "^1.1.5",
-    "lightningcss-linux-x64-gnu": "^1.32.0",
-    "@tailwindcss/oxide-linux-x64-gnu": "^4.2.2"
+    "@tailwindcss/oxide-linux-x64-gnu": "^4.2.2",
+    "lightningcss-linux-x64-gnu": "^1.32.0"
   }
 }

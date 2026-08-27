@@ -22,6 +22,7 @@ export type OnChainRevertName =
   | 'InvalidMerkleProof'
   | 'ElectionClosed'
   | 'RevoteDisabled'
+  | 'AlreadyVoted'
   | 'NullifierAlreadyUsed'
   | 'MerkleRootNotPublished'
   | 'MaxVotesReached'
@@ -120,6 +121,7 @@ export const getMessageForRevert = (
 
   if (
     revertName === 'RevoteDisabled' ||
+    revertName === 'AlreadyVoted' ||
     revertName === 'NullifierAlreadyUsed'
   ) {
     return {

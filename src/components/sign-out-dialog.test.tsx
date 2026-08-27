@@ -43,7 +43,7 @@ describe('SignOutDialog', () => {
       <SignOutDialog open onOpenChange={vi.fn()} />
     )
 
-    await userEvent.click(getByRole('button', { name: /^Sign out$/i }))
+    await userEvent.click(getByRole('button', { name: /^Cerrar sesión$/i }))
 
     await vi.waitFor(() => expect(logoutMock).toHaveBeenCalledOnce())
     expect(reset).toHaveBeenCalledOnce()

@@ -1,5 +1,6 @@
 import { BALLOT_CONTRACT_ABI } from '@/features/voto/crypto/ballot-abi'
 import { createVotePublicClient } from '@/features/voto/crypto/rpc-client'
+import { toBytes32 } from '@/features/voto/crypto/vote-transmitter'
 
 export type VoterStateOnChain = {
   votesUsed: number
@@ -27,7 +28,7 @@ export const leerVoterState = async (
       address: ballotContractAddress,
       abi: BALLOT_CONTRACT_ABI,
       functionName: 'getVoterState',
-      args: [BigInt(idEleccion), nullifier],
+      args: [BigInt(idEleccion), toBytes32(nullifier)],
     })
 
   return {
@@ -36,4 +37,39 @@ export const leerVoterState = async (
     cooldownRemaining: Number(cooldownRemaining),
     blockTimestamp: Number(blockTimestamp),
   }
+}
+
+/**
+ * VOTAR-451 — True when this padron leaf already cast on-chain (any nullifier).
+ * Used to short-circuit a retransmit after ephemeral key rotation (tab close).
+ */
+export const leerHasVoted = async (
+  idEleccion: number,
+  voterLeaf: `0x${string}`,
+  ballotContractAddress: `0x${string}`
+): Promise<boolean> => {
+  const client = createVotePublicClient()
+  return client.readContract({
+    address: ballotContractAddress,
+    abi: BALLOT_CONTRACT_ABI,
+    functionName: 'hasVoted',
+    args: [BigInt(idEleccion), toBytes32(voterLeaf)],
+  })
+}
+
+/**
+ * VOTAR-451 — True when this session nullifier already has signed votes on-chain.
+ */
+export const leerIsNullifierUsed = async (
+  idEleccion: number,
+  nullifier: `0x${string}`,
+  ballotContractAddress: `0x${string}`
+): Promise<boolean> => {
+  const client = createVotePublicClient()
+  return client.readContract({
+    address: ballotContractAddress,
+    abi: BALLOT_CONTRACT_ABI,
+    functionName: 'isNullifierUsed',
+    args: [BigInt(idEleccion), toBytes32(nullifier)],
+  })
 }

@@ -7,8 +7,8 @@ import { TIPOS_VOTACION } from '@/features/eleccion/lista/data/schema'
 const buildParticipacionSheet = (
   document: EscrutinioExportDocument
 ): XLSX.WorkSheet => {
-  const { metadata, participacion } = document
-  const rows = [
+  const { metadata, participacion, permitirVotoNulo } = document
+  const rows: Array<[string, string | number]> = [
     ['Indicador', 'Valor'],
     ['ID Elección', metadata.idEleccion],
     ['Nombre', metadata.nombre],
@@ -20,9 +20,11 @@ const buildParticipacionSheet = (
     ['Total votos', participacion.totalVotos],
     ['Participación (%)', participacion.porcentajeParticipacion],
     ['Votos en blanco', participacion.votosBlanco],
-    ['Votos nulos', participacion.votosNulo],
-    ['Votantes habilitados', participacion.totalVotantesHabilitados],
   ]
+  if (permitirVotoNulo) {
+    rows.push(['Votos nulos', participacion.votosNulo])
+  }
+  rows.push(['Votantes habilitados', participacion.totalVotantesHabilitados])
   const sheet = XLSX.utils.aoa_to_sheet(rows)
   sheet['!cols'] = [{ wch: 28 }, { wch: 40 }]
   return sheet

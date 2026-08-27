@@ -64,6 +64,22 @@ describe('pending-vote-cast — VOTAR-445', () => {
       JSON.stringify({ idEleccion: 7, txHash: '0xdead', startedAt: 1 })
     )
     expect(loadPendingVoteCast(7)).toBeNull()
+    expect(localStorageMock.getItem('votar:pending-vote-cast:7')).toBeNull()
+  })
+
+  it('VOTAR-451: descarta pending casts expirados para evitar resume colgado', () => {
+    const txHash = ('0x' + '11'.repeat(32)) as `0x${string}`
+    localStorageMock.setItem(
+      'votar:pending-vote-cast:7',
+      JSON.stringify({
+        idEleccion: 7,
+        txHash,
+        startedAt: Date.now() - 10 * 60 * 1000,
+      })
+    )
+
+    expect(loadPendingVoteCast(7)).toBeNull()
+    expect(localStorageMock.getItem('votar:pending-vote-cast:7')).toBeNull()
   })
 
   it('does not touch vote-seed keys used for nullifier continuity', () => {

@@ -6,6 +6,7 @@ const ESTADO_LABEL: Record<EleccionEstado, string> = {
   ABIERTA: 'Abierta',
   CERRADA: 'Cerrada',
   ESCRUTADA: 'Escrutada',
+  ARCHIVADA: 'Archivada',
 }
 
 export const getEstadoEleccionLabel = (
@@ -24,5 +25,6 @@ export const getEstadoEleccionBadgeVariant = (
   if (estado === 'CONFIGURADA') return 'default'
   if (estado === 'BORRADOR') return 'secondary'
   if (estado === 'CERRADA') return 'destructive'
+  if (estado === 'ARCHIVADA') return 'outline'
   return 'outline'
 }

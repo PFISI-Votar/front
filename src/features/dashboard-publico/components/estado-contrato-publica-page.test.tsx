@@ -43,6 +43,7 @@ const contratoMock = {
     hash: '0x' + 'ab'.repeat(32),
     publicado: true,
     publicadoEn: '2026-08-08T12:00:00.000Z',
+    consistente: true,
   },
   revoto: {
     habilitado: true,
@@ -139,4 +140,6 @@ describe('EstadoContratoPublicaPage — VOTAR-367', () => {
       .element(screen.getByText('Metadatos on-chain no disponibles'))
       .toBeVisible()
   })
+
+  it.todo('UAT-02: hash Merkle coincide con padrón offline')
 })

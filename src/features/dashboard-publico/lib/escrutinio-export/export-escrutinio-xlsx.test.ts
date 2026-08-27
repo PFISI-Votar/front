@@ -59,4 +59,19 @@ describe('export-escrutinio-xlsx — VOTAR-369 UAT-01', () => {
       true
     )
   })
+
+  it('VOTAR-447: omite Votos nulos de la hoja Participación cuando permitirVotoNulo es false', () => {
+    const document = buildEscrutinioExportDocument(
+      { ...mockEscrutinio, permitirVotoNulo: false },
+      'xlsx'
+    )
+    const buffer = buildEscrutinioXlsxBuffer(document)
+    const workbook = XLSX.read(buffer, { type: 'array' })
+    const participacion = XLSX.utils.sheet_to_json<string[]>(
+      workbook.Sheets['Participación']!,
+      { header: 1 }
+    )
+    expect(participacion.some((row) => row[0] === 'Votos nulos')).toBe(false)
+    expect(participacion.some((row) => row[0] === 'Votos en blanco')).toBe(true)
+  })
 })

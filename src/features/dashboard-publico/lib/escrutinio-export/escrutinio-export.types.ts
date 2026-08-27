@@ -59,6 +59,8 @@ export type EscrutinioExportDocument = {
   participacion: ParticipacionEscrutinio
   candidatos: CandidatoEscrutinio[]
   resultados: EscrutinioExportResultados
+  /** VOTAR-447: blank always exported; null only when enabled. */
+  permitirVotoNulo: boolean
 }
 
 export const ESCRUTINIO_EXPORT_FORMAT_LABELS: Record<

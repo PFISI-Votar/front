@@ -52,6 +52,16 @@ describe('mapVoteTxError — VOTAR-358 / VOTAR-341 / VOTAR-359', () => {
     expect(mapped.severity).toBe('error')
   })
 
+  it('VOTAR-451: maps AlreadyVoted to already_registered', () => {
+    const mapped = mapVoteTxError(
+      createRevertedFromEncodedError('AlreadyVoted', [])
+    )
+    expect(mapped.code).toBe('already_registered')
+    expect(mapped.message).toMatch(/ya está registrado/i)
+    expect(mapped.severity).toBe('error')
+    expect(mapped.canRetrySend).toBe(false)
+  })
+
   it('VOTAR-324: maps MaxVotesReached(electionId, maxVotes) to already_registered with the limit', () => {
     const mapped = mapVoteTxError(
       createRevertedFromEncodedError('MaxVotesReached', [339n, 2])
@@ -78,6 +88,10 @@ describe('mapVoteTxError — VOTAR-358 / VOTAR-341 / VOTAR-359', () => {
       abi: BALLOT_CONTRACT_ABI,
       errorName: 'RevoteDisabled',
     })
+    const alreadyVotedData = encodeErrorResult({
+      abi: BALLOT_CONTRACT_ABI,
+      errorName: 'AlreadyVoted',
+    })
     const legacyData = encodeErrorResult({
       abi: BALLOT_CONTRACT_ABI,
       errorName: 'NullifierAlreadyUsed',
@@ -89,6 +103,10 @@ describe('mapVoteTxError — VOTAR-358 / VOTAR-341 / VOTAR-359', () => {
       decodeErrorResult({ abi: BALLOT_CONTRACT_ABI, data: revoteData })
         .errorName
     ).toBe('RevoteDisabled')
+    expect(
+      decodeErrorResult({ abi: BALLOT_CONTRACT_ABI, data: alreadyVotedData })
+        .errorName
+    ).toBe('AlreadyVoted')
     expect(
       decodeErrorResult({ abi: BALLOT_CONTRACT_ABI, data: legacyData })
         .errorName

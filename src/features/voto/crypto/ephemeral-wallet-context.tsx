@@ -32,11 +32,17 @@ export const EphemeralWalletProvider = ({
     setSession(null)
   }, [])
 
-  const initialize = useCallback(async (idEleccion: number) => {
-    const nextSession = await managerRef.current.initialize(idEleccion)
-    setSession(nextSession)
-    return nextSession
-  }, [])
+  const initialize = useCallback(
+    async (idEleccion: number, votanteScope: string) => {
+      const nextSession = await managerRef.current.initialize(
+        idEleccion,
+        votanteScope
+      )
+      setSession(nextSession)
+      return nextSession
+    },
+    []
+  )
 
   const signVotePayload = useCallback(
     async (

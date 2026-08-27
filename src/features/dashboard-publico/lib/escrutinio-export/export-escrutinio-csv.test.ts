@@ -60,4 +60,18 @@ describe('export-escrutinio-csv — VOTAR-369 UAT-03', () => {
     expect(actual.startsWith('clave,valor')).toBe(true)
     expect(actual.endsWith('\n')).toBe(true)
   })
+
+  it('VOTAR-447: omite votos_nulo del CSV cuando permitirVotoNulo es false', () => {
+    const document = buildEscrutinioExportDocument(
+      {
+        ...mockEscrutinio,
+        permitirVotoNulo: false,
+        participacion: { ...mockEscrutinio.participacion, votosNulo: 4 },
+      },
+      'csv'
+    )
+    const actual = buildEscrutinioCsvContent(document)
+    expect(actual).toContain('votos_blanco,1')
+    expect(actual).not.toContain('votos_nulo')
+  })
 })

@@ -3,7 +3,7 @@ import { render, type RenderResult } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
 import { SearchProvider } from '@/context/search-provider'
 
-const COMMAND_MENU_PLACEHOLDER = 'Type a command or search...'
+const COMMAND_MENU_PLACEHOLDER = 'Escribe un comando o busca...'
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -69,10 +69,10 @@ describe('SearchProvider and CommandMenu', () => {
     await expect
       .element(getByPlaceholder(COMMAND_MENU_PLACEHOLDER))
       .toBeInTheDocument()
-    await expect.element(getByText('Theme')).toBeInTheDocument()
-    await expect.element(getByText('Light')).toBeInTheDocument()
-    await expect.element(getByText('Dark')).toBeInTheDocument()
-    await expect.element(getByText('System')).toBeInTheDocument()
+    await expect.element(getByText('Tema', { exact: true })).toBeInTheDocument()
+    await expect.element(getByText('Claro')).toBeInTheDocument()
+    await expect.element(getByText('Oscuro')).toBeInTheDocument()
+    await expect.element(getByText('Sistema')).toBeInTheDocument()
     await expect.element(getByText('Ver comicios')).toBeInTheDocument()
   })
 
@@ -125,9 +125,11 @@ describe('SearchProvider and CommandMenu', () => {
 
     await openCommandPalette(screen)
 
-    await userEvent.click(getByRole('option', { name: 'Settings Account' }))
+    await userEvent.click(
+      getByRole('option', { name: 'Comicios Nuevo comicio' })
+    )
 
-    expect(mocks.navigate).toHaveBeenCalledWith({ to: '/settings/account' })
+    expect(mocks.navigate).toHaveBeenCalledWith({ to: '/comicios/nuevo' })
     await expect
       .element(getByPlaceholder(COMMAND_MENU_PLACEHOLDER))
       .not.toBeInTheDocument()
@@ -138,7 +140,7 @@ describe('SearchProvider and CommandMenu', () => {
 
     await openCommandPalette(screen)
 
-    await userEvent.click(screen.getByText('Dark'))
+    await userEvent.click(screen.getByText('Oscuro'))
 
     expect(mocks.setTheme).toHaveBeenCalledWith('dark')
     await expect
@@ -157,7 +159,7 @@ describe('SearchProvider and CommandMenu', () => {
     )
 
     await expect
-      .element(screen.getByText('No results found.'))
+      .element(screen.getByText('No se encontraron resultados.'))
       .toBeInTheDocument()
   })
 })

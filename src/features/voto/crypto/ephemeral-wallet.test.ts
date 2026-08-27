@@ -9,6 +9,11 @@ import { hashVoteTypedData } from '@/features/voto/crypto/vote-signer'
 const TEST_BALLOT_ADDRESS =
   '0x0000000000000000000000000000000000000001' as const
 
+const VOTANTE_SCOPE_A = 'voter-scope-a'
+const VOTANTE_SCOPE_B = 'voter-scope-b'
+const seedStorageKey = (idEleccion: number, scope: string) =>
+  `votar:vote-seed:${idEleccion}:${scope}`
+
 const createMemoryStorage = () => {
   const store = new Map<string, string>()
   return {
@@ -57,7 +62,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
   })
 
   it('generates a compressed secp256k1 public key for a valid election', async () => {
-    const session = await manager.initialize(7)
+    const session = await manager.initialize(7, VOTANTE_SCOPE_A)
 
     expect(session.idEleccion).toBe(7)
     expect(session.publicKeyHex).toMatch(/^0x0[23][0-9a-f]{64}$/)
@@ -67,7 +72,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
   })
 
   it('UAT-01: never persists private/public key material in storage or cookies', async () => {
-    const session = await manager.initialize(7)
+    const session = await manager.initialize(7, VOTANTE_SCOPE_A)
     const publicKeyHex = session.publicKeyHex
 
     for (const key of STORAGE_KEYS) {
@@ -79,37 +84,53 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
     // same voter reaches the same nullifier across sign attempts — but the
     // seed is not the private/public key, and never appears verbatim in it.
     expect(localStorageMock.length).toBe(1)
-    expect(localStorageMock.getItem('votar:vote-seed:7')).toMatch(
-      /^0x[0-9a-f]{64}$/
-    )
-    expect(localStorageMock.getItem('votar:vote-seed:7')).not.toBe(publicKeyHex)
+    expect(
+      localStorageMock.getItem(seedStorageKey(7, VOTANTE_SCOPE_A))
+    ).toMatch(/^0x[0-9a-f]{64}$/)
+    expect(
+      localStorageMock.getItem(seedStorageKey(7, VOTANTE_SCOPE_A))
+    ).not.toBe(publicKeyHex)
     expect(sessionStorageMock.length).toBe(0)
     expect(document.cookie).not.toContain(publicKeyHex.slice(2))
     expect(document.cookie.toLowerCase()).not.toContain('private')
   })
 
   it('VOTAR-353: destroy clears the session, but regenerating for the same election yields the same public key (LAST_VOTE_WINS revote support)', async () => {
-    const firstSession = await manager.initialize(7)
+    const firstSession = await manager.initialize(7, VOTANTE_SCOPE_A)
     manager.destroy()
 
     expect(manager.getSession()).toBeNull()
     expect(manager.getPublicKeyHex()).toBeNull()
 
-    const secondSession = await manager.initialize(7)
+    const secondSession = await manager.initialize(7, VOTANTE_SCOPE_A)
     expect(secondSession.publicKeyHex).toBe(firstSession.publicKeyHex)
     expect(secondSession.publicKeyHex).toMatch(/^0x0[23][0-9a-f]{64}$/)
   })
 
   it('VOTAR-353: two different elections derive different public keys from the same browser', async () => {
-    const electionSeven = await manager.initialize(7)
+    const electionSeven = await manager.initialize(7, VOTANTE_SCOPE_A)
     manager.destroy()
-    const electionEight = await manager.initialize(8)
+    const electionEight = await manager.initialize(8, VOTANTE_SCOPE_A)
 
     expect(electionEight.publicKeyHex).not.toBe(electionSeven.publicKeyHex)
   })
 
+  it('VOTAR-452: distintos votanteScope derivan claves distintas para la misma elección', async () => {
+    const voterA = await manager.initialize(7, VOTANTE_SCOPE_A)
+    manager.destroy()
+    const voterB = await manager.initialize(7, VOTANTE_SCOPE_B)
+
+    expect(voterB.publicKeyHex).not.toBe(voterA.publicKeyHex)
+    expect(
+      localStorageMock.getItem(seedStorageKey(7, VOTANTE_SCOPE_A))
+    ).toMatch(/^0x[0-9a-f]{64}$/)
+    expect(
+      localStorageMock.getItem(seedStorageKey(7, VOTANTE_SCOPE_B))
+    ).toMatch(/^0x[0-9a-f]{64}$/)
+  })
+
   it('UAT-03: does not expose private key accessors on the public API or window', async () => {
-    await manager.initialize(7)
+    await manager.initialize(7, VOTANTE_SCOPE_A)
 
     expect(manager).not.toHaveProperty('getPrivateKey')
     expect(manager).not.toHaveProperty('privateKey')
@@ -131,7 +152,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
   })
 
   it('UAT-04 / VOTAR-418: signVotePayload destroys session so a second sign fails', async () => {
-    await manager.initialize(357)
+    await manager.initialize(357, VOTANTE_SCOPE_A)
     const selection = {
       selecciones: [{ idCategoria: 1, idCandidato: 101 }],
     }
@@ -156,7 +177,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
 
   it('VOTAR-418: signVotePayload zeroizes the private-key Uint8Array buffer', async () => {
     const fillSpy = vi.spyOn(Uint8Array.prototype, 'fill')
-    await manager.initialize(418)
+    await manager.initialize(418, VOTANTE_SCOPE_A)
     const selection = {
       selecciones: [{ idCategoria: 1, idCandidato: 101 }],
     }
@@ -174,7 +195,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
   })
 
   it('VOTAR-418: failed signature does not destroy the wallet', async () => {
-    await manager.initialize(418)
+    await manager.initialize(418, VOTANTE_SCOPE_A)
     const publicKeyBefore = manager.getPublicKeyHex()
     const selection = {
       selecciones: [{ idCategoria: 1, idCandidato: 101 }],
@@ -255,17 +276,23 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
   })
 
   it('rejects invalid election ids', async () => {
-    await expect(manager.initialize(0)).rejects.toThrow(
+    await expect(manager.initialize(0, VOTANTE_SCOPE_A)).rejects.toThrow(
       'idEleccion must be a positive integer'
     )
-    await expect(manager.initialize(-1)).rejects.toThrow(
+    await expect(manager.initialize(-1, VOTANTE_SCOPE_A)).rejects.toThrow(
       'idEleccion must be a positive integer'
+    )
+  })
+
+  it('rejects initialization without votanteScope', async () => {
+    await expect(manager.initialize(7, '')).rejects.toThrow(
+      'votanteScope is required'
     )
   })
 
   it('rejects initialization when Web Crypto is unavailable', async () => {
     vi.stubGlobal('crypto', undefined)
-    await expect(manager.initialize(7)).rejects.toThrow(
+    await expect(manager.initialize(7, VOTANTE_SCOPE_A)).rejects.toThrow(
       'Web Crypto API is not supported in this browser'
     )
   })

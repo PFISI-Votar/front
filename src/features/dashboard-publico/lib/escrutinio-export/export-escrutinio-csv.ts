@@ -7,8 +7,8 @@ import { TIPOS_VOTACION } from '@/features/eleccion/lista/data/schema'
 const UTF8_BOM = '\uFEFF'
 
 const buildMetadataSection = (document: EscrutinioExportDocument): string => {
-  const { metadata, participacion } = document
-  const rows = [
+  const { metadata, participacion, permitirVotoNulo } = document
+  const rows: Array<[string, string | number]> = [
     ['clave', 'valor'],
     ['id_eleccion', metadata.idEleccion],
     ['nombre', metadata.nombre],
@@ -21,9 +21,14 @@ const buildMetadataSection = (document: EscrutinioExportDocument): string => {
     ['total_votos', participacion.totalVotos],
     ['porcentaje_participacion', participacion.porcentajeParticipacion],
     ['votos_blanco', participacion.votosBlanco],
-    ['votos_nulo', participacion.votosNulo],
-    ['total_votantes_habilitados', participacion.totalVotantesHabilitados],
   ]
+  if (permitirVotoNulo) {
+    rows.push(['votos_nulo', participacion.votosNulo])
+  }
+  rows.push([
+    'total_votantes_habilitados',
+    participacion.totalVotantesHabilitados,
+  ])
   return rows
     .map((row) => row.map((cell) => escapeCsvCell(cell)).join(','))
     .join('\n')

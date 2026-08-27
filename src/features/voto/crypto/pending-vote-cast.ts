@@ -1,4 +1,5 @@
 import type { Hex } from 'viem'
+import { PENDING_VOTE_CAST_MAX_AGE_MS } from '@/features/voto/crypto/constants'
 
 const STORAGE_PREFIX = 'votar:pending-vote-cast:'
 
@@ -46,6 +47,11 @@ export const loadPendingVoteCast = (
       !isHexTxHash(parsed.txHash) ||
       typeof parsed.startedAt !== 'number'
     ) {
+      clearPendingVoteCast(idEleccion)
+      return null
+    }
+    if (Date.now() - parsed.startedAt > PENDING_VOTE_CAST_MAX_AGE_MS) {
+      clearPendingVoteCast(idEleccion)
       return null
     }
     return {

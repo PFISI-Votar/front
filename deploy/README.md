@@ -14,9 +14,10 @@ docker run --rm -p 8080:80 \
   votar-front
 ```
 
-| Variable     | Descripción                                      | Default                 |
-| ------------ | ------------------------------------------------ | ----------------------- |
-| `API_ORIGIN` | Origen del backend en CSP (`connect-src`, `img-src`) | `http://localhost:3000` |
+| Variable       | Descripción                                      | Default                 |
+| -------------- | ------------------------------------------------ | ----------------------- |
+| `API_ORIGIN`   | Origen del backend en CSP (`connect-src`, `img-src`) | `http://localhost:3000` |
+| `RPC_ORIGINS`  | Orígenes RPC en CSP (`connect-src`), separados por espacio (VOTAR-386) | vacío |
 
 ## Cabeceras de seguridad
 

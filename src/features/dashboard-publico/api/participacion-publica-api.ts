@@ -42,6 +42,8 @@ export type ParticipacionPublica = {
     totalCalculado: number
   }
   fuenteDatos: string
+  /** VOTAR-447: si el comicio habilita voto nulo (y su recuento en el dashboard). */
+  permitirVotoNulo?: boolean
 }
 
 export const obtenerParticipacionPublica = async (

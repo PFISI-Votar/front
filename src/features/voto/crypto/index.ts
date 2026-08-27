@@ -9,6 +9,7 @@ export {
   getChainId,
   getExplorerTxUrl,
   getRpcUrl,
+  getRpcUrls,
   getVoteTransmitterPrivateKey,
 } from '@/features/voto/crypto/constants'
 export { BALLOT_CONTRACT_ABI } from '@/features/voto/crypto/ballot-abi'

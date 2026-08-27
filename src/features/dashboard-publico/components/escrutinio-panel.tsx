@@ -102,7 +102,9 @@ export const EscrutinioPanel = ({
   if (!data) return null
 
   const barData = toBarChartData(data)
-  const donutData = toDonutChartData(data)
+  const donutData = toDonutChartData(data, {
+    permitirVotoNulo: data.permitirVotoNulo ?? true,
+  })
   const hasVotes = data.participacion.totalVotos > 0
 
   return (
@@ -134,6 +136,7 @@ export const EscrutinioPanel = ({
       <ParticipacionStatsCards
         participacion={data.participacion}
         compact={!fullCharts}
+        permitirVotoNulo={data.permitirVotoNulo ?? true}
       />
 
       {!hasVotes ? (
