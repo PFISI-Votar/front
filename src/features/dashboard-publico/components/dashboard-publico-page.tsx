@@ -31,6 +31,13 @@ export const DashboardPublicoPage = ({
     idEleccion,
     'participacion'
   )
+  // VOTAR-459: computado fuera del JSX condicional de abajo — dentro de ese
+  // bloque TS ya angosta visibleResultados a `true | undefined` (se entra
+  // solo si !== false), así que repetir la comparación ahí sería redundante
+  // para el compilador. Este flag es la única fuente de verdad para gatear
+  // el fetch/WS de EscrutinioPanel.
+  const escrutinioEnabled =
+    comicioQuery.isSuccess && visibleResultados !== false
 
   useEffect(() => {
     const previousTitle = document.title
@@ -116,13 +123,7 @@ export const DashboardPublicoPage = ({
               idEleccion={idEleccion}
               fullCharts={section === 'resultados'}
               estadoComicio={estado}
-              // VOTAR-459: gatear explícitamente por comicioQuery.isSuccess —
-              // de lo contrario, mientras configuracion-bud carga,
-              // visibleResultados es `undefined` (!== false) y el panel se
-              // monta con `enabled` en su default `true`, disparando
-              // fetch/WS de resultados antes de saber si la solapa está
-              // oculta (fuga de información a una sección no publicada).
-              enabled={comicioQuery.isSuccess && visibleResultados !== false}
+              enabled={escrutinioEnabled}
             />
           </section>
         )}
