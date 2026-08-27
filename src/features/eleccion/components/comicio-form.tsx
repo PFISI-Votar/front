@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -21,6 +22,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { DateTimePicker } from '@/components/datetime-picker'
 import { CreateComicioTipoVotacionField } from '@/features/eleccion/components/create-comicio-tipo-votacion-field'
 import { MetodosAutenticacionField } from '@/features/eleccion/configuracion-comicio/components/metodos-autenticacion-field'
+import { OBSERVACION_LOGIN_DEFAULT } from '@/features/eleccion/data/observacion-login'
 import {
   createComicioSchema,
   type CreateComicioInput,
@@ -44,7 +46,8 @@ const mapApiErrorsToForm = (
     if (
       error.field === 'fechaInicio' ||
       error.field === 'fechaFin' ||
-      error.field === 'metodosAutenticacion'
+      error.field === 'metodosAutenticacion' ||
+      error.field === 'observacionLogin'
     ) {
       setError(error.field, { message: error.message })
     }
@@ -59,6 +62,7 @@ const buildFormDefaults = (
     return {
       nombre: eleccion.nombre,
       descripcion: eleccion.descripcion ?? '',
+      observacionLogin: eleccion.observacionLogin ?? '',
       fechaInicio: eleccion.fechaInicio,
       fechaFin: eleccion.fechaFin,
       tipoVotacion: eleccion.tipoVotacion,
@@ -68,6 +72,7 @@ const buildFormDefaults = (
   return {
     nombre: '',
     descripcion: '',
+    observacionLogin: OBSERVACION_LOGIN_DEFAULT,
     fechaInicio: '',
     fechaFin: '',
     tipoVotacion: TIPOS_VOTACION.POR_LISTA,
@@ -224,6 +229,28 @@ export const ComicioForm = ({
               Acceso de votantes
             </h2>
             <MetodosAutenticacionField control={form.control} />
+            <FormField
+              control={form.control}
+              name='observacionLogin'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Observación de login (opcional)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      rows={4}
+                      className='min-h-24 resize-y'
+                      placeholder={OBSERVACION_LOGIN_DEFAULT}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Se muestra en la pantalla de ingreso a la Boleta Única
+                    Digital. Dejá el campo vacío para ocultar el recuadro.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </section>
         </div>
 

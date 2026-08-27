@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
 import { VOTAR_LIGHT_SURFACE_CLASS } from '@/features/auth/sign-in/components/login-screen-shared'
+import { OBSERVACION_LOGIN_DEFAULT } from '@/features/eleccion/data/observacion-login'
 import { BudLoginScreen } from '@/features/voto/components/bud-login-screen'
 import { VOTER_ROLE } from '@/features/voto/types/votante-auth.types'
 
@@ -37,6 +38,9 @@ describe('BudLoginScreen', () => {
     await expect.element(screen.getByText('VOTAR')).toBeInTheDocument()
     await expect
       .element(screen.getByLabelText(/^Número de Legajo$/i))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByText(OBSERVACION_LOGIN_DEFAULT))
       .toBeInTheDocument()
   })
 
@@ -112,5 +116,37 @@ describe('BudLoginScreen', () => {
       .element(screen.getByText('Ingresá tu legajo y clave institucional.'))
       .toBeInTheDocument()
     expect(loginVotanteMock).not.toHaveBeenCalled()
+  })
+
+  it('VOTAR-454: muestra la observación configurada en el borrador del comicio', async () => {
+    const screen = await render(
+      <BudLoginScreen
+        idEleccion={2}
+        observacionLogin='Ingresá con tu correo institucional.'
+        onAuthenticated={onAuthenticatedMock}
+      />
+    )
+
+    await expect
+      .element(screen.getByText('Ingresá con tu correo institucional.'))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByText(OBSERVACION_LOGIN_DEFAULT))
+      .not.toBeInTheDocument()
+  })
+
+  it('VOTAR-454: oculta el recuadro si la observación quedó vacía', async () => {
+    const screen = await render(
+      <BudLoginScreen
+        idEleccion={2}
+        observacionLogin=''
+        onAuthenticated={onAuthenticatedMock}
+      />
+    )
+
+    await expect.element(screen.getByText('Bienvenido')).toBeInTheDocument()
+    await expect
+      .element(screen.getByText(OBSERVACION_LOGIN_DEFAULT))
+      .not.toBeInTheDocument()
   })
 })
