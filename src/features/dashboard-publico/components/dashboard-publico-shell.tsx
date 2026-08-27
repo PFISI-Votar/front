@@ -2,6 +2,7 @@ import { type ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
 import { VotarLoginBackground } from '@/features/auth/sign-in/components/login-screen-shared'
+import { CumplimientoLey25326Link } from '@/features/cumplimiento'
 import { useDashboardPublicoComicio } from '@/features/dashboard-publico/hooks/use-dashboard-publico-comicio'
 import type { VisibilidadDashboardPublico } from '@/features/voto/data/schema'
 
@@ -131,6 +132,11 @@ export const DashboardPublicoShell = ({
         </nav>
 
         {children}
+
+        {/* VOTAR-378: acceso a la explicación de cumplimiento Ley 25.326 */}
+        <footer className='mt-auto border-t border-[#e4e7eb] pt-6 pb-2'>
+          <CumplimientoLey25326Link />
+        </footer>
       </div>
     </main>
   )

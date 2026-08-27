@@ -30,6 +30,7 @@ import {
   VotarBrandHeader,
   VotarLoginBackground,
 } from '@/features/auth/sign-in/components/login-screen-shared'
+import { CumplimientoLey25326Link } from '@/features/cumplimiento'
 import {
   METODOS_AUTENTICACION,
   type MetodoAutenticacion,
@@ -211,6 +212,11 @@ export const BudLoginScreen = ({
             )}
           </CardContent>
         </Card>
+
+        {/* VOTAR-378: acceso a la explicación de cumplimiento Ley 25.326 */}
+        <div className='mt-6 text-center'>
+          <CumplimientoLey25326Link />
+        </div>
       </section>
     </main>
   )
