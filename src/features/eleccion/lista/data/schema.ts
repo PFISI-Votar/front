@@ -10,7 +10,6 @@ export type { RolCandidato }
 export const TIPOS_VOTACION = {
   POR_CANDIDATO: 'POR_CANDIDATO',
   POR_LISTA: 'POR_LISTA',
-  MIXTO: 'MIXTO',
 } as const
 
 export type TipoVotacion = (typeof TIPOS_VOTACION)[keyof typeof TIPOS_VOTACION]
@@ -18,7 +17,6 @@ export type TipoVotacion = (typeof TIPOS_VOTACION)[keyof typeof TIPOS_VOTACION]
 export const tipoVotacionSchema = z.enum([
   TIPOS_VOTACION.POR_CANDIDATO,
   TIPOS_VOTACION.POR_LISTA,
-  TIPOS_VOTACION.MIXTO,
 ])
 
 export const rolCandidatoSchema = z
@@ -53,7 +51,6 @@ export type RolCandidatoInput = z.infer<typeof rolCandidatoSchema>
 export const TIPO_VOTACION_OPTIONS: { value: TipoVotacion; label: string }[] = [
   { value: TIPOS_VOTACION.POR_CANDIDATO, label: 'Por candidato (cargo)' },
   { value: TIPOS_VOTACION.POR_LISTA, label: 'Por lista' },
-  { value: TIPOS_VOTACION.MIXTO, label: 'Mixto (lista y candidato)' },
 ]
 
 export const createListaSchema = z.object({
