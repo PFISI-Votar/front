@@ -784,9 +784,7 @@ describe('BudVotingWizard', () => {
     await expect
       .element(screen.getByText('Selección de voto'))
       .not.toBeInTheDocument()
-    await expect
-      .element(screen.getByText('Inicio').first())
-      .toBeInTheDocument()
+    await expect.element(screen.getByText('Inicio').first()).toBeInTheDocument()
     await expect
       .element(screen.getByText('Confirmación').first())
       .toBeInTheDocument()
