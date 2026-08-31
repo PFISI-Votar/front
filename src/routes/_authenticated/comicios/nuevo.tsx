@@ -37,6 +37,7 @@ function NuevoComicioPage() {
           title='Configuración inicial'
           desc='Complete todos los campos obligatorios. El comicio se guardará en borrador sin impactar la blockchain.'
           contentWidth='wide'
+          fadeBottom={false}
         >
           <CreateComicioForm
             onCreated={handleCreated}
