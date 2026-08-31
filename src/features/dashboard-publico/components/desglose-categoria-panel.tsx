@@ -70,8 +70,8 @@ export const DesgloseCategoriaPanel = ({
         <CardDescription className='text-sm leading-relaxed text-[#5f6368]'>
           Sumatoria de votos afirmativos por lista. Blanco
           {permitirVotoNulo ? ' y nulo se reportan' : ' se reporta'} como
-          tallies globales on-chain (limitación VOTAR-346: un candidateId por
-          nullifier).
+          tallies globales on-chain (blanco/nulo); los afirmativos por lista
+          reflejan el conteo multi-categoría on-chain (VOTAR-474).
         </CardDescription>
       </div>
     </CardHeader>

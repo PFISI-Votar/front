@@ -29,6 +29,7 @@ export {
 } from '@/features/voto/crypto/selection-hash'
 export {
   resolveAuditCandidateId,
+  resolveAuditCandidateIds,
   VOTO_BLANCO,
   VOTO_NULO,
 } from '@/features/voto/crypto/audit-candidate-id'

@@ -1,7 +1,7 @@
 /**
  * Minimal BallotContract ABI for VOTAR-358 castSignedVote transmission.
  * Must stay aligned with blockchain/contracts/ballot/BallotContract.sol.
- * VOTAR-346 adds candidateId for VoteRegistry audit VoteCast emission.
+ * VOTAR-346 / VOTAR-474: candidateIds[] for VoteRegistry multi-category tallies.
  * VOTAR-341: RevoteDisabled is the current double-vote error when revote is off.
  * VOTAR-451: AlreadyVoted rejects a fresh nullifier after the leaf already voted
  * (tab close / ephemeral key rotation must not inflate participation).
@@ -25,7 +25,7 @@ export const BALLOT_CONTRACT_ABI = [
       { name: 'timestamp', type: 'uint256' },
       { name: 'expectedSigner', type: 'address' },
       { name: 'signature', type: 'bytes' },
-      { name: 'candidateId', type: 'uint256' },
+      { name: 'candidateIds', type: 'uint256[]' },
     ],
     outputs: [],
   },
@@ -130,8 +130,8 @@ export const BALLOT_CONTRACT_ABI = [
       { name: 'maxVotes', type: 'uint16' },
     ],
   },
-  // VOTAR-345 — thrown by VoteRegistry.recordVote (called from castSignedVote),
-  // so its selector must be decodable from the same revert data.
+  // VOTAR-345 / VOTAR-474 — thrown by VoteRegistry.recordVote (called from castSignedVote),
+  // so their selectors must be decodable from the same revert data.
   {
     type: 'error',
     name: 'InvalidCandidateId',
@@ -144,5 +144,20 @@ export const BALLOT_CONTRACT_ABI = [
     type: 'error',
     name: 'CandidateSetNotRegistered',
     inputs: [{ name: 'electionId', type: 'uint256' }],
+  },
+  {
+    type: 'error',
+    name: 'EmptyBallotSelection',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'TooManyCandidates',
+    inputs: [{ name: 'count', type: 'uint256' }],
+  },
+  {
+    type: 'error',
+    name: 'DuplicateCandidateId',
+    inputs: [{ name: 'candidateId', type: 'uint256' }],
   },
 ] as const

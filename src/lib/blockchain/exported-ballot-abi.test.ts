@@ -30,6 +30,9 @@ const CURATED_FORWARD_COMPAT_NAMES = new Set<string>()
 const CURATED_CROSS_CONTRACT_NAMES = new Set([
   'InvalidCandidateId',
   'CandidateSetNotRegistered',
+  'EmptyBallotSelection',
+  'TooManyCandidates',
+  'DuplicateCandidateId',
 ])
 
 /**
