@@ -11,9 +11,7 @@ describe('ContentSection', () => {
     )
 
     await expect.element(getByText('Perfil')).toBeInTheDocument()
-    await expect
-      .element(getByText('Datos de la cuenta'))
-      .toBeInTheDocument()
+    await expect.element(getByText('Datos de la cuenta')).toBeInTheDocument()
 
     const scrollArea = container.querySelector('[data-fade-bottom]')
     expect(scrollArea).not.toBeNull()
