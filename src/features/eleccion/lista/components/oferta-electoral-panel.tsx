@@ -47,7 +47,6 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   eliminarEleccion,
   obtenerEleccion,
-  cerrarEleccion,
 } from '@/features/eleccion/api/eleccion-api'
 import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import { CandidatoFormDialog } from '@/features/eleccion/candidato/components/candidato-form-dialog'
@@ -62,8 +61,11 @@ import { PausarComicioDialog } from '@/features/eleccion/components/pausar-comic
 import { ReanudarComicioDialog } from '@/features/eleccion/components/reanudar-comicio-dialog'
 import { ConfiguracionRevotoPanel } from '@/features/eleccion/configuracion-comicio/components/configuracion-revoto-panel'
 import { ConfiguracionVotoNuloPanel } from '@/features/eleccion/configuracion-comicio/components/configuracion-voto-nulo-panel'
+import { VisibilidadDashboardPanel } from '@/features/eleccion/configuracion-comicio/components/visibilidad-dashboard-panel'
 import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
+import { useCerrarEleccion } from '@/features/eleccion/hooks/use-cerrar-eleccion'
 import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
+import { useOficializarEleccion } from '@/features/eleccion/hooks/use-oficializar-eleccion'
 import {
   getEstadoEleccionBadgeVariant,
   getEstadoEleccionLabel,
@@ -73,7 +75,6 @@ import {
   crearLista,
   eliminarLista,
   listarListas,
-  oficializarEleccion,
   obtenerMapeoListas,
 } from '@/features/eleccion/lista/api/lista-api'
 import { ListaFormDialog } from '@/features/eleccion/lista/components/lista-form-dialog'
@@ -243,23 +244,17 @@ export const OfertaElectoralPanel = ({
     }
   }
 
-  const oficializarMutation = useMutation({
-    mutationFn: () => oficializarEleccion(idEleccion),
-    onSuccess: async (data) => {
-      setOficializarDialogOpen(false)
+  const {
+    runInBackground: oficializarEnBackground,
+    isRunning: oficializandoComicio,
+  } = useOficializarEleccion(idEleccion, {
+    showMapeoToast: true,
+    onSuccess: () => {
       setOficializacionViolations([])
       setOficializacionBlockMessage(null)
-      toast.success('Comicio oficializado')
-      await invalidateOferta()
-      await queryClient.invalidateQueries({
-        queryKey: ['listas-mapeo', idEleccion],
-      })
-      toast.info(
-        `Mapeo generado: ${data.mapeo.map((m) => `${m.sigla}→list_id ${m.listId}`).join(', ')}`
-      )
+      void invalidateOferta()
     },
-    onError: (error) => {
-      setOficializarDialogOpen(false)
+    onValidationError: (error) => {
       if (isValidationError(error)) {
         const violations = getApiRulesViolations(error)
         if (violations.length > 0) {
@@ -281,7 +276,8 @@ export const OfertaElectoralPanel = ({
   const handleConfirmOficializar = () => {
     setOficializacionViolations([])
     setOficializacionBlockMessage(null)
-    oficializarMutation.mutate()
+    setOficializarDialogOpen(false)
+    oficializarEnBackground()
   }
 
   const {
@@ -304,19 +300,18 @@ export const OfertaElectoralPanel = ({
     abrirComicioEnBackground()
   }
 
-  const cerrarComicioMutation = useMutation({
-    mutationFn: () => cerrarEleccion(idEleccion),
-    onSuccess: async () => {
-      setCerrarDialogOpen(false)
-      toast.success('Comicio cerrado exitosamente')
-      await invalidateOferta()
-      await queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+  const {
+    runInBackground: cerrarComicioEnBackground,
+    isRunning: cerrandoComicio,
+  } = useCerrarEleccion(idEleccion, {
+    onSuccess: () => {
+      void invalidateOferta()
     },
-    onError: handleApiError,
   })
 
   const handleConfirmCerrar = () => {
-    cerrarComicioMutation.mutate()
+    setCerrarDialogOpen(false)
+    cerrarComicioEnBackground()
   }
 
   const eliminarComicioMutation = useMutation({
@@ -381,7 +376,7 @@ export const OfertaElectoralPanel = ({
             <Button
               onClick={() => setOficializarDialogOpen(true)}
               disabled={
-                oficializarMutation.isPending ||
+                oficializandoComicio ||
                 padronResumenQuery.isLoading ||
                 !tienePadronCargado
               }
@@ -413,7 +408,7 @@ export const OfertaElectoralPanel = ({
             <Button
               variant='destructive'
               onClick={() => setCerrarDialogOpen(true)}
-              disabled={cerrarComicioMutation.isPending}
+              disabled={cerrandoComicio}
               aria-haspopup='dialog'
               aria-label='Cerrar comicio'
             >
@@ -550,6 +545,8 @@ export const OfertaElectoralPanel = ({
         idEleccion={idEleccion}
         isEditable={isEditable}
       />
+
+      <VisibilidadDashboardPanel idEleccion={idEleccion} />
 
       <ConfiguracionDatosCandidatoPanel
         idEleccion={idEleccion}
@@ -843,13 +840,13 @@ export const OfertaElectoralPanel = ({
           <>
             Esta operación transicionará el comicio al estado{' '}
             <strong>CERRADA</strong>, bloqueará nuevos sufragios (HTTP 410) y
-            congelará el Dashboard Público con resultados definitivos.
+            congelará el Dashboard Público con resultados definitivos. El cierre
+            continuará en segundo plano y podrá seguir navegando el panel.
           </>
         }
         cancelBtnText='Cancelar'
         confirmText='Sí, cerrar comicio'
         destructive
-        isLoading={cerrarComicioMutation.isPending}
         handleConfirm={handleConfirmCerrar}
       />
 
@@ -862,7 +859,8 @@ export const OfertaElectoralPanel = ({
             Esta operación es <strong>irreversible</strong>. Una vez
             oficializado, no podrás crear, editar ni eliminar listas ni
             candidatos. Se generará el mapeo de identificadores de lista (
-            <code>list_id</code>) para la integración Web3.
+            <code>list_id</code>) para la integración Web3. La oficialización
+            continuará en segundo plano y podrá seguir navegando el panel.
             {(listasQuery.data?.length ?? 0) > 0 && (
               <>
                 {' '}
@@ -876,7 +874,6 @@ export const OfertaElectoralPanel = ({
         cancelBtnText='Cancelar'
         confirmText='Sí, oficializar comicio'
         destructive
-        isLoading={oficializarMutation.isPending}
         handleConfirm={handleConfirmOficializar}
       />
 
