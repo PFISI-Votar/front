@@ -43,6 +43,7 @@ import {
 } from '@/features/eleccion/api/eleccion-api'
 import { ComicioVentanaElectoral } from '@/features/eleccion/components/comicio-ventana-electoral'
 import { EliminarComicioDialog } from '@/features/eleccion/components/eliminar-comicio-dialog'
+import { OperationRetryAlert } from '@/features/eleccion/components/operation-retry-alert'
 import { PausarComicioDialog } from '@/features/eleccion/components/pausar-comicio-dialog'
 import { ReanudarComicioDialog } from '@/features/eleccion/components/reanudar-comicio-dialog'
 import type { EleccionEstado } from '@/features/eleccion/data/schema'
@@ -60,28 +61,23 @@ const estadoVariant = (estado: EleccionEstado) =>
   getEstadoEleccionBadgeVariant(estado)
 
 interface AbrirComicioDialogProps {
-  idEleccion: number
   nombreEleccion: string
   open: boolean
+  isRunning: boolean
   onOpenChange: (open: boolean) => void
-  onPreconditionError: (message: string) => void
+  onConfirm: () => void
 }
 
 const AbrirComicioDialog = ({
-  idEleccion,
   nombreEleccion,
   open,
+  isRunning,
   onOpenChange,
-  onPreconditionError,
+  onConfirm,
 }: AbrirComicioDialogProps) => {
-  const { runInBackground, isRunning } = useAbrirEleccion(idEleccion, {
-    onPreconditionError,
-    padronPath: `/comicios/${idEleccion}/padron`,
-  })
-
   const handleConfirm = () => {
+    onConfirm()
     onOpenChange(false)
-    runInBackground()
   }
 
   return (
@@ -177,23 +173,23 @@ const CerrarComicioDialog = ({
 }
 
 interface OficializarComicioDialogProps {
-  idEleccion: number
   nombreEleccion: string
   open: boolean
+  isRunning: boolean
   onOpenChange: (open: boolean) => void
+  onConfirm: () => void
 }
 
 const OficializarComicioDialog = ({
-  idEleccion,
   nombreEleccion,
   open,
+  isRunning,
   onOpenChange,
+  onConfirm,
 }: OficializarComicioDialogProps) => {
-  const { runInBackground, isRunning } = useOficializarEleccion(idEleccion)
-
   const handleConfirm = () => {
+    onConfirm()
     onOpenChange(false)
-    runInBackground()
   }
 
   return (
@@ -296,6 +292,37 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
     null
   )
 
+  const abrirIdEleccion = abrirDialog.idEleccion ?? 0
+  const {
+    runInBackground: abrirEnBackground,
+    isRunning: abriendoComicio,
+    lastError: abrirLastError,
+    clearLastError: clearAbrirError,
+  } = useAbrirEleccion(abrirIdEleccion, {
+    onPreconditionError: (message) => {
+      setPreconditionError(message)
+      setAbrirDialog(emptyActionTarget())
+    },
+    onSuccess: () => {
+      setPreconditionError(null)
+      setAbrirDialog(emptyActionTarget())
+    },
+    padronPath:
+      abrirIdEleccion > 0 ? `/comicios/${abrirIdEleccion}/padron` : undefined,
+  })
+
+  const oficializarIdEleccion = oficializarDialog.idEleccion ?? 0
+  const {
+    runInBackground: oficializarEnBackground,
+    isRunning: oficializandoComicio,
+    lastError: oficializarLastError,
+    clearLastError: clearOficializarError,
+  } = useOficializarEleccion(oficializarIdEleccion, {
+    onSuccess: () => {
+      setOficializarDialog(emptyActionTarget())
+    },
+  })
+
   const {
     data: comicios,
     isLoading,
@@ -347,6 +374,7 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
     idEleccion: number,
     nombreEleccion: string
   ) => {
+    clearAbrirError()
     setAbrirDialog({ open: true, idEleccion, nombreEleccion })
     setPreconditionError(null)
   }
@@ -376,6 +404,7 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
     idEleccion: number,
     nombreEleccion: string
   ) => {
+    clearOficializarError()
     setOficializarDialog({ open: true, idEleccion, nombreEleccion })
   }
 
@@ -462,6 +491,34 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
           </AlertTitle>
           <AlertDescription>{preconditionError}</AlertDescription>
         </Alert>
+      )}
+      {abrirLastError && abrirDialog.idEleccion !== null && (
+        <div className='mb-4'>
+          <OperationRetryAlert
+            title={`No se pudo abrir el comicio "${abrirDialog.nombreEleccion}"`}
+            message={abrirLastError}
+            isRetrying={abriendoComicio}
+            onRetry={abrirEnBackground}
+            onDismiss={() => {
+              clearAbrirError()
+              setAbrirDialog(emptyActionTarget())
+            }}
+          />
+        </div>
+      )}
+      {oficializarLastError && oficializarDialog.idEleccion !== null && (
+        <div className='mb-4'>
+          <OperationRetryAlert
+            title={`No se pudo oficializar el comicio "${oficializarDialog.nombreEleccion}"`}
+            message={oficializarLastError}
+            isRetrying={oficializandoComicio}
+            onRetry={oficializarEnBackground}
+            onDismiss={() => {
+              clearOficializarError()
+              setOficializarDialog(emptyActionTarget())
+            }}
+          />
+        </div>
       )}
       <ul className='grid gap-4' aria-label='Listado de comicios'>
         {comicios.map((comicio) => (
@@ -671,20 +728,11 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
 
       {abrirDialog.idEleccion !== null && (
         <AbrirComicioDialog
-          idEleccion={abrirDialog.idEleccion}
           nombreEleccion={abrirDialog.nombreEleccion}
           open={abrirDialog.open}
-          onOpenChange={(open) =>
-            setAbrirDialog((prev) => ({
-              ...prev,
-              open,
-              ...(open ? {} : { idEleccion: null, nombreEleccion: '' }),
-            }))
-          }
-          onPreconditionError={(message) => {
-            setPreconditionError(message)
-            setAbrirDialog(emptyActionTarget())
-          }}
+          isRunning={abriendoComicio}
+          onOpenChange={(open) => setAbrirDialog((prev) => ({ ...prev, open }))}
+          onConfirm={abrirEnBackground}
         />
       )}
 
@@ -735,14 +783,13 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
 
       {oficializarDialog.idEleccion !== null && (
         <OficializarComicioDialog
-          idEleccion={oficializarDialog.idEleccion}
           nombreEleccion={oficializarDialog.nombreEleccion}
           open={oficializarDialog.open}
+          isRunning={oficializandoComicio}
           onOpenChange={(open) =>
-            setOficializarDialog((prev) =>
-              open ? { ...prev, open } : emptyActionTarget()
-            )
+            setOficializarDialog((prev) => ({ ...prev, open }))
           }
+          onConfirm={oficializarEnBackground}
         />
       )}
 

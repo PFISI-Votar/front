@@ -57,6 +57,7 @@ import { CategoriasPanel } from '@/features/eleccion/categoria/components/catego
 import { ComicioVentanaElectoral } from '@/features/eleccion/components/comicio-ventana-electoral'
 import { DocumentosComicioMenu } from '@/features/eleccion/components/documentos-comicio-menu'
 import { EliminarComicioDialog } from '@/features/eleccion/components/eliminar-comicio-dialog'
+import { OperationRetryAlert } from '@/features/eleccion/components/operation-retry-alert'
 import { PausarComicioDialog } from '@/features/eleccion/components/pausar-comicio-dialog'
 import { ReanudarComicioDialog } from '@/features/eleccion/components/reanudar-comicio-dialog'
 import { ConfiguracionRevotoPanel } from '@/features/eleccion/configuracion-comicio/components/configuracion-revoto-panel'
@@ -247,6 +248,8 @@ export const OfertaElectoralPanel = ({
   const {
     runInBackground: oficializarEnBackground,
     isRunning: oficializandoComicio,
+    lastError: oficializarLastError,
+    clearLastError: clearOficializarError,
   } = useOficializarEleccion(idEleccion, {
     showMapeoToast: true,
     onSuccess: () => {
@@ -283,6 +286,8 @@ export const OfertaElectoralPanel = ({
   const {
     runInBackground: abrirComicioEnBackground,
     isRunning: abriendoComicio,
+    lastError: abrirLastError,
+    clearLastError: clearAbrirError,
   } = useAbrirEleccion(idEleccion, {
     onPreconditionError: (message) => {
       setPreconditionError(message)
@@ -485,6 +490,26 @@ export const OfertaElectoralPanel = ({
           </AlertTitle>
           <AlertDescription>{preconditionError}</AlertDescription>
         </Alert>
+      )}
+
+      {abrirLastError && (
+        <OperationRetryAlert
+          title='No se pudo abrir el comicio'
+          message={abrirLastError}
+          isRetrying={abriendoComicio}
+          onRetry={abrirComicioEnBackground}
+          onDismiss={clearAbrirError}
+        />
+      )}
+
+      {oficializarLastError && (
+        <OperationRetryAlert
+          title='No se pudo oficializar el comicio'
+          message={oficializarLastError}
+          isRetrying={oficializandoComicio}
+          onRetry={oficializarEnBackground}
+          onDismiss={clearOficializarError}
+        />
       )}
 
       {isEditable && sinPadronCargado && !padronResumenQuery.isLoading && (

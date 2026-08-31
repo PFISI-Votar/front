@@ -36,7 +36,7 @@ describe('runBackgroundOperation', () => {
     })
   })
 
-  it('muestra botón Reintentar cuando la operación falla', async () => {
+  it('muestra botón Reintentar persistente cuando la operación falla', async () => {
     const operation = vi
       .fn()
       .mockRejectedValueOnce(
@@ -58,6 +58,7 @@ describe('runBackgroundOperation', () => {
         'Operación fallida',
         expect.objectContaining({
           description: 'Blockchain no disponible',
+          duration: Infinity,
           action: expect.objectContaining({ label: 'Reintentar' }),
         })
       )
@@ -70,6 +71,9 @@ describe('runBackgroundOperation', () => {
 
     await vi.waitFor(() => {
       expect(operation).toHaveBeenCalledTimes(2)
+      expect(toast.loading).toHaveBeenLastCalledWith('Procesando...', {
+        id: 'toast-id',
+      })
     })
   })
 
@@ -92,6 +96,7 @@ describe('runBackgroundOperation', () => {
         'Operación fallida',
         expect.objectContaining({
           action: customAction,
+          duration: Infinity,
         })
       )
     })

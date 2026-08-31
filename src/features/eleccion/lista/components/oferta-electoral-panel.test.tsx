@@ -91,6 +91,15 @@ const createPreconditionError = (message: string) =>
     }
   )
 
+const createNetworkError = (message: string) =>
+  new AxiosError(message, 'ERR_NETWORK', undefined, undefined, {
+    status: 503,
+    statusText: 'Service Unavailable',
+    headers: {},
+    config: {} as never,
+    data: { message },
+  })
+
 const mockEleccionConfigurada: Eleccion = {
   idEleccion: 1,
   nombre: 'Elección Municipal 2025',
@@ -231,6 +240,39 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     await userEvent.click(confirmButton)
 
     expect(abrirEleccion).toHaveBeenCalledWith(1)
+  })
+
+  it('muestra alerta con Reintentar ante error de red al abrir y permite reintentar', async () => {
+    vi.mocked(abrirEleccion)
+      .mockRejectedValueOnce(createNetworkError('Blockchain no disponible'))
+      .mockResolvedValueOnce({
+        ...mockEleccionConfigurada,
+        estado: 'ABIERTA',
+      })
+
+    await renderPanel()
+
+    await userEvent.click(page.getByRole('button', { name: 'Abrir comicio' }))
+    await userEvent.click(
+      page.getByRole('button', { name: 'Sí, abrir comicio' })
+    )
+
+    await expect
+      .element(page.getByText('No se pudo abrir el comicio'))
+      .toBeInTheDocument()
+    await expect
+      .element(page.getByText('Blockchain no disponible'))
+      .toBeInTheDocument()
+
+    await userEvent.click(page.getByRole('button', { name: 'Reintentar' }))
+
+    await vi.waitFor(() => {
+      expect(abrirEleccion).toHaveBeenCalledTimes(2)
+    })
+
+    await expect
+      .poll(() => page.getByText('Blockchain no disponible').query())
+      .toBeNull()
   })
 
   it('muestra ventana electoral cuando el comicio está configurado', async () => {

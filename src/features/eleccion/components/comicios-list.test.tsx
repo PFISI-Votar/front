@@ -75,6 +75,15 @@ const createPreconditionError = (message: string) =>
     }
   )
 
+const createNetworkError = (message: string) =>
+  new AxiosError(message, 'ERR_NETWORK', undefined, undefined, {
+    status: 503,
+    statusText: 'Service Unavailable',
+    headers: {},
+    config: {} as never,
+    data: { message },
+  })
+
 const mockElecciones: Eleccion[] = [
   {
     idEleccion: 1,
@@ -398,6 +407,47 @@ describe('ComiciosList', () => {
     await vi.waitFor(() => {
       expect(oficializarEleccion).toHaveBeenCalledWith(2)
     })
+  })
+
+  it('muestra alerta con Reintentar ante error de red al oficializar', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+    vi.mocked(oficializarEleccion)
+      .mockRejectedValueOnce(createNetworkError('Timeout on-chain'))
+      .mockResolvedValueOnce({
+        idEleccion: 2,
+        estado: 'CONFIGURADA',
+        mapeo: [],
+      })
+
+    await renderComiciosList()
+
+    await userEvent.click(
+      page.getByRole('button', {
+        name: 'Oficializar comicio Elección Provincial 2025',
+      })
+    )
+    await userEvent.click(
+      page.getByRole('button', { name: 'Sí, oficializar comicio' })
+    )
+
+    await expect
+      .element(
+        page.getByText(
+          'No se pudo oficializar el comicio "Elección Provincial 2025"'
+        )
+      )
+      .toBeInTheDocument()
+    await expect.element(page.getByText('Timeout on-chain')).toBeInTheDocument()
+
+    await userEvent.click(page.getByRole('button', { name: 'Reintentar' }))
+
+    await vi.waitFor(() => {
+      expect(oficializarEleccion).toHaveBeenCalledTimes(2)
+    })
+
+    await expect
+      .poll(() => page.getByText('Timeout on-chain').query())
+      .toBeNull()
   })
 
   it('elimina un comicio en BORRADOR tras confirmar con el nombre exacto', async () => {

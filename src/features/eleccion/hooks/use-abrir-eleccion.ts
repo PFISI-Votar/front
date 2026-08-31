@@ -17,12 +17,17 @@ export const useAbrirEleccion = (
   const { onPreconditionError, onSuccess, padronPath } = options
   const queryClient = useQueryClient()
   const [isRunning, setIsRunning] = useState(false)
+  const [lastError, setLastError] = useState<string | null>(null)
   const isRunningRef = useRef(false)
 
   const invalidateEleccion = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['elecciones'] })
     queryClient.invalidateQueries({ queryKey: ['eleccion', idEleccion] })
   }, [idEleccion, queryClient])
+
+  const clearLastError = useCallback(() => {
+    setLastError(null)
+  }, [])
 
   const runInBackground = useCallback(() => {
     const attempt = (): void => {
@@ -32,6 +37,7 @@ export const useAbrirEleccion = (
 
       isRunningRef.current = true
       setIsRunning(true)
+      setLastError(null)
 
       runBackgroundOperation({
         loadingMessage: 'Abriendo comicio...',
@@ -39,27 +45,29 @@ export const useAbrirEleccion = (
         errorTitle: 'No se pudo abrir el comicio',
         operation: () => abrirEleccion(idEleccion),
         onSuccess: () => {
+          setLastError(null)
           invalidateEleccion()
           onSuccess?.()
         },
         onError: (error) => {
-          if (!isPreconditionFailedError(error)) {
-            return
-          }
-
           const message = getApiErrorMessage(error)
-          onPreconditionError?.(message)
 
-          return {
-            label: padronPath ? 'Ver padrón' : 'Reintentar',
-            onClick: () => {
-              if (padronPath) {
-                window.location.assign(padronPath)
-                return
-              }
-              attempt()
-            },
+          if (isPreconditionFailedError(error)) {
+            onPreconditionError?.(message)
+
+            return {
+              label: padronPath ? 'Ver padrón' : 'Reintentar',
+              onClick: () => {
+                if (padronPath) {
+                  window.location.assign(padronPath)
+                  return
+                }
+                attempt()
+              },
+            }
           }
+
+          setLastError(message)
         },
         onSettled: () => {
           isRunningRef.current = false
@@ -77,5 +85,5 @@ export const useAbrirEleccion = (
     padronPath,
   ])
 
-  return { runInBackground, isRunning }
+  return { runInBackground, isRunning, lastError, clearLastError }
 }
