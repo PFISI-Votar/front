@@ -282,7 +282,7 @@ export const construirActaCierrePdf = async (
         logoSize,
         logoSize
       )
-      yPos += logoSize + 4
+      yPos += logoSize + 8
     }
   }
 

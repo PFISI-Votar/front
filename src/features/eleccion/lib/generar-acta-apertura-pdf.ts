@@ -122,7 +122,7 @@ export const generarActaAperturaPdf = async (
         logoSize,
         logoSize
       )
-      yPos += logoSize + 4
+      yPos += logoSize + 8
     }
   }
 
