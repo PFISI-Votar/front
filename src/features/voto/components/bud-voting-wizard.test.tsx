@@ -778,6 +778,21 @@ describe('BudVotingWizard', () => {
     expect(registrarConsumoIntentoMock).not.toHaveBeenCalled()
   })
 
+  it('VOTAR-475: no muestra chip de paso en el header; el stepper conserva las etiquetas', async () => {
+    const screen = await renderWizard()
+
+    await expect
+      .element(screen.getByText('Selección de voto'))
+      .not.toBeInTheDocument()
+    await expect
+      .element(screen.getByText('Inicio').first())
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByText('Confirmación').first())
+      .toBeInTheDocument()
+    await expect.element(screen.getByText('Éxito').first()).toBeInTheDocument()
+  })
+
   it('VOTAR-445: reanuda cast pendiente tras reload y completa el recibo', async () => {
     const pendingHash = ('0x' + 'a'.repeat(64)) as `0x${string}`
     localStorage.setItem(
