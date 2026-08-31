@@ -39,6 +39,12 @@ import {
 } from '@/features/eleccion/lista/api/lista-api'
 import { ListaFormDialog } from '@/features/eleccion/lista/components/lista-form-dialog'
 
+const ESTADOS_COMICIO_FINALIZADO = [
+  'CERRADA',
+  'ESCRUTADA',
+  'ARCHIVADA',
+] as const
+
 type ListaDetailPanelProps = {
   idEleccion: number
   idLista: number
@@ -208,7 +214,12 @@ export const ListaDetailPanel = ({
         </div>
         <div className='flex flex-wrap items-center gap-2'>
           <Badge variant={isEditable ? 'secondary' : 'default'}>
-            {lista.estado}
+            {ESTADOS_COMICIO_FINALIZADO.includes(
+              eleccionQuery.data
+                ?.estado as (typeof ESTADOS_COMICIO_FINALIZADO)[number]
+            )
+              ? eleccionQuery.data!.estado
+              : lista.estado}
           </Badge>
         </div>
       </div>
