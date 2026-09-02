@@ -671,25 +671,9 @@ export const OfertaElectoralPanel = ({
                   <Separator />
                   <CardContent className='pt-4'>
                     {candidatos.length === 0 ? (
-                      <div className='flex flex-col gap-3'>
-                        <p className='text-sm text-muted-foreground'>
-                          Esta lista aún no tiene candidatos registrados.
-                        </p>
-                        {isEditable && (
-                          <Button
-                            size='sm'
-                            variant='outline'
-                            className='w-fit'
-                            onClick={() =>
-                              setCandidatoDialog({ lista, candidato: null })
-                            }
-                            aria-label={`Registrar candidato en ${lista.nombre}`}
-                          >
-                            <Plus className='me-2 size-4' />
-                            Registrar candidato
-                          </Button>
-                        )}
-                      </div>
+                      <p className='text-sm text-muted-foreground'>
+                        Esta lista aún no tiene candidatos registrados.
+                      </p>
                     ) : (
                       <ul
                         className='flex flex-col gap-2'
@@ -742,6 +726,20 @@ export const OfertaElectoralPanel = ({
                           </li>
                         ))}
                       </ul>
+                    )}
+                    {isEditable && (
+                      <Button
+                        size='sm'
+                        variant='outline'
+                        className='mt-3 w-fit'
+                        onClick={() =>
+                          setCandidatoDialog({ lista, candidato: null })
+                        }
+                        aria-label={`Registrar candidato en ${lista.nombre}`}
+                      >
+                        <Plus className='me-2 size-4' />
+                        Registrar candidato
+                      </Button>
                     )}
                   </CardContent>
                 </CollapsibleContent>
