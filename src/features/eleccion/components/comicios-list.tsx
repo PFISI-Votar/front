@@ -48,16 +48,16 @@ import { PausarComicioDialog } from '@/features/eleccion/components/pausar-comic
 import { ReanudarComicioDialog } from '@/features/eleccion/components/reanudar-comicio-dialog'
 import type { EleccionEstado } from '@/features/eleccion/data/schema'
 import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
-import { useReintentarDespliegueOnChain } from '@/features/eleccion/hooks/use-reintentar-despliegue-on-chain'
-import { isMissingOnChainContractsError } from '@/features/eleccion/lib/missing-on-chain-contracts'
 import { useArchivarEleccion } from '@/features/eleccion/hooks/use-archivar-eleccion'
 import { useCerrarEleccion } from '@/features/eleccion/hooks/use-cerrar-eleccion'
 import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
 import { useOficializarEleccion } from '@/features/eleccion/hooks/use-oficializar-eleccion'
+import { useReintentarDespliegueOnChain } from '@/features/eleccion/hooks/use-reintentar-despliegue-on-chain'
 import {
   getEstadoEleccionBadgeVariant,
   getEstadoEleccionLabel,
 } from '@/features/eleccion/lib/estado-eleccion'
+import { isMissingOnChainContractsError } from '@/features/eleccion/lib/missing-on-chain-contracts'
 
 const estadoVariant = (estado: EleccionEstado) =>
   getEstadoEleccionBadgeVariant(estado)
@@ -662,9 +662,7 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
                       <Button
                         size='sm'
                         variant='secondary'
-                        onClick={() =>
-                          redeployEnBackground(comicio.idEleccion)
-                        }
+                        onClick={() => redeployEnBackground(comicio.idEleccion)}
                         disabled={
                           redeployingComicio &&
                           redeployingId === comicio.idEleccion

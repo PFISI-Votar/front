@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
 import { AxiosError } from 'axios'
 import { toast } from 'sonner'
+import { describe, expect, it, vi } from 'vitest'
 import { runBackgroundOperation } from './run-background-operation'
 
 vi.mock('sonner', () => ({

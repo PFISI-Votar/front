@@ -459,22 +459,16 @@ describe('ComiciosList', () => {
   it('muestra Reintentar oficialización cuando abrir falla por contratos faltantes', async () => {
     vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
     vi.mocked(abrirEleccion).mockRejectedValue(
-      new AxiosError(
-        'sin contratos',
-        'ERR_BAD_REQUEST',
-        undefined,
-        undefined,
-        {
-          status: 422,
-          statusText: 'Unprocessable Entity',
-          headers: {},
-          config: {} as never,
-          data: {
-            message:
-              'El comicio 1 no tiene contratos electorales desplegados on-chain.',
-          },
-        }
-      )
+      new AxiosError('sin contratos', 'ERR_BAD_REQUEST', undefined, undefined, {
+        status: 422,
+        statusText: 'Unprocessable Entity',
+        headers: {},
+        config: {} as never,
+        data: {
+          message:
+            'El comicio 1 no tiene contratos electorales desplegados on-chain.',
+        },
+      })
     )
 
     await renderComiciosList()
