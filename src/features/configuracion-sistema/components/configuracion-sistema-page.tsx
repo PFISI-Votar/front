@@ -148,7 +148,7 @@ export function ConfiguracionSistemaPage() {
     <>
       <div className='space-y-0.5'>
         <h1 className='text-2xl font-bold tracking-tight md:text-3xl'>
-          Configuración
+          Configuración institucional
         </h1>
         <p className='text-muted-foreground'>
           Parámetros globales, válidos para todos los comicios.

@@ -38,7 +38,7 @@ const BreadcrumbSectionMenu = ({ entry }: { entry: BreadcrumbEntry }) => (
   <DropdownMenu>
     <DropdownMenuTrigger
       className='flex items-center gap-1 font-normal text-foreground transition-colors hover:text-foreground/80 focus-visible:outline-hidden'
-      aria-label='Cambiar sección del comicio'
+      aria-label='Cambiar sección'
     >
       {entry.label}
       <ChevronDown className='size-3.5' />

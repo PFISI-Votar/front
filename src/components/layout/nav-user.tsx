@@ -77,9 +77,9 @@ export function NavUser({ user }: NavUserProps) {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild className='cursor-pointer'>
-                <Link to='/settings'>
+                <Link to='/configuracion/seguridad'>
                   <UserCog className='text-[#2f6f9f] dark:text-[#7ab3d4]' />
-                  Perfil y seguridad
+                  Seguridad
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem
