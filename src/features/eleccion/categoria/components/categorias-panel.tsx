@@ -194,7 +194,7 @@ const CategoriaForm = ({
           name='maximoPostulantes'
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Máx. postulantes por lista</FormLabel>
+              <FormLabel>Máx. postulantes / selecciones</FormLabel>
               <FormControl>
                 <Input
                   type='number'
@@ -216,6 +216,10 @@ const CategoriaForm = ({
                   ref={field.ref}
                 />
               </FormControl>
+              <p className='text-xs text-muted-foreground'>
+                Tope de candidatos por lista y de opciones que el votante puede
+                elegir en este cargo (ej. 2 vocales).
+              </p>
               <CategoriaFormMessage />
             </FormItem>
           )}
@@ -440,7 +444,7 @@ export const CategoriasPanel = ({
                           </p>
                         ) : null}
                         <p className='text-sm text-muted-foreground'>
-                          Postulantes por lista: mín.{' '}
+                          Postulantes / selecciones: mín.{' '}
                           {categoria.minimoPostulantes} · máx.{' '}
                           {categoria.cantidadCargos}
                         </p>

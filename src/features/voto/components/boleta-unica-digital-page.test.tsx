@@ -97,6 +97,7 @@ const boleta: BoletaDigital = {
       nombre: 'Presidente',
       descripcion: null,
       orden: 1,
+      cantidadCargos: 1,
       estado: 'DISPONIBLE',
       candidatos: [
         {

@@ -151,6 +151,8 @@ type Candidate = {
 type CandidateRole = {
   id: string
   name: string
+  /** Max candidates the voter may select in this role (from cantidadCargos). */
+  maxSelecciones: number
 }
 
 type PartyList = {
@@ -239,7 +241,37 @@ const buildRolesFromBoleta = (boleta: BoletaDigital): CandidateRole[] =>
     .map((categoria) => ({
       id: String(categoria.idCategoria),
       name: categoria.nombre,
+      maxSelecciones: Math.max(1, categoria.cantidadCargos ?? 1),
     }))
+
+/**
+ * Toggle / replace selection for a role respecting maxSelecciones (VOTAR-474).
+ * Blank is cleared when picking a candidate. At capacity, further adds are ignored
+ * (deselect still works).
+ */
+const applyCandidateSelection = (
+  current: Record<string, string[]>,
+  role: CandidateRole,
+  candidateId: string
+): Record<string, string[]> => {
+  const existing = (current[role.id] ?? []).filter(
+    (id) => !isBlankSelection(id)
+  )
+
+  if (role.maxSelecciones <= 1) {
+    return { ...current, [role.id]: [candidateId] }
+  }
+
+  if (existing.includes(candidateId)) {
+    return { ...current, [role.id]: existing.filter((id) => id !== candidateId) }
+  }
+
+  if (existing.length >= role.maxSelecciones) {
+    return current
+  }
+
+  return { ...current, [role.id]: [...existing, candidateId] }
+}
 
 const mapCandidate = (
   candidate: CandidatoBoletaDigital,
@@ -271,6 +303,9 @@ const buildCandidatesFromBoleta = (boleta: BoletaDigital): Candidate[] =>
  * marca en blanco en vez de quedar sin selección — así el paso de revisión
  * (que sólo sabe leer "candidato" o "blanco") lo muestra explícitamente en
  * vez de omitirlo en silencio de la boleta.
+ *
+ * VOTAR-474: en categorías multi-banca toma hasta `maxSelecciones` postulantes
+ * de esa lista (no solo el primero).
  */
 const getCandidateSelectionsForList = (
   listId: string,
@@ -283,7 +318,11 @@ const getCandidateSelectionsForList = (
     )
 
     selections[role.id] =
-      roleCandidates.length > 0 ? [roleCandidates[0].id] : [BLANK_SELECTION_ID]
+      roleCandidates.length > 0
+        ? roleCandidates
+            .slice(0, role.maxSelecciones)
+            .map((candidate) => candidate.id)
+        : [BLANK_SELECTION_ID]
 
     return selections
   }, {})
@@ -1064,10 +1103,11 @@ export const BudVotingWizard = ({
             onSelectCandidate={(roleId, candidateId) => {
               setSpecialVote(null)
               setCandidateSelections((current) => {
-                return {
-                  ...current,
-                  [roleId]: [candidateId],
+                const role = roles.find((item) => item.id === roleId)
+                if (!role) {
+                  return current
                 }
+                return applyCandidateSelection(current, role, candidateId)
               })
             }}
             onSelectBlank={(roleId) => {
@@ -1670,8 +1710,29 @@ const SelectionStep = ({
   // VOTAR-464: si esta elección resuelve el último cargo pendiente, no hay
   // más tabs a las que avanzar — se avanza directo al siguiente paso del
   // wizard en vez de dejar al votante con un botón "Continuar" redundante.
+  // VOTAR-474: en multi-selección no auto-avanza hasta alcanzar el máximo
+  // (o blanco), para permitir elegir N candidatos del mismo cargo.
   const handleStepSelectCandidate = (roleId: string, candidateId: string) => {
+    const role = roles.find((item) => item.id === roleId)
+    const maxSelecciones = role?.maxSelecciones ?? 1
+    const existing = (candidateSelections[roleId] ?? []).filter(
+      (id) => !isBlankSelection(id)
+    )
+    const isDeselect = maxSelecciones > 1 && existing.includes(candidateId)
+    const nextCount = isDeselect
+      ? existing.length - 1
+      : existing.includes(candidateId)
+        ? existing.length
+        : existing.length + 1
+    const atCapacity =
+      maxSelecciones <= 1 || (!isDeselect && nextCount >= maxSelecciones)
+
     onSelectCandidate(roleId, candidateId)
+
+    if (isDeselect || !atCapacity) {
+      return
+    }
+
     if (willAllRolesBeResolved(roleId)) {
       onContinue()
     } else {
@@ -1686,6 +1747,12 @@ const SelectionStep = ({
       advanceFromRole(roleId)
     }
   }
+
+  const activeRole = roles.find((role) => role.id === effectiveActiveRoleId)
+  const selectionHint =
+    activeRole && activeRole.maxSelecciones > 1
+      ? `Podés elegir hasta ${activeRole.maxSelecciones} candidatos en ${activeRole.name}. Cargo ${activeRoleIndex + 1} de ${roles.length}.`
+      : `Elegí un candidato o voto en blanco para cada cargo. Cargo ${activeRoleIndex + 1} de ${roles.length}.`
 
   const handleSelectGroupList = (listId: string) =>
     onSelectList(selectedListId === listId ? null : listId)
@@ -1723,9 +1790,7 @@ const SelectionStep = ({
         <Card className='border-[#e4e7eb] bg-white/95'>
           <CardHeader>
             <CardTitle>Candidatos por rol</CardTitle>
-            <CardDescription>
-              {`Elegí un candidato o voto en blanco para cada cargo. Cargo ${activeRoleIndex + 1} de ${roles.length}.`}
-            </CardDescription>
+            <CardDescription>{selectionHint}</CardDescription>
           </CardHeader>
           <CardContent className='grid gap-5'>
             {roles.length > 1 && (
@@ -1777,6 +1842,7 @@ const SelectionStep = ({
                     <CandidateRoleSection
                       roleId={role.id}
                       roleName={role.name}
+                      maxSelecciones={role.maxSelecciones}
                       candidates={candidates}
                       selectedCandidateIds={candidateSelections[role.id] ?? []}
                       groupByParty
@@ -1959,16 +2025,26 @@ const ReviewStep = ({
                     )
                   }
 
-                  const roleCandidate = selectedCandidates.find(
+                  const roleCandidates = selectedCandidates.filter(
                     (candidate) => candidate.roleId === role.id
                   )
-                  if (!roleCandidate) {
+                  if (roleCandidates.length === 0) {
                     return null
                   }
 
                   return (
-                    <div key={role.id} className='px-4 py-3'>
-                      <CandidateReviewItem candidate={roleCandidate} />
+                    <div key={role.id} className='grid gap-2 px-4 py-3'>
+                      {roleCandidates.length > 1 && (
+                        <p className='text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase'>
+                          {role.name}
+                        </p>
+                      )}
+                      {roleCandidates.map((roleCandidate) => (
+                        <CandidateReviewItem
+                          key={roleCandidate.id}
+                          candidate={roleCandidate}
+                        />
+                      ))}
                     </div>
                   )
                 })}
@@ -2604,6 +2680,7 @@ const CandidatePreview = ({ candidate }: { candidate: Candidate }) => (
 const CandidateRoleSection = ({
   roleId,
   roleName,
+  maxSelecciones = 1,
   candidates,
   selectedCandidateIds,
   groupByParty,
@@ -2614,6 +2691,7 @@ const CandidateRoleSection = ({
 }: {
   roleId: string
   roleName: string
+  maxSelecciones?: number
   candidates: Candidate[]
   selectedCandidateIds: string[]
   groupByParty: boolean
@@ -2629,6 +2707,9 @@ const CandidateRoleSection = ({
     (candidate) => candidate.roleId === roleId
   )
   const isBlankSelected = selectedCandidateIds.includes(BLANK_SELECTION_ID)
+  const selectedCount = selectedCandidateIds.filter(
+    (id) => !isBlankSelection(id)
+  ).length
   const groupedCandidates = groupByParty
     ? groupCandidatesByParty(roleCandidates)
     : [
@@ -2643,9 +2724,13 @@ const CandidateRoleSection = ({
       ]
   const selectionBadge = isBlankSelected
     ? 'Voto en blanco'
-    : selectedCandidateIds.length > 0
-      ? '1 seleccionado'
-      : 'Elegí una opción'
+    : selectedCount > 0
+      ? maxSelecciones > 1
+        ? `${selectedCount} de ${maxSelecciones} seleccionados`
+        : '1 seleccionado'
+      : maxSelecciones > 1
+        ? `Elegí hasta ${maxSelecciones}`
+        : 'Elegí una opción'
   const groupsContent = (
     <div className='grid gap-4'>
       <div

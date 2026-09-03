@@ -145,6 +145,7 @@ const boleta: BoletaDigital = {
       nombre: 'Presidente',
       descripcion: null,
       orden: 1,
+      cantidadCargos: 1,
       estado: 'DISPONIBLE',
       candidatos: [
         {
@@ -193,6 +194,7 @@ const boleta: BoletaDigital = {
       nombre: 'Vocales',
       descripcion: null,
       orden: 2,
+      cantidadCargos: 1,
       estado: 'DISPONIBLE',
       candidatos: [
         {
@@ -574,6 +576,86 @@ describe('BudVotingWizard', () => {
     await expect.element(screen.getByText('Bruno Paz')).toBeInTheDocument()
     await expect.element(screen.getByText('Carla Rio')).toBeInTheDocument()
     await expect.element(screen.getByText('Ana Lopez')).not.toBeInTheDocument()
+  })
+
+  it('VOTAR-474: permite elegir hasta cantidadCargos candidatos en la misma categoría', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    const boletaMulti: BoletaDigital = {
+      ...boleta,
+      categorias: [
+        {
+          ...boleta.categorias[0],
+          cantidadCargos: 1,
+        },
+        {
+          idCategoria: 2,
+          nombre: 'Vocales',
+          descripcion: null,
+          orden: 2,
+          cantidadCargos: 2,
+          estado: 'DISPONIBLE',
+          candidatos: [
+            {
+              idCandidato: 201,
+              idCategoria: 2,
+              idLista: 11,
+              listId: 11,
+              nombre: 'Carla',
+              apellido: 'Rio',
+              nombreCompleto: 'Carla Rio',
+              agrupacionPolitica: 'Lista Azul',
+              numeroLista: 1,
+              colorLista: '#0ea5e9',
+              fotoUrl: null,
+            },
+            {
+              idCandidato: 202,
+              idCategoria: 2,
+              idLista: 12,
+              listId: 12,
+              nombre: 'Diego',
+              apellido: 'Mar',
+              nombreCompleto: 'Diego Mar',
+              agrupacionPolitica: 'Lista Celeste',
+              numeroLista: 2,
+              colorLista: '#2563eb',
+              fotoUrl: null,
+            },
+          ],
+        },
+      ],
+    }
+
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <EphemeralWalletProvider>
+          <BudVotingWizard
+            boleta={boletaMulti}
+            tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
+            onLogout={vi.fn()}
+          />
+        </EphemeralWalletProvider>
+      </QueryClientProvider>
+    )
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /Comenzar a votar/i })
+    )
+    await userEvent.click(screen.getByRole('button', { name: /Ana Lopez/i }))
+    // Multi-selección: el primer click no auto-avanza a revisión.
+    await userEvent.click(screen.getByRole('button', { name: /Carla Rio/i }))
+    await expect
+      .element(screen.getByText(/1 de 2 seleccionados/i))
+      .toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /Diego Mar/i }))
+    // Al llegar al máximo del último cargo avanza a revisión.
+
+    await expect.element(screen.getByText('Ana Lopez')).toBeInTheDocument()
+    await expect.element(screen.getByText('Carla Rio')).toBeInTheDocument()
+    await expect.element(screen.getByText('Diego Mar')).toBeInTheDocument()
   })
 
   it('en por cargo, elegir la lista completa desde la agrupación de un rol autoselecciona un candidato por rol y avanza a revisión', async () => {
