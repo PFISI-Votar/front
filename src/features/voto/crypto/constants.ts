@@ -1,4 +1,7 @@
-import { parseRpcUrls } from '@/features/voto/crypto/rpc-failover'
+import {
+  assertRpcUrlsUseHttpsExceptLoopback,
+  parseRpcUrls,
+} from '@/features/voto/crypto/rpc-failover'
 
 /**
  * Cross-repo EIP-712 contract for VOTAR-357 / VOTAR-346 (must match BallotContract.sol).
@@ -82,10 +85,13 @@ export const getRpcUrls = (): string[] => {
     import.meta.env.VITE_RPC_FALLBACK_URLS
   )
   if (urls.length > 0) {
+    assertRpcUrlsUseHttpsExceptLoopback(urls)
     return urls
   }
   if (import.meta.env.DEV || import.meta.env.MODE === 'test') {
-    return [DEV_RPC_URL]
+    const localUrls = [DEV_RPC_URL]
+    assertRpcUrlsUseHttpsExceptLoopback(localUrls)
+    return localUrls
   }
   throw new Error('VITE_RPC_URL no está configurada para transmitir el voto')
 }
