@@ -40,6 +40,7 @@ import { Route as AuthenticatedSettingsDisplayRouteImport } from './routes/_auth
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
 import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_authenticated/settings/account'
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
+import { Route as AuthenticatedConfiguracionSeguridadRouteImport } from './routes/_authenticated/configuracion/seguridad'
 import { Route as AuthenticatedComiciosNuevoRouteImport } from './routes/_authenticated/comicios/nuevo'
 import { Route as ComiciosIdEleccionDashboardRouteRouteImport } from './routes/comicios/$idEleccion/dashboard/route'
 import { Route as ComiciosIdEleccionDashboardIndexRouteImport } from './routes/comicios/$idEleccion/dashboard/index'
@@ -223,6 +224,12 @@ const AuthenticatedErrorsErrorRoute =
     path: '/errors/$error',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedConfiguracionSeguridadRoute =
+  AuthenticatedConfiguracionSeguridadRouteImport.update({
+    id: '/configuracion/seguridad',
+    path: '/configuracion/seguridad',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedComiciosNuevoRoute =
   AuthenticatedComiciosNuevoRouteImport.update({
     id: '/nuevo',
@@ -338,6 +345,7 @@ export interface FileRoutesByFullPath {
   '/verificar/': typeof VerificarIndexRoute
   '/comicios/$idEleccion/dashboard': typeof ComiciosIdEleccionDashboardRouteRouteWithChildren
   '/comicios/nuevo': typeof AuthenticatedComiciosNuevoRoute
+  '/configuracion/seguridad': typeof AuthenticatedConfiguracionSeguridadRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
@@ -383,6 +391,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/verificar': typeof VerificarIndexRoute
   '/comicios/nuevo': typeof AuthenticatedComiciosNuevoRoute
+  '/configuracion/seguridad': typeof AuthenticatedConfiguracionSeguridadRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
@@ -433,6 +442,7 @@ export interface FileRoutesById {
   '/verificar/': typeof VerificarIndexRoute
   '/comicios/$idEleccion/dashboard': typeof ComiciosIdEleccionDashboardRouteRouteWithChildren
   '/_authenticated/comicios/nuevo': typeof AuthenticatedComiciosNuevoRoute
+  '/_authenticated/configuracion/seguridad': typeof AuthenticatedConfiguracionSeguridadRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/_authenticated/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/_authenticated/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
@@ -483,6 +493,7 @@ export interface FileRouteTypes {
     | '/verificar/'
     | '/comicios/$idEleccion/dashboard'
     | '/comicios/nuevo'
+    | '/configuracion/seguridad'
     | '/errors/$error'
     | '/settings/account'
     | '/settings/appearance'
@@ -528,6 +539,7 @@ export interface FileRouteTypes {
     | '/'
     | '/verificar'
     | '/comicios/nuevo'
+    | '/configuracion/seguridad'
     | '/errors/$error'
     | '/settings/account'
     | '/settings/appearance'
@@ -577,6 +589,7 @@ export interface FileRouteTypes {
     | '/verificar/'
     | '/comicios/$idEleccion/dashboard'
     | '/_authenticated/comicios/nuevo'
+    | '/_authenticated/configuracion/seguridad'
     | '/_authenticated/errors/$error'
     | '/_authenticated/settings/account'
     | '/_authenticated/settings/appearance'
@@ -845,6 +858,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErrorsErrorRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/configuracion/seguridad': {
+      id: '/_authenticated/configuracion/seguridad'
+      path: '/configuracion/seguridad'
+      fullPath: '/configuracion/seguridad'
+      preLoaderRoute: typeof AuthenticatedConfiguracionSeguridadRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/comicios/nuevo': {
       id: '/_authenticated/comicios/nuevo'
       path: '/nuevo'
@@ -1021,6 +1041,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedComiciosRouteRoute: typeof AuthenticatedComiciosRouteRouteWithChildren
   AuthenticatedSettingsRouteRoute: typeof AuthenticatedSettingsRouteRouteWithChildren
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedConfiguracionSeguridadRoute: typeof AuthenticatedConfiguracionSeguridadRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
   AuthenticatedAppsIndexRoute: typeof AuthenticatedAppsIndexRoute
   AuthenticatedAuditoriaIndexRoute: typeof AuthenticatedAuditoriaIndexRoute
@@ -1035,6 +1056,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedComiciosRouteRoute: AuthenticatedComiciosRouteRouteWithChildren,
   AuthenticatedSettingsRouteRoute: AuthenticatedSettingsRouteRouteWithChildren,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedConfiguracionSeguridadRoute:
+    AuthenticatedConfiguracionSeguridadRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
   AuthenticatedAppsIndexRoute: AuthenticatedAppsIndexRoute,
   AuthenticatedAuditoriaIndexRoute: AuthenticatedAuditoriaIndexRoute,
