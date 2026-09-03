@@ -936,11 +936,7 @@ export const BudVotingWizard = ({
   // en realidad debe ir a cooldown o límite de intentos.
   if (isLoadingEstadoRevoto) {
     return (
-      <BudWizardShell
-        step='identity'
-        estadoRevoto={estadoRevoto}
-        onLogout={handleLogout}
-      >
+      <BudWizardShell estadoRevoto={estadoRevoto} onLogout={handleLogout}>
         <div className='flex min-h-[24rem] items-center justify-center'>
           <p className='text-sm text-slate-600'>Preparando tu boleta…</p>
         </div>
@@ -949,11 +945,7 @@ export const BudVotingWizard = ({
   }
 
   return (
-    <BudWizardShell
-      step={effectiveStep}
-      estadoRevoto={estadoRevoto}
-      onLogout={handleLogout}
-    >
+    <BudWizardShell estadoRevoto={estadoRevoto} onLogout={handleLogout}>
       {pausada && (
         <Alert variant='destructive' className='mb-4'>
           <AlertCircle className='size-4' aria-hidden='true' />
@@ -1134,12 +1126,10 @@ export const BudVotingWizard = ({
 
 const BudWizardShell = ({
   children,
-  step,
   estadoRevoto,
   onLogout,
 }: {
   children: ReactNode
-  step: WizardStep
   estadoRevoto?: EstadoRevoto
   onLogout: () => void
 }) => {
@@ -1188,13 +1178,6 @@ const BudWizardShell = ({
                 Intentos restantes: {estadoRevoto.intentosRestantes}
               </Badge>
             ) : null}
-            <Badge
-              variant='outline'
-              className='rounded-full border-[#2f6f9f]/30 bg-white/80 px-3 py-1 text-xs text-[#2f6f9f] sm:text-sm'
-            >
-              <ShieldCheck className='size-3.5' />
-              {getStepLabel(step)}
-            </Badge>
             {/* VOTAR-445: logout siempre visible; no toca contadores de revoto. */}
             <Button
               type='button'
@@ -2718,15 +2701,4 @@ const ListLogo = ({
       </AvatarFallback>
     </Avatar>
   )
-}
-
-const getStepLabel = (step: WizardStep) => {
-  if (step === 'limit-reached') return 'Límite de intentos'
-  if (step === 'cooldown') return 'Espera entre votos'
-  if (step === 'registered') return 'Voto registrado'
-  if (step === 'identity') return 'Antes de votar'
-  if (step === 'selection') return 'Selección de voto'
-  if (step === 'review') return 'Confirmación'
-  if (step === 'transmitting') return 'Envío a la red'
-  return 'Voto exitoso'
 }
