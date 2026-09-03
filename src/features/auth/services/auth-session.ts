@@ -57,6 +57,10 @@ export const ensureValidAccessToken = async (): Promise<boolean> => {
   } catch {
     try {
       const response = await refreshSession()
+      if (!response.user) {
+        useAuthStore.getState().auth.reset()
+        return false
+      }
       useAuthStore.getState().auth.setSession(response.user)
       scheduleAccessTokenRefresh()
       return true
@@ -70,6 +74,11 @@ export const ensureValidAccessToken = async (): Promise<boolean> => {
 const handleScheduledRefresh = async (): Promise<void> => {
   try {
     const response = await refreshSession()
+    if (!response.user) {
+      clearAccessTokenRefresh()
+      useAuthStore.getState().auth.reset()
+      return
+    }
     useAuthStore.getState().auth.setSession(response.user)
   } catch {
     clearAccessTokenRefresh()
