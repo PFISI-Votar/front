@@ -44,6 +44,10 @@ import {
 } from '@/features/eleccion/lista/data/schema'
 import { firmarRecibo } from '@/features/voto/api/recibo-api'
 import {
+  emitirCredencialValidacion,
+  solicitarFirmaValidacion,
+} from '@/features/voto/api/validacion-api'
+import {
   obtenerEstadoRevoto,
   registrarTransaccionPublica,
   registrarVotoEmitidoAnonimo,
@@ -78,6 +82,10 @@ import {
 } from '@/features/voto/crypto/pending-vote-cast'
 import { useEphemeralWallet } from '@/features/voto/crypto/use-ephemeral-wallet'
 import {
+  createValidationCredential,
+  type ValidationCredential,
+} from '@/features/voto/crypto/validation-credential'
+import {
   transmitSignedVote,
   waitForVoteTxReceipt,
   type TransmitProgressPhase,
@@ -85,6 +93,7 @@ import {
 import {
   formatCooldownDuration,
   getMessageForRevert,
+  VOTE_TX_MESSAGES,
 } from '@/features/voto/crypto/vote-tx-error-catalog'
 import {
   mapVoteTxError,
@@ -357,6 +366,10 @@ export const BudVotingWizard = ({
   const [signingError, setSigningError] = useState<string | null>(null)
   const [isSigning, setIsSigning] = useState(false)
   const [signedVote, setSignedVote] = useState<SignedVotePayload | null>(null)
+  /** VOTAR-377 — institutional signature adjuntada al castSignedVote. */
+  const [validatorSignature, setValidatorSignature] = useState<Hex | null>(null)
+  /** VOTAR-377 — credencial de validación anónima; secreto sólo en RAM. */
+  const validationCredentialRef = useRef<ValidationCredential | null>(null)
   const [transmitPhase, setTransmitPhase] = useState<TransmitUiPhase | null>(
     null
   )
@@ -663,7 +676,24 @@ export const BudVotingWizard = ({
     }
   }
 
-  const transmitVote = async (signed: SignedVotePayload) => {
+  const transmitVote = async (
+    signed: SignedVotePayload,
+    validatorSig: Hex | null = validatorSignature
+  ) => {
+    if (!validatorSig) {
+      const missingValidatorError = mapVoteTxError(
+        new Error('Falta la firma de validación institucional (VOTAR-377)')
+      )
+      setTxError({
+        ...missingValidatorError,
+        message: VOTE_TX_MESSAGES.validatorSignature,
+        canRetrySend: false,
+        canResign: true,
+      })
+      setTransmitPhase('error')
+      setStep('transmitting')
+      return
+    }
     // VOTAR-347 — corta antes de gastar gas en una tx que el contrato va a
     // revertir igual (EnforcedPause): mismo código/mensaje que un revert real,
     // pero instantáneo y sin round-trip a la red.
@@ -747,6 +777,7 @@ export const BudVotingWizard = ({
           signed,
           voterLeaf: leaf,
           merkleProof: merkleProofData.merkleProof as Hex[],
+          validatorSignature: validatorSig,
         },
         {
           contractAddress: ballotAddress,
@@ -801,6 +832,22 @@ export const BudVotingWizard = ({
     }
   }
 
+  /**
+   * VOTAR-377 FASE 1 — mientras la sesión SSO está activa, registra el compromiso
+   * de una credencial de validación anónima. El secreto sólo vive en RAM.
+   */
+  const ensureValidationCredential =
+    async (): Promise<ValidationCredential> => {
+      const existing = validationCredentialRef.current
+      if (existing) {
+        return existing
+      }
+      const credential = createValidationCredential()
+      await emitirCredencialValidacion(boleta.idEleccion, credential.commit)
+      validationCredentialRef.current = credential
+      return credential
+    }
+
   const handleIdentityConfirm = async () => {
     setIdentityError(null)
     try {
@@ -810,6 +857,8 @@ export const BudVotingWizard = ({
       }
       const proof = await merkleProofMutation.mutateAsync()
       setMerkleProofData(proof)
+      // VOTAR-377 — emite la credencial de validación mientras hay JWT de votante.
+      await ensureValidationCredential()
       const returning =
         (estadoRevoto?.votosConsumidos ?? 0) > 0 &&
         (estadoRevoto?.puedeVotar ?? true)
@@ -827,6 +876,12 @@ export const BudVotingWizard = ({
         if (error.response?.status === 429) {
           setIdentityError(
             'Demasiadas solicitudes. Esperá un minuto e intentá de nuevo.'
+          )
+          return
+        }
+        if (error.response?.status === 409) {
+          setIdentityError(
+            'Se alcanzó el máximo de certificaciones de validación para este comicio.'
           )
           return
         }
@@ -885,8 +940,37 @@ export const BudVotingWizard = ({
         boleta.ballotContractAddress
       )
       setSignedVote(signed)
+
+      // VOTAR-377 FASE 2 (anónima) — canjea el secreto de la credencial por la
+      // firma institucional sobre la totalidad del payload. Sin cookie SSO.
+      let institutionalSignature: Hex
+      try {
+        const credential = await ensureValidationCredential()
+        const { firmaValidacion } = await solicitarFirmaValidacion(
+          boleta.idEleccion,
+          {
+            secreto: credential.secreto,
+            nullifier: signed.nullifier,
+            selectionHash: signed.selectionHash,
+            candidateId: signed.candidateId.toString(),
+            timestamp: signed.timestamp,
+            expectedSigner: signed.expectedSigner,
+          }
+        )
+        institutionalSignature = firmaValidacion
+        credential.zeroize()
+        validationCredentialRef.current = null
+        setValidatorSignature(firmaValidacion)
+      } catch {
+        setSigningError(
+          'No pudimos obtener la certificación de la Entidad de Firmas Digitales. Reintentá en unos segundos.'
+        )
+        setIsSigning(false)
+        return
+      }
+
       setIsSigning(false)
-      await transmitVote(signed)
+      await transmitVote(signed, institutionalSignature)
     } catch {
       setSigningError(
         'No pudimos firmar tu voto de forma local. Reintentá en unos segundos.'
@@ -908,6 +992,11 @@ export const BudVotingWizard = ({
     setTxHash(null)
     setBlockNumber(null)
     setSignedVote(null)
+    // VOTAR-377 — la nueva clave efímera invalida la firma institucional previa
+    // (liga expectedSigner); handleSignVote pedirá una credencial + firma nuevas.
+    setValidatorSignature(null)
+    validationCredentialRef.current?.zeroize()
+    validationCredentialRef.current = null
     setSigningError(null)
     try {
       await initializeEphemeralWallet(boleta.idEleccion, votanteScope)

@@ -10,6 +10,9 @@
  * elapsed; getVoterState exposes the node's cooldownRemaining/blockTimestamp so the
  * BUD can anchor its countdown to the network clock instead of the OS clock.
  * NullifierAlreadyUsed is kept so viem can still decode legacy Sepolia deployments.
+ * VOTAR-377: castSignedVote now bundles the payload into a `SignedVoteInput` tuple
+ * and requires `validatorSignature` (Entidad de Firmas Digitales). Missing/invalid
+ * institutional signature → MissingValidatorSignature / InvalidValidatorSignature.
  */
 export const BALLOT_CONTRACT_ABI = [
   {
@@ -17,15 +20,22 @@ export const BALLOT_CONTRACT_ABI = [
     name: 'castSignedVote',
     stateMutability: 'nonpayable',
     inputs: [
-      { name: 'electionId', type: 'uint256' },
-      { name: 'voterLeaf', type: 'bytes32' },
+      {
+        name: 'vote',
+        type: 'tuple',
+        components: [
+          { name: 'electionId', type: 'uint256' },
+          { name: 'voterLeaf', type: 'bytes32' },
+          { name: 'nullifier', type: 'bytes32' },
+          { name: 'selectionHash', type: 'bytes32' },
+          { name: 'candidateId', type: 'uint256' },
+          { name: 'timestamp', type: 'uint256' },
+          { name: 'expectedSigner', type: 'address' },
+        ],
+      },
       { name: 'merkleProof', type: 'bytes32[]' },
-      { name: 'nullifier', type: 'bytes32' },
-      { name: 'selectionHash', type: 'bytes32' },
-      { name: 'timestamp', type: 'uint256' },
-      { name: 'expectedSigner', type: 'address' },
       { name: 'signature', type: 'bytes' },
-      { name: 'candidateId', type: 'uint256' },
+      { name: 'validatorSignature', type: 'bytes' },
     ],
     outputs: [],
   },
@@ -102,6 +112,17 @@ export const BALLOT_CONTRACT_ABI = [
   {
     type: 'error',
     name: 'InvalidSignature',
+    inputs: [],
+  },
+  // VOTAR-377 — Entidad de Firmas Digitales enforcement.
+  {
+    type: 'error',
+    name: 'MissingValidatorSignature',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'InvalidValidatorSignature',
     inputs: [],
   },
   {
