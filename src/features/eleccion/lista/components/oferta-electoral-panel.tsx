@@ -43,6 +43,11 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { Separator } from '@/components/ui/separator'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   eliminarEleccion,
@@ -52,8 +57,11 @@ import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidat
 import { CandidatoFormDialog } from '@/features/eleccion/candidato/components/candidato-form-dialog'
 import { ConfiguracionDatosCandidatoPanel } from '@/features/eleccion/candidato/components/configuracion-datos-candidato-panel'
 import type { Candidato } from '@/features/eleccion/candidato/data/schema'
+import { getCategoriasDisponibles } from '@/features/eleccion/candidato/utils/categorias-disponibles'
 import { buildResumenDatosAdicionales } from '@/features/eleccion/candidato/utils/format-datos-adicionales'
+import { listarCategorias } from '@/features/eleccion/categoria/api/categoria-api'
 import { CategoriasPanel } from '@/features/eleccion/categoria/components/categorias-panel'
+import { mapCategoriaToElectoral } from '@/features/eleccion/categoria/data/schema'
 import { ComicioVentanaElectoral } from '@/features/eleccion/components/comicio-ventana-electoral'
 import { DocumentosComicioMenu } from '@/features/eleccion/components/documentos-comicio-menu'
 import { EliminarComicioDialog } from '@/features/eleccion/components/eliminar-comicio-dialog'
@@ -130,6 +138,11 @@ export const OfertaElectoralPanel = ({
   const configQuery = useQuery({
     queryKey: ['config-datos-candidato', idEleccion],
     queryFn: () => obtenerConfiguracionDatosCandidato(idEleccion),
+  })
+
+  const categoriasQuery = useQuery({
+    queryKey: ['categorias', idEleccion],
+    queryFn: () => listarCategorias(idEleccion),
   })
 
   const padronResumenQuery = usePadronResumen(idEleccion)
@@ -577,6 +590,13 @@ export const OfertaElectoralPanel = ({
       <div className='grid gap-4'>
         {(listasQuery.data ?? []).map((lista) => {
           const candidatos = lista.candidatos ?? []
+          const categoriasElectorales = (categoriasQuery.data ?? []).map(
+            mapCategoriaToElectoral
+          )
+          const sinCupoDisponible =
+            categoriasElectorales.length > 0 &&
+            getCategoriasDisponibles(categoriasElectorales, candidatos)
+              .length === 0
 
           return (
             <Collapsible
@@ -671,25 +691,9 @@ export const OfertaElectoralPanel = ({
                   <Separator />
                   <CardContent className='pt-4'>
                     {candidatos.length === 0 ? (
-                      <div className='flex flex-col gap-3'>
-                        <p className='text-sm text-muted-foreground'>
-                          Esta lista aún no tiene candidatos registrados.
-                        </p>
-                        {isEditable && (
-                          <Button
-                            size='sm'
-                            variant='outline'
-                            className='w-fit'
-                            onClick={() =>
-                              setCandidatoDialog({ lista, candidato: null })
-                            }
-                            aria-label={`Registrar candidato en ${lista.nombre}`}
-                          >
-                            <Plus className='me-2 size-4' />
-                            Registrar candidato
-                          </Button>
-                        )}
-                      </div>
+                      <p className='text-sm text-muted-foreground'>
+                        Esta lista aún no tiene candidatos registrados.
+                      </p>
                     ) : (
                       <ul
                         className='flex flex-col gap-2'
@@ -742,6 +746,36 @@ export const OfertaElectoralPanel = ({
                           </li>
                         ))}
                       </ul>
+                    )}
+                    {isEditable && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className='mt-3 inline-block w-fit'>
+                            <Button
+                              size='sm'
+                              variant='outline'
+                              aria-disabled={sinCupoDisponible}
+                              onClick={() => {
+                                if (sinCupoDisponible) return
+                                setCandidatoDialog({ lista, candidato: null })
+                              }}
+                              className={cn(
+                                sinCupoDisponible &&
+                                  'pointer-events-none opacity-50'
+                              )}
+                              aria-label={`Registrar candidato en ${lista.nombre}`}
+                            >
+                              <Plus className='me-2 size-4' />
+                              Registrar candidato
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        {sinCupoDisponible && (
+                          <TooltipContent>
+                            No hay categorías con cupo disponible en esta lista
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
                     )}
                   </CardContent>
                 </CollapsibleContent>
