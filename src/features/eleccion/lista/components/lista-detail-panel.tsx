@@ -210,9 +210,6 @@ export const ListaDetailPanel = ({
           <Badge variant={isEditable ? 'secondary' : 'default'}>
             {lista.estado}
           </Badge>
-          {lista.listId != null && (
-            <Badge variant='outline'>list_id {lista.listId}</Badge>
-          )}
         </div>
       </div>
 
@@ -309,14 +306,6 @@ export const ListaDetailPanel = ({
               Candidatos
             </p>
             <p className='font-medium'>{candidatos.length}</p>
-          </div>
-          <div>
-            <p className='text-xs tracking-wide text-muted-foreground uppercase'>
-              Logotipo
-            </p>
-            <p className='font-medium'>
-              {lista.logoUrl ? 'Configurado' : 'Sin logotipo'}
-            </p>
           </div>
         </CardContent>
       </Card>
