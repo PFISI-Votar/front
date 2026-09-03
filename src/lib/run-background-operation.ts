@@ -11,7 +11,7 @@ export type RunBackgroundOperationOptions<T> = {
   successMessage: string | ((result: T) => string)
   operation: () => Promise<T>
   errorTitle?: string
-  /** Duration of the error toast in ms. Use Infinity so Reintentar stays visible. */
+  /** Duration of the error toast in ms. Defaults to 8s (not persistent). */
   errorDuration?: number
   onSuccess?: (result: T) => void
   onError?: (error: unknown) => BackgroundOperationAction | true | void
@@ -29,7 +29,7 @@ export const runBackgroundOperation = <T>({
   successMessage,
   operation,
   errorTitle = 'Operación fallida',
-  errorDuration = Infinity,
+  errorDuration = 8_000,
   onSuccess,
   onError,
   onSettled,

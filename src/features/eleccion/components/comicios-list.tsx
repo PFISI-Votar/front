@@ -11,6 +11,7 @@ import {
   Pencil,
   Play,
   PlayCircle,
+  RefreshCw,
   Square,
   Trash2,
   Vote,
@@ -43,11 +44,12 @@ import {
 } from '@/features/eleccion/api/eleccion-api'
 import { ComicioVentanaElectoral } from '@/features/eleccion/components/comicio-ventana-electoral'
 import { EliminarComicioDialog } from '@/features/eleccion/components/eliminar-comicio-dialog'
-import { OperationRetryAlert } from '@/features/eleccion/components/operation-retry-alert'
 import { PausarComicioDialog } from '@/features/eleccion/components/pausar-comicio-dialog'
 import { ReanudarComicioDialog } from '@/features/eleccion/components/reanudar-comicio-dialog'
 import type { EleccionEstado } from '@/features/eleccion/data/schema'
 import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
+import { useReintentarDespliegueOnChain } from '@/features/eleccion/hooks/use-reintentar-despliegue-on-chain'
+import { isMissingOnChainContractsError } from '@/features/eleccion/lib/missing-on-chain-contracts'
 import { useArchivarEleccion } from '@/features/eleccion/hooks/use-archivar-eleccion'
 import { useCerrarEleccion } from '@/features/eleccion/hooks/use-cerrar-eleccion'
 import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
@@ -291,6 +293,25 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
   const [preconditionError, setPreconditionError] = useState<string | null>(
     null
   )
+  /** VOTAR-473: comicios CONFIGURADA que necesitan redeploy on-chain. */
+  const [needsOnChainRedeploy, setNeedsOnChainRedeploy] = useState<
+    Record<number, true>
+  >({})
+
+  const markNeedsOnChainRedeploy = (idEleccion: number) => {
+    setNeedsOnChainRedeploy((prev) => ({ ...prev, [idEleccion]: true }))
+  }
+
+  const clearNeedsOnChainRedeploy = (idEleccion: number) => {
+    setNeedsOnChainRedeploy((prev) => {
+      if (!(idEleccion in prev)) {
+        return prev
+      }
+      const next = { ...prev }
+      delete next[idEleccion]
+      return next
+    })
+  }
 
   const abrirIdEleccion = abrirDialog.idEleccion ?? 0
   const {
@@ -303,8 +324,16 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
       setPreconditionError(message)
       setAbrirDialog(emptyActionTarget())
     },
+    onMissingOnChainContracts: () => {
+      if (abrirIdEleccion > 0) {
+        markNeedsOnChainRedeploy(abrirIdEleccion)
+      }
+    },
     onSuccess: () => {
       setPreconditionError(null)
+      if (abrirIdEleccion > 0) {
+        clearNeedsOnChainRedeploy(abrirIdEleccion)
+      }
       setAbrirDialog(emptyActionTarget())
     },
     padronPath:
@@ -318,8 +347,22 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
     lastError: oficializarLastError,
     clearLastError: clearOficializarError,
   } = useOficializarEleccion(oficializarIdEleccion, {
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (!data.onChainDesplegado) {
+        markNeedsOnChainRedeploy(data.idEleccion)
+      }
       setOficializarDialog(emptyActionTarget())
+    },
+  })
+
+  const {
+    runInBackground: redeployEnBackground,
+    isRunning: redeployingComicio,
+    runningId: redeployingId,
+  } = useReintentarDespliegueOnChain({
+    onSuccess: (idEleccion) => {
+      clearNeedsOnChainRedeploy(idEleccion)
+      clearAbrirError()
     },
   })
 
@@ -492,34 +535,6 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
           <AlertDescription>{preconditionError}</AlertDescription>
         </Alert>
       )}
-      {abrirLastError && abrirDialog.idEleccion !== null && (
-        <div className='mb-4'>
-          <OperationRetryAlert
-            title={`No se pudo abrir el comicio "${abrirDialog.nombreEleccion}"`}
-            message={abrirLastError}
-            isRetrying={abriendoComicio}
-            onRetry={abrirEnBackground}
-            onDismiss={() => {
-              clearAbrirError()
-              setAbrirDialog(emptyActionTarget())
-            }}
-          />
-        </div>
-      )}
-      {oficializarLastError && oficializarDialog.idEleccion !== null && (
-        <div className='mb-4'>
-          <OperationRetryAlert
-            title={`No se pudo oficializar el comicio "${oficializarDialog.nombreEleccion}"`}
-            message={oficializarLastError}
-            isRetrying={oficializandoComicio}
-            onRetry={oficializarEnBackground}
-            onDismiss={() => {
-              clearOficializarError()
-              setOficializarDialog(emptyActionTarget())
-            }}
-          />
-        </div>
-      )}
       <ul className='grid gap-4' aria-label='Listado de comicios'>
         {comicios.map((comicio) => (
           <li key={comicio.idEleccion}>
@@ -601,33 +616,106 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
                   {comicio.estado === 'BORRADOR' && (
                     <Button
                       size='sm'
-                      onClick={() =>
+                      onClick={() => {
+                        if (
+                          oficializarLastError &&
+                          oficializarDialog.idEleccion === comicio.idEleccion
+                        ) {
+                          oficializarEnBackground()
+                          return
+                        }
                         handleOpenOficializarDialog(
                           comicio.idEleccion,
                           comicio.nombre
                         )
+                      }}
+                      disabled={
+                        oficializandoComicio &&
+                        oficializarDialog.idEleccion === comicio.idEleccion
                       }
-                      aria-label={`Oficializar comicio ${comicio.nombre}`}
+                      aria-label={
+                        oficializarLastError &&
+                        oficializarDialog.idEleccion === comicio.idEleccion
+                          ? `Reintentar oficialización ${comicio.nombre}`
+                          : `Oficializar comicio ${comicio.nombre}`
+                      }
                     >
-                      <BadgeCheck />
-                      Oficializar comicio
+                      {oficializarLastError &&
+                      oficializarDialog.idEleccion === comicio.idEleccion ? (
+                        <RefreshCw />
+                      ) : (
+                        <BadgeCheck />
+                      )}
+                      {oficializarLastError &&
+                      oficializarDialog.idEleccion === comicio.idEleccion
+                        ? 'Reintentar oficialización'
+                        : 'Oficializar comicio'}
                     </Button>
                   )}
-                  {comicio.estado === 'CONFIGURADA' && (
-                    <Button
-                      size='sm'
-                      onClick={() =>
-                        handleOpenAbrirDialog(
-                          comicio.idEleccion,
-                          comicio.nombre
-                        )
-                      }
-                      aria-label={`Abrir comicio ${comicio.nombre}`}
-                    >
-                      <Play />
-                      Abrir comicio
-                    </Button>
-                  )}
+                  {comicio.estado === 'CONFIGURADA' &&
+                    (needsOnChainRedeploy[comicio.idEleccion] ||
+                    isMissingOnChainContractsError(
+                      abrirDialog.idEleccion === comicio.idEleccion
+                        ? abrirLastError
+                        : null
+                    ) ? (
+                      <Button
+                        size='sm'
+                        variant='secondary'
+                        onClick={() =>
+                          redeployEnBackground(comicio.idEleccion)
+                        }
+                        disabled={
+                          redeployingComicio &&
+                          redeployingId === comicio.idEleccion
+                        }
+                        aria-label={`Reintentar oficialización ${comicio.nombre}`}
+                      >
+                        <RefreshCw />
+                        {redeployingComicio &&
+                        redeployingId === comicio.idEleccion
+                          ? 'Reintentando...'
+                          : 'Reintentar oficialización'}
+                      </Button>
+                    ) : (
+                      <Button
+                        size='sm'
+                        onClick={() => {
+                          if (
+                            abrirLastError &&
+                            abrirDialog.idEleccion === comicio.idEleccion
+                          ) {
+                            abrirEnBackground()
+                            return
+                          }
+                          handleOpenAbrirDialog(
+                            comicio.idEleccion,
+                            comicio.nombre
+                          )
+                        }}
+                        disabled={
+                          abriendoComicio &&
+                          abrirDialog.idEleccion === comicio.idEleccion
+                        }
+                        aria-label={
+                          abrirLastError &&
+                          abrirDialog.idEleccion === comicio.idEleccion
+                            ? `Reintentar apertura ${comicio.nombre}`
+                            : `Abrir comicio ${comicio.nombre}`
+                        }
+                      >
+                        {abrirLastError &&
+                        abrirDialog.idEleccion === comicio.idEleccion ? (
+                          <RefreshCw />
+                        ) : (
+                          <Play />
+                        )}
+                        {abrirLastError &&
+                        abrirDialog.idEleccion === comicio.idEleccion
+                          ? 'Reintentar apertura'
+                          : 'Abrir comicio'}
+                      </Button>
+                    ))}
                   {comicio.estado === 'ABIERTA' && (
                     <Button
                       variant='destructive'

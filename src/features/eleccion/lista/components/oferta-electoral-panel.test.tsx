@@ -15,6 +15,7 @@ import type { Eleccion } from '@/features/eleccion/data/schema'
 import {
   eliminarLista,
   listarListas,
+  obtenerEstadoStackOnChain,
   obtenerMapeoListas,
 } from '@/features/eleccion/lista/api/lista-api'
 import type { Lista } from '@/features/eleccion/lista/data/schema'
@@ -53,6 +54,11 @@ vi.mock('@/features/eleccion/lista/api/lista-api', () => ({
   eliminarLogoLista: vi.fn(),
   oficializarEleccion: vi.fn(),
   obtenerMapeoListas: vi.fn(),
+  obtenerEstadoStackOnChain: vi.fn().mockResolvedValue({
+    idEleccion: 1,
+    desplegado: true,
+  }),
+  reintentarDespliegueOnChain: vi.fn(),
 }))
 
 vi.mock(
@@ -124,6 +130,10 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     vi.mocked(obtenerEleccion).mockResolvedValue(mockEleccionConfigurada)
     vi.mocked(listarListas).mockResolvedValue([])
     vi.mocked(obtenerMapeoListas).mockResolvedValue([])
+    vi.mocked(obtenerEstadoStackOnChain).mockResolvedValue({
+      idEleccion: 1,
+      desplegado: true,
+    })
     vi.mocked(obtenerConfiguracionDatosCandidato).mockResolvedValue({
       idEleccion: 1,
       campos: [],
@@ -242,7 +252,7 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     expect(abrirEleccion).toHaveBeenCalledWith(1)
   })
 
-  it('muestra alerta con Reintentar ante error de red al abrir y permite reintentar', async () => {
+  it('cambia el botón a Reintentar apertura ante error de red al abrir', async () => {
     vi.mocked(abrirEleccion)
       .mockRejectedValueOnce(createNetworkError('Blockchain no disponible'))
       .mockResolvedValueOnce({
@@ -258,21 +268,29 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     )
 
     await expect
-      .element(page.getByText('No se pudo abrir el comicio'))
-      .toBeInTheDocument()
-    await expect
-      .element(page.getByText('Blockchain no disponible'))
+      .element(page.getByRole('button', { name: 'Reintentar apertura' }))
       .toBeInTheDocument()
 
-    await userEvent.click(page.getByRole('button', { name: 'Reintentar' }))
+    await userEvent.click(
+      page.getByRole('button', { name: 'Reintentar apertura' })
+    )
 
     await vi.waitFor(() => {
       expect(abrirEleccion).toHaveBeenCalledTimes(2)
     })
+  })
+
+  it('muestra Reintentar oficialización cuando faltan contratos on-chain', async () => {
+    vi.mocked(obtenerEstadoStackOnChain).mockResolvedValue({
+      idEleccion: 1,
+      desplegado: false,
+    })
+
+    await renderPanel()
 
     await expect
-      .poll(() => page.getByText('Blockchain no disponible').query())
-      .toBeNull()
+      .element(page.getByRole('button', { name: 'Reintentar oficialización' }))
+      .toBeInTheDocument()
   })
 
   it('muestra ventana electoral cuando el comicio está configurado', async () => {

@@ -12,6 +12,7 @@ import {
   Pencil,
   PlayCircle,
   Plus,
+  RefreshCw,
   Square,
   Trash2,
   UserPen,
@@ -57,7 +58,6 @@ import { CategoriasPanel } from '@/features/eleccion/categoria/components/catego
 import { ComicioVentanaElectoral } from '@/features/eleccion/components/comicio-ventana-electoral'
 import { DocumentosComicioMenu } from '@/features/eleccion/components/documentos-comicio-menu'
 import { EliminarComicioDialog } from '@/features/eleccion/components/eliminar-comicio-dialog'
-import { OperationRetryAlert } from '@/features/eleccion/components/operation-retry-alert'
 import { PausarComicioDialog } from '@/features/eleccion/components/pausar-comicio-dialog'
 import { ReanudarComicioDialog } from '@/features/eleccion/components/reanudar-comicio-dialog'
 import { ConfiguracionRevotoPanel } from '@/features/eleccion/configuracion-comicio/components/configuracion-revoto-panel'
@@ -67,15 +67,18 @@ import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
 import { useCerrarEleccion } from '@/features/eleccion/hooks/use-cerrar-eleccion'
 import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
 import { useOficializarEleccion } from '@/features/eleccion/hooks/use-oficializar-eleccion'
+import { useReintentarDespliegueOnChain } from '@/features/eleccion/hooks/use-reintentar-despliegue-on-chain'
 import {
   getEstadoEleccionBadgeVariant,
   getEstadoEleccionLabel,
 } from '@/features/eleccion/lib/estado-eleccion'
+import { isMissingOnChainContractsError } from '@/features/eleccion/lib/missing-on-chain-contracts'
 import {
   actualizarLista,
   crearLista,
   eliminarLista,
   listarListas,
+  obtenerEstadoStackOnChain,
   obtenerMapeoListas,
 } from '@/features/eleccion/lista/api/lista-api'
 import { ListaFormDialog } from '@/features/eleccion/lista/components/lista-form-dialog'
@@ -141,6 +144,16 @@ export const OfertaElectoralPanel = ({
     enabled: eleccionQuery.data?.estado !== 'BORRADOR',
     retry: false,
   })
+
+  const stackOnChainQuery = useQuery({
+    queryKey: ['eleccion-stack-on-chain', idEleccion],
+    queryFn: () => obtenerEstadoStackOnChain(idEleccion),
+    enabled: eleccionQuery.data?.estado === 'CONFIGURADA',
+    retry: false,
+  })
+
+  const [forceNeedsOnChainRedeploy, setForceNeedsOnChainRedeploy] =
+    useState(false)
 
   const isEditable = eleccionQuery.data?.estado === 'BORRADOR'
   const sinPadronCargado =
@@ -252,9 +265,12 @@ export const OfertaElectoralPanel = ({
     clearLastError: clearOficializarError,
   } = useOficializarEleccion(idEleccion, {
     showMapeoToast: true,
-    onSuccess: () => {
+    onSuccess: (data) => {
       setOficializacionViolations([])
       setOficializacionBlockMessage(null)
+      if (!data.onChainDesplegado) {
+        setForceNeedsOnChainRedeploy(true)
+      }
       void invalidateOferta()
     },
     onValidationError: (error) => {
@@ -279,6 +295,7 @@ export const OfertaElectoralPanel = ({
   const handleConfirmOficializar = () => {
     setOficializacionViolations([])
     setOficializacionBlockMessage(null)
+    clearOficializarError()
     setOficializarDialogOpen(false)
     oficializarEnBackground()
   }
@@ -292,15 +309,40 @@ export const OfertaElectoralPanel = ({
     onPreconditionError: (message) => {
       setPreconditionError(message)
     },
+    onMissingOnChainContracts: () => {
+      setForceNeedsOnChainRedeploy(true)
+    },
     onSuccess: () => {
       setPreconditionError(null)
+      setForceNeedsOnChainRedeploy(false)
+      clearAbrirError()
       void invalidateOferta()
     },
     padronPath: `/comicios/${idEleccion}/padron`,
   })
 
+  const {
+    runInBackground: redeployEnBackground,
+    isRunning: redeployingComicio,
+  } = useReintentarDespliegueOnChain({
+    onSuccess: () => {
+      setForceNeedsOnChainRedeploy(false)
+      clearAbrirError()
+      void invalidateOferta()
+      void queryClient.invalidateQueries({
+        queryKey: ['eleccion-stack-on-chain', idEleccion],
+      })
+    },
+  })
+
+  const needsOnChainRedeploy =
+    forceNeedsOnChainRedeploy ||
+    stackOnChainQuery.data?.desplegado === false ||
+    isMissingOnChainContractsError(abrirLastError)
+
   const handleConfirmAbrir = () => {
     setPreconditionError(null)
+    clearAbrirError()
     setAbrirDialogOpen(false)
     abrirComicioEnBackground()
   }
@@ -379,30 +421,71 @@ export const OfertaElectoralPanel = ({
           </Button>
           {isEditable && (
             <Button
-              onClick={() => setOficializarDialogOpen(true)}
+              onClick={() => {
+                if (oficializarLastError) {
+                  oficializarEnBackground()
+                  return
+                }
+                setOficializarDialogOpen(true)
+              }}
               disabled={
                 oficializandoComicio ||
                 padronResumenQuery.isLoading ||
                 !tienePadronCargado
               }
-              aria-haspopup='dialog'
-              aria-label='Oficializar comicio'
+              aria-haspopup={oficializarLastError ? undefined : 'dialog'}
+              aria-label={
+                oficializarLastError
+                  ? 'Reintentar oficialización'
+                  : 'Oficializar comicio'
+              }
             >
-              <BadgeCheck className='me-2 size-4' />
-              Oficializar comicio
+              {oficializarLastError ? (
+                <RefreshCw className='me-2 size-4' />
+              ) : (
+                <BadgeCheck className='me-2 size-4' />
+              )}
+              {oficializarLastError
+                ? 'Reintentar oficialización'
+                : 'Oficializar comicio'}
             </Button>
           )}
-          {eleccionQuery.data?.estado === 'CONFIGURADA' && (
-            <Button
-              onClick={() => setAbrirDialogOpen(true)}
-              disabled={abriendoComicio}
-              aria-haspopup='dialog'
-              aria-label='Abrir comicio'
-            >
-              <Vote className='me-2 size-4' />
-              Abrir comicio
-            </Button>
-          )}
+          {eleccionQuery.data?.estado === 'CONFIGURADA' &&
+            (needsOnChainRedeploy ? (
+              <Button
+                variant='secondary'
+                onClick={() => redeployEnBackground(idEleccion)}
+                disabled={redeployingComicio}
+                aria-label='Reintentar oficialización'
+              >
+                <RefreshCw className='me-2 size-4' />
+                {redeployingComicio
+                  ? 'Reintentando...'
+                  : 'Reintentar oficialización'}
+              </Button>
+            ) : (
+              <Button
+                onClick={() => {
+                  if (abrirLastError) {
+                    abrirComicioEnBackground()
+                    return
+                  }
+                  setAbrirDialogOpen(true)
+                }}
+                disabled={abriendoComicio}
+                aria-haspopup={abrirLastError ? undefined : 'dialog'}
+                aria-label={
+                  abrirLastError ? 'Reintentar apertura' : 'Abrir comicio'
+                }
+              >
+                {abrirLastError ? (
+                  <RefreshCw className='me-2 size-4' />
+                ) : (
+                  <Vote className='me-2 size-4' />
+                )}
+                {abrirLastError ? 'Reintentar apertura' : 'Abrir comicio'}
+              </Button>
+            ))}
           {eleccionQuery.data && (
             <DocumentosComicioMenu
               idEleccion={idEleccion}
@@ -490,26 +573,6 @@ export const OfertaElectoralPanel = ({
           </AlertTitle>
           <AlertDescription>{preconditionError}</AlertDescription>
         </Alert>
-      )}
-
-      {abrirLastError && (
-        <OperationRetryAlert
-          title='No se pudo abrir el comicio'
-          message={abrirLastError}
-          isRetrying={abriendoComicio}
-          onRetry={abrirComicioEnBackground}
-          onDismiss={clearAbrirError}
-        />
-      )}
-
-      {oficializarLastError && (
-        <OperationRetryAlert
-          title='No se pudo oficializar el comicio'
-          message={oficializarLastError}
-          isRetrying={oficializandoComicio}
-          onRetry={oficializarEnBackground}
-          onDismiss={clearOficializarError}
-        />
       )}
 
       {isEditable && sinPadronCargado && !padronResumenQuery.isLoading && (

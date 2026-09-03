@@ -2,10 +2,13 @@ import { useCallback, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { getApiErrorMessage, isPreconditionFailedError } from '@/lib/api-client'
 import { runBackgroundOperation } from '@/lib/run-background-operation'
+import { isMissingOnChainContractsError } from '@/features/eleccion/lib/missing-on-chain-contracts'
 import { abrirEleccion } from '../api/eleccion-api'
 
 type UseAbrirEleccionOptions = {
   onPreconditionError?: (message: string) => void
+  /** VOTAR-473: comicio oficializado sin contratos on-chain. */
+  onMissingOnChainContracts?: (message: string) => void
   onSuccess?: () => void
   padronPath?: string
 }
@@ -14,7 +17,12 @@ export const useAbrirEleccion = (
   idEleccion: number,
   options: UseAbrirEleccionOptions = {}
 ) => {
-  const { onPreconditionError, onSuccess, padronPath } = options
+  const {
+    onPreconditionError,
+    onMissingOnChainContracts,
+    onSuccess,
+    padronPath,
+  } = options
   const queryClient = useQueryClient()
   const [isRunning, setIsRunning] = useState(false)
   const [lastError, setLastError] = useState<string | null>(null)
@@ -31,7 +39,7 @@ export const useAbrirEleccion = (
 
   const runInBackground = useCallback(() => {
     const attempt = (): void => {
-      if (isRunningRef.current) {
+      if (isRunningRef.current || idEleccion <= 0) {
         return
       }
 
@@ -43,6 +51,7 @@ export const useAbrirEleccion = (
         loadingMessage: 'Abriendo comicio...',
         successMessage: 'Comicio abierto correctamente.',
         errorTitle: 'No se pudo abrir el comicio',
+        errorDuration: 8_000,
         operation: () => abrirEleccion(idEleccion),
         onSuccess: () => {
           setLastError(null)
@@ -67,7 +76,15 @@ export const useAbrirEleccion = (
             }
           }
 
+          if (isMissingOnChainContractsError(message)) {
+            onMissingOnChainContracts?.(message)
+            setLastError(message)
+            return true
+          }
+
           setLastError(message)
+          // Sin toast persistente: el botón cambia a «Reintentar apertura».
+          return true
         },
         onSettled: () => {
           isRunningRef.current = false
@@ -80,6 +97,7 @@ export const useAbrirEleccion = (
   }, [
     idEleccion,
     invalidateEleccion,
+    onMissingOnChainContracts,
     onPreconditionError,
     onSuccess,
     padronPath,

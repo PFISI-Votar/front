@@ -1,6 +1,6 @@
+import { describe, expect, it, vi } from 'vitest'
 import { AxiosError } from 'axios'
 import { toast } from 'sonner'
-import { describe, expect, it, vi } from 'vitest'
 import { runBackgroundOperation } from './run-background-operation'
 
 vi.mock('sonner', () => ({
@@ -36,7 +36,7 @@ describe('runBackgroundOperation', () => {
     })
   })
 
-  it('muestra botón Reintentar persistente cuando la operación falla', async () => {
+  it('muestra botón Reintentar cuando la operación falla', async () => {
     const operation = vi
       .fn()
       .mockRejectedValueOnce(
@@ -58,7 +58,7 @@ describe('runBackgroundOperation', () => {
         'Operación fallida',
         expect.objectContaining({
           description: 'Blockchain no disponible',
-          duration: Infinity,
+          duration: 8_000,
           action: expect.objectContaining({ label: 'Reintentar' }),
         })
       )
@@ -96,7 +96,7 @@ describe('runBackgroundOperation', () => {
         'Operación fallida',
         expect.objectContaining({
           action: customAction,
-          duration: Infinity,
+          duration: 8_000,
         })
       )
     })
