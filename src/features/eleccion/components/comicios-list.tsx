@@ -50,11 +50,11 @@ import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
 import { useArchivarEleccion } from '@/features/eleccion/hooks/use-archivar-eleccion'
 import { useCerrarEleccion } from '@/features/eleccion/hooks/use-cerrar-eleccion'
 import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
+import { useOficializarEleccion } from '@/features/eleccion/hooks/use-oficializar-eleccion'
 import {
   getEstadoEleccionBadgeVariant,
   getEstadoEleccionLabel,
 } from '@/features/eleccion/lib/estado-eleccion'
-import { oficializarEleccion } from '@/features/eleccion/lista/api/lista-api'
 
 const estadoVariant = (estado: EleccionEstado) =>
   getEstadoEleccionBadgeVariant(estado)
@@ -133,14 +133,11 @@ const CerrarComicioDialog = ({
   open,
   onOpenChange,
 }: CerrarComicioDialogProps) => {
-  const { mutate: cerrarEleccion, isPending } = useCerrarEleccion(idEleccion)
+  const { runInBackground, isRunning } = useCerrarEleccion(idEleccion)
 
   const handleConfirm = () => {
-    cerrarEleccion(undefined, {
-      onSuccess: () => {
-        onOpenChange(false)
-      },
-    })
+    onOpenChange(false)
+    runInBackground()
   }
 
   return (
@@ -155,30 +152,69 @@ const CerrarComicioDialog = ({
               <br />
               Esta acción bloqueará la urna on-chain (estado CLOSED), responderá
               HTTP 410 ante nuevos sufragios y congelará el Dashboard Público
-              con resultados definitivos.
+              con resultados definitivos. El cierre continuará en segundo plano
+              y podrá seguir navegando el panel.
             </div>
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button
-            variant='outline'
-            onClick={() => onOpenChange(false)}
-            disabled={isPending}
-          >
+          <Button variant='outline' onClick={() => onOpenChange(false)}>
             <X />
             Cancelar
           </Button>
           <Button
             variant='destructive'
             onClick={handleConfirm}
-            disabled={isPending}
+            disabled={isRunning}
           >
             <Square />
-            {isPending ? 'Cerrando...' : 'Cerrar comicio'}
+            Cerrar comicio
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+interface OficializarComicioDialogProps {
+  idEleccion: number
+  nombreEleccion: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+const OficializarComicioDialog = ({
+  idEleccion,
+  nombreEleccion,
+  open,
+  onOpenChange,
+}: OficializarComicioDialogProps) => {
+  const { runInBackground, isRunning } = useOficializarEleccion(idEleccion)
+
+  const handleConfirm = () => {
+    onOpenChange(false)
+    runInBackground()
+  }
+
+  return (
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title='¿Oficializar el comicio?'
+      desc={
+        <>
+          Esta operación es <strong>irreversible</strong>. Una vez oficializado,
+          no podrás crear, editar ni eliminar listas ni candidatos del comicio{' '}
+          <strong>{nombreEleccion}</strong>. La oficialización continuará en
+          segundo plano y podrá seguir navegando el panel.
+        </>
+      }
+      cancelBtnText='Cancelar'
+      confirmText='Sí, oficializar comicio'
+      destructive
+      handleConfirm={handleConfirm}
+      disabled={isRunning}
+    />
   )
 }
 
@@ -285,21 +321,6 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
     },
     onEleccionArchivada: () => {
       queryClient.invalidateQueries({ queryKey: ['elecciones'] })
-    },
-  })
-
-  const oficializarMutation = useMutation({
-    mutationFn: (idEleccion: number) => oficializarEleccion(idEleccion),
-    onSuccess: async (_data, idEleccion) => {
-      setOficializarDialog(emptyActionTarget())
-      toast.success('Comicio oficializado')
-      await queryClient.invalidateQueries({ queryKey: ['elecciones'] })
-      await queryClient.invalidateQueries({
-        queryKey: ['eleccion', idEleccion],
-      })
-    },
-    onError: (error) => {
-      toast.error(getApiErrorMessage(error))
     },
   })
 
@@ -712,32 +733,18 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
         />
       )}
 
-      <ConfirmDialog
-        open={oficializarDialog.open}
-        onOpenChange={(open) =>
-          setOficializarDialog((prev) =>
-            open ? { ...prev, open } : emptyActionTarget()
-          )
-        }
-        title='¿Oficializar el comicio?'
-        desc={
-          <>
-            Esta operación es <strong>irreversible</strong>. Una vez
-            oficializado, no podrás crear, editar ni eliminar listas ni
-            candidatos del comicio{' '}
-            <strong>{oficializarDialog.nombreEleccion}</strong>.
-          </>
-        }
-        cancelBtnText='Cancelar'
-        confirmText='Sí, oficializar comicio'
-        destructive
-        isLoading={oficializarMutation.isPending}
-        handleConfirm={() => {
-          if (oficializarDialog.idEleccion !== null) {
-            oficializarMutation.mutate(oficializarDialog.idEleccion)
+      {oficializarDialog.idEleccion !== null && (
+        <OficializarComicioDialog
+          idEleccion={oficializarDialog.idEleccion}
+          nombreEleccion={oficializarDialog.nombreEleccion}
+          open={oficializarDialog.open}
+          onOpenChange={(open) =>
+            setOficializarDialog((prev) =>
+              open ? { ...prev, open } : emptyActionTarget()
+            )
           }
-        }}
-      />
+        />
+      )}
 
       <EliminarComicioDialog
         open={eliminarDialog.open}

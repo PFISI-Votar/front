@@ -8,6 +8,7 @@ import {
   formatFecha,
   interpolarPlantillaActaApertura,
 } from '@/features/eleccion/lib/acta-apertura-template'
+import { loadImageAsJpegDataUrl } from '@/features/eleccion/lib/load-image-as-jpeg-data-url'
 
 const ACCENT_COLOR: [number, number, number] = [47, 111, 159]
 const MARGIN = 20
@@ -20,31 +21,6 @@ const ensureSpace = (doc: jsPDF, yPos: number, needed: number): number => {
   }
   doc.addPage()
   return MARGIN
-}
-
-/**
- * Convierte una URL de imagen (ej. logo institucional servido por el
- * backend) en un data URI embebible con doc.addImage. Si falla la carga
- * (logo no configurado, red caída), se resuelve a null y el PDF continúa
- * sin logo — no debe bloquear la descarga del Acta.
- */
-const loadImageAsDataUrl = async (url: string): Promise<string | null> => {
-  try {
-    const response = await fetch(url)
-    if (!response.ok) {
-      return null
-    }
-    const blob = await response.blob()
-    const bytes = new Uint8Array(await blob.arrayBuffer())
-    let binary = ''
-    for (const byte of bytes) {
-      binary += String.fromCharCode(byte)
-    }
-    const base64 = btoa(binary)
-    return `data:${blob.type || 'image/jpeg'};base64,${base64}`
-  } catch {
-    return null
-  }
 }
 
 const buildActaAperturaFilename = (data: ActaAperturaData): string => {
@@ -135,7 +111,7 @@ export const generarActaAperturaPdf = async (
 
   if (plantilla.incluirLogo) {
     const logoUrl = resolveMediaUrl(data.logoUrl)
-    const logoDataUrl = logoUrl ? await loadImageAsDataUrl(logoUrl) : null
+    const logoDataUrl = logoUrl ? await loadImageAsJpegDataUrl(logoUrl) : null
     if (logoDataUrl) {
       const logoSize = 20
       doc.addImage(
@@ -146,7 +122,7 @@ export const generarActaAperturaPdf = async (
         logoSize,
         logoSize
       )
-      yPos += logoSize + 4
+      yPos += logoSize + 8
     }
   }
 

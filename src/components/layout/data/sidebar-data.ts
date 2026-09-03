@@ -16,7 +16,6 @@ export const sidebarData: SidebarData = {
   ],
   navGroups: [
     {
-      title: 'General',
       items: [
         {
           title: 'Comicios',

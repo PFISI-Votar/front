@@ -6,7 +6,10 @@ import {
   TIPOS_VOTACION,
   type TipoVotacion,
 } from '@/features/eleccion/lista/data/schema'
-import { BUD_CATEGORY_GRID_CLASS } from '@/features/voto/components/bud-layout.constants'
+import {
+  BUD_CATEGORY_GRID_CLASS,
+  BUD_LIST_GRID_CLASS,
+} from '@/features/voto/components/bud-layout.constants'
 import { BudVotingWizard } from '@/features/voto/components/bud-voting-wizard'
 import { EphemeralWalletProvider } from '@/features/voto/crypto/ephemeral-wallet-context'
 import { calcularNullifier } from '@/features/voto/crypto/nullifier'
@@ -1155,5 +1158,33 @@ describe('BudVotingWizard', () => {
     expect(grid.className).toBe(BUD_CATEGORY_GRID_CLASS)
     expect(grid.className).toContain('md:grid-cols-2')
     expect(grid.className).toContain('xl:grid-cols-3')
+  })
+
+  it('VOTAR-465 UAT-01: listas completas usan grid mobile-first', async () => {
+    const screen = await renderWizard(TIPOS_VOTACION.POR_LISTA)
+
+    const grid = screen.getByTestId('bud-list-grid').element()
+    expect(grid.className).toContain('grid-cols-1')
+    expect(grid.className).toContain('md:grid-cols-2')
+    expect(grid.className).toContain('items-stretch')
+  })
+
+  it('VOTAR-465 UAT-02: grid de listas declara columnas paralelas desde md', async () => {
+    const screen = await renderWizard(TIPOS_VOTACION.POR_LISTA)
+
+    const grid = screen.getByTestId('bud-list-grid').element()
+    expect(grid.className).toBe(BUD_LIST_GRID_CLASS)
+    expect(grid.className).toContain('md:grid-cols-2')
+    expect(grid.className).toContain('xl:grid-cols-3')
+  })
+
+  it('VOTAR-465 UAT-03: en mixto coexisten grid de listas y de categorías', async () => {
+    const screen = await renderWizard(TIPOS_VOTACION.MIXTO)
+
+    const listGrid = screen.getByTestId('bud-list-grid').element()
+    expect(listGrid.className).toBe(BUD_LIST_GRID_CLASS)
+
+    const categoryGrid = screen.getByTestId('bud-category-grid').element()
+    expect(categoryGrid.className).toBe(BUD_CATEGORY_GRID_CLASS)
   })
 })

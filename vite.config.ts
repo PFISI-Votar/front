@@ -85,6 +85,8 @@ export default defineConfig(({ mode }) => {
               'src/hooks/use-table-url-state.test.ts',
               'src/lib/cookies.test.ts',
               'src/features/padron/lib/preview-storage.test.ts',
+              // VOTAR-466: usa createImageBitmap/canvas (APIs de navegador).
+              'src/features/eleccion/lib/load-image-as-jpeg-data-url.test.ts',
             ],
           },
         },
@@ -114,6 +116,7 @@ export default defineConfig(({ mode }) => {
               'src/hooks/use-table-url-state.test.ts',
               'src/lib/cookies.test.ts',
               'src/features/padron/lib/preview-storage.test.ts',
+              'src/features/eleccion/lib/load-image-as-jpeg-data-url.test.ts',
             ],
             browser: {
               enabled: true,

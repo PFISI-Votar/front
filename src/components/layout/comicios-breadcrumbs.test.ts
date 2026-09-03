@@ -132,8 +132,6 @@ describe('buildComiciosBreadcrumbEntries', () => {
         label: 'Elecciones 2026',
         to: '/comicios/$idEleccion/oferta',
         params: { idEleccion: '42' },
-        menuItems: sectionMenuItems,
-        activeTo: '/comicios/$idEleccion/oferta',
       },
       { label: 'Lista A (LA)' },
     ])

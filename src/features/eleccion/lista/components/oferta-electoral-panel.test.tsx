@@ -291,6 +291,41 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     expect(cerrarEleccion).toHaveBeenCalledWith(1)
   })
 
+  it('cierra el diálogo de cierre de inmediato y continúa en segundo plano', async () => {
+    let resolveCerrar!: (value: Eleccion) => void
+    const pendingCerrar = new Promise<Eleccion>((resolve) => {
+      resolveCerrar = resolve
+    })
+
+    vi.mocked(obtenerEleccion).mockResolvedValue({
+      ...mockEleccionConfigurada,
+      estado: 'ABIERTA',
+    })
+    vi.mocked(cerrarEleccion).mockReturnValue(pendingCerrar)
+
+    await renderPanel()
+
+    await userEvent.click(page.getByRole('button', { name: 'Cerrar comicio' }))
+    await userEvent.click(
+      page.getByRole('button', { name: 'Sí, cerrar comicio' })
+    )
+
+    await expect
+      .poll(() =>
+        page.getByRole('heading', { name: '¿Cerrar el comicio?' }).query()
+      )
+      .toBeNull()
+
+    resolveCerrar({
+      ...mockEleccionConfigurada,
+      estado: 'CERRADA',
+    })
+
+    await vi.waitFor(() => {
+      expect(cerrarEleccion).toHaveBeenCalledWith(1)
+    })
+  })
+
   it('muestra texto de precondiciones en diálogo de confirmación', async () => {
     await renderPanel()
 
@@ -499,5 +534,72 @@ describe('OfertaElectoralPanel - Eliminar Comicio', () => {
       .element(page.getByRole('button', { name: 'Sí, eliminar comicio' }))
       .toBeDisabled()
     expect(eliminarEleccion).not.toHaveBeenCalled()
+  })
+})
+
+const mockListaConCandidato: Lista = {
+  ...mockLista,
+  candidatos: [
+    {
+      idCandidato: 1,
+      idLista: 42,
+      idCategoria: 1,
+      orden: 1,
+      nombre: 'Juan',
+      apellido: 'Pérez',
+      fotoUrl: null,
+      categoriaNombre: undefined,
+      datosAdicionales: {},
+    },
+  ],
+}
+
+describe('OfertaElectoralPanel - Registrar candidato', () => {
+  let queryClient: QueryClient
+
+  beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    vi.clearAllMocks()
+
+    vi.mocked(obtenerEleccion).mockResolvedValue({
+      ...mockEleccionConfigurada,
+      estado: 'BORRADOR',
+    })
+    vi.mocked(listarListas).mockResolvedValue([mockListaConCandidato])
+    vi.mocked(obtenerMapeoListas).mockResolvedValue([])
+    vi.mocked(obtenerConfiguracionDatosCandidato).mockResolvedValue({
+      idEleccion: 1,
+      campos: [],
+      editable: true,
+      cantidadCandidatos: 1,
+    } satisfies ConfiguracionDatosCandidatoResponse)
+  })
+
+  async function renderPanel() {
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <OfertaElectoralPanel idEleccion={1} />
+      </QueryClientProvider>
+    )
+  }
+
+  it('muestra el botón "Registrar candidato" aunque la lista ya tenga candidatos', async () => {
+    await renderPanel()
+
+    const trigger = page.getByRole('button', {
+      name: 'Ocultar candidatos de Lista Azul',
+    })
+    await userEvent.click(trigger)
+
+    await expect
+      .element(
+        page.getByRole('button', { name: 'Registrar candidato en Lista Azul' })
+      )
+      .toBeInTheDocument()
   })
 })

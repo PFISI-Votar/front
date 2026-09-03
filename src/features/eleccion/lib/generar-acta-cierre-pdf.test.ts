@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => {
   const mockOutput = vi.fn(() => new ArrayBuffer(8))
   const mockText = vi.fn()
   const mockAddImage = vi.fn()
+  const mockLoadImageAsJpegDataUrl = vi.fn()
   const mockSetFontSize = vi.fn()
   const mockSetFont = vi.fn()
   const mockSetLineWidth = vi.fn()
@@ -23,6 +24,7 @@ const mocks = vi.hoisted(() => {
     mockOutput,
     mockText,
     mockAddImage,
+    mockLoadImageAsJpegDataUrl,
     mockSetFontSize,
     mockSetFont,
     mockSetLineWidth,
@@ -33,6 +35,10 @@ const mocks = vi.hoisted(() => {
     mockAddPage,
   }
 })
+
+vi.mock('@/features/eleccion/lib/load-image-as-jpeg-data-url', () => ({
+  loadImageAsJpegDataUrl: mocks.mockLoadImageAsJpegDataUrl,
+}))
 
 vi.mock('jspdf', () => ({
   jsPDF: class {

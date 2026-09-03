@@ -52,7 +52,14 @@ export const useEscrutinio = (idEleccion: number, enabled = true) =>
     retry: (failureCount, error) => {
       if (isAxiosError(error)) {
         const status = error.response?.status
-        if (status === 404 || status === 422 || status === 503) return false
+        // VOTAR-459: 403 = sección ocultada por la autoridad electoral.
+        if (
+          status === 404 ||
+          status === 422 ||
+          status === 503 ||
+          status === 403
+        )
+          return false
       }
       return failureCount < 2
     },

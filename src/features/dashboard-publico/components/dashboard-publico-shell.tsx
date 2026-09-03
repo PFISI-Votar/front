@@ -2,6 +2,8 @@ import { type ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
 import { VotarLoginBackground } from '@/features/auth/sign-in/components/login-screen-shared'
+import { useDashboardPublicoComicio } from '@/features/dashboard-publico/hooks/use-dashboard-publico-comicio'
+import type { VisibilidadDashboardPublico } from '@/features/voto/data/schema'
 
 type DashboardSection =
   | 'resumen'
@@ -19,44 +21,54 @@ type DashboardPublicoShellProps = {
   children: ReactNode
 }
 
-const navItems = [
+const navItems: Array<{
+  section: DashboardSection
+  label: string
+  to: string
+  /** VOTAR-459: presente solo en las solapas que la autoridad puede ocultar. */
+  seccionConfigurable?: keyof VisibilidadDashboardPublico
+}> = [
   {
-    section: 'resumen' as const,
+    section: 'resumen',
     label: 'Resumen',
     to: '/comicios/$idEleccion/dashboard',
   },
   {
-    section: 'resultados' as const,
+    section: 'resultados',
     label: 'Resultados',
     to: '/comicios/$idEleccion/dashboard/resultados',
+    seccionConfigurable: 'resultados',
   },
   {
-    section: 'oferta' as const,
+    section: 'oferta',
     label: 'Oferta electoral',
     to: '/comicios/$idEleccion/dashboard/oferta',
   },
   {
-    section: 'padron' as const,
+    section: 'padron',
     label: 'Padrón',
     to: '/comicios/$idEleccion/dashboard/padron',
   },
   {
-    section: 'participacion' as const,
+    section: 'participacion',
     label: 'Participación',
     to: '/comicios/$idEleccion/dashboard/participacion',
+    seccionConfigurable: 'participacion',
   },
   {
-    section: 'revoto' as const,
+    section: 'revoto',
     label: 'Re-voto',
     to: '/comicios/$idEleccion/dashboard/revoto',
+    seccionConfigurable: 'revoto',
   },
   {
-    section: 'transacciones' as const,
+    section: 'transacciones',
     label: 'Transacciones',
     to: '/comicios/$idEleccion/dashboard/transacciones',
+    seccionConfigurable: 'transacciones',
   },
   {
-    section: 'estado' as const,
+    section: 'estado',
     label: 'Estado',
     to: '/comicios/$idEleccion/dashboard/estado',
   },
@@ -66,44 +78,63 @@ export const DashboardPublicoShell = ({
   idEleccion,
   activeSection = 'resumen',
   children,
-}: DashboardPublicoShellProps) => (
-  <main className='relative min-h-svh overflow-hidden bg-[#fdfcfa] text-[#202124]'>
-    <VotarLoginBackground />
-    <div className='relative mx-auto flex min-h-svh w-full max-w-5xl flex-col px-4 py-10 sm:px-6 sm:py-14'>
-      <div className='mb-10 flex items-center justify-between gap-4'>
-        <p className='text-2xl leading-none font-extrabold tracking-tight text-[#2f6f9f]'>
-          VOTAR
-        </p>
-        <p className='text-xs font-medium tracking-wide text-[#80868b] uppercase'>
-          Transparencia electoral
-        </p>
+}: DashboardPublicoShellProps) => {
+  // VOTAR-459: comparte la query que ya usan las 8 páginas del dashboard, así
+  // que filtrar el nav acá no dispara un fetch adicional.
+  const comicioQuery = useDashboardPublicoComicio(idEleccion)
+  const visibilidad = comicioQuery.data?.visibilidadDashboard
+
+  const items = navItems.filter((item) => {
+    if (!item.seccionConfigurable) {
+      return true
+    }
+    // Mientras carga o si falla, ocultar las configurables para no mostrar un
+    // flash de solapas que después desaparecen.
+    if (!visibilidad) {
+      return false
+    }
+    return visibilidad[item.seccionConfigurable]
+  })
+
+  return (
+    <main className='relative min-h-svh overflow-hidden bg-[#fdfcfa] text-[#202124]'>
+      <VotarLoginBackground />
+      <div className='relative mx-auto flex min-h-svh w-full max-w-5xl flex-col px-4 py-10 sm:px-6 sm:py-14'>
+        <div className='mb-10 flex items-center justify-between gap-4'>
+          <p className='text-2xl leading-none font-extrabold tracking-tight text-[#2f6f9f]'>
+            VOTAR
+          </p>
+          <p className='text-xs font-medium tracking-wide text-[#80868b] uppercase'>
+            Transparencia electoral
+          </p>
+        </div>
+
+        <nav
+          aria-label='Secciones del dashboard público'
+          className='mb-8 flex flex-wrap gap-2 border-b border-[#e4e7eb] pb-4'
+        >
+          {items.map((item) => (
+            <Link
+              key={item.section}
+              to={item.to}
+              params={{ idEleccion: String(idEleccion) }}
+              className={cn(
+                'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                activeSection === item.section
+                  ? 'bg-[#2f6f9f]/10 text-[#2f6f9f]'
+                  : 'text-[#5f6368] hover:bg-[#2f6f9f]/5 hover:text-[#2f6f9f]'
+              )}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+
+        {children}
       </div>
-
-      <nav
-        aria-label='Secciones del dashboard público'
-        className='mb-8 flex flex-wrap gap-2 border-b border-[#e4e7eb] pb-4'
-      >
-        {navItems.map((item) => (
-          <Link
-            key={item.section}
-            to={item.to}
-            params={{ idEleccion: String(idEleccion) }}
-            className={cn(
-              'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
-              activeSection === item.section
-                ? 'bg-[#2f6f9f]/10 text-[#2f6f9f]'
-                : 'text-[#5f6368] hover:bg-[#2f6f9f]/5 hover:text-[#2f6f9f]'
-            )}
-          >
-            {item.label}
-          </Link>
-        ))}
-      </nav>
-
-      {children}
-    </div>
-  </main>
-)
+    </main>
+  )
+}
 
 type ErrorPanelProps = {
   title: string

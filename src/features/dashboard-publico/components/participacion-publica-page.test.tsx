@@ -191,6 +191,42 @@ describe('ParticipacionPublicaPage — VOTAR-365', () => {
       .toBeInTheDocument()
   })
 
+  it('VOTAR-459: muestra "Sección no disponible" sin llamar a la API cuando está oculta', async () => {
+    mocks.obtenerConfiguracionBud.mockResolvedValue({
+      idEleccion: 6,
+      nombre: 'Elección Centro de Estudiantes',
+      estado: 'ABIERTA',
+      tipoVotacion: 'POR_LISTA',
+      metodosAutenticacion: ['SSO_INSTITUCIONAL'],
+      snapshotCongelado: false,
+      resultadosDefinitivos: false,
+      visibilidadDashboard: {
+        resultados: true,
+        participacion: false,
+        revoto: true,
+        transacciones: true,
+      },
+    })
+
+    const screen = await renderPage(6)
+
+    await expect
+      .element(screen.getByText(/Sección no disponible/i))
+      .toBeInTheDocument()
+    expect(mocks.obtenerParticipacionPublica).not.toHaveBeenCalled()
+  })
+
+  it('VOTAR-459: si configuracion-bud no informa visibilidadDashboard, sigue mostrando los datos (compatibilidad)', async () => {
+    // El mock global de beforeEach ya omite visibilidadDashboard — este test
+    // documenta que ausencia del campo no debe deshabilitar la query para
+    // siempre (regresión: enabled: visible === true dejaba esto colgado).
+    const screen = await renderPage(6)
+
+    await expect
+      .element(screen.getByText(/Participación Electoral: 25%/i))
+      .toBeInTheDocument()
+  })
+
   it('muestra error amigable cuando las métricas no están disponibles', async () => {
     mocks.obtenerParticipacionPublica.mockRejectedValue(
       new AxiosError('Unprocessable', 'ERR_BAD_REQUEST', undefined, undefined, {

@@ -1,3 +1,4 @@
+import { resolveMediaUrl } from '@/lib/media-url'
 import {
   getInitials,
   type ListaPublicaGroup,
@@ -14,7 +15,7 @@ export const ListaPublicaHeader = ({ lista }: ListaPublicaHeaderProps) => {
     <div className='mb-3 flex items-center gap-3'>
       {lista.logoUrl ? (
         <img
-          src={lista.logoUrl}
+          src={resolveMediaUrl(lista.logoUrl)}
           alt={`Logo de ${lista.nombre}`}
           className='size-10 shrink-0 rounded-lg object-cover'
         />

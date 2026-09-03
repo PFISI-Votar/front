@@ -45,6 +45,14 @@ export type BoletaDigital = {
   ballotContractAddress?: `0x${string}`
 }
 
+/** VOTAR-459: solapas del dashboard público visibles mientras el comicio está en curso. */
+export type VisibilidadDashboardPublico = {
+  resultados: boolean
+  participacion: boolean
+  revoto: boolean
+  transacciones: boolean
+}
+
 export type BudConfig = {
   idEleccion: number
   nombre: string
@@ -57,6 +65,8 @@ export type BudConfig = {
   permitirVotoNulo?: boolean
   /** VOTAR-347 — true si la urna digital está pausada; bloquea el envío de votos. */
   pausada?: boolean
+  /** VOTAR-459: todas en true cuando el comicio ya cerró. */
+  visibilidadDashboard?: VisibilidadDashboardPublico
 }
 
 /** VOTAR-328 — respuesta de revotePolicyService para feedback en BUD. */
