@@ -130,10 +130,7 @@ describe('buildWizardSelectionPayload', () => {
         candidateSelections: { '1': ['101'], '2': ['201', '202'] },
         selectedListId: null,
         roles,
-        candidates: [
-          ...candidates,
-          { id: '202', roleId: '2', listId: '12' },
-        ],
+        candidates: [...candidates, { id: '202', roleId: '2', listId: '12' }],
       })
     ).toEqual({
       selecciones: [

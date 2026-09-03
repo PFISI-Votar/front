@@ -263,7 +263,10 @@ const applyCandidateSelection = (
   }
 
   if (existing.includes(candidateId)) {
-    return { ...current, [role.id]: existing.filter((id) => id !== candidateId) }
+    return {
+      ...current,
+      [role.id]: existing.filter((id) => id !== candidateId),
+    }
   }
 
   if (existing.length >= role.maxSelecciones) {
