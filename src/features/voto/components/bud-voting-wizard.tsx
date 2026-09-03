@@ -51,6 +51,7 @@ import {
 import {
   BUD_CANDIDATE_GRID_CLASS,
   BUD_CATEGORY_GRID_CLASS,
+  BUD_LIST_GRID_CLASS,
   BUD_SHELL_SECTION_CLASS,
   BUD_STICKY_CTA_CLASS,
 } from '@/features/voto/components/bud-layout.constants'
@@ -1636,19 +1637,21 @@ const SelectionStep = ({
               Elegí una lista para tomar toda la boleta como base.
             </CardDescription>
           </CardHeader>
-          <CardContent className='grid gap-4'>
-            {lists.map((list) => (
-              <ListCard
-                key={list.id}
-                list={list}
-                roles={roles}
-                candidates={candidates}
-                selected={selectedListId === list.id}
-                onSelect={() =>
-                  onSelectList(selectedListId === list.id ? null : list.id)
-                }
-              />
-            ))}
+          <CardContent>
+            <div className={BUD_LIST_GRID_CLASS} data-testid='bud-list-grid'>
+              {lists.map((list) => (
+                <ListCard
+                  key={list.id}
+                  list={list}
+                  roles={roles}
+                  candidates={candidates}
+                  selected={selectedListId === list.id}
+                  onSelect={() =>
+                    onSelectList(selectedListId === list.id ? null : list.id)
+                  }
+                />
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -2321,7 +2324,7 @@ const ListCard = ({
   return (
     <div
       className={cn(
-        'overflow-hidden rounded-2xl border bg-white transition-all hover:shadow-lg',
+        'flex h-full flex-col overflow-hidden rounded-2xl border bg-white transition-all hover:shadow-lg',
         selected
           ? 'border-[#2f6f9f] shadow-lg shadow-[#2f6f9f]/10'
           : 'border-[#dbe3ea]'
@@ -2329,7 +2332,7 @@ const ListCard = ({
     >
       <button
         type='button'
-        className='w-full p-5 text-left transition-colors hover:bg-[#f7fbfd] focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/20 focus-visible:outline-none'
+        className='w-full flex-1 p-5 text-left transition-colors hover:bg-[#f7fbfd] focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/20 focus-visible:outline-none'
         onClick={onSelect}
       >
         <div className='flex items-start gap-4'>
@@ -2359,7 +2362,7 @@ const ListCard = ({
           showDetails={false}
         />
       </button>
-      <div className='px-5 pb-5'>
+      <div className='mt-auto px-5 pb-5'>
         <ListCandidatesOverview
           list={list}
           roles={roles}

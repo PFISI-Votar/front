@@ -9,6 +9,7 @@ import {
 import { slugifyNombreComicio } from '@/features/dashboard-publico/lib/escrutinio-export/escrutinio-export-filename'
 import type { ActaCierreData } from '@/features/eleccion/data/acta-cierre-schema'
 import { buildActaCierreViewModel } from '@/features/eleccion/lib/acta-cierre-template'
+import { loadImageAsJpegDataUrl } from '@/features/eleccion/lib/load-image-as-jpeg-data-url'
 import {
   formatFecha,
   interpolarPlantilla,
@@ -26,26 +27,6 @@ const ensureSpace = (doc: jsPDF, yPos: number, needed: number): number => {
   }
   doc.addPage()
   return MARGIN
-}
-
-/** Mismo patrón que `generar-acta-apertura-pdf.ts`: carga best-effort, nunca bloquea la descarga. */
-const loadImageAsDataUrl = async (url: string): Promise<string | null> => {
-  try {
-    const response = await fetch(url)
-    if (!response.ok) {
-      return null
-    }
-    const blob = await response.blob()
-    const bytes = new Uint8Array(await blob.arrayBuffer())
-    let binary = ''
-    for (const byte of bytes) {
-      binary += String.fromCharCode(byte)
-    }
-    const base64 = btoa(binary)
-    return `data:${blob.type || 'image/jpeg'};base64,${base64}`
-  } catch {
-    return null
-  }
 }
 
 export const buildActaCierreFilename = (data: ActaCierreData): string => {
@@ -290,7 +271,7 @@ export const construirActaCierrePdf = async (
 
   if (plantilla.incluirLogo) {
     const logoUrl = resolveMediaUrl(data.logoUrl)
-    const logoDataUrl = logoUrl ? await loadImageAsDataUrl(logoUrl) : null
+    const logoDataUrl = logoUrl ? await loadImageAsJpegDataUrl(logoUrl) : null
     if (logoDataUrl) {
       const logoSize = 20
       doc.addImage(
@@ -301,7 +282,7 @@ export const construirActaCierrePdf = async (
         logoSize,
         logoSize
       )
-      yPos += logoSize + 4
+      yPos += logoSize + 8
     }
   }
 

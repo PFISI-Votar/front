@@ -43,18 +43,25 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { Separator } from '@/components/ui/separator'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   eliminarEleccion,
   obtenerEleccion,
-  cerrarEleccion,
 } from '@/features/eleccion/api/eleccion-api'
 import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import { CandidatoFormDialog } from '@/features/eleccion/candidato/components/candidato-form-dialog'
 import { ConfiguracionDatosCandidatoPanel } from '@/features/eleccion/candidato/components/configuracion-datos-candidato-panel'
 import type { Candidato } from '@/features/eleccion/candidato/data/schema'
+import { getCategoriasDisponibles } from '@/features/eleccion/candidato/utils/categorias-disponibles'
 import { buildResumenDatosAdicionales } from '@/features/eleccion/candidato/utils/format-datos-adicionales'
+import { listarCategorias } from '@/features/eleccion/categoria/api/categoria-api'
 import { CategoriasPanel } from '@/features/eleccion/categoria/components/categorias-panel'
+import { mapCategoriaToElectoral } from '@/features/eleccion/categoria/data/schema'
 import { ComicioVentanaElectoral } from '@/features/eleccion/components/comicio-ventana-electoral'
 import { DocumentosComicioMenu } from '@/features/eleccion/components/documentos-comicio-menu'
 import { EliminarComicioDialog } from '@/features/eleccion/components/eliminar-comicio-dialog'
@@ -64,7 +71,9 @@ import { ConfiguracionRevotoPanel } from '@/features/eleccion/configuracion-comi
 import { ConfiguracionVotoNuloPanel } from '@/features/eleccion/configuracion-comicio/components/configuracion-voto-nulo-panel'
 import { VisibilidadDashboardPanel } from '@/features/eleccion/configuracion-comicio/components/visibilidad-dashboard-panel'
 import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
+import { useCerrarEleccion } from '@/features/eleccion/hooks/use-cerrar-eleccion'
 import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
+import { useOficializarEleccion } from '@/features/eleccion/hooks/use-oficializar-eleccion'
 import {
   getEstadoEleccionBadgeVariant,
   getEstadoEleccionLabel,
@@ -74,7 +83,6 @@ import {
   crearLista,
   eliminarLista,
   listarListas,
-  oficializarEleccion,
   obtenerMapeoListas,
 } from '@/features/eleccion/lista/api/lista-api'
 import { ListaFormDialog } from '@/features/eleccion/lista/components/lista-form-dialog'
@@ -130,6 +138,11 @@ export const OfertaElectoralPanel = ({
   const configQuery = useQuery({
     queryKey: ['config-datos-candidato', idEleccion],
     queryFn: () => obtenerConfiguracionDatosCandidato(idEleccion),
+  })
+
+  const categoriasQuery = useQuery({
+    queryKey: ['categorias', idEleccion],
+    queryFn: () => listarCategorias(idEleccion),
   })
 
   const padronResumenQuery = usePadronResumen(idEleccion)
@@ -244,23 +257,17 @@ export const OfertaElectoralPanel = ({
     }
   }
 
-  const oficializarMutation = useMutation({
-    mutationFn: () => oficializarEleccion(idEleccion),
-    onSuccess: async (data) => {
-      setOficializarDialogOpen(false)
+  const {
+    runInBackground: oficializarEnBackground,
+    isRunning: oficializandoComicio,
+  } = useOficializarEleccion(idEleccion, {
+    showMapeoToast: true,
+    onSuccess: () => {
       setOficializacionViolations([])
       setOficializacionBlockMessage(null)
-      toast.success('Comicio oficializado')
-      await invalidateOferta()
-      await queryClient.invalidateQueries({
-        queryKey: ['listas-mapeo', idEleccion],
-      })
-      toast.info(
-        `Mapeo generado: ${data.mapeo.map((m) => `${m.sigla}→list_id ${m.listId}`).join(', ')}`
-      )
+      void invalidateOferta()
     },
-    onError: (error) => {
-      setOficializarDialogOpen(false)
+    onValidationError: (error) => {
       if (isValidationError(error)) {
         const violations = getApiRulesViolations(error)
         if (violations.length > 0) {
@@ -282,7 +289,8 @@ export const OfertaElectoralPanel = ({
   const handleConfirmOficializar = () => {
     setOficializacionViolations([])
     setOficializacionBlockMessage(null)
-    oficializarMutation.mutate()
+    setOficializarDialogOpen(false)
+    oficializarEnBackground()
   }
 
   const {
@@ -305,19 +313,18 @@ export const OfertaElectoralPanel = ({
     abrirComicioEnBackground()
   }
 
-  const cerrarComicioMutation = useMutation({
-    mutationFn: () => cerrarEleccion(idEleccion),
-    onSuccess: async () => {
-      setCerrarDialogOpen(false)
-      toast.success('Comicio cerrado exitosamente')
-      await invalidateOferta()
-      await queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+  const {
+    runInBackground: cerrarComicioEnBackground,
+    isRunning: cerrandoComicio,
+  } = useCerrarEleccion(idEleccion, {
+    onSuccess: () => {
+      void invalidateOferta()
     },
-    onError: handleApiError,
   })
 
   const handleConfirmCerrar = () => {
-    cerrarComicioMutation.mutate()
+    setCerrarDialogOpen(false)
+    cerrarComicioEnBackground()
   }
 
   const eliminarComicioMutation = useMutation({
@@ -382,7 +389,7 @@ export const OfertaElectoralPanel = ({
             <Button
               onClick={() => setOficializarDialogOpen(true)}
               disabled={
-                oficializarMutation.isPending ||
+                oficializandoComicio ||
                 padronResumenQuery.isLoading ||
                 !tienePadronCargado
               }
@@ -414,7 +421,7 @@ export const OfertaElectoralPanel = ({
             <Button
               variant='destructive'
               onClick={() => setCerrarDialogOpen(true)}
-              disabled={cerrarComicioMutation.isPending}
+              disabled={cerrandoComicio}
               aria-haspopup='dialog'
               aria-label='Cerrar comicio'
             >
@@ -583,6 +590,13 @@ export const OfertaElectoralPanel = ({
       <div className='grid gap-4'>
         {(listasQuery.data ?? []).map((lista) => {
           const candidatos = lista.candidatos ?? []
+          const categoriasElectorales = (categoriasQuery.data ?? []).map(
+            mapCategoriaToElectoral
+          )
+          const sinCupoDisponible =
+            categoriasElectorales.length > 0 &&
+            getCategoriasDisponibles(categoriasElectorales, candidatos)
+              .length === 0
 
           return (
             <Collapsible
@@ -677,25 +691,9 @@ export const OfertaElectoralPanel = ({
                   <Separator />
                   <CardContent className='pt-4'>
                     {candidatos.length === 0 ? (
-                      <div className='flex flex-col gap-3'>
-                        <p className='text-sm text-muted-foreground'>
-                          Esta lista aún no tiene candidatos registrados.
-                        </p>
-                        {isEditable && (
-                          <Button
-                            size='sm'
-                            variant='outline'
-                            className='w-fit'
-                            onClick={() =>
-                              setCandidatoDialog({ lista, candidato: null })
-                            }
-                            aria-label={`Registrar candidato en ${lista.nombre}`}
-                          >
-                            <Plus className='me-2 size-4' />
-                            Registrar candidato
-                          </Button>
-                        )}
-                      </div>
+                      <p className='text-sm text-muted-foreground'>
+                        Esta lista aún no tiene candidatos registrados.
+                      </p>
                     ) : (
                       <ul
                         className='flex flex-col gap-2'
@@ -748,6 +746,36 @@ export const OfertaElectoralPanel = ({
                           </li>
                         ))}
                       </ul>
+                    )}
+                    {isEditable && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className='mt-3 inline-block w-fit'>
+                            <Button
+                              size='sm'
+                              variant='outline'
+                              aria-disabled={sinCupoDisponible}
+                              onClick={() => {
+                                if (sinCupoDisponible) return
+                                setCandidatoDialog({ lista, candidato: null })
+                              }}
+                              className={cn(
+                                sinCupoDisponible &&
+                                  'pointer-events-none opacity-50'
+                              )}
+                              aria-label={`Registrar candidato en ${lista.nombre}`}
+                            >
+                              <Plus className='me-2 size-4' />
+                              Registrar candidato
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        {sinCupoDisponible && (
+                          <TooltipContent>
+                            No hay categorías con cupo disponible en esta lista
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
                     )}
                   </CardContent>
                 </CollapsibleContent>
@@ -846,13 +874,13 @@ export const OfertaElectoralPanel = ({
           <>
             Esta operación transicionará el comicio al estado{' '}
             <strong>CERRADA</strong>, bloqueará nuevos sufragios (HTTP 410) y
-            congelará el Dashboard Público con resultados definitivos.
+            congelará el Dashboard Público con resultados definitivos. El cierre
+            continuará en segundo plano y podrá seguir navegando el panel.
           </>
         }
         cancelBtnText='Cancelar'
         confirmText='Sí, cerrar comicio'
         destructive
-        isLoading={cerrarComicioMutation.isPending}
         handleConfirm={handleConfirmCerrar}
       />
 
@@ -865,7 +893,8 @@ export const OfertaElectoralPanel = ({
             Esta operación es <strong>irreversible</strong>. Una vez
             oficializado, no podrás crear, editar ni eliminar listas ni
             candidatos. Se generará el mapeo de identificadores de lista (
-            <code>list_id</code>) para la integración Web3.
+            <code>list_id</code>) para la integración Web3. La oficialización
+            continuará en segundo plano y podrá seguir navegando el panel.
             {(listasQuery.data?.length ?? 0) > 0 && (
               <>
                 {' '}
@@ -879,7 +908,6 @@ export const OfertaElectoralPanel = ({
         cancelBtnText='Cancelar'
         confirmText='Sí, oficializar comicio'
         destructive
-        isLoading={oficializarMutation.isPending}
         handleConfirm={handleConfirmOficializar}
       />
 
