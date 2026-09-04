@@ -7,8 +7,18 @@ export interface AuthUser {
   name?: string
 }
 
+export type TwoFactorStatus = 'setup_required' | 'verification_required'
+
+export interface TwoFactorChallenge {
+  status: TwoFactorStatus
+  challengeToken: string
+  otpauthUrl?: string
+  secret?: string
+}
+
 export interface AuthResponse {
-  user: AuthUser
+  user?: AuthUser
+  twoFactor?: TwoFactorChallenge
 }
 
 export const ELECTION_ADMIN_ROLE: JwtRole = 'election_admin'
