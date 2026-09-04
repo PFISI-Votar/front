@@ -1,23 +1,24 @@
 import { parseRpcUrls } from '@/features/voto/crypto/rpc-failover'
 
 /**
- * Cross-repo EIP-712 contract for VOTAR-357 / VOTAR-346 (must match BallotContract.sol).
+ * Cross-repo EIP-712 contract for VOTAR-357 / VOTAR-346 / VOTAR-474
+ * (must match BallotContract.sol).
  *
- * Domain: name "VOTAR", version "1", chainId, verifyingContract
- * Type: Vote(uint256 electionId, bytes32 nullifier, bytes32 selectionHash, uint256 candidateId, uint256 timestamp)
+ * Domain: name "VOTAR", version "2", chainId, verifyingContract
+ * Type: Vote(uint256 electionId, bytes32 nullifier, bytes32 selectionHash, uint256[] candidateIds, uint256 timestamp)
  * Nullifier: opaque bytes32 produced by VOTAR-353 (not derived in this module)
  * selectionHash: keccak256(JSON.stringify(normalizedPayload))
- * candidateId: audit id (or reserved blanco/nulo), bound in the digest for tally integrity
+ * candidateIds: all audit ids (one per category, or single blanco/nulo), bound in the digest
  */
 export const VOTE_EIP712_DOMAIN_NAME = 'VOTAR' as const
-export const VOTE_EIP712_DOMAIN_VERSION = '1' as const
+export const VOTE_EIP712_DOMAIN_VERSION = '2' as const
 
 export const VOTE_EIP712_TYPES = {
   Vote: [
     { name: 'electionId', type: 'uint256' },
     { name: 'nullifier', type: 'bytes32' },
     { name: 'selectionHash', type: 'bytes32' },
-    { name: 'candidateId', type: 'uint256' },
+    { name: 'candidateIds', type: 'uint256[]' },
     { name: 'timestamp', type: 'uint256' },
   ],
 } as const

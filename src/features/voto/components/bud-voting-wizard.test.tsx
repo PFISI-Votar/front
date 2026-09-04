@@ -6,10 +6,7 @@ import {
   TIPOS_VOTACION,
   type TipoVotacion,
 } from '@/features/eleccion/lista/data/schema'
-import {
-  BUD_CATEGORY_GRID_CLASS,
-  BUD_LIST_GRID_CLASS,
-} from '@/features/voto/components/bud-layout.constants'
+import { BUD_LIST_GRID_CLASS } from '@/features/voto/components/bud-layout.constants'
 import { BudVotingWizard } from '@/features/voto/components/bud-voting-wizard'
 import { EphemeralWalletProvider } from '@/features/voto/crypto/ephemeral-wallet-context'
 import { calcularNullifier } from '@/features/voto/crypto/nullifier'
@@ -97,7 +94,7 @@ const signVotePayloadMock = vi.fn().mockResolvedValue({
   electionId: 7,
   nullifier: '0x' + 'b'.repeat(64),
   selectionHash: '0x' + 'c'.repeat(64),
-  candidateId: 101n,
+  candidateIds: [101n],
   timestamp: 1_700_000_000,
   expectedSigner: '0x' + 'd'.repeat(40),
   signature: '0x' + 'e'.repeat(130),
@@ -148,6 +145,7 @@ const boleta: BoletaDigital = {
       nombre: 'Presidente',
       descripcion: null,
       orden: 1,
+      cantidadCargos: 1,
       estado: 'DISPONIBLE',
       candidatos: [
         {
@@ -196,6 +194,7 @@ const boleta: BoletaDigital = {
       nombre: 'Vocales',
       descripcion: null,
       orden: 2,
+      cantidadCargos: 1,
       estado: 'DISPONIBLE',
       candidatos: [
         {
@@ -293,7 +292,7 @@ describe('BudVotingWizard', () => {
       electionId: 7,
       nullifier: '0x' + 'b'.repeat(64),
       selectionHash: '0x' + 'c'.repeat(64),
-      candidateId: 101n,
+      candidateIds: [101n],
       timestamp: 1_700_000_000,
       expectedSigner: '0x' + 'd'.repeat(40),
       signature: '0x' + 'e'.repeat(130),
@@ -355,23 +354,29 @@ describe('BudVotingWizard', () => {
   it('VOTAR-356 UAT-03: inicia sin preseleccionar candidatos ni voto en blanco', async () => {
     const screen = await renderWizard()
 
+    // VOTAR-464: por cargo muestra un cargo a la vez — Presidente es el
+    // primero, Vocales recién aparece al navegar a esa tab.
     const blankPresidente = screen.getByRole('button', {
       name: /Voto en Blanco para Presidente/i,
     })
+    const ana = screen.getByRole('button', { name: /Ana Lopez/i })
+    expect(blankPresidente.element().getAttribute('aria-pressed')).toBe('false')
+    expect(ana.element().getAttribute('aria-pressed')).toBe('false')
+
+    await userEvent.click(screen.getByRole('tab', { name: /Vocales/i }))
     const blankVocales = screen.getByRole('button', {
       name: /Voto en Blanco para Vocales/i,
     })
-    const ana = screen.getByRole('button', { name: /Ana Lopez/i })
-
-    expect(blankPresidente.element().getAttribute('aria-pressed')).toBe('false')
     expect(blankVocales.element().getAttribute('aria-pressed')).toBe('false')
-    expect(ana.element().getAttribute('aria-pressed')).toBe('false')
   })
 
   it('VOTAR-356 UAT-01: voto en blanco por categoría desmarca candidatos y permite confirmar', async () => {
     const screen = await renderWizard()
 
+    // Elegir un candidato avanza automáticamente al siguiente cargo
+    // (VOTAR-464), así que volvemos a la tab de Presidente para verificar.
     await userEvent.click(screen.getByRole('button', { name: /Ana Lopez/i }))
+    await userEvent.click(screen.getByRole('tab', { name: /Presidente/i }))
     expect(
       screen
         .getByRole('button', { name: /Ana Lopez/i })
@@ -384,6 +389,7 @@ describe('BudVotingWizard', () => {
         name: /Voto en Blanco para Presidente/i,
       })
     )
+    await userEvent.click(screen.getByRole('tab', { name: /Presidente/i }))
 
     expect(
       screen
@@ -398,12 +404,14 @@ describe('BudVotingWizard', () => {
         .getAttribute('aria-pressed')
     ).toBe('true')
 
+    await userEvent.click(screen.getByRole('tab', { name: /Vocales/i }))
     await userEvent.click(
       screen.getByRole('button', {
         name: /Voto en Blanco para Vocales/i,
       })
     )
-    await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
+    // VOTAR-464: resolver el último cargo pendiente avanza directo a
+    // revisión — no queda un "Continuar" para clickear.
 
     await expect.element(screen.getByText('Voto en blanco')).toBeInTheDocument()
     await expect.element(screen.getByText('Ana Lopez')).not.toBeInTheDocument()
@@ -417,6 +425,7 @@ describe('BudVotingWizard', () => {
         name: /Voto en Blanco para Presidente/i,
       })
     )
+    await userEvent.click(screen.getByRole('tab', { name: /Presidente/i }))
     expect(
       screen
         .getByRole('button', { name: /Voto en Blanco para Presidente/i })
@@ -425,6 +434,7 @@ describe('BudVotingWizard', () => {
     ).toBe('true')
 
     await userEvent.click(screen.getByRole('button', { name: /Bruno Paz/i }))
+    await userEvent.click(screen.getByRole('tab', { name: /Presidente/i }))
 
     expect(
       screen
@@ -555,49 +565,150 @@ describe('BudVotingWizard', () => {
     const screen = await renderWizard()
 
     await userEvent.click(screen.getByRole('button', { name: /Ana Lopez/i }))
+    // Elegir Ana avanzó a Vocales (VOTAR-464); volvemos a Presidente para
+    // cambiar la selección a Bruno.
+    await userEvent.click(screen.getByRole('tab', { name: /Presidente/i }))
     await userEvent.click(screen.getByRole('button', { name: /Bruno Paz/i }))
     await userEvent.click(screen.getByRole('button', { name: /Carla Rio/i }))
-    await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
+    // VOTAR-464: Carla resuelve el último cargo pendiente y avanza directo
+    // a revisión — no queda un "Continuar" para clickear.
 
     await expect.element(screen.getByText('Bruno Paz')).toBeInTheDocument()
     await expect.element(screen.getByText('Carla Rio')).toBeInTheDocument()
     await expect.element(screen.getByText('Ana Lopez')).not.toBeInTheDocument()
   })
 
-  it('en voto mixto no muestra candidatos por rol al confirmar voto especial', async () => {
-    const screen = await renderWizard(TIPOS_VOTACION.MIXTO)
+  it('VOTAR-474: permite elegir hasta cantidadCargos candidatos en la misma categoría', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    const boletaMulti: BoletaDigital = {
+      ...boleta,
+      categorias: [
+        {
+          ...boleta.categorias[0],
+          cantidadCargos: 1,
+        },
+        {
+          idCategoria: 2,
+          nombre: 'Vocales',
+          descripcion: null,
+          orden: 2,
+          cantidadCargos: 2,
+          estado: 'DISPONIBLE',
+          candidatos: [
+            {
+              idCandidato: 201,
+              idCategoria: 2,
+              idLista: 11,
+              listId: 11,
+              nombre: 'Carla',
+              apellido: 'Rio',
+              nombreCompleto: 'Carla Rio',
+              agrupacionPolitica: 'Lista Azul',
+              numeroLista: 1,
+              colorLista: '#0ea5e9',
+              fotoUrl: null,
+            },
+            {
+              idCandidato: 202,
+              idCategoria: 2,
+              idLista: 12,
+              listId: 12,
+              nombre: 'Diego',
+              apellido: 'Mar',
+              nombreCompleto: 'Diego Mar',
+              agrupacionPolitica: 'Lista Celeste',
+              numeroLista: 2,
+              colorLista: '#2563eb',
+              fotoUrl: null,
+            },
+          ],
+        },
+      ],
+    }
+
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <EphemeralWalletProvider>
+          <BudVotingWizard
+            boleta={boletaMulti}
+            tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
+            onLogout={vi.fn()}
+          />
+        </EphemeralWalletProvider>
+      </QueryClientProvider>
+    )
 
     await userEvent.click(
-      screen.getByRole('button', { name: /^LA Lista Azul Lista LA/i })
+      screen.getByRole('button', { name: /Comenzar a votar/i })
     )
-    await userEvent.click(
-      screen.getByRole('button', { name: /Votar en blanco/i })
-    )
-
+    await userEvent.click(screen.getByRole('button', { name: /Ana Lopez/i }))
+    // Multi-selección: el primer click no auto-avanza a revisión.
+    await userEvent.click(screen.getByRole('button', { name: /Carla Rio/i }))
     await expect
-      .element(screen.getByText('Candidatos por rol'))
-      .not.toBeInTheDocument()
+      .element(screen.getByText(/1 de 2 seleccionados/i))
+      .toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /Diego Mar/i }))
+    // Al llegar al máximo del último cargo avanza a revisión.
 
-    await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
-
-    await expect.element(screen.getByText('Voto en blanco')).toBeInTheDocument()
-    await expect.element(screen.getByText('Ana Lopez')).not.toBeInTheDocument()
-    await expect
-      .element(screen.getByText('Candidatos por rol'))
-      .not.toBeInTheDocument()
+    await expect.element(screen.getByText('Ana Lopez')).toBeInTheDocument()
+    await expect.element(screen.getByText('Carla Rio')).toBeInTheDocument()
+    await expect.element(screen.getByText('Diego Mar')).toBeInTheDocument()
   })
 
-  it('en voto mixto autoselecciona un candidato por rol al elegir lista', async () => {
-    const screen = await renderWizard(TIPOS_VOTACION.MIXTO)
+  it('en por cargo, elegir la lista completa desde la agrupación de un rol autoselecciona un candidato por rol y avanza a revisión', async () => {
+    const screen = await renderWizard()
 
     await userEvent.click(
-      screen.getByRole('button', { name: /^LA Lista Azul Lista LA/i })
+      screen.getByRole('button', {
+        name: /Elegir la lista completa Lista Azul/i,
+      })
     )
-    await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
+    // VOTAR-464: elegir la lista completa ya deja la boleta lista y avanza
+    // directo a revisión — no queda un "Continuar" para clickear.
 
     await expect.element(screen.getByText('Ana Lopez')).toBeInTheDocument()
     await expect.element(screen.getByText('Carla Rio')).toBeInTheDocument()
     await expect.element(screen.getByText('Alicia Sol')).not.toBeInTheDocument()
+  })
+
+  it('en por cargo, se puede sobrescribir un candidato individual tras elegir la lista completa (corte de boleta)', async () => {
+    const screen = await renderWizard()
+
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: /Elegir la lista completa Lista Azul/i,
+      })
+    )
+    // Elegir la lista ya avanzó a revisión; volvemos a selección para poder
+    // sobrescribir un candidato individual sin tocar Vocales.
+    await userEvent.click(screen.getByRole('button', { name: /Volver/i }))
+    // Presidente venía precargado con Ana Lopez (Lista Azul); lo cambiamos
+    // por Bruno Paz. La boleta ya estaba completa por el auto-relleno, así
+    // que este cambio vuelve a avanzar directo a revisión (VOTAR-464).
+    await userEvent.click(screen.getByRole('button', { name: /Bruno Paz/i }))
+
+    await expect.element(screen.getByText('Bruno Paz')).toBeInTheDocument()
+    await expect.element(screen.getByText('Carla Rio')).toBeInTheDocument()
+    await expect.element(screen.getByText('Ana Lopez')).not.toBeInTheDocument()
+  })
+
+  it('VOTAR-464: en por cargo, si la lista elegida no postuló candidato para un rol, la revisión lo muestra en blanco en vez de omitirlo', async () => {
+    const screen = await renderWizard()
+
+    // Lista Celeste sólo postuló candidato para Presidente, no para Vocales.
+    // Elegir la lista ya deja la boleta completa y avanza directo a revisión.
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: /Elegir la lista completa Lista Celeste/i,
+      })
+    )
+
+    await expect.element(screen.getByText('Bruno Paz')).toBeInTheDocument()
+    await expect.element(screen.getByText('Voto en blanco')).toBeInTheDocument()
+    await expect.element(screen.getByText('Vocales')).toBeInTheDocument()
   })
 
   it('UAT-01: firma localmente y transmite el voto a la blockchain', async () => {
@@ -1146,14 +1257,15 @@ describe('BudVotingWizard', () => {
   })
 
   it('VOTAR-363 UAT-01: layout mobile-first en paso selección', async () => {
+    // VOTAR-464: "por candidato" muestra un cargo a la vez (tabs), en vez de
+    // una grilla multi-columna de categorías.
     const screen = await renderWizard()
 
     const main = document.querySelector('main')
     expect(main?.className).toContain('overflow-x-clip')
 
     const grid = screen.getByTestId('bud-category-grid').element()
-    expect(grid.className).toContain('grid-cols-1')
-    expect(grid.className).toContain('md:grid-cols-2')
+    expect(grid.className).toBe('grid gap-5')
 
     const continueButton = screen.getByRole('button', { name: /^Continuar/i })
     expect(continueButton.element().className).toContain('w-full')
@@ -1164,13 +1276,45 @@ describe('BudVotingWizard', () => {
     expect(stickyContainer?.className).toContain('justify-stretch')
   })
 
-  it('VOTAR-363 UAT-02: grid de categorías declara columnas paralelas desde md', async () => {
+  it('VOTAR-464: en "por candidato" se muestra un cargo a la vez y se avanza con tabs', async () => {
     const screen = await renderWizard()
 
-    const grid = screen.getByTestId('bud-category-grid').element()
-    expect(grid.className).toBe(BUD_CATEGORY_GRID_CLASS)
-    expect(grid.className).toContain('md:grid-cols-2')
-    expect(grid.className).toContain('xl:grid-cols-3')
+    // Presidente es el primer cargo; Vocales todavía no se ve.
+    await expect
+      .element(screen.getByRole('tab', { name: /Presidente/i }))
+      .toBeInTheDocument()
+    await expect
+      .element(
+        screen.getByRole('button', { name: /Voto en Blanco para Vocales/i })
+      )
+      .not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: /Ana Lopez/i }))
+
+    // Elegir un candidato avanza automáticamente al siguiente cargo.
+    await expect
+      .element(
+        screen.getByRole('button', { name: /Voto en Blanco para Vocales/i })
+      )
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByRole('button', { name: /Ana Lopez/i }))
+      .not.toBeInTheDocument()
+
+    // La tab de Presidente queda marcada como resuelta y navegable.
+    await userEvent.click(screen.getByRole('tab', { name: /Presidente/i }))
+    await expect
+      .element(screen.getByRole('button', { name: /Ana Lopez/i }))
+      .toBeInTheDocument()
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /Siguiente cargo/i })
+    )
+    await expect
+      .element(
+        screen.getByRole('button', { name: /Voto en Blanco para Vocales/i })
+      )
+      .toBeInTheDocument()
   })
 
   it('VOTAR-465 UAT-01: listas completas usan grid mobile-first', async () => {
@@ -1179,7 +1323,7 @@ describe('BudVotingWizard', () => {
     const grid = screen.getByTestId('bud-list-grid').element()
     expect(grid.className).toContain('grid-cols-1')
     expect(grid.className).toContain('md:grid-cols-2')
-    expect(grid.className).toContain('items-stretch')
+    expect(grid.className).toContain('items-start')
   })
 
   it('VOTAR-465 UAT-02: grid de listas declara columnas paralelas desde md', async () => {
@@ -1191,13 +1335,29 @@ describe('BudVotingWizard', () => {
     expect(grid.className).toContain('xl:grid-cols-3')
   })
 
-  it('VOTAR-465 UAT-03: en mixto coexisten grid de listas y de categorías', async () => {
-    const screen = await renderWizard(TIPOS_VOTACION.MIXTO)
+  it('en por cargo no hay una grilla de listas separada: el atajo de lista completa vive dentro de cada agrupación por rol', async () => {
+    const screen = await renderWizard()
 
-    const listGrid = screen.getByTestId('bud-list-grid').element()
-    expect(listGrid.className).toBe(BUD_LIST_GRID_CLASS)
+    await expect
+      .element(screen.getByTestId('bud-list-grid'))
+      .not.toBeInTheDocument()
 
     const categoryGrid = screen.getByTestId('bud-category-grid').element()
-    expect(categoryGrid.className).toBe(BUD_CATEGORY_GRID_CLASS)
+    expect(categoryGrid.className).toBe('grid gap-5')
+
+    await expect
+      .element(
+        screen.getByRole('button', {
+          name: /Elegir la lista completa Lista Azul/i,
+        })
+      )
+      .toBeInTheDocument()
+    await expect
+      .element(
+        screen.getByRole('button', {
+          name: /Elegir la lista completa Lista Celeste/i,
+        })
+      )
+      .toBeInTheDocument()
   })
 })

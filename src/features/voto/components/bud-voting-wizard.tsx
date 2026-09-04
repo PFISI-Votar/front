@@ -50,7 +50,6 @@ import {
 } from '@/features/voto/api/voto-api'
 import {
   BUD_CANDIDATE_GRID_CLASS,
-  BUD_CATEGORY_GRID_CLASS,
   BUD_LIST_GRID_CLASS,
   BUD_SHELL_SECTION_CLASS,
   BUD_STICKY_CTA_CLASS,
@@ -120,7 +119,7 @@ import {
   roleHasBlankSelection,
 } from '@/features/voto/utils/wizard-selection'
 
-type VotingVariant = 'lista-completa' | 'candidatos' | 'mixto'
+type VotingVariant = 'lista-completa' | 'candidatos'
 type SpecialVote = 'blank' | 'null' | null
 type WizardStep =
   | 'identity'
@@ -152,6 +151,8 @@ type Candidate = {
 type CandidateRole = {
   id: string
   name: string
+  /** Max candidates the voter may select in this role (from cantidadCargos). */
+  maxSelecciones: number
 }
 
 type PartyList = {
@@ -206,7 +207,6 @@ const getListImageUrl = (candidate: CandidatoBoletaDigital) =>
 
 const getVotingVariant = (tipoVotacion: TipoVotacion): VotingVariant => {
   if (tipoVotacion === TIPOS_VOTACION.POR_CANDIDATO) return 'candidatos'
-  if (tipoVotacion === TIPOS_VOTACION.MIXTO) return 'mixto'
   return 'lista-completa'
 }
 
@@ -241,7 +241,40 @@ const buildRolesFromBoleta = (boleta: BoletaDigital): CandidateRole[] =>
     .map((categoria) => ({
       id: String(categoria.idCategoria),
       name: categoria.nombre,
+      maxSelecciones: Math.max(1, categoria.cantidadCargos ?? 1),
     }))
+
+/**
+ * Toggle / replace selection for a role respecting maxSelecciones (VOTAR-474).
+ * Blank is cleared when picking a candidate. At capacity, further adds are ignored
+ * (deselect still works).
+ */
+const applyCandidateSelection = (
+  current: Record<string, string[]>,
+  role: CandidateRole,
+  candidateId: string
+): Record<string, string[]> => {
+  const existing = (current[role.id] ?? []).filter(
+    (id) => !isBlankSelection(id)
+  )
+
+  if (role.maxSelecciones <= 1) {
+    return { ...current, [role.id]: [candidateId] }
+  }
+
+  if (existing.includes(candidateId)) {
+    return {
+      ...current,
+      [role.id]: existing.filter((id) => id !== candidateId),
+    }
+  }
+
+  if (existing.length >= role.maxSelecciones) {
+    return current
+  }
+
+  return { ...current, [role.id]: [...existing, candidateId] }
+}
 
 const mapCandidate = (
   candidate: CandidatoBoletaDigital,
@@ -268,6 +301,15 @@ const buildCandidatesFromBoleta = (boleta: BoletaDigital): Candidate[] =>
     )
   )
 
+/**
+ * VOTAR-464: si la lista elegida no postuló candidato para un rol, ese rol se
+ * marca en blanco en vez de quedar sin selección — así el paso de revisión
+ * (que sólo sabe leer "candidato" o "blanco") lo muestra explícitamente en
+ * vez de omitirlo en silencio de la boleta.
+ *
+ * VOTAR-474: en categorías multi-banca toma hasta `maxSelecciones` postulantes
+ * de esa lista (no solo el primero).
+ */
 const getCandidateSelectionsForList = (
   listId: string,
   roles: CandidateRole[],
@@ -278,9 +320,12 @@ const getCandidateSelectionsForList = (
       (item) => item.listId === listId && item.roleId === role.id
     )
 
-    if (roleCandidates.length > 0) {
-      selections[role.id] = [roleCandidates[0].id]
-    }
+    selections[role.id] =
+      roleCandidates.length > 0
+        ? roleCandidates
+            .slice(0, role.maxSelecciones)
+            .map((candidate) => candidate.id)
+        : [BLANK_SELECTION_ID]
 
     return selections
   }, {})
@@ -614,8 +659,7 @@ export const BudVotingWizard = ({
   const canContinueSelection =
     Boolean(specialVote) ||
     (variant === 'lista-completa' && Boolean(selectedList)) ||
-    (variant === 'candidatos' && allRolesSelected) ||
-    (variant === 'mixto' && (Boolean(selectedList) || allRolesSelected))
+    (variant === 'candidatos' && (Boolean(selectedList) || allRolesSelected))
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -656,10 +700,17 @@ export const BudVotingWizard = ({
     setSpecialVote(null)
     setSelectedListId(listId)
 
-    if (variant === 'mixto') {
+    if (variant === 'candidatos') {
       setCandidateSelections(
         listId ? getCandidateSelectionsForList(listId, roles, candidates) : {}
       )
+    }
+
+    // Elegir una lista completa (por lista o como atajo "por cargo") ya deja
+    // la boleta lista — avanza directo a revisión en vez de esperar un
+    // "Continuar" aparte. Deseleccionar (listId null) no avanza.
+    if (listId) {
+      setStep('review')
     }
   }
 
@@ -1047,10 +1098,11 @@ export const BudVotingWizard = ({
             onSelectCandidate={(roleId, candidateId) => {
               setSpecialVote(null)
               setCandidateSelections((current) => {
-                return {
-                  ...current,
-                  [roleId]: [candidateId],
+                const role = roles.find((item) => item.id === roleId)
+                if (!role) {
+                  return current
                 }
+                return applyCandidateSelection(current, role, candidateId)
               })
             }}
             onSelectBlank={(roleId) => {
@@ -1617,14 +1669,95 @@ const SelectionStep = ({
     ? 'También podés emitir tu voto en blanco o anularlo.'
     : 'También podés emitir tu voto en blanco.'
 
+  // VOTAR-464: "por cargo" muestra un cargo a la vez (tabs), en vez de todos
+  // los roles en una grilla — reduce la carga cognitiva cuando hay varios
+  // cargos. La lista completa es un atajo disponible ahí mismo para tomar
+  // todos los cargos de una: elegirla precarga cada tab, que igual queda
+  // editable de forma individual (corte de boleta).
+  const [activeRoleId, setActiveRoleId] = useState<string | null>(null)
+  const activeRoleIndex = Math.max(
+    0,
+    roles.findIndex((role) => role.id === activeRoleId)
+  )
+  const effectiveActiveRoleId =
+    activeRoleId && roles.some((role) => role.id === activeRoleId)
+      ? activeRoleId
+      : (roles[0]?.id ?? null)
+  const isRoleResolved = (roleId: string) =>
+    (candidateSelections[roleId] ?? []).length > 0
+  const rolesWithCandidates = roles.filter((role) =>
+    candidates.some((candidate) => candidate.roleId === role.id)
+  )
+  // roleId ya cuenta como resuelto: es el que se acaba de elegir en este
+  // click, antes de que el estado del padre (candidateSelections) se
+  // actualice y vuelva a renderizar.
+  const willAllRolesBeResolved = (roleId: string) =>
+    rolesWithCandidates.every(
+      (role) => role.id === roleId || isRoleResolved(role.id)
+    )
+
+  const goToRole = (roleId: string) => setActiveRoleId(roleId)
+  const advanceFromRole = (roleId: string) => {
+    const index = roles.findIndex((role) => role.id === roleId)
+    const next = roles[index + 1]
+    if (next) setActiveRoleId(next.id)
+  }
+  // VOTAR-464: si esta elección resuelve el último cargo pendiente, no hay
+  // más tabs a las que avanzar — se avanza directo al siguiente paso del
+  // wizard en vez de dejar al votante con un botón "Continuar" redundante.
+  // VOTAR-474: en multi-selección no auto-avanza hasta alcanzar el máximo
+  // (o blanco), para permitir elegir N candidatos del mismo cargo.
+  const handleStepSelectCandidate = (roleId: string, candidateId: string) => {
+    const role = roles.find((item) => item.id === roleId)
+    const maxSelecciones = role?.maxSelecciones ?? 1
+    const existing = (candidateSelections[roleId] ?? []).filter(
+      (id) => !isBlankSelection(id)
+    )
+    const isDeselect = maxSelecciones > 1 && existing.includes(candidateId)
+    const nextCount = isDeselect
+      ? existing.length - 1
+      : existing.includes(candidateId)
+        ? existing.length
+        : existing.length + 1
+    const atCapacity =
+      maxSelecciones <= 1 || (!isDeselect && nextCount >= maxSelecciones)
+
+    onSelectCandidate(roleId, candidateId)
+
+    if (isDeselect || !atCapacity) {
+      return
+    }
+
+    if (willAllRolesBeResolved(roleId)) {
+      onContinue()
+    } else {
+      advanceFromRole(roleId)
+    }
+  }
+  const handleStepSelectBlank = (roleId: string) => {
+    onSelectBlank(roleId)
+    if (willAllRolesBeResolved(roleId)) {
+      onContinue()
+    } else {
+      advanceFromRole(roleId)
+    }
+  }
+
+  const activeRole = roles.find((role) => role.id === effectiveActiveRoleId)
+  const selectionHint =
+    activeRole && activeRole.maxSelecciones > 1
+      ? `Podés elegir hasta ${activeRole.maxSelecciones} candidatos en ${activeRole.name}. Cargo ${activeRoleIndex + 1} de ${roles.length}.`
+      : `Elegí un candidato o voto en blanco para cada cargo. Cargo ${activeRoleIndex + 1} de ${roles.length}.`
+
+  const handleSelectGroupList = (listId: string) =>
+    onSelectList(selectedListId === listId ? null : listId)
+
   return (
     <div className='grid gap-5'>
-      {(variant === 'lista-completa' || variant === 'mixto') && (
+      {variant === 'lista-completa' && (
         <Card className='border-[#e4e7eb] bg-white/95'>
           <CardHeader>
-            <CardTitle>
-              {variant === 'mixto' ? 'Boleta completa' : 'Listas completas'}
-            </CardTitle>
+            <CardTitle>Listas completas</CardTitle>
             <CardDescription>
               Elegí una lista para tomar toda la boleta como base.
             </CardDescription>
@@ -1648,39 +1781,105 @@ const SelectionStep = ({
         </Card>
       )}
 
-      {(!specialVote || variant === 'mixto') &&
-        (variant === 'candidatos' || variant === 'mixto') && (
-          <Card className='border-[#e4e7eb] bg-white/95'>
-            <CardHeader>
-              <CardTitle>
-                {variant === 'mixto' ? 'Corte de boleta' : 'Candidatos por rol'}
-              </CardTitle>
-              <CardDescription>
-                Elegí un candidato por cargo o voto en blanco. Podés combinar
-                partidos diferentes entre cargos.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className='grid gap-5'>
+      {!specialVote && variant === 'candidatos' && (
+        <Card className='border-[#e4e7eb] bg-white/95'>
+          <CardHeader>
+            <CardTitle>Candidatos por rol</CardTitle>
+            <CardDescription>{selectionHint}</CardDescription>
+          </CardHeader>
+          <CardContent className='grid gap-5'>
+            {roles.length > 1 && (
               <div
-                className={BUD_CATEGORY_GRID_CLASS}
-                data-testid='bud-category-grid'
+                role='tablist'
+                aria-label='Cargos'
+                className='flex flex-wrap gap-2'
               >
-                {roles.map((role) => (
-                  <CandidateRoleSection
-                    key={role.id}
-                    roleId={role.id}
-                    roleName={role.name}
-                    candidates={candidates}
-                    selectedCandidateIds={candidateSelections[role.id] ?? []}
-                    groupByParty={variant === 'candidatos'}
-                    onSelectCandidate={onSelectCandidate}
-                    onSelectBlank={onSelectBlank}
-                  />
-                ))}
+                {roles.map((role) => {
+                  const resolved = isRoleResolved(role.id)
+                  const active = role.id === effectiveActiveRoleId
+                  return (
+                    <button
+                      key={role.id}
+                      type='button'
+                      role='tab'
+                      id={`cargo-tab-${role.id}`}
+                      aria-controls={`cargo-panel-${role.id}`}
+                      aria-selected={active}
+                      onClick={() => goToRole(role.id)}
+                      className={cn(
+                        'flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors',
+                        active
+                          ? 'border-[#2f6f9f] bg-[#2f6f9f] text-white'
+                          : resolved
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                            : 'border-[#dbe3ea] bg-white text-slate-600 hover:bg-[#f7fbfd]'
+                      )}
+                    >
+                      {resolved && !active && (
+                        <Check className='size-3.5' aria-hidden='true' />
+                      )}
+                      {role.name}
+                    </button>
+                  )
+                })}
               </div>
-            </CardContent>
-          </Card>
-        )}
+            )}
+            <div className='grid gap-5' data-testid='bud-category-grid'>
+              {roles
+                .filter((role) => role.id === effectiveActiveRoleId)
+                .map((role) => (
+                  <div
+                    key={role.id}
+                    id={`cargo-panel-${role.id}`}
+                    role='tabpanel'
+                    aria-labelledby={`cargo-tab-${role.id}`}
+                  >
+                    <CandidateRoleSection
+                      roleId={role.id}
+                      roleName={role.name}
+                      maxSelecciones={role.maxSelecciones}
+                      candidates={candidates}
+                      selectedCandidateIds={candidateSelections[role.id] ?? []}
+                      groupByParty
+                      selectedListId={selectedListId}
+                      onSelectCandidate={handleStepSelectCandidate}
+                      onSelectBlank={handleStepSelectBlank}
+                      onSelectList={handleSelectGroupList}
+                    />
+                  </div>
+                ))}
+            </div>
+            {roles.length > 1 && (
+              <div className='flex items-center justify-between gap-3'>
+                <Button
+                  type='button'
+                  variant='outline'
+                  disabled={activeRoleIndex === 0}
+                  onClick={() => {
+                    const prev = roles[activeRoleIndex - 1]
+                    if (prev) goToRole(prev.id)
+                  }}
+                >
+                  <ArrowLeft className='size-4' />
+                  Cargo anterior
+                </Button>
+                <Button
+                  type='button'
+                  variant='outline'
+                  disabled={activeRoleIndex >= roles.length - 1}
+                  onClick={() => {
+                    const next = roles[activeRoleIndex + 1]
+                    if (next) goToRole(next.id)
+                  }}
+                >
+                  Siguiente cargo
+                  <ArrowRight className='size-4' />
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card className='border-[#e4e7eb] bg-white/95'>
         <CardHeader>
@@ -1762,9 +1961,7 @@ const ReviewStep = ({
   const showPerRoleSummary =
     !specialVote &&
     !wholeBallotBlank &&
-    (variant === 'candidatos' ||
-      variant === 'mixto' ||
-      selectedCandidates.length > 0)
+    (variant === 'candidatos' || selectedCandidates.length > 0)
 
   return (
     <div className='mx-auto grid w-full max-w-4xl gap-5'>
@@ -1781,7 +1978,7 @@ const ReviewStep = ({
           )}
           {specialVote === 'null' && <SpecialVoteSummary specialVote='null' />}
 
-          {selectedList && variant !== 'mixto' && !specialVote && (
+          {selectedList && variant !== 'candidatos' && !specialVote && (
             <div className='rounded-2xl border border-[#dbe3ea] p-4'>
               <p className='mb-3 text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase'>
                 Lista seleccionada
@@ -1823,16 +2020,26 @@ const ReviewStep = ({
                     )
                   }
 
-                  const roleCandidate = selectedCandidates.find(
+                  const roleCandidates = selectedCandidates.filter(
                     (candidate) => candidate.roleId === role.id
                   )
-                  if (!roleCandidate) {
+                  if (roleCandidates.length === 0) {
                     return null
                   }
 
                   return (
-                    <div key={role.id} className='px-4 py-3'>
-                      <CandidateReviewItem candidate={roleCandidate} />
+                    <div key={role.id} className='grid gap-2 px-4 py-3'>
+                      {roleCandidates.length > 1 && (
+                        <p className='text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase'>
+                          {role.name}
+                        </p>
+                      )}
+                      {roleCandidates.map((roleCandidate) => (
+                        <CandidateReviewItem
+                          key={roleCandidate.id}
+                          candidate={roleCandidate}
+                        />
+                      ))}
                     </div>
                   )
                 })}
@@ -2316,7 +2523,7 @@ const ListCard = ({
   return (
     <div
       className={cn(
-        'flex h-full flex-col overflow-hidden rounded-2xl border bg-white transition-all hover:shadow-lg',
+        'flex flex-col overflow-hidden rounded-2xl border bg-white transition-all hover:shadow-lg',
         selected
           ? 'border-[#2f6f9f] shadow-lg shadow-[#2f6f9f]/10'
           : 'border-[#dbe3ea]'
@@ -2324,7 +2531,7 @@ const ListCard = ({
     >
       <button
         type='button'
-        className='w-full flex-1 p-5 text-left transition-colors hover:bg-[#f7fbfd] focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/20 focus-visible:outline-none'
+        className='w-full p-5 text-left transition-colors hover:bg-[#f7fbfd] focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/20 focus-visible:outline-none'
         onClick={onSelect}
       >
         <div className='flex items-start gap-4'>
@@ -2334,9 +2541,6 @@ const ListCard = ({
               <div className='min-w-0'>
                 <p className='text-base font-bold break-words sm:text-lg'>
                   {list.name}
-                </p>
-                <p className='mt-1 text-sm text-slate-500'>
-                  Lista {list.initials}
                 </p>
               </div>
               {selected && (
@@ -2354,7 +2558,7 @@ const ListCard = ({
           showDetails={false}
         />
       </button>
-      <div className='mt-auto px-5 pb-5'>
+      <div className='px-5 pb-5'>
         <ListCandidatesOverview
           list={list}
           roles={roles}
@@ -2382,12 +2586,14 @@ const ListCandidatesOverview = ({
   const listCandidates = candidates.filter(
     (candidate) => candidate.listId === list.id
   )
+  // VOTAR-464: sólo se muestra el primer cargo de la lista de entrada; el
+  // resto queda detrás de "Ver resto de candidatos".
   const primaryCandidates = roles
     .map((role) =>
       listCandidates.find((candidate) => candidate.roleId === role.id)
     )
     .filter((candidate): candidate is Candidate => Boolean(candidate))
-    .slice(0, 2)
+    .slice(0, 1)
   const primaryCandidateIds = new Set(
     primaryCandidates.map((candidate) => candidate.id)
   )
@@ -2402,14 +2608,16 @@ const ListCandidatesOverview = ({
     .filter((role) => role.candidates.length > 0)
 
   return (
-    <div className={cn(showPrimary && 'mt-4')}>
-      {showPrimary && (
-        <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
-          {primaryCandidates.map((candidate) => (
-            <CandidatePreview key={candidate.id} candidate={candidate} />
-          ))}
-        </div>
-      )}
+    // VOTAR-464: `@container` en vez de `sm:` — esta previsualización vive
+    // adentro de una ListCard que a su vez es celda de una grilla de hasta 3
+    // columnas, así que el ancho real disponible casi nunca coincide con el
+    // viewport. Con `sm:grid-cols-2` el nombre del candidato quedaba con muy
+    // poco lugar y se truncaba de más.
+    <div className={cn('@container', showPrimary && 'mt-4')}>
+      {showPrimary &&
+        primaryCandidates.map((candidate) => (
+          <CandidatePreview key={candidate.id} candidate={candidate} />
+        ))}
 
       {showDetails && (
         <details
@@ -2433,7 +2641,7 @@ const ListCandidatesOverview = ({
                   <p className='text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase'>
                     {role.name}
                   </p>
-                  <div className='grid grid-cols-1 gap-2 sm:grid-cols-2'>
+                  <div className='grid grid-cols-1 gap-2 @[22rem]:grid-cols-2'>
                     {role.candidates.map((candidate) => (
                       <CandidatePreview
                         key={candidate.id}
@@ -2453,8 +2661,11 @@ const ListCandidatesOverview = ({
 
 const CandidatePreview = ({ candidate }: { candidate: Candidate }) => (
   <div className='flex items-center gap-3 rounded-xl bg-[#f7fbfd] p-3'>
-    <CandidateAvatar candidate={candidate} className='size-11 rounded-xl' />
-    <div className='min-w-0'>
+    <CandidateAvatar
+      candidate={candidate}
+      className='size-11 shrink-0 rounded-xl'
+    />
+    <div className='min-w-0 flex-1'>
       <p className='truncate text-sm font-semibold'>{candidate.name}</p>
       <p className='truncate text-xs text-slate-500'>{candidate.role}</p>
     </div>
@@ -2464,24 +2675,36 @@ const CandidatePreview = ({ candidate }: { candidate: Candidate }) => (
 const CandidateRoleSection = ({
   roleId,
   roleName,
+  maxSelecciones = 1,
   candidates,
   selectedCandidateIds,
   groupByParty,
+  selectedListId,
   onSelectCandidate,
   onSelectBlank,
+  onSelectList,
 }: {
   roleId: string
   roleName: string
+  maxSelecciones?: number
   candidates: Candidate[]
   selectedCandidateIds: string[]
   groupByParty: boolean
+  selectedListId?: string | null
   onSelectCandidate: (roleId: string, candidateId: string) => void
   onSelectBlank: (roleId: string) => void
+  /** Atajo para tomar la lista completa de este partido como base de toda la
+   * boleta (todos los cargos), sin dejar de poder cambiar cada candidato
+   * individualmente después ("corte de boleta"). */
+  onSelectList?: (listId: string) => void
 }) => {
   const roleCandidates = candidates.filter(
     (candidate) => candidate.roleId === roleId
   )
   const isBlankSelected = selectedCandidateIds.includes(BLANK_SELECTION_ID)
+  const selectedCount = selectedCandidateIds.filter(
+    (id) => !isBlankSelection(id)
+  ).length
   const groupedCandidates = groupByParty
     ? groupCandidatesByParty(roleCandidates)
     : [
@@ -2496,73 +2719,123 @@ const CandidateRoleSection = ({
       ]
   const selectionBadge = isBlankSelected
     ? 'Voto en blanco'
-    : selectedCandidateIds.length > 0
-      ? '1 seleccionado'
-      : 'Elegí una opción'
+    : selectedCount > 0
+      ? maxSelecciones > 1
+        ? `${selectedCount} de ${maxSelecciones} seleccionados`
+        : '1 seleccionado'
+      : maxSelecciones > 1
+        ? `Elegí hasta ${maxSelecciones}`
+        : 'Elegí una opción'
   const groupsContent = (
     <div className='grid gap-4'>
-      {groupedCandidates.map((group) => (
-        <div
-          key={group.id}
-          role={groupByParty ? 'group' : undefined}
-          aria-label={groupByParty ? `Agrupación ${group.name}` : undefined}
-          className={cn(
-            groupByParty &&
-              'grid gap-3 rounded-2xl border border-[#edf1f4] bg-[#f7fbfd] p-3'
-          )}
-        >
-          {groupByParty && (
-            <div className='flex items-center gap-2 text-sm font-semibold text-slate-700'>
-              <ListLogo
-                list={group}
-                className='size-9 rounded-xl'
-                fallbackClassName='text-xs'
-              />
-              {group.name}
-            </div>
-          )}
-          <div className={BUD_CANDIDATE_GRID_CLASS}>
-            {group.candidates.map((candidate) => {
-              const isSelected = selectedCandidateIds.includes(candidate.id)
-              const accessibleName = `${candidate.name}, ${candidate.listName}, lista ${candidate.numeroLista}`
+      <div
+        className={cn(
+          'grid gap-4',
+          // auto-fit/minmax en vez de un número fijo de columnas: con
+          // grid-cols-2/3 fijo, menos partidos que columnas dejaban la card
+          // del rol con una franja vacía en vez de usar todo el ancho.
+          groupByParty &&
+            'grid-cols-[repeat(auto-fit,minmax(18rem,1fr))] items-stretch'
+        )}
+      >
+        {groupedCandidates.map((group) => (
+          <div
+            key={group.id}
+            role={groupByParty ? 'group' : undefined}
+            aria-label={groupByParty ? `Agrupación ${group.name}` : undefined}
+            className={cn(
+              groupByParty &&
+                'grid gap-3 rounded-2xl border border-[#edf1f4] bg-[#f7fbfd] p-3'
+            )}
+          >
+            {groupByParty && (
+              <div className='flex flex-wrap items-center justify-between gap-2'>
+                <div className='flex items-center gap-2 text-sm font-semibold text-slate-700'>
+                  <ListLogo
+                    list={group}
+                    className='size-9 rounded-xl'
+                    fallbackClassName='text-xs'
+                  />
+                  {group.name}
+                </div>
+                {onSelectList && (
+                  <button
+                    type='button'
+                    aria-pressed={selectedListId === group.id}
+                    aria-label={
+                      selectedListId === group.id
+                        ? `Lista completa ${group.name} elegida como base de la boleta`
+                        : `Elegir la lista completa ${group.name} como base de la boleta`
+                    }
+                    onClick={() => onSelectList(group.id)}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors',
+                      selectedListId === group.id
+                        ? 'border-[#2f6f9f] bg-[#2f6f9f] text-white'
+                        : 'border-[#2f6f9f]/40 bg-white text-[#2f6f9f] hover:bg-[#f7fbfd]'
+                    )}
+                  >
+                    {selectedListId === group.id && (
+                      <Check className='size-3.5' aria-hidden='true' />
+                    )}
+                    {selectedListId === group.id
+                      ? 'Lista completa elegida'
+                      : 'Elegir lista completa'}
+                  </button>
+                )}
+              </div>
+            )}
+            <div className={BUD_CANDIDATE_GRID_CLASS}>
+              {group.candidates.map((candidate) => {
+                const isSelected = selectedCandidateIds.includes(candidate.id)
+                const accessibleName = `${candidate.name}, ${candidate.listName}`
 
-              return (
-                <button
-                  key={candidate.id}
-                  type='button'
-                  aria-pressed={isSelected}
-                  aria-label={accessibleName}
-                  className={cn(
-                    'flex flex-col items-stretch gap-3 rounded-2xl border bg-white p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/20 focus-visible:outline-none sm:flex-row sm:items-center sm:p-4',
-                    isSelected
-                      ? 'border-[#2f6f9f] shadow-md shadow-[#2f6f9f]/10'
-                      : 'border-[#dbe3ea]'
-                  )}
-                  onClick={() => onSelectCandidate(roleId, candidate.id)}
-                >
-                  <div className='flex min-w-0 flex-1 items-center gap-3'>
-                    <CandidateAvatar candidate={candidate} />
-                    <div className='min-w-0 flex-1'>
-                      <p className='truncate font-semibold'>{candidate.name}</p>
-                      <p className='text-xs font-semibold tracking-[0.18em] text-slate-600 uppercase'>
-                        Lista {candidate.numeroLista}
-                      </p>
-                      <p className='truncate text-sm text-slate-500'>
-                        {candidate.listName}
-                      </p>
-                    </div>
+                return (
+                  // VOTAR-464: la fila avatar+nombre pasaba a "row" con `sm:` en
+                  // base al ancho de VIEWPORT, no de la celda — anidada 2-3
+                  // grillas adentro, la celda real suele ser mucho más angosta
+                  // que 640px y la foto (56px fijos) le dejaba al nombre casi
+                  // nada de espacio, cortándolo (y "Lista N" ni truncaba, así
+                  // que envolvía en dos líneas ilegibles). `@container` mide el
+                  // ancho real de la celda para decidir cuándo pasar a fila.
+                  <div key={candidate.id} className='@container'>
+                    <button
+                      type='button'
+                      aria-pressed={isSelected}
+                      aria-label={accessibleName}
+                      className={cn(
+                        'flex h-full w-full flex-col items-center gap-2 rounded-2xl border bg-white p-3 text-center transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/20 focus-visible:outline-none @[15rem]:flex-row @[15rem]:gap-3 @[15rem]:p-4 @[15rem]:text-left',
+                        isSelected
+                          ? 'border-[#2f6f9f] shadow-md shadow-[#2f6f9f]/10'
+                          : 'border-[#dbe3ea]'
+                      )}
+                      onClick={() => onSelectCandidate(roleId, candidate.id)}
+                    >
+                      <CandidateAvatar
+                        candidate={candidate}
+                        className='shrink-0'
+                      />
+                      <div className='w-full min-w-0 flex-1'>
+                        <p className='truncate font-semibold'>
+                          {candidate.name}
+                        </p>
+                        <p className='truncate text-sm text-slate-500'>
+                          {candidate.listName}
+                        </p>
+                      </div>
+                      {isSelected && (
+                        <span className='grid size-7 shrink-0 place-items-center rounded-full bg-[#2f6f9f] text-white @[15rem]:ms-auto'>
+                          <Check className='size-4' />
+                        </span>
+                      )}
+                    </button>
                   </div>
-                  {isSelected && (
-                    <span className='grid size-7 shrink-0 place-items-center self-end rounded-full bg-[#2f6f9f] text-white sm:ms-auto sm:self-center'>
-                      <Check className='size-4' />
-                    </span>
-                  )}
-                </button>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
       <button
         type='button'
         aria-pressed={isBlankSelected}

@@ -237,7 +237,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
       357,
       selectionHash,
       nullifier,
-      101n,
+      [101n],
       timestamp,
       {
         chainId: 31_337,
@@ -249,7 +249,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
     const viemSig = await account.signTypedData({
       domain: {
         name: 'VOTAR',
-        version: '1',
+        version: '2',
         chainId: 31_337,
         verifyingContract: '0x0000000000000000000000000000000000000001',
       },
@@ -258,7 +258,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
           { name: 'electionId', type: 'uint256' },
           { name: 'nullifier', type: 'bytes32' },
           { name: 'selectionHash', type: 'bytes32' },
-          { name: 'candidateId', type: 'uint256' },
+          { name: 'candidateIds', type: 'uint256[]' },
           { name: 'timestamp', type: 'uint256' },
         ],
       },
@@ -267,7 +267,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
         electionId: BigInt(357),
         nullifier,
         selectionHash,
-        candidateId: 101n,
+        candidateIds: [101n],
         timestamp: BigInt(timestamp),
       },
     })

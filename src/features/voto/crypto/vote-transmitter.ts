@@ -85,7 +85,7 @@ const buildCastArgs = (input: TransmitSignedVoteInput) => {
     BigInt(signed.timestamp),
     signed.expectedSigner,
     signed.signature,
-    signed.candidateId,
+    signed.candidateIds,
   ] as const
 }
 
