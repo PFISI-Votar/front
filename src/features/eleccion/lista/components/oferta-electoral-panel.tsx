@@ -12,6 +12,7 @@ import {
   Pencil,
   PlayCircle,
   Plus,
+  RefreshCw,
   Square,
   Trash2,
   UserPen,
@@ -43,6 +44,11 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { Separator } from '@/components/ui/separator'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   eliminarEleccion,
@@ -52,8 +58,11 @@ import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidat
 import { CandidatoFormDialog } from '@/features/eleccion/candidato/components/candidato-form-dialog'
 import { ConfiguracionDatosCandidatoPanel } from '@/features/eleccion/candidato/components/configuracion-datos-candidato-panel'
 import type { Candidato } from '@/features/eleccion/candidato/data/schema'
+import { getCategoriasDisponibles } from '@/features/eleccion/candidato/utils/categorias-disponibles'
 import { buildResumenDatosAdicionales } from '@/features/eleccion/candidato/utils/format-datos-adicionales'
+import { listarCategorias } from '@/features/eleccion/categoria/api/categoria-api'
 import { CategoriasPanel } from '@/features/eleccion/categoria/components/categorias-panel'
+import { mapCategoriaToElectoral } from '@/features/eleccion/categoria/data/schema'
 import { ComicioVentanaElectoral } from '@/features/eleccion/components/comicio-ventana-electoral'
 import { DocumentosComicioMenu } from '@/features/eleccion/components/documentos-comicio-menu'
 import { EliminarComicioDialog } from '@/features/eleccion/components/eliminar-comicio-dialog'
@@ -66,15 +75,18 @@ import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
 import { useCerrarEleccion } from '@/features/eleccion/hooks/use-cerrar-eleccion'
 import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
 import { useOficializarEleccion } from '@/features/eleccion/hooks/use-oficializar-eleccion'
+import { useReintentarDespliegueOnChain } from '@/features/eleccion/hooks/use-reintentar-despliegue-on-chain'
 import {
   getEstadoEleccionBadgeVariant,
   getEstadoEleccionLabel,
 } from '@/features/eleccion/lib/estado-eleccion'
+import { isMissingOnChainContractsError } from '@/features/eleccion/lib/missing-on-chain-contracts'
 import {
   actualizarLista,
   crearLista,
   eliminarLista,
   listarListas,
+  obtenerEstadoStackOnChain,
   obtenerMapeoListas,
 } from '@/features/eleccion/lista/api/lista-api'
 import { ListaFormDialog } from '@/features/eleccion/lista/components/lista-form-dialog'
@@ -132,6 +144,11 @@ export const OfertaElectoralPanel = ({
     queryFn: () => obtenerConfiguracionDatosCandidato(idEleccion),
   })
 
+  const categoriasQuery = useQuery({
+    queryKey: ['categorias', idEleccion],
+    queryFn: () => listarCategorias(idEleccion),
+  })
+
   const padronResumenQuery = usePadronResumen(idEleccion)
 
   const mapeoQuery = useQuery({
@@ -140,6 +157,16 @@ export const OfertaElectoralPanel = ({
     enabled: eleccionQuery.data?.estado !== 'BORRADOR',
     retry: false,
   })
+
+  const stackOnChainQuery = useQuery({
+    queryKey: ['eleccion-stack-on-chain', idEleccion],
+    queryFn: () => obtenerEstadoStackOnChain(idEleccion),
+    enabled: eleccionQuery.data?.estado === 'CONFIGURADA',
+    retry: false,
+  })
+
+  const [forceNeedsOnChainRedeploy, setForceNeedsOnChainRedeploy] =
+    useState(false)
 
   const isEditable = eleccionQuery.data?.estado === 'BORRADOR'
   const sinPadronCargado =
@@ -247,11 +274,16 @@ export const OfertaElectoralPanel = ({
   const {
     runInBackground: oficializarEnBackground,
     isRunning: oficializandoComicio,
+    lastError: oficializarLastError,
+    clearLastError: clearOficializarError,
   } = useOficializarEleccion(idEleccion, {
     showMapeoToast: true,
-    onSuccess: () => {
+    onSuccess: (data) => {
       setOficializacionViolations([])
       setOficializacionBlockMessage(null)
+      if (!data.onChainDesplegado) {
+        setForceNeedsOnChainRedeploy(true)
+      }
       void invalidateOferta()
     },
     onValidationError: (error) => {
@@ -276,6 +308,7 @@ export const OfertaElectoralPanel = ({
   const handleConfirmOficializar = () => {
     setOficializacionViolations([])
     setOficializacionBlockMessage(null)
+    clearOficializarError()
     setOficializarDialogOpen(false)
     oficializarEnBackground()
   }
@@ -283,19 +316,46 @@ export const OfertaElectoralPanel = ({
   const {
     runInBackground: abrirComicioEnBackground,
     isRunning: abriendoComicio,
+    lastError: abrirLastError,
+    clearLastError: clearAbrirError,
   } = useAbrirEleccion(idEleccion, {
     onPreconditionError: (message) => {
       setPreconditionError(message)
     },
+    onMissingOnChainContracts: () => {
+      setForceNeedsOnChainRedeploy(true)
+    },
     onSuccess: () => {
       setPreconditionError(null)
+      setForceNeedsOnChainRedeploy(false)
+      clearAbrirError()
       void invalidateOferta()
     },
     padronPath: `/comicios/${idEleccion}/padron`,
   })
 
+  const {
+    runInBackground: redeployEnBackground,
+    isRunning: redeployingComicio,
+  } = useReintentarDespliegueOnChain({
+    onSuccess: () => {
+      setForceNeedsOnChainRedeploy(false)
+      clearAbrirError()
+      void invalidateOferta()
+      void queryClient.invalidateQueries({
+        queryKey: ['eleccion-stack-on-chain', idEleccion],
+      })
+    },
+  })
+
+  const needsOnChainRedeploy =
+    forceNeedsOnChainRedeploy ||
+    stackOnChainQuery.data?.desplegado === false ||
+    isMissingOnChainContractsError(abrirLastError)
+
   const handleConfirmAbrir = () => {
     setPreconditionError(null)
+    clearAbrirError()
     setAbrirDialogOpen(false)
     abrirComicioEnBackground()
   }
@@ -374,30 +434,71 @@ export const OfertaElectoralPanel = ({
           </Button>
           {isEditable && (
             <Button
-              onClick={() => setOficializarDialogOpen(true)}
+              onClick={() => {
+                if (oficializarLastError) {
+                  oficializarEnBackground()
+                  return
+                }
+                setOficializarDialogOpen(true)
+              }}
               disabled={
                 oficializandoComicio ||
                 padronResumenQuery.isLoading ||
                 !tienePadronCargado
               }
-              aria-haspopup='dialog'
-              aria-label='Oficializar comicio'
+              aria-haspopup={oficializarLastError ? undefined : 'dialog'}
+              aria-label={
+                oficializarLastError
+                  ? 'Reintentar oficialización'
+                  : 'Oficializar comicio'
+              }
             >
-              <BadgeCheck className='me-2 size-4' />
-              Oficializar comicio
+              {oficializarLastError ? (
+                <RefreshCw className='me-2 size-4' />
+              ) : (
+                <BadgeCheck className='me-2 size-4' />
+              )}
+              {oficializarLastError
+                ? 'Reintentar oficialización'
+                : 'Oficializar comicio'}
             </Button>
           )}
-          {eleccionQuery.data?.estado === 'CONFIGURADA' && (
-            <Button
-              onClick={() => setAbrirDialogOpen(true)}
-              disabled={abriendoComicio}
-              aria-haspopup='dialog'
-              aria-label='Abrir comicio'
-            >
-              <Vote className='me-2 size-4' />
-              Abrir comicio
-            </Button>
-          )}
+          {eleccionQuery.data?.estado === 'CONFIGURADA' &&
+            (needsOnChainRedeploy ? (
+              <Button
+                variant='secondary'
+                onClick={() => redeployEnBackground(idEleccion)}
+                disabled={redeployingComicio}
+                aria-label='Reintentar oficialización'
+              >
+                <RefreshCw className='me-2 size-4' />
+                {redeployingComicio
+                  ? 'Reintentando...'
+                  : 'Reintentar oficialización'}
+              </Button>
+            ) : (
+              <Button
+                onClick={() => {
+                  if (abrirLastError) {
+                    abrirComicioEnBackground()
+                    return
+                  }
+                  setAbrirDialogOpen(true)
+                }}
+                disabled={abriendoComicio}
+                aria-haspopup={abrirLastError ? undefined : 'dialog'}
+                aria-label={
+                  abrirLastError ? 'Reintentar apertura' : 'Abrir comicio'
+                }
+              >
+                {abrirLastError ? (
+                  <RefreshCw className='me-2 size-4' />
+                ) : (
+                  <Vote className='me-2 size-4' />
+                )}
+                {abrirLastError ? 'Reintentar apertura' : 'Abrir comicio'}
+              </Button>
+            ))}
           {eleccionQuery.data && (
             <DocumentosComicioMenu
               idEleccion={idEleccion}
@@ -577,6 +678,13 @@ export const OfertaElectoralPanel = ({
       <div className='grid gap-4'>
         {(listasQuery.data ?? []).map((lista) => {
           const candidatos = lista.candidatos ?? []
+          const categoriasElectorales = (categoriasQuery.data ?? []).map(
+            mapCategoriaToElectoral
+          )
+          const sinCupoDisponible =
+            categoriasElectorales.length > 0 &&
+            getCategoriasDisponibles(categoriasElectorales, candidatos)
+              .length === 0
 
           return (
             <Collapsible
@@ -671,25 +779,9 @@ export const OfertaElectoralPanel = ({
                   <Separator />
                   <CardContent className='pt-4'>
                     {candidatos.length === 0 ? (
-                      <div className='flex flex-col gap-3'>
-                        <p className='text-sm text-muted-foreground'>
-                          Esta lista aún no tiene candidatos registrados.
-                        </p>
-                        {isEditable && (
-                          <Button
-                            size='sm'
-                            variant='outline'
-                            className='w-fit'
-                            onClick={() =>
-                              setCandidatoDialog({ lista, candidato: null })
-                            }
-                            aria-label={`Registrar candidato en ${lista.nombre}`}
-                          >
-                            <Plus className='me-2 size-4' />
-                            Registrar candidato
-                          </Button>
-                        )}
-                      </div>
+                      <p className='text-sm text-muted-foreground'>
+                        Esta lista aún no tiene candidatos registrados.
+                      </p>
                     ) : (
                       <ul
                         className='flex flex-col gap-2'
@@ -742,6 +834,36 @@ export const OfertaElectoralPanel = ({
                           </li>
                         ))}
                       </ul>
+                    )}
+                    {isEditable && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className='mt-3 inline-block w-fit'>
+                            <Button
+                              size='sm'
+                              variant='outline'
+                              aria-disabled={sinCupoDisponible}
+                              onClick={() => {
+                                if (sinCupoDisponible) return
+                                setCandidatoDialog({ lista, candidato: null })
+                              }}
+                              className={cn(
+                                sinCupoDisponible &&
+                                  'pointer-events-none opacity-50'
+                              )}
+                              aria-label={`Registrar candidato en ${lista.nombre}`}
+                            >
+                              <Plus className='me-2 size-4' />
+                              Registrar candidato
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        {sinCupoDisponible && (
+                          <TooltipContent>
+                            No hay categorías con cupo disponible en esta lista
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
                     )}
                   </CardContent>
                 </CollapsibleContent>

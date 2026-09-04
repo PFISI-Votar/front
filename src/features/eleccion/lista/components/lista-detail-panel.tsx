@@ -5,6 +5,12 @@ import { AlertCircle, Pencil, Plus, Trash2, UserPen } from 'lucide-react'
 import { toast } from 'sonner'
 import { getApiErrorMessage, isConflictError } from '@/lib/api-client'
 import { resolveMediaUrl } from '@/lib/media-url'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -204,11 +210,48 @@ export const ListaDetailPanel = ({
           <Badge variant={isEditable ? 'secondary' : 'default'}>
             {lista.estado}
           </Badge>
-          {lista.listId != null && (
-            <Badge variant='outline'>list_id {lista.listId}</Badge>
-          )}
         </div>
       </div>
+
+      {listasQuery.data && listasQuery.data.length > 1 && (
+        <Accordion type='single' collapsible>
+          <AccordionItem value='listas-comicio'>
+            <AccordionTrigger className='w-fit flex-none justify-start gap-2 text-sm font-medium hover:text-primary'>
+              Ver listas del comicio ({listasQuery.data.length})
+            </AccordionTrigger>
+            <AccordionContent>
+              <ul className='flex max-h-64 flex-col gap-1 overflow-y-auto'>
+                {listasQuery.data.map((item) => {
+                  const esListaActual = item.idLista === idLista
+                  return (
+                    <li key={item.idLista}>
+                      {esListaActual ? (
+                        <span
+                          className='block rounded-md px-2 py-1.5 text-sm font-medium text-primary'
+                          aria-current='page'
+                        >
+                          {item.nombre} ({item.sigla})
+                        </span>
+                      ) : (
+                        <Link
+                          to='/comicios/$idEleccion/listas/$idLista'
+                          params={{
+                            idEleccion: String(idEleccion),
+                            idLista: String(item.idLista),
+                          }}
+                          className='block rounded-md px-2 py-1.5 text-sm hover:bg-muted'
+                        >
+                          {item.nombre} ({item.sigla})
+                        </Link>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      )}
 
       {conflictMessage && (
         <Alert variant='destructive'>
@@ -263,14 +306,6 @@ export const ListaDetailPanel = ({
               Candidatos
             </p>
             <p className='font-medium'>{candidatos.length}</p>
-          </div>
-          <div>
-            <p className='text-xs tracking-wide text-muted-foreground uppercase'>
-              Logotipo
-            </p>
-            <p className='font-medium'>
-              {lista.logoUrl ? 'Configurado' : 'Sin logotipo'}
-            </p>
           </div>
         </CardContent>
       </Card>

@@ -102,7 +102,13 @@ export const buildComiciosBreadcrumbEntries = ({
         ? `${listaNombre} (${listaSigla})`
         : `Lista #${idLista}`
 
-    entries.push(comicioSection, { label: listaLabel })
+    const comicioSectionSinMenu: BreadcrumbEntry = {
+      label: comicioSection.label,
+      to: comicioSection.to,
+      params: comicioSection.params,
+    }
+
+    entries.push(comicioSectionSinMenu, { label: listaLabel })
     return entries
   }
 

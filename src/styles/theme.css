@@ -36,6 +36,7 @@
 
 /* Pantallas públicas con diseño claro fijo (login admin, BUD, boleta). */
 .votar-light-surface {
+  --background: oklch(1 0 0);
   --foreground: oklch(0.129 0.042 264.695);
   --card-foreground: oklch(0.129 0.042 264.695);
   --popover-foreground: oklch(0.129 0.042 264.695);

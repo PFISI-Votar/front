@@ -96,4 +96,20 @@ export type OficializarResponse = {
   idEleccion: number
   estado: EleccionEstado
   mapeo: ListaMapeoItem[]
+  /** VOTAR-473: false si el stack on-chain no se desplegó (p. ej. sin fondos). */
+  onChainDesplegado: boolean
+}
+
+export type StackOnChainStatus = {
+  idEleccion: number
+  desplegado: boolean
+}
+
+export type DespliegueOnChainResponse = {
+  idEleccion: number
+  alreadyDeployed: boolean
+  txHash: string
+  ballot: string
+  voteRegistry: string
+  auditView: string
 }
