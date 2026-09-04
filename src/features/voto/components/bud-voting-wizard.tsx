@@ -936,11 +936,7 @@ export const BudVotingWizard = ({
   // en realidad debe ir a cooldown o límite de intentos.
   if (isLoadingEstadoRevoto) {
     return (
-      <BudWizardShell
-        step='identity'
-        estadoRevoto={estadoRevoto}
-        onLogout={handleLogout}
-      >
+      <BudWizardShell estadoRevoto={estadoRevoto} onLogout={handleLogout}>
         <div className='flex min-h-[24rem] items-center justify-center'>
           <p className='text-sm text-slate-600'>Preparando tu boleta…</p>
         </div>
@@ -949,11 +945,7 @@ export const BudVotingWizard = ({
   }
 
   return (
-    <BudWizardShell
-      step={effectiveStep}
-      estadoRevoto={estadoRevoto}
-      onLogout={handleLogout}
-    >
+    <BudWizardShell estadoRevoto={estadoRevoto} onLogout={handleLogout}>
       {pausada && (
         <Alert variant='destructive' className='mb-4'>
           <AlertCircle className='size-4' aria-hidden='true' />
@@ -1134,78 +1126,78 @@ export const BudVotingWizard = ({
 
 const BudWizardShell = ({
   children,
-  step,
   estadoRevoto,
   onLogout,
 }: {
   children: ReactNode
-  step: WizardStep
   estadoRevoto?: EstadoRevoto
   onLogout: () => void
-}) => (
-  <main className='votar-light-surface relative min-h-svh overflow-x-clip overflow-y-auto bg-[#fdfcfa] text-[#202124]'>
-    <div className='pointer-events-none absolute inset-0' aria-hidden='true'>
-      {BACKGROUND_FINGERPRINTS.map((fingerprint) => (
-        <img
-          key={`${fingerprint.top}-${fingerprint.left}`}
-          src={budFingerprint}
-          alt=''
-          className='absolute select-none'
-          style={{
-            top: fingerprint.top,
-            left: fingerprint.left,
-            width: fingerprint.width,
-            opacity: fingerprint.opacity,
-            transform: `translate(-50%, -50%) rotate(${fingerprint.rotate})`,
-          }}
-        />
-      ))}
-    </div>
-    <section className={BUD_SHELL_SECTION_CLASS}>
-      <header className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-        <div className='min-w-0'>
-          <p className='text-2xl leading-none font-extrabold tracking-tight text-[#2f6f9f] sm:text-3xl'>
-            VOTAR
-          </p>
-          <p className='mt-2 text-sm text-slate-600'>Boleta Única Digital</p>
-        </div>
-        <div className='flex max-w-full flex-wrap items-center gap-2'>
-          {estadoRevoto ? (
-            <Badge
+}) => {
+  useEffect(() => {
+    document.body.classList.add('votar-light-surface')
+    return () => {
+      document.body.classList.remove('votar-light-surface')
+    }
+  }, [])
+
+  return (
+    <main className='votar-light-surface relative min-h-svh overflow-x-clip bg-[#fdfcfa] text-[#202124]'>
+      <div className='pointer-events-none absolute inset-0' aria-hidden='true'>
+        {BACKGROUND_FINGERPRINTS.map((fingerprint) => (
+          <img
+            key={`${fingerprint.top}-${fingerprint.left}`}
+            src={budFingerprint}
+            alt=''
+            className='absolute select-none'
+            style={{
+              top: fingerprint.top,
+              left: fingerprint.left,
+              width: fingerprint.width,
+              opacity: fingerprint.opacity,
+              transform: `translate(-50%, -50%) rotate(${fingerprint.rotate})`,
+            }}
+          />
+        ))}
+      </div>
+      <section className={BUD_SHELL_SECTION_CLASS}>
+        <header className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+          <div className='min-w-0'>
+            <p className='text-2xl leading-none font-extrabold tracking-tight text-[#2f6f9f] sm:text-3xl'>
+              VOTAR
+            </p>
+            <p className='mt-2 text-sm text-slate-600'>Boleta Única Digital</p>
+          </div>
+          <div className='flex max-w-full flex-wrap items-center gap-2'>
+            {estadoRevoto ? (
+              <Badge
+                variant='outline'
+                className='rounded-full border-emerald-300/70 bg-emerald-50/90 px-3 py-1 text-xs font-semibold text-emerald-900 sm:text-sm'
+                aria-live='polite'
+                data-testid='intentos-restantes'
+              >
+                Intentos restantes: {estadoRevoto.intentosRestantes}
+              </Badge>
+            ) : null}
+            {/* VOTAR-445: logout siempre visible; no toca contadores de revoto. */}
+            <Button
+              type='button'
               variant='outline'
-              className='rounded-full border-emerald-300/70 bg-emerald-50/90 px-3 py-1 text-xs font-semibold text-emerald-900 sm:text-sm'
-              aria-live='polite'
-              data-testid='intentos-restantes'
+              size='sm'
+              className='rounded-full border-slate-300 bg-white/90'
+              onClick={onLogout}
+              aria-label='Cerrar sesión'
+              data-testid='bud-logout'
             >
-              Intentos restantes: {estadoRevoto.intentosRestantes}
-            </Badge>
-          ) : null}
-          <Badge
-            variant='outline'
-            className='rounded-full border-[#2f6f9f]/30 bg-white/80 px-3 py-1 text-xs text-[#2f6f9f] sm:text-sm'
-          >
-            <ShieldCheck className='size-3.5' />
-            {getStepLabel(step)}
-          </Badge>
-          {/* VOTAR-445: logout siempre visible; no toca contadores de revoto. */}
-          <Button
-            type='button'
-            variant='outline'
-            size='sm'
-            className='rounded-full border-slate-300 bg-white/90'
-            onClick={onLogout}
-            aria-label='Cerrar sesión'
-            data-testid='bud-logout'
-          >
-            <LogOut className='size-3.5' />
-            Cerrar sesión
-          </Button>
-        </div>
-      </header>
-      {children}
-    </section>
-  </main>
-)
+              <LogOut className='size-3.5' />
+              Cerrar sesión
+            </Button>
+          </div>
+        </header>
+        {children}
+      </section>
+    </main>
+  )
+}
 
 const WizardStepper = ({ currentStep }: { currentStep: WizardStep }) => {
   const steps = [
@@ -2709,15 +2701,4 @@ const ListLogo = ({
       </AvatarFallback>
     </Avatar>
   )
-}
-
-const getStepLabel = (step: WizardStep) => {
-  if (step === 'limit-reached') return 'Límite de intentos'
-  if (step === 'cooldown') return 'Espera entre votos'
-  if (step === 'registered') return 'Voto registrado'
-  if (step === 'identity') return 'Antes de votar'
-  if (step === 'selection') return 'Selección de voto'
-  if (step === 'review') return 'Confirmación'
-  if (step === 'transmitting') return 'Envío a la red'
-  return 'Voto exitoso'
 }
