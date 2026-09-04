@@ -45,6 +45,15 @@ const ESTADOS_COMICIO_FINALIZADO = [
   'ARCHIVADA',
 ] as const
 
+const ESTADO_COMICIO_FINALIZADO_LABEL: Record<
+  (typeof ESTADOS_COMICIO_FINALIZADO)[number],
+  string
+> = {
+  CERRADA: 'Comicio cerrado',
+  ESCRUTADA: 'Resultados escrutados',
+  ARCHIVADA: 'Comicio archivado',
+}
+
 type ListaDetailPanelProps = {
   idEleccion: number
   idLista: number
@@ -218,7 +227,10 @@ export const ListaDetailPanel = ({
               eleccionQuery.data
                 ?.estado as (typeof ESTADOS_COMICIO_FINALIZADO)[number]
             )
-              ? eleccionQuery.data!.estado
+              ? ESTADO_COMICIO_FINALIZADO_LABEL[
+                  eleccionQuery.data!
+                    .estado as (typeof ESTADOS_COMICIO_FINALIZADO)[number]
+                ]
               : lista.estado}
           </Badge>
         </div>
