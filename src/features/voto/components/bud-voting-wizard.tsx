@@ -38,6 +38,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { CumplimientoLey25326Link } from '@/features/cumplimiento'
 import {
   TIPOS_VOTACION,
   type TipoVotacion,
@@ -1194,6 +1195,10 @@ const BudWizardShell = ({
           </div>
         </header>
         {children}
+        {/* VOTAR-378: acceso a la explicación de cumplimiento Ley 25.326 */}
+        <footer className='mt-8 border-t border-[#e4e7eb] pt-4 pb-2'>
+          <CumplimientoLey25326Link />
+        </footer>
       </section>
     </main>
   )
