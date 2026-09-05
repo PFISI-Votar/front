@@ -962,6 +962,11 @@ export const BudVotingWizard = ({
         validationCredentialRef.current = null
         setValidatorSignature(firmaValidacion)
       } catch {
+        // Credencial vencida/usada (410) o firma fallida tras consumo: limpiar para
+        // que el reintento emita una credencial nueva en FASE 1 (evita retry atrapado).
+        validationCredentialRef.current?.zeroize()
+        validationCredentialRef.current = null
+        setValidatorSignature(null)
         setSigningError(
           'No pudimos obtener la certificación de la Entidad de Firmas Digitales. Reintentá en unos segundos.'
         )
