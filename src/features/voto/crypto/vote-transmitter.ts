@@ -23,6 +23,8 @@ export type TransmitSignedVoteInput = {
   signed: SignedVotePayload
   voterLeaf: Hex
   merkleProof: readonly Hex[]
+  /** VOTAR-377 — institutional signature from the Entidad de Firmas Digitales. */
+  validatorSignature: Hex
 }
 
 export type TransmitSignedVoteResult = {
@@ -77,15 +79,18 @@ const applyGasMargin = (estimate: bigint, margin: number): bigint => {
 const buildCastArgs = (input: TransmitSignedVoteInput) => {
   const { signed } = input
   return [
-    BigInt(signed.electionId),
-    toBytes32(input.voterLeaf),
+    {
+      electionId: BigInt(signed.electionId),
+      voterLeaf: toBytes32(input.voterLeaf),
+      nullifier: signed.nullifier,
+      selectionHash: signed.selectionHash,
+      candidateId: signed.candidateId,
+      timestamp: BigInt(signed.timestamp),
+      expectedSigner: signed.expectedSigner,
+    },
     toProofBytes32(input.merkleProof),
-    signed.nullifier,
-    signed.selectionHash,
-    BigInt(signed.timestamp),
-    signed.expectedSigner,
     signed.signature,
-    signed.candidateId,
+    input.validatorSignature,
   ] as const
 }
 
