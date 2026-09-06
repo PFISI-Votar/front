@@ -76,7 +76,9 @@ describe('vote-transmitter — VOTAR-358', () => {
       args: unknown[]
     }
     // VOTAR-377/474 — args: [SignedVoteInput(candidateIds[]), merkleProof, signature, validatorSignature]
-    const voteTuple = estimateArgs.args[0] as { candidateIds: readonly bigint[] }
+    const voteTuple = estimateArgs.args[0] as {
+      candidateIds: readonly bigint[]
+    }
     expect(voteTuple.candidateIds).toEqual([101n])
     expect(estimateArgs.args[estimateArgs.args.length - 1]).toBe(
       `0x${'cd'.repeat(65)}`

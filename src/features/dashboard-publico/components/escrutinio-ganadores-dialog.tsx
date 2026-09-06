@@ -45,7 +45,10 @@ export const EscrutinioGanadoresDialog = ({
         </DialogHeader>
         <div className='space-y-6'>
           {grupos.map((grupo) => (
-            <section key={grupo.titulo} aria-labelledby={`ganadores-${grupo.titulo}`}>
+            <section
+              key={grupo.titulo}
+              aria-labelledby={`ganadores-${grupo.titulo}`}
+            >
               <h3
                 id={`ganadores-${grupo.titulo}`}
                 className='mb-2 text-sm font-semibold tracking-wide text-[#2f6f9f] uppercase'
@@ -79,10 +82,10 @@ export const EscrutinioGanadoresDialog = ({
                         ) : null}
                       </div>
                       <div className='shrink-0 text-end'>
-                        <p className='text-sm font-semibold tabular-nums text-[#202124]'>
+                        <p className='text-sm font-semibold text-[#202124] tabular-nums'>
                           {entrada.porcentaje.toLocaleString('es-AR')}%
                         </p>
-                        <p className='text-xs tabular-nums text-[#5f6368]'>
+                        <p className='text-xs text-[#5f6368] tabular-nums'>
                           {entrada.votos.toLocaleString('es-AR')} votos
                         </p>
                       </div>

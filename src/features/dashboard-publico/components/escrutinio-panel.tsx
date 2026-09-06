@@ -111,9 +111,7 @@ export const EscrutinioPanel = ({
   const donutData = toDonutChartData(data, {
     permitirVotoNulo: data.permitirVotoNulo ?? true,
   })
-  const donutsPorCategoria = isPorLista
-    ? []
-    : toDonutChartDataByCategoria(data)
+  const donutsPorCategoria = isPorLista ? [] : toDonutChartDataByCategoria(data)
   const ganadores = buildGanadores(data)
   const hasVotes = data.participacion.totalVotos > 0
 
