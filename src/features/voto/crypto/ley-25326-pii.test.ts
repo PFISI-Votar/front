@@ -18,7 +18,17 @@ const PII_TOKENS = [
 const FORBIDDEN_PARAM_NAMES =
   /^(dni|email|nombre|apellido|documento|cuil|cuit|telefono|legajo)$/i
 
-type AbiInput = { name: string; type: string }
+type AbiInput = {
+  name: string
+  type: string
+  components?: AbiInput[]
+}
+
+/** Flatten top-level + tuple `components` (VOTAR-377 SignedVoteInput). */
+const flattenAbiInputs = (inputs: readonly AbiInput[]): AbiInput[] =>
+  inputs.flatMap((item) =>
+    item.components?.length ? [item, ...item.components] : [item]
+  )
 
 const signed: SignedVotePayload = {
   electionId: 378,
@@ -39,6 +49,7 @@ const input: TransmitSignedVoteInput = {
   merkleProof: [
     '0x4444444444444444444444444444444444444444444444444444444444444444',
   ],
+  validatorSignature: `0x${'cd'.repeat(65)}`,
 }
 
 describe('VOTAR-378 Ley 25.326 — payload de voto y HTTPS', () => {
@@ -55,23 +66,27 @@ describe('VOTAR-378 Ley 25.326 — payload de voto y HTTPS', () => {
     expect(voteFn).toBeDefined()
     expect(signedVote).toBeDefined()
 
+    const voteInputs = (
+      voteFn && 'inputs' in voteFn ? voteFn.inputs : []
+    ) as AbiInput[]
+    const eventInputs = (
+      signedVote && 'inputs' in signedVote ? signedVote.inputs : []
+    ) as AbiInput[]
     const inputs = [
-      ...((voteFn && 'inputs' in voteFn ? voteFn.inputs : []) as AbiInput[]),
-      ...((signedVote && 'inputs' in signedVote
-        ? signedVote.inputs
-        : []) as AbiInput[]),
+      ...flattenAbiInputs(voteInputs),
+      ...flattenAbiInputs(eventInputs),
     ]
-    for (const input of inputs) {
-      expect(input.name).not.toMatch(FORBIDDEN_PARAM_NAMES)
-      expect(input.type).not.toMatch(/^string/)
+
+    for (const abiInput of inputs) {
+      expect(abiInput.name).not.toMatch(FORBIDDEN_PARAM_NAMES)
+      expect(abiInput.type).not.toMatch(/^string/)
     }
 
+    // VOTAR-377: voterLeaf vive dentro de SignedVoteInput (tuple), no como arg top-level.
+    // SignedVoteCast sigue sin exponerlo (anonimato on-chain).
     expect(inputs.some((item) => item.name === 'voterLeaf')).toBe(true)
-    expect(
-      (signedVote && 'inputs' in signedVote ? signedVote.inputs : []).map(
-        (item) => `${item.name}:${item.type}`
-      )
-    ).toEqual([
+    expect(eventInputs.some((item) => item.name === 'voterLeaf')).toBe(false)
+    expect(eventInputs.map((item) => `${item.name}:${item.type}`)).toEqual([
       'electionId:uint256',
       'nullifier:bytes32',
       'selectionHash:bytes32',
