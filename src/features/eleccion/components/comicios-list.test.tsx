@@ -54,6 +54,8 @@ vi.mock('@/features/eleccion/api/eleccion-api', () => ({
 
 vi.mock('@/features/eleccion/lista/api/lista-api', () => ({
   oficializarEleccion: vi.fn(),
+  reintentarDespliegueOnChain: vi.fn(),
+  obtenerEstadoStackOnChain: vi.fn(),
 }))
 
 vi.mock('@/features/eleccion/hooks/use-eleccion-websocket', () => ({
@@ -74,6 +76,15 @@ const createPreconditionError = (message: string) =>
       data: { message },
     }
   )
+
+const createNetworkError = (message: string) =>
+  new AxiosError(message, 'ERR_NETWORK', undefined, undefined, {
+    status: 503,
+    statusText: 'Service Unavailable',
+    headers: {},
+    config: {} as never,
+    data: { message },
+  })
 
 const mockElecciones: Eleccion[] = [
   {
@@ -337,6 +348,7 @@ describe('ComiciosList', () => {
       idEleccion: 2,
       estado: 'CONFIGURADA',
       mapeo: [],
+      onChainDesplegado: true,
     })
 
     await renderComiciosList()
@@ -360,11 +372,13 @@ describe('ComiciosList', () => {
       idEleccion: number
       estado: 'CONFIGURADA'
       mapeo: []
+      onChainDesplegado: boolean
     }) => void
     const pendingOficializar = new Promise<{
       idEleccion: number
       estado: 'CONFIGURADA'
       mapeo: []
+      onChainDesplegado: boolean
     }>((resolve) => {
       resolveOficializar = resolve
     })
@@ -393,11 +407,87 @@ describe('ComiciosList', () => {
       idEleccion: 2,
       estado: 'CONFIGURADA',
       mapeo: [],
+      onChainDesplegado: true,
     })
 
     await vi.waitFor(() => {
       expect(oficializarEleccion).toHaveBeenCalledWith(2)
     })
+  })
+
+  it('cambia el botón a Reintentar oficialización ante error de red', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+    vi.mocked(oficializarEleccion)
+      .mockRejectedValueOnce(createNetworkError('Timeout on-chain'))
+      .mockResolvedValueOnce({
+        idEleccion: 2,
+        estado: 'CONFIGURADA',
+        mapeo: [],
+        onChainDesplegado: true,
+      })
+
+    await renderComiciosList()
+
+    await userEvent.click(
+      page.getByRole('button', {
+        name: 'Oficializar comicio Elección Provincial 2025',
+      })
+    )
+    await userEvent.click(
+      page.getByRole('button', { name: 'Sí, oficializar comicio' })
+    )
+
+    await expect
+      .element(
+        page.getByRole('button', {
+          name: 'Reintentar oficialización Elección Provincial 2025',
+        })
+      )
+      .toBeInTheDocument()
+
+    await userEvent.click(
+      page.getByRole('button', {
+        name: 'Reintentar oficialización Elección Provincial 2025',
+      })
+    )
+
+    await vi.waitFor(() => {
+      expect(oficializarEleccion).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  it('muestra Reintentar oficialización cuando abrir falla por contratos faltantes', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+    vi.mocked(abrirEleccion).mockRejectedValue(
+      new AxiosError('sin contratos', 'ERR_BAD_REQUEST', undefined, undefined, {
+        status: 422,
+        statusText: 'Unprocessable Entity',
+        headers: {},
+        config: {} as never,
+        data: {
+          message:
+            'El comicio 1 no tiene contratos electorales desplegados on-chain.',
+        },
+      })
+    )
+
+    await renderComiciosList()
+
+    await userEvent.click(
+      page.getByRole('button', {
+        name: 'Abrir comicio Elección Municipal 2025',
+      })
+    )
+    const confirmButtons = page.getByRole('button', { name: 'Abrir comicio' })
+    await userEvent.click(confirmButtons)
+
+    await expect
+      .element(
+        page.getByRole('button', {
+          name: 'Reintentar oficialización Elección Municipal 2025',
+        })
+      )
+      .toBeInTheDocument()
   })
 
   it('elimina un comicio en BORRADOR tras confirmar con el nombre exacto', async () => {

@@ -84,6 +84,7 @@ function EditarComicioPage() {
           title='Configuración del comicio'
           desc='Modifique los datos generales, la modalidad electoral y los métodos de acceso. Las categorías se gestionan en la oferta electoral.'
           contentWidth='wide'
+          fadeBottom={false}
         >
           <ComicioForm
             mode='edit'
