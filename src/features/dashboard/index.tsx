@@ -1,12 +1,10 @@
 import { Link } from '@tanstack/react-router'
-import { PlusCircle, ScrollText, Vote } from 'lucide-react'
+import { PlusCircle, ScrollText, Settings, Vote } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth-store'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import {
-  AppHeaderActions,
-  useAppLayoutConfig,
-} from '@/components/layout/app-layout'
+import { useAppLayoutConfig } from '@/components/layout/app-layout'
+import { ThemeSwitch } from '@/components/theme-switch'
 import { VotarLoginBackground } from '@/features/auth/sign-in/components/login-screen-shared'
 
 type AccesoRapido = {
@@ -28,7 +26,22 @@ export function Dashboard() {
       'absolute top-0 inset-x-0 bg-transparent shadow-none border-none',
     mainClassName: 'p-0 @7xl/content:max-w-none',
     headerLeading: <div className='me-auto' />,
-    headerTrailing: <AppHeaderActions />,
+    headerTrailing: (
+      <>
+        <Button
+          asChild
+          variant='ghost'
+          size='icon'
+          className='scale-95 rounded-full text-[#2f6f9f] dark:text-[#7ab3d4]'
+        >
+          <Link to='/configuracion'>
+            <Settings className='size-[1.2rem]' />
+            <span className='sr-only'>Configuración</span>
+          </Link>
+        </Button>
+        <ThemeSwitch />
+      </>
+    ),
   })
 
   const { auth } = useAuthStore()

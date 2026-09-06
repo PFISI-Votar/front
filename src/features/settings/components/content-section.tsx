@@ -7,6 +7,12 @@ type ContentSectionProps = {
   children: React.JSX.Element
   /** Ancho del contenido. Por defecto se limita a `xl` (settings). */
   contentWidth?: 'default' | 'wide'
+  /**
+   * Gradiente inferior del área scrolleable.
+   * Desactivar en formularios con acciones al final para evitar el blur
+   * inconsistente sobre Cancelar / Submit (VOTAR-477).
+   */
+  fadeBottom?: boolean
 }
 
 export function ContentSection({
@@ -14,6 +20,7 @@ export function ContentSection({
   desc,
   children,
   contentWidth = 'default',
+  fadeBottom = true,
 }: ContentSectionProps) {
   return (
     <div className='flex flex-1 flex-col'>
@@ -22,7 +29,13 @@ export function ContentSection({
         <p className='text-sm text-muted-foreground'>{desc}</p>
       </div>
       <Separator className='my-4 flex-none' />
-      <div className='faded-bottom h-full w-full overflow-y-auto scroll-smooth pe-4 pb-12'>
+      <div
+        className={cn(
+          'h-full w-full overflow-y-auto scroll-smooth pe-4 pb-12',
+          fadeBottom && 'faded-bottom'
+        )}
+        data-fade-bottom={fadeBottom ? 'true' : 'false'}
+      >
         <div
           className={cn(
             '-mx-1 px-1.5',

@@ -100,6 +100,46 @@ describe('buildWizardSelectionPayload', () => {
       ],
     })
   })
+
+  it('VOTAR-474: includes every candidate of a list within the same category', () => {
+    const multiCandidates = [
+      ...candidates,
+      { id: '202', roleId: '2', listId: '11' },
+    ]
+    expect(
+      buildWizardSelectionPayload({
+        specialVote: null,
+        candidateSelections: {},
+        selectedListId: '11',
+        roles,
+        candidates: multiCandidates,
+      })
+    ).toEqual({
+      selecciones: [
+        { idCategoria: 1, idCandidato: 101 },
+        { idCategoria: 2, idCandidato: 201 },
+        { idCategoria: 2, idCandidato: 202 },
+      ],
+    })
+  })
+
+  it('VOTAR-474: keeps multiple explicit selections in the same category', () => {
+    expect(
+      buildWizardSelectionPayload({
+        specialVote: null,
+        candidateSelections: { '1': ['101'], '2': ['201', '202'] },
+        selectedListId: null,
+        roles,
+        candidates: [...candidates, { id: '202', roleId: '2', listId: '12' }],
+      })
+    ).toEqual({
+      selecciones: [
+        { idCategoria: 1, idCandidato: 101 },
+        { idCategoria: 2, idCandidato: 201 },
+        { idCategoria: 2, idCandidato: 202 },
+      ],
+    })
+  })
 })
 
 describe('areAllRolesBlank', () => {

@@ -1,3 +1,4 @@
+import { resolveMediaUrl } from '@/lib/media-url'
 import { getInitials } from '@/features/dashboard-publico/lib/candidato-display'
 import type { CandidatoBoletaDigital } from '@/features/voto/data/schema'
 
@@ -20,7 +21,7 @@ export const CandidatoPublicoCard = ({
     >
       {candidato.fotoUrl ? (
         <img
-          src={candidato.fotoUrl}
+          src={resolveMediaUrl(candidato.fotoUrl)}
           alt={`Foto de ${candidato.nombreCompleto}`}
           className='size-14 shrink-0 rounded-full object-cover'
         />

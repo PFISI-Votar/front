@@ -247,11 +247,11 @@ describe('DashboardPublicoPage', () => {
     const screen = await renderPage(6, 'resultados')
 
     await expect
-      .element(screen.getByRole('heading', { name: /^Votos por candidato$/i }))
+      .element(screen.getByRole('heading', { name: /^Votos por lista$/i }))
       .toBeInTheDocument()
     await expect
       .element(
-        screen.getByRole('heading', { name: /^Distribución relativa$/i })
+        screen.getByRole('heading', { name: /^Distribución por lista$/i })
       )
       .toBeInTheDocument()
   })
@@ -305,6 +305,105 @@ describe('DashboardPublicoPage', () => {
     const estadoScreen = await renderPage(6, 'estado')
     await expect
       .element(estadoScreen.getByText('Estado del comicio'))
+      .toBeInTheDocument()
+  })
+
+  it('VOTAR-459: resumen simplificado cuando resultados y participación están ocultos', async () => {
+    mocks.obtenerConfiguracionBud.mockResolvedValue({
+      idEleccion: 6,
+      nombre: 'Elección Centro de Estudiantes',
+      estado: 'ABIERTA',
+      tipoVotacion: 'POR_LISTA',
+      metodosAutenticacion: ['SSO_INSTITUCIONAL'],
+      visibilidadDashboard: {
+        resultados: false,
+        participacion: false,
+        revoto: true,
+        transacciones: true,
+      },
+    })
+    mocks.useEscrutinio.mockReturnValue({
+      data: mockEscrutinioLive,
+      isLoading: false,
+      isError: false,
+    })
+
+    const screen = await renderPage(6)
+
+    // Resultados y Participación se omiten en silencio en el resumen…
+    await expect
+      .element(
+        screen.getByText(
+          /escrutinio estará disponible cuando el comicio esté abierto/i
+        )
+      )
+      .not.toBeInTheDocument()
+    await expect
+      .element(screen.getByRole('group', { name: /participación/i }))
+      .not.toBeInTheDocument()
+    // …y las solapas correspondientes no aparecen en el nav.
+    await expect
+      .element(screen.getByRole('link', { name: 'Resultados' }))
+      .not.toBeInTheDocument()
+    await expect
+      .element(screen.getByRole('link', { name: 'Participación' }))
+      .not.toBeInTheDocument()
+    // Padrón y Estado (siempre visibles) permanecen intactos.
+    await expect
+      .element(screen.getByText('Total de votantes habilitados'))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByText('Estado del comicio'))
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByRole('link', { name: 'Re-voto' }))
+      .toBeInTheDocument()
+  })
+
+  it('VOTAR-459: no dispara fetch/WS de resultados mientras la solapa está oculta', async () => {
+    mocks.obtenerConfiguracionBud.mockResolvedValue({
+      idEleccion: 6,
+      nombre: 'Elección Centro de Estudiantes',
+      estado: 'ABIERTA',
+      tipoVotacion: 'POR_LISTA',
+      metodosAutenticacion: ['SSO_INSTITUCIONAL'],
+      visibilidadDashboard: {
+        resultados: false,
+        participacion: true,
+        revoto: true,
+        transacciones: true,
+      },
+    })
+
+    const screen = await renderPage(6, 'resultados')
+
+    await expect
+      .element(screen.getByText(/Sección no disponible/i))
+      .toBeInTheDocument()
+
+    expect(mocks.useEscrutinio).not.toHaveBeenCalled()
+    expect(mocks.useDashboardResultadosWebSocket).not.toHaveBeenCalled()
+  })
+
+  it('VOTAR-459: muestra "Sección no disponible" al navegar directo a /resultados si está oculta', async () => {
+    mocks.obtenerConfiguracionBud.mockResolvedValue({
+      idEleccion: 6,
+      nombre: 'Elección Centro de Estudiantes',
+      estado: 'ABIERTA',
+      tipoVotacion: 'POR_LISTA',
+      metodosAutenticacion: ['SSO_INSTITUCIONAL'],
+      visibilidadDashboard: {
+        resultados: false,
+        participacion: true,
+        revoto: true,
+        transacciones: true,
+      },
+    })
+
+    const screen = await renderPage(6, 'resultados')
+
+    await expect
+      .element(screen.getByText(/Sección no disponible/i))
       .toBeInTheDocument()
   })
 

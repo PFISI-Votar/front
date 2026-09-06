@@ -156,9 +156,17 @@ describe('OfertaPublicaPage — VOTAR-368', () => {
     await expect
       .element(screen.getByRole('heading', { name: 'Vocales' }))
       .toBeInTheDocument()
+    const fotoAna = screen.getByAltText('Foto de Ana Alvarez')
+    await expect.element(fotoAna).toBeInTheDocument()
+    // VOTAR-466: el dashboard público es servido por el front, no por la
+    // API — sin resolveMediaUrl, `fotoUrl` relativo ('/uploads/...' o
+    // '/imagenes/...') resolvería contra el origen equivocado.
     await expect
-      .element(screen.getByAltText('Foto de Ana Alvarez'))
-      .toBeInTheDocument()
+      .element(fotoAna)
+      .toHaveAttribute(
+        'src',
+        'http://localhost:3000/uploads/candidatos/ana.jpg'
+      )
     await expect
       .element(screen.getByText(/Autoridad máxima del centro/i))
       .toBeInTheDocument()

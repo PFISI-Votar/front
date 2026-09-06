@@ -36,7 +36,7 @@ export type EscrutinioResultadosPorLista = {
 }
 
 export type EscrutinioResultadosPorCategoria = {
-  tipoVotacion: 'POR_CANDIDATO' | 'MIXTO'
+  tipoVotacion: 'POR_CANDIDATO'
   resumenPorCategoria: EscrutinioResumenCategoria[]
   votoEnBlanco: EscrutinioVotoBlanco | null
 }

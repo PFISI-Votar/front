@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => {
   const mockSave = vi.fn()
   const mockText = vi.fn()
   const mockAddImage = vi.fn()
+  const mockLoadImageAsJpegDataUrl = vi.fn()
   const mockSetFontSize = vi.fn()
   const mockSetFont = vi.fn()
   const mockSetLineWidth = vi.fn()
@@ -18,6 +19,7 @@ const mocks = vi.hoisted(() => {
     mockSave,
     mockText,
     mockAddImage,
+    mockLoadImageAsJpegDataUrl,
     mockSetFontSize,
     mockSetFont,
     mockSetLineWidth,
@@ -28,6 +30,10 @@ const mocks = vi.hoisted(() => {
     mockAddPage,
   }
 })
+
+vi.mock('@/features/eleccion/lib/load-image-as-jpeg-data-url', () => ({
+  loadImageAsJpegDataUrl: mocks.mockLoadImageAsJpegDataUrl,
+}))
 
 vi.mock('jspdf', () => ({
   jsPDF: class {
@@ -161,16 +167,20 @@ describe('generar-acta-apertura-pdf — VOTAR-374 UAT-01', () => {
   })
 
   it('embeds the institutional logo when logoUrl is present', async () => {
-    const blob = new Blob(['fake-image'], { type: 'image/jpeg' })
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(blob) })
+    // VOTAR-466: la carga y rasterización WebP→JPEG vive en
+    // load-image-as-jpeg-data-url.ts (con su propio test); acá solo importa
+    // que el resultado se pase a addImage como JPEG.
+    mocks.mockLoadImageAsJpegDataUrl.mockResolvedValue(
+      'data:image/jpeg;base64,ZmFrZQ=='
     )
 
     await generarActaAperturaPdf(
-      buildData({ logoUrl: '/uploads/sistema/logo.jpg' })
+      buildData({ logoUrl: '/imagenes/3f8c1c2a-5b1e-4a9d-9f0c-2b7e5d6a1c34' })
     )
 
+    expect(mocks.mockLoadImageAsJpegDataUrl).toHaveBeenCalledWith(
+      expect.stringContaining('/imagenes/3f8c1c2a-5b1e-4a9d-9f0c-2b7e5d6a1c34')
+    )
     expect(mocks.mockAddImage).toHaveBeenCalledWith(
       expect.stringContaining('data:'),
       'JPEG',
@@ -182,10 +192,10 @@ describe('generar-acta-apertura-pdf — VOTAR-374 UAT-01', () => {
   })
 
   it('continues without a logo when the image fails to load', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }))
+    mocks.mockLoadImageAsJpegDataUrl.mockResolvedValue(null)
 
     await generarActaAperturaPdf(
-      buildData({ logoUrl: '/uploads/sistema/logo.jpg' })
+      buildData({ logoUrl: '/imagenes/3f8c1c2a-5b1e-4a9d-9f0c-2b7e5d6a1c34' })
     )
 
     expect(mocks.mockAddImage).not.toHaveBeenCalled()

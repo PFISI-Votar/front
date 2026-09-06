@@ -14,7 +14,7 @@ const signed: SignedVotePayload = {
     '0x1111111111111111111111111111111111111111111111111111111111111111',
   selectionHash:
     '0x2222222222222222222222222222222222222222222222222222222222222222',
-  candidateId: 101n,
+  candidateIds: [101n],
   timestamp: 1_700_000_000,
   expectedSigner: '0x00000000000000000000000000000000000000aa',
   signature: `0x${'ab'.repeat(65)}`,
@@ -27,6 +27,7 @@ const input: TransmitSignedVoteInput = {
   merkleProof: [
     '0x4444444444444444444444444444444444444444444444444444444444444444',
   ],
+  validatorSignature: `0x${'cd'.repeat(65)}`,
 }
 
 describe('vote-transmitter — VOTAR-358', () => {
@@ -74,15 +75,24 @@ describe('vote-transmitter — VOTAR-358', () => {
     const estimateArgs = estimateContractGas.mock.calls[0]?.[0] as {
       args: unknown[]
     }
-    expect(estimateArgs.args[estimateArgs.args.length - 1]).toBe(101n)
+    // VOTAR-377/474 — args: [SignedVoteInput(candidateIds[]), merkleProof, signature, validatorSignature]
+    const voteTuple = estimateArgs.args[0] as {
+      candidateIds: readonly bigint[]
+    }
+    expect(voteTuple.candidateIds).toEqual([101n])
+    expect(estimateArgs.args[estimateArgs.args.length - 1]).toBe(
+      `0x${'cd'.repeat(65)}`
+    )
     expect(writeContract).toHaveBeenCalledWith(
-      expect.objectContaining({
-        gas: 110_000n,
-        args: expect.arrayContaining([101n]),
-      })
+      expect.objectContaining({ gas: 110_000n })
     )
     const writeArgs = writeContract.mock.calls[0]?.[0] as { args: unknown[] }
-    expect(writeArgs.args[writeArgs.args.length - 1]).toBe(101n)
+    expect(
+      (writeArgs.args[0] as { candidateIds: readonly bigint[] }).candidateIds
+    ).toEqual([101n])
+    expect(writeArgs.args[writeArgs.args.length - 1]).toBe(
+      `0x${'cd'.repeat(65)}`
+    )
     expect(result.txHash).toBe('0x' + 'f'.repeat(64))
     expect(result.blockNumber).toBe(42n)
     expect(onTxHash).toHaveBeenCalledWith('0x' + 'f'.repeat(64))

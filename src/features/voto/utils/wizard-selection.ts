@@ -43,18 +43,13 @@ const buildSeleccionesForList = (
   candidates: WizardSelectionInput['candidates']
 ): SeleccionVoto[] =>
   roles.flatMap((role) => {
-    const roleCandidate = candidates.find(
+    const roleCandidates = candidates.filter(
       (candidate) => candidate.listId === listId && candidate.roleId === role.id
     )
-    if (!roleCandidate) {
-      return []
-    }
-    return [
-      {
-        idCategoria: Number(role.id),
-        idCandidato: Number(roleCandidate.id),
-      },
-    ]
+    return roleCandidates.map((roleCandidate) => ({
+      idCategoria: Number(role.id),
+      idCandidato: Number(roleCandidate.id),
+    }))
   })
 
 const rolesWithCandidates = (
