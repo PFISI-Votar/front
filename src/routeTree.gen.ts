@@ -13,6 +13,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as VerificarIndexRouteImport } from './routes/verificar/index'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as VerificarTxHashRouteImport } from './routes/verificar/$txHash'
+import { Route as CumplimientoLey25326RouteImport } from './routes/cumplimiento/ley-25326'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as errors500RouteImport } from './routes/(errors)/500'
 import { Route as errors404RouteImport } from './routes/(errors)/404'
@@ -75,6 +76,11 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
 const VerificarTxHashRoute = VerificarTxHashRouteImport.update({
   id: '/verificar/$txHash',
   path: '/verificar/$txHash',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CumplimientoLey25326Route = CumplimientoLey25326RouteImport.update({
+  id: '/cumplimiento/ley-25326',
+  path: '/cumplimiento/ley-25326',
   getParentRoute: () => rootRouteImport,
 } as any)
 const errors503Route = errors503RouteImport.update({
@@ -341,6 +347,7 @@ export interface FileRoutesByFullPath {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/cumplimiento/ley-25326': typeof CumplimientoLey25326Route
   '/verificar/$txHash': typeof VerificarTxHashRoute
   '/verificar/': typeof VerificarIndexRoute
   '/comicios/$idEleccion/dashboard': typeof ComiciosIdEleccionDashboardRouteRouteWithChildren
@@ -387,6 +394,7 @@ export interface FileRoutesByTo {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/cumplimiento/ley-25326': typeof CumplimientoLey25326Route
   '/verificar/$txHash': typeof VerificarTxHashRoute
   '/': typeof AuthenticatedIndexRoute
   '/verificar': typeof VerificarIndexRoute
@@ -437,6 +445,7 @@ export interface FileRoutesById {
   '/(errors)/404': typeof errors404Route
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
+  '/cumplimiento/ley-25326': typeof CumplimientoLey25326Route
   '/verificar/$txHash': typeof VerificarTxHashRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/verificar/': typeof VerificarIndexRoute
@@ -489,6 +498,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/cumplimiento/ley-25326'
     | '/verificar/$txHash'
     | '/verificar/'
     | '/comicios/$idEleccion/dashboard'
@@ -535,6 +545,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/cumplimiento/ley-25326'
     | '/verificar/$txHash'
     | '/'
     | '/verificar'
@@ -584,6 +595,7 @@ export interface FileRouteTypes {
     | '/(errors)/404'
     | '/(errors)/500'
     | '/(errors)/503'
+    | '/cumplimiento/ley-25326'
     | '/verificar/$txHash'
     | '/_authenticated/'
     | '/verificar/'
@@ -633,6 +645,7 @@ export interface RootRouteChildren {
   errors404Route: typeof errors404Route
   errors500Route: typeof errors500Route
   errors503Route: typeof errors503Route
+  CumplimientoLey25326Route: typeof CumplimientoLey25326Route
   VerificarTxHashRoute: typeof VerificarTxHashRoute
   VerificarIndexRoute: typeof VerificarIndexRoute
   ComiciosIdEleccionDashboardRouteRoute: typeof ComiciosIdEleccionDashboardRouteRouteWithChildren
@@ -667,6 +680,13 @@ declare module '@tanstack/react-router' {
       path: '/verificar/$txHash'
       fullPath: '/verificar/$txHash'
       preLoaderRoute: typeof VerificarTxHashRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cumplimiento/ley-25326': {
+      id: '/cumplimiento/ley-25326'
+      path: '/cumplimiento/ley-25326'
+      fullPath: '/cumplimiento/ley-25326'
+      preLoaderRoute: typeof CumplimientoLey25326RouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(errors)/503': {
@@ -1119,6 +1139,7 @@ const rootRouteChildren: RootRouteChildren = {
   errors404Route: errors404Route,
   errors500Route: errors500Route,
   errors503Route: errors503Route,
+  CumplimientoLey25326Route: CumplimientoLey25326Route,
   VerificarTxHashRoute: VerificarTxHashRoute,
   VerificarIndexRoute: VerificarIndexRoute,
   ComiciosIdEleccionDashboardRouteRoute:
