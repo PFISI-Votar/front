@@ -11,7 +11,7 @@ const TEST_NULLIFIER =
   '0x1111111111111111111111111111111111111111111111111111111111111111' as const
 
 describe('vote-signer', () => {
-  it('signs an EIP-712 vote payload with electionId, nullifier, selectionHash, candidateId and timestamp', async () => {
+  it('signs an EIP-712 vote payload with electionId, nullifier, selectionHash, candidateIds and timestamp', async () => {
     const account = privateKeyToAccount(generatePrivateKey())
     const selection = {
       selecciones: [
@@ -32,7 +32,7 @@ describe('vote-signer', () => {
     expect(signed.expectedSigner).toBe(account.address)
     expect(signed.nullifier).toBe(TEST_NULLIFIER)
     expect(signed.selectionHash).toBe(computeSelectionHash(selection))
-    expect(signed.candidateId).toBe(101n)
+    expect(signed.candidateIds).toEqual([101n, 201n])
     expect(signed.signature).toMatch(/^0x[0-9a-f]+$/i)
   })
 
@@ -51,7 +51,7 @@ describe('vote-signer', () => {
   it('builds the typed-data domain with name, version, chainId and verifyingContract', () => {
     expect(buildVoteTypedDataDomain(TEST_CONTRACT, 31_337)).toEqual({
       name: 'VOTAR',
-      version: '1',
+      version: '2',
       chainId: 31_337,
       verifyingContract: TEST_CONTRACT,
     })

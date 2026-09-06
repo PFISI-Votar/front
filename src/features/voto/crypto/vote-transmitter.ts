@@ -84,7 +84,7 @@ const buildCastArgs = (input: TransmitSignedVoteInput) => {
       voterLeaf: toBytes32(input.voterLeaf),
       nullifier: signed.nullifier,
       selectionHash: signed.selectionHash,
-      candidateId: signed.candidateId,
+      candidateIds: signed.candidateIds,
       timestamp: BigInt(signed.timestamp),
       expectedSigner: signed.expectedSigner,
     },
