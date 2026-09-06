@@ -699,12 +699,12 @@ export const BudVotingWizard = ({
   const handleSelectList = (listId: string | null) => {
     setSpecialVote(null)
     setSelectedListId(listId)
-
-    if (variant === 'candidatos') {
-      setCandidateSelections(
-        listId ? getCandidateSelectionsForList(listId, roles, candidates) : {}
-      )
-    }
+    // VOTAR-464/474: materializar todos los candidatos de la lista (todas las
+    // categorías / multi-banca) para que el payload on-chain incremente cada
+    // tally — no solo el primer cargo.
+    setCandidateSelections(
+      listId ? getCandidateSelectionsForList(listId, roles, candidates) : {}
+    )
 
     // Elegir una lista completa (por lista o como atajo "por cargo") ya deja
     // la boleta lista — avanza directo a revisión en vez de esperar un

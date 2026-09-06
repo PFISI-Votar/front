@@ -6,14 +6,19 @@ import { EscrutinioBarChart } from '@/features/dashboard-publico/components/escr
 import { EscrutinioDonutChart } from '@/features/dashboard-publico/components/escrutinio-donut-chart'
 import { EscrutinioExportMenu } from '@/features/dashboard-publico/components/escrutinio-export-menu'
 import { EscrutinioFrozenBanner } from '@/features/dashboard-publico/components/escrutinio-frozen-banner'
+import { EscrutinioGanadoresDialog } from '@/features/dashboard-publico/components/escrutinio-ganadores-dialog'
 import { ParticipacionStatsCards } from '@/features/dashboard-publico/components/participacion-stats-cards'
 import { useDashboardResultadosWebSocket } from '@/features/dashboard-publico/hooks/use-dashboard-resultados-websocket'
 import { useEscrutinio } from '@/features/dashboard-publico/hooks/use-escrutinio'
 import {
+  barChartTitleFor,
+  buildGanadores,
   formatRelativeUpdate,
   toBarChartData,
   toDonutChartData,
+  toDonutChartDataByCategoria,
 } from '@/features/dashboard-publico/lib/escrutinio-chart-data'
+import { TIPOS_VOTACION } from '@/features/eleccion/lista/data/schema'
 
 type EscrutinioPanelProps = {
   idEleccion: number
@@ -102,9 +107,14 @@ export const EscrutinioPanel = ({
   if (!data) return null
 
   const barData = toBarChartData(data)
+  const isPorLista = data.tipoVotacion === TIPOS_VOTACION.POR_LISTA
   const donutData = toDonutChartData(data, {
     permitirVotoNulo: data.permitirVotoNulo ?? true,
   })
+  const donutsPorCategoria = isPorLista
+    ? []
+    : toDonutChartDataByCategoria(data)
+  const ganadores = buildGanadores(data)
   const hasVotes = data.participacion.totalVotos > 0
 
   return (
@@ -125,6 +135,9 @@ export const EscrutinioPanel = ({
           </h2>
         </div>
         <div className='flex flex-wrap items-center gap-3'>
+          {fullCharts && hasVotes && (
+            <EscrutinioGanadoresDialog grupos={ganadores} />
+          )}
           {fullCharts && <EscrutinioExportMenu escrutinio={data} />}
           <p className='text-xs text-[#80868b]' aria-live='polite'>
             Actualizado {formatRelativeUpdate(data.actualizadoEn, now)}
@@ -148,8 +161,42 @@ export const EscrutinioPanel = ({
         </div>
       ) : (
         <>
-          <EscrutinioBarChart data={barData} height={fullCharts ? 320 : 240} />
-          {fullCharts && <EscrutinioDonutChart data={donutData} />}
+          <EscrutinioBarChart
+            data={barData}
+            height={fullCharts ? 320 : 240}
+            title={barChartTitleFor(data.tipoVotacion)}
+          />
+          {fullCharts && isPorLista && (
+            <EscrutinioDonutChart
+              data={donutData}
+              title='Distribución por lista'
+            />
+          )}
+          {fullCharts && !isPorLista && (
+            <div className='grid gap-4 md:grid-cols-2 xl:grid-cols-3'>
+              {donutsPorCategoria.map((serie) =>
+                serie.data.length > 0 ? (
+                  <EscrutinioDonutChart
+                    key={serie.idCategoria}
+                    data={serie.data}
+                    height={240}
+                    title={serie.nombreCategoria}
+                  />
+                ) : (
+                  <div
+                    key={serie.idCategoria}
+                    className='rounded-2xl border border-dashed border-[#e4e7eb] bg-white/80 p-4 text-center text-sm text-[#5f6368]'
+                    role='status'
+                  >
+                    <p className='mb-1 text-xs font-semibold tracking-wide text-[#2f6f9f] uppercase'>
+                      {serie.nombreCategoria}
+                    </p>
+                    Sin votos partidarios en este cargo.
+                  </div>
+                )
+              )}
+            </div>
+          )}
         </>
       )}
     </div>
