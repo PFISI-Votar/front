@@ -247,11 +247,11 @@ describe('DashboardPublicoPage', () => {
     const screen = await renderPage(6, 'resultados')
 
     await expect
-      .element(screen.getByRole('heading', { name: /^Votos por candidato$/i }))
+      .element(screen.getByRole('heading', { name: /^Votos por lista$/i }))
       .toBeInTheDocument()
     await expect
       .element(
-        screen.getByRole('heading', { name: /^Distribución relativa$/i })
+        screen.getByRole('heading', { name: /^Distribución por lista$/i })
       )
       .toBeInTheDocument()
   })
