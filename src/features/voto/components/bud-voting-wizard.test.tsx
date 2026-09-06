@@ -79,6 +79,23 @@ vi.mock('@/features/voto/services/votante-session', () => ({
   clearVotanteSession: (...args: unknown[]) => clearVotanteSessionMock(...args),
 }))
 
+// VOTAR-377 — Entidad de Firmas Digitales (dos fases).
+const emitirCredencialValidacionMock = vi
+  .fn()
+  .mockResolvedValue({ expiraEn: new Date(Date.now() + 900_000).toISOString() })
+const solicitarFirmaValidacionMock = vi.fn().mockResolvedValue({
+  firmaValidacion: '0x' + '77'.repeat(65),
+  direccionValidador: '0x' + '1'.repeat(40),
+  algoritmo: 'ECDSA_SECP256K1_EIP712',
+})
+
+vi.mock('@/features/voto/api/validacion-api', () => ({
+  emitirCredencialValidacion: (...args: unknown[]) =>
+    emitirCredencialValidacionMock(...args),
+  solicitarFirmaValidacion: (...args: unknown[]) =>
+    solicitarFirmaValidacionMock(...args),
+}))
+
 const transmitSignedVoteMock = vi.fn()
 const waitForVoteTxReceiptMock = vi.fn()
 
@@ -260,6 +277,16 @@ describe('BudVotingWizard', () => {
     registrarVotoEmitidoAnonimoMock.mockClear()
     registrarTransaccionPublicaMock.mockClear()
     registrarConsumoIntentoMock.mockClear()
+    emitirCredencialValidacionMock.mockClear()
+    solicitarFirmaValidacionMock.mockClear()
+    emitirCredencialValidacionMock.mockResolvedValue({
+      expiraEn: new Date(Date.now() + 900_000).toISOString(),
+    })
+    solicitarFirmaValidacionMock.mockResolvedValue({
+      firmaValidacion: '0x' + '77'.repeat(65),
+      direccionValidador: '0x' + '1'.repeat(40),
+      algoritmo: 'ECDSA_SECP256K1_EIP712',
+    })
     toastWarningMock.mockClear()
     toastErrorMock.mockClear()
     logVoteTxErrorMock.mockClear()
@@ -887,6 +914,19 @@ describe('BudVotingWizard', () => {
     await userEvent.click(screen.getByTestId('bud-logout'))
     expect(onLogout).toHaveBeenCalledOnce()
     expect(registrarConsumoIntentoMock).not.toHaveBeenCalled()
+  })
+
+  it('VOTAR-475: no muestra chip de paso en el header; el stepper conserva las etiquetas', async () => {
+    const screen = await renderWizard()
+
+    await expect
+      .element(screen.getByText('Selección de voto'))
+      .not.toBeInTheDocument()
+    await expect.element(screen.getByText('Inicio').first()).toBeInTheDocument()
+    await expect
+      .element(screen.getByText('Confirmación').first())
+      .toBeInTheDocument()
+    await expect.element(screen.getByText('Éxito').first()).toBeInTheDocument()
   })
 
   it('VOTAR-445: reanuda cast pendiente tras reload y completa el recibo', async () => {

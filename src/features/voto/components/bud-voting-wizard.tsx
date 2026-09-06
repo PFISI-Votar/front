@@ -38,11 +38,16 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { CumplimientoLey25326Link } from '@/features/cumplimiento'
 import {
   TIPOS_VOTACION,
   type TipoVotacion,
 } from '@/features/eleccion/lista/data/schema'
 import { firmarRecibo } from '@/features/voto/api/recibo-api'
+import {
+  emitirCredencialValidacion,
+  solicitarFirmaValidacion,
+} from '@/features/voto/api/validacion-api'
 import {
   obtenerEstadoRevoto,
   registrarTransaccionPublica,
@@ -77,6 +82,10 @@ import {
 } from '@/features/voto/crypto/pending-vote-cast'
 import { useEphemeralWallet } from '@/features/voto/crypto/use-ephemeral-wallet'
 import {
+  createValidationCredential,
+  type ValidationCredential,
+} from '@/features/voto/crypto/validation-credential'
+import {
   transmitSignedVote,
   waitForVoteTxReceipt,
   type TransmitProgressPhase,
@@ -84,6 +93,7 @@ import {
 import {
   formatCooldownDuration,
   getMessageForRevert,
+  VOTE_TX_MESSAGES,
 } from '@/features/voto/crypto/vote-tx-error-catalog'
 import {
   mapVoteTxError,
@@ -402,6 +412,10 @@ export const BudVotingWizard = ({
   const [signingError, setSigningError] = useState<string | null>(null)
   const [isSigning, setIsSigning] = useState(false)
   const [signedVote, setSignedVote] = useState<SignedVotePayload | null>(null)
+  /** VOTAR-377 — institutional signature adjuntada al castSignedVote. */
+  const [validatorSignature, setValidatorSignature] = useState<Hex | null>(null)
+  /** VOTAR-377 — credencial de validación anónima; secreto sólo en RAM. */
+  const validationCredentialRef = useRef<ValidationCredential | null>(null)
   const [transmitPhase, setTransmitPhase] = useState<TransmitUiPhase | null>(
     null
   )
@@ -714,7 +728,24 @@ export const BudVotingWizard = ({
     }
   }
 
-  const transmitVote = async (signed: SignedVotePayload) => {
+  const transmitVote = async (
+    signed: SignedVotePayload,
+    validatorSig: Hex | null = validatorSignature
+  ) => {
+    if (!validatorSig) {
+      const missingValidatorError = mapVoteTxError(
+        new Error('Falta la firma de validación institucional (VOTAR-377)')
+      )
+      setTxError({
+        ...missingValidatorError,
+        message: VOTE_TX_MESSAGES.validatorSignature,
+        canRetrySend: false,
+        canResign: true,
+      })
+      setTransmitPhase('error')
+      setStep('transmitting')
+      return
+    }
     // VOTAR-347 — corta antes de gastar gas en una tx que el contrato va a
     // revertir igual (EnforcedPause): mismo código/mensaje que un revert real,
     // pero instantáneo y sin round-trip a la red.
@@ -798,6 +829,7 @@ export const BudVotingWizard = ({
           signed,
           voterLeaf: leaf,
           merkleProof: merkleProofData.merkleProof as Hex[],
+          validatorSignature: validatorSig,
         },
         {
           contractAddress: ballotAddress,
@@ -852,6 +884,22 @@ export const BudVotingWizard = ({
     }
   }
 
+  /**
+   * VOTAR-377 FASE 1 — mientras la sesión SSO está activa, registra el compromiso
+   * de una credencial de validación anónima. El secreto sólo vive en RAM.
+   */
+  const ensureValidationCredential =
+    async (): Promise<ValidationCredential> => {
+      const existing = validationCredentialRef.current
+      if (existing) {
+        return existing
+      }
+      const credential = createValidationCredential()
+      await emitirCredencialValidacion(boleta.idEleccion, credential.commit)
+      validationCredentialRef.current = credential
+      return credential
+    }
+
   const handleIdentityConfirm = async () => {
     setIdentityError(null)
     try {
@@ -861,6 +909,8 @@ export const BudVotingWizard = ({
       }
       const proof = await merkleProofMutation.mutateAsync()
       setMerkleProofData(proof)
+      // VOTAR-377 — emite la credencial de validación mientras hay JWT de votante.
+      await ensureValidationCredential()
       const returning =
         (estadoRevoto?.votosConsumidos ?? 0) > 0 &&
         (estadoRevoto?.puedeVotar ?? true)
@@ -878,6 +928,12 @@ export const BudVotingWizard = ({
         if (error.response?.status === 429) {
           setIdentityError(
             'Demasiadas solicitudes. Esperá un minuto e intentá de nuevo.'
+          )
+          return
+        }
+        if (error.response?.status === 409) {
+          setIdentityError(
+            'Se alcanzó el máximo de certificaciones de validación para este comicio.'
           )
           return
         }
@@ -936,8 +992,44 @@ export const BudVotingWizard = ({
         boleta.ballotContractAddress
       )
       setSignedVote(signed)
+
+      // VOTAR-377 FASE 2 (anónima) — canjea el secreto de la credencial por la
+      // firma institucional sobre la totalidad del payload. Sin cookie SSO.
+      let institutionalSignature: Hex
+      try {
+        const credential = await ensureValidationCredential()
+        const { firmaValidacion } = await solicitarFirmaValidacion(
+          boleta.idEleccion,
+          {
+            secreto: credential.secreto,
+            nullifier: signed.nullifier,
+            selectionHash: signed.selectionHash,
+            // Validation EIP-712 (VOTAR-377) still binds a single audit id until
+            // the on-chain Validation typehash is updated for candidateIds[].
+            candidateId: signed.candidateIds[0]!.toString(),
+            timestamp: signed.timestamp,
+            expectedSigner: signed.expectedSigner,
+          }
+        )
+        institutionalSignature = firmaValidacion
+        credential.zeroize()
+        validationCredentialRef.current = null
+        setValidatorSignature(firmaValidacion)
+      } catch {
+        // Credencial vencida/usada (410) o firma fallida tras consumo: limpiar para
+        // que el reintento emita una credencial nueva en FASE 1 (evita retry atrapado).
+        validationCredentialRef.current?.zeroize()
+        validationCredentialRef.current = null
+        setValidatorSignature(null)
+        setSigningError(
+          'No pudimos obtener la certificación de la Entidad de Firmas Digitales. Reintentá en unos segundos.'
+        )
+        setIsSigning(false)
+        return
+      }
+
       setIsSigning(false)
-      await transmitVote(signed)
+      await transmitVote(signed, institutionalSignature)
     } catch {
       setSigningError(
         'No pudimos firmar tu voto de forma local. Reintentá en unos segundos.'
@@ -959,6 +1051,11 @@ export const BudVotingWizard = ({
     setTxHash(null)
     setBlockNumber(null)
     setSignedVote(null)
+    // VOTAR-377 — la nueva clave efímera invalida la firma institucional previa
+    // (liga expectedSigner); handleSignVote pedirá una credencial + firma nuevas.
+    setValidatorSignature(null)
+    validationCredentialRef.current?.zeroize()
+    validationCredentialRef.current = null
     setSigningError(null)
     try {
       await initializeEphemeralWallet(boleta.idEleccion, votanteScope)
@@ -987,11 +1084,7 @@ export const BudVotingWizard = ({
   // en realidad debe ir a cooldown o límite de intentos.
   if (isLoadingEstadoRevoto) {
     return (
-      <BudWizardShell
-        step='identity'
-        estadoRevoto={estadoRevoto}
-        onLogout={handleLogout}
-      >
+      <BudWizardShell estadoRevoto={estadoRevoto} onLogout={handleLogout}>
         <div className='flex min-h-[24rem] items-center justify-center'>
           <p className='text-sm text-slate-600'>Preparando tu boleta…</p>
         </div>
@@ -1000,11 +1093,7 @@ export const BudVotingWizard = ({
   }
 
   return (
-    <BudWizardShell
-      step={effectiveStep}
-      estadoRevoto={estadoRevoto}
-      onLogout={handleLogout}
-    >
+    <BudWizardShell estadoRevoto={estadoRevoto} onLogout={handleLogout}>
       {pausada && (
         <Alert variant='destructive' className='mb-4'>
           <AlertCircle className='size-4' aria-hidden='true' />
@@ -1186,78 +1275,82 @@ export const BudVotingWizard = ({
 
 const BudWizardShell = ({
   children,
-  step,
   estadoRevoto,
   onLogout,
 }: {
   children: ReactNode
-  step: WizardStep
   estadoRevoto?: EstadoRevoto
   onLogout: () => void
-}) => (
-  <main className='votar-light-surface relative min-h-svh overflow-x-clip overflow-y-auto bg-[#fdfcfa] text-[#202124]'>
-    <div className='pointer-events-none absolute inset-0' aria-hidden='true'>
-      {BACKGROUND_FINGERPRINTS.map((fingerprint) => (
-        <img
-          key={`${fingerprint.top}-${fingerprint.left}`}
-          src={budFingerprint}
-          alt=''
-          className='absolute select-none'
-          style={{
-            top: fingerprint.top,
-            left: fingerprint.left,
-            width: fingerprint.width,
-            opacity: fingerprint.opacity,
-            transform: `translate(-50%, -50%) rotate(${fingerprint.rotate})`,
-          }}
-        />
-      ))}
-    </div>
-    <section className={BUD_SHELL_SECTION_CLASS}>
-      <header className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-        <div className='min-w-0'>
-          <p className='text-2xl leading-none font-extrabold tracking-tight text-[#2f6f9f] sm:text-3xl'>
-            VOTAR
-          </p>
-          <p className='mt-2 text-sm text-slate-600'>Boleta Única Digital</p>
-        </div>
-        <div className='flex max-w-full flex-wrap items-center gap-2'>
-          {estadoRevoto ? (
-            <Badge
+}) => {
+  useEffect(() => {
+    document.body.classList.add('votar-light-surface')
+    return () => {
+      document.body.classList.remove('votar-light-surface')
+    }
+  }, [])
+
+  return (
+    <main className='votar-light-surface relative min-h-svh overflow-x-clip bg-[#fdfcfa] text-[#202124]'>
+      <div className='pointer-events-none absolute inset-0' aria-hidden='true'>
+        {BACKGROUND_FINGERPRINTS.map((fingerprint) => (
+          <img
+            key={`${fingerprint.top}-${fingerprint.left}`}
+            src={budFingerprint}
+            alt=''
+            className='absolute select-none'
+            style={{
+              top: fingerprint.top,
+              left: fingerprint.left,
+              width: fingerprint.width,
+              opacity: fingerprint.opacity,
+              transform: `translate(-50%, -50%) rotate(${fingerprint.rotate})`,
+            }}
+          />
+        ))}
+      </div>
+      <section className={BUD_SHELL_SECTION_CLASS}>
+        <header className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+          <div className='min-w-0'>
+            <p className='text-2xl leading-none font-extrabold tracking-tight text-[#2f6f9f] sm:text-3xl'>
+              VOTAR
+            </p>
+            <p className='mt-2 text-sm text-slate-600'>Boleta Única Digital</p>
+          </div>
+          <div className='flex max-w-full flex-wrap items-center gap-2'>
+            {estadoRevoto ? (
+              <Badge
+                variant='outline'
+                className='rounded-full border-emerald-300/70 bg-emerald-50/90 px-3 py-1 text-xs font-semibold text-emerald-900 sm:text-sm'
+                aria-live='polite'
+                data-testid='intentos-restantes'
+              >
+                Intentos restantes: {estadoRevoto.intentosRestantes}
+              </Badge>
+            ) : null}
+            {/* VOTAR-445: logout siempre visible; no toca contadores de revoto. */}
+            <Button
+              type='button'
               variant='outline'
-              className='rounded-full border-emerald-300/70 bg-emerald-50/90 px-3 py-1 text-xs font-semibold text-emerald-900 sm:text-sm'
-              aria-live='polite'
-              data-testid='intentos-restantes'
+              size='sm'
+              className='rounded-full border-slate-300 bg-white/90'
+              onClick={onLogout}
+              aria-label='Cerrar sesión'
+              data-testid='bud-logout'
             >
-              Intentos restantes: {estadoRevoto.intentosRestantes}
-            </Badge>
-          ) : null}
-          <Badge
-            variant='outline'
-            className='rounded-full border-[#2f6f9f]/30 bg-white/80 px-3 py-1 text-xs text-[#2f6f9f] sm:text-sm'
-          >
-            <ShieldCheck className='size-3.5' />
-            {getStepLabel(step)}
-          </Badge>
-          {/* VOTAR-445: logout siempre visible; no toca contadores de revoto. */}
-          <Button
-            type='button'
-            variant='outline'
-            size='sm'
-            className='rounded-full border-slate-300 bg-white/90'
-            onClick={onLogout}
-            aria-label='Cerrar sesión'
-            data-testid='bud-logout'
-          >
-            <LogOut className='size-3.5' />
-            Cerrar sesión
-          </Button>
-        </div>
-      </header>
-      {children}
-    </section>
-  </main>
-)
+              <LogOut className='size-3.5' />
+              Cerrar sesión
+            </Button>
+          </div>
+        </header>
+        {children}
+        {/* VOTAR-378: acceso a la explicación de cumplimiento Ley 25.326 */}
+        <footer className='mt-8 border-t border-[#e4e7eb] pt-4 pb-2'>
+          <CumplimientoLey25326Link />
+        </footer>
+      </section>
+    </main>
+  )
+}
 
 const WizardStepper = ({ currentStep }: { currentStep: WizardStep }) => {
   const steps = [
@@ -2982,15 +3075,4 @@ const ListLogo = ({
       </AvatarFallback>
     </Avatar>
   )
-}
-
-const getStepLabel = (step: WizardStep) => {
-  if (step === 'limit-reached') return 'Límite de intentos'
-  if (step === 'cooldown') return 'Espera entre votos'
-  if (step === 'registered') return 'Voto registrado'
-  if (step === 'identity') return 'Antes de votar'
-  if (step === 'selection') return 'Selección de voto'
-  if (step === 'review') return 'Confirmación'
-  if (step === 'transmitting') return 'Envío a la red'
-  return 'Voto exitoso'
 }

@@ -16,7 +16,6 @@ export const sidebarData: SidebarData = {
   ],
   navGroups: [
     {
-      title: 'General',
       items: [
         {
           title: 'Comicios',
@@ -39,8 +38,17 @@ export const sidebarData: SidebarData = {
         },
         {
           title: 'Configuración',
-          url: '/configuracion',
           icon: Settings,
+          items: [
+            {
+              title: 'Configuración institucional',
+              url: '/configuracion',
+            },
+            {
+              title: 'Seguridad',
+              url: '/configuracion/seguridad',
+            },
+          ],
         },
       ],
     },

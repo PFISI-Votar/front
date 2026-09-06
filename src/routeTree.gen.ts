@@ -13,6 +13,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as VerificarIndexRouteImport } from './routes/verificar/index'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as VerificarTxHashRouteImport } from './routes/verificar/$txHash'
+import { Route as CumplimientoLey25326RouteImport } from './routes/cumplimiento/ley-25326'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as errors500RouteImport } from './routes/(errors)/500'
 import { Route as errors404RouteImport } from './routes/(errors)/404'
@@ -40,6 +41,7 @@ import { Route as AuthenticatedSettingsDisplayRouteImport } from './routes/_auth
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
 import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_authenticated/settings/account'
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
+import { Route as AuthenticatedConfiguracionSeguridadRouteImport } from './routes/_authenticated/configuracion/seguridad'
 import { Route as AuthenticatedComiciosNuevoRouteImport } from './routes/_authenticated/comicios/nuevo'
 import { Route as ComiciosIdEleccionDashboardRouteRouteImport } from './routes/comicios/$idEleccion/dashboard/route'
 import { Route as ComiciosIdEleccionDashboardIndexRouteImport } from './routes/comicios/$idEleccion/dashboard/index'
@@ -74,6 +76,11 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
 const VerificarTxHashRoute = VerificarTxHashRouteImport.update({
   id: '/verificar/$txHash',
   path: '/verificar/$txHash',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CumplimientoLey25326Route = CumplimientoLey25326RouteImport.update({
+  id: '/cumplimiento/ley-25326',
+  path: '/cumplimiento/ley-25326',
   getParentRoute: () => rootRouteImport,
 } as any)
 const errors503Route = errors503RouteImport.update({
@@ -223,6 +230,12 @@ const AuthenticatedErrorsErrorRoute =
     path: '/errors/$error',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedConfiguracionSeguridadRoute =
+  AuthenticatedConfiguracionSeguridadRouteImport.update({
+    id: '/configuracion/seguridad',
+    path: '/configuracion/seguridad',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedComiciosNuevoRoute =
   AuthenticatedComiciosNuevoRouteImport.update({
     id: '/nuevo',
@@ -334,10 +347,12 @@ export interface FileRoutesByFullPath {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/cumplimiento/ley-25326': typeof CumplimientoLey25326Route
   '/verificar/$txHash': typeof VerificarTxHashRoute
   '/verificar/': typeof VerificarIndexRoute
   '/comicios/$idEleccion/dashboard': typeof ComiciosIdEleccionDashboardRouteRouteWithChildren
   '/comicios/nuevo': typeof AuthenticatedComiciosNuevoRoute
+  '/configuracion/seguridad': typeof AuthenticatedConfiguracionSeguridadRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
@@ -379,10 +394,12 @@ export interface FileRoutesByTo {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/cumplimiento/ley-25326': typeof CumplimientoLey25326Route
   '/verificar/$txHash': typeof VerificarTxHashRoute
   '/': typeof AuthenticatedIndexRoute
   '/verificar': typeof VerificarIndexRoute
   '/comicios/nuevo': typeof AuthenticatedComiciosNuevoRoute
+  '/configuracion/seguridad': typeof AuthenticatedConfiguracionSeguridadRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
@@ -428,11 +445,13 @@ export interface FileRoutesById {
   '/(errors)/404': typeof errors404Route
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
+  '/cumplimiento/ley-25326': typeof CumplimientoLey25326Route
   '/verificar/$txHash': typeof VerificarTxHashRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/verificar/': typeof VerificarIndexRoute
   '/comicios/$idEleccion/dashboard': typeof ComiciosIdEleccionDashboardRouteRouteWithChildren
   '/_authenticated/comicios/nuevo': typeof AuthenticatedComiciosNuevoRoute
+  '/_authenticated/configuracion/seguridad': typeof AuthenticatedConfiguracionSeguridadRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/_authenticated/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/_authenticated/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
@@ -479,10 +498,12 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/cumplimiento/ley-25326'
     | '/verificar/$txHash'
     | '/verificar/'
     | '/comicios/$idEleccion/dashboard'
     | '/comicios/nuevo'
+    | '/configuracion/seguridad'
     | '/errors/$error'
     | '/settings/account'
     | '/settings/appearance'
@@ -524,10 +545,12 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/cumplimiento/ley-25326'
     | '/verificar/$txHash'
     | '/'
     | '/verificar'
     | '/comicios/nuevo'
+    | '/configuracion/seguridad'
     | '/errors/$error'
     | '/settings/account'
     | '/settings/appearance'
@@ -572,11 +595,13 @@ export interface FileRouteTypes {
     | '/(errors)/404'
     | '/(errors)/500'
     | '/(errors)/503'
+    | '/cumplimiento/ley-25326'
     | '/verificar/$txHash'
     | '/_authenticated/'
     | '/verificar/'
     | '/comicios/$idEleccion/dashboard'
     | '/_authenticated/comicios/nuevo'
+    | '/_authenticated/configuracion/seguridad'
     | '/_authenticated/errors/$error'
     | '/_authenticated/settings/account'
     | '/_authenticated/settings/appearance'
@@ -620,6 +645,7 @@ export interface RootRouteChildren {
   errors404Route: typeof errors404Route
   errors500Route: typeof errors500Route
   errors503Route: typeof errors503Route
+  CumplimientoLey25326Route: typeof CumplimientoLey25326Route
   VerificarTxHashRoute: typeof VerificarTxHashRoute
   VerificarIndexRoute: typeof VerificarIndexRoute
   ComiciosIdEleccionDashboardRouteRoute: typeof ComiciosIdEleccionDashboardRouteRouteWithChildren
@@ -654,6 +680,13 @@ declare module '@tanstack/react-router' {
       path: '/verificar/$txHash'
       fullPath: '/verificar/$txHash'
       preLoaderRoute: typeof VerificarTxHashRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cumplimiento/ley-25326': {
+      id: '/cumplimiento/ley-25326'
+      path: '/cumplimiento/ley-25326'
+      fullPath: '/cumplimiento/ley-25326'
+      preLoaderRoute: typeof CumplimientoLey25326RouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(errors)/503': {
@@ -845,6 +878,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErrorsErrorRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/configuracion/seguridad': {
+      id: '/_authenticated/configuracion/seguridad'
+      path: '/configuracion/seguridad'
+      fullPath: '/configuracion/seguridad'
+      preLoaderRoute: typeof AuthenticatedConfiguracionSeguridadRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/comicios/nuevo': {
       id: '/_authenticated/comicios/nuevo'
       path: '/nuevo'
@@ -1021,6 +1061,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedComiciosRouteRoute: typeof AuthenticatedComiciosRouteRouteWithChildren
   AuthenticatedSettingsRouteRoute: typeof AuthenticatedSettingsRouteRouteWithChildren
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedConfiguracionSeguridadRoute: typeof AuthenticatedConfiguracionSeguridadRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
   AuthenticatedAppsIndexRoute: typeof AuthenticatedAppsIndexRoute
   AuthenticatedAuditoriaIndexRoute: typeof AuthenticatedAuditoriaIndexRoute
@@ -1035,6 +1076,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedComiciosRouteRoute: AuthenticatedComiciosRouteRouteWithChildren,
   AuthenticatedSettingsRouteRoute: AuthenticatedSettingsRouteRouteWithChildren,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedConfiguracionSeguridadRoute:
+    AuthenticatedConfiguracionSeguridadRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
   AuthenticatedAppsIndexRoute: AuthenticatedAppsIndexRoute,
   AuthenticatedAuditoriaIndexRoute: AuthenticatedAuditoriaIndexRoute,
@@ -1096,6 +1139,7 @@ const rootRouteChildren: RootRouteChildren = {
   errors404Route: errors404Route,
   errors500Route: errors500Route,
   errors503Route: errors503Route,
+  CumplimientoLey25326Route: CumplimientoLey25326Route,
   VerificarTxHashRoute: VerificarTxHashRoute,
   VerificarIndexRoute: VerificarIndexRoute,
   ComiciosIdEleccionDashboardRouteRoute:

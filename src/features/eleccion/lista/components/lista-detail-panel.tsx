@@ -32,6 +32,7 @@ import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidat
 import { CandidatoFormDialog } from '@/features/eleccion/candidato/components/candidato-form-dialog'
 import type { Candidato } from '@/features/eleccion/candidato/data/schema'
 import { buildResumenDatosAdicionales } from '@/features/eleccion/candidato/utils/format-datos-adicionales'
+import { getListaEstadoBadgeLabel } from '@/features/eleccion/lib/estado-eleccion'
 import {
   actualizarLista,
   eliminarLista,
@@ -208,11 +209,8 @@ export const ListaDetailPanel = ({
         </div>
         <div className='flex flex-wrap items-center gap-2'>
           <Badge variant={isEditable ? 'secondary' : 'default'}>
-            {lista.estado}
+            {getListaEstadoBadgeLabel(lista.estado, eleccionQuery.data?.estado)}
           </Badge>
-          {lista.listId != null && (
-            <Badge variant='outline'>list_id {lista.listId}</Badge>
-          )}
         </div>
       </div>
 
@@ -309,14 +307,6 @@ export const ListaDetailPanel = ({
               Candidatos
             </p>
             <p className='font-medium'>{candidatos.length}</p>
-          </div>
-          <div>
-            <p className='text-xs tracking-wide text-muted-foreground uppercase'>
-              Logotipo
-            </p>
-            <p className='font-medium'>
-              {lista.logoUrl ? 'Configurado' : 'Sin logotipo'}
-            </p>
           </div>
         </CardContent>
       </Card>
