@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { auditarAccesibilidad, formatearViolaciones } from '@/test-utils/axe'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
@@ -1386,5 +1387,176 @@ describe('BudVotingWizard', () => {
         })
       )
       .toBeInTheDocument()
+  })
+
+  // VOTAR-362 — Accesibilidad WCAG 2.1 AA de la BUD.
+  describe('accesibilidad WCAG 2.1 AA (VOTAR-362)', () => {
+    it('UAT-A11Y-01: el paso de selección por candidato no tiene violaciones axe', async () => {
+      const screen = await renderWizard()
+      await expect
+        .element(screen.getByText('Candidatos por rol'))
+        .toBeInTheDocument()
+
+      const violaciones = await auditarAccesibilidad(screen.container)
+      expect(violaciones, formatearViolaciones(violaciones)).toEqual([])
+    })
+
+    it('UAT-A11Y-01: el paso de selección por lista no tiene violaciones axe', async () => {
+      const screen = await renderWizard(TIPOS_VOTACION.POR_LISTA)
+      await expect
+        .element(screen.getByText('Listas completas'))
+        .toBeInTheDocument()
+
+      const violaciones = await auditarAccesibilidad(screen.container)
+      expect(violaciones, formatearViolaciones(violaciones)).toEqual([])
+    })
+
+    it('UAT-A11Y-01: el paso de revisión no tiene violaciones axe', async () => {
+      const screen = await renderWizard()
+      await userEvent.click(
+        screen.getByRole('button', { name: /Votar en blanco/i })
+      )
+      await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
+      await expect
+        .element(screen.getByText('Confirmar Voto'))
+        .toBeInTheDocument()
+
+      const violaciones = await auditarAccesibilidad(screen.container)
+      expect(violaciones, formatearViolaciones(violaciones)).toEqual([])
+    })
+
+    it('UAT-A11Y-01: el comprobante de voto no tiene violaciones axe', async () => {
+      const screen = await renderWizard()
+      await userEvent.click(
+        screen.getByRole('button', { name: /Votar en blanco/i })
+      )
+      await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
+      await userEvent.click(
+        screen.getByRole('button', { name: /Firmar y confirmar/i })
+      )
+      await expect
+        .element(screen.getByText('Voto Exitoso', { exact: true }))
+        .toBeInTheDocument()
+
+      const violaciones = await auditarAccesibilidad(screen.container)
+      expect(violaciones, formatearViolaciones(violaciones)).toEqual([])
+    })
+
+    it('UAT-A11Y-02: las pestañas de cargo se recorren con las flechas y arrastran el foco', async () => {
+      const screen = await renderWizard()
+      const presidente = screen
+        .getByRole('tab', { name: /Presidente/i })
+        .element() as HTMLElement
+      const vocales = screen
+        .getByRole('tab', { name: /Vocales/i })
+        .element() as HTMLElement
+
+      presidente.focus()
+      expect(document.activeElement).toBe(presidente)
+
+      await userEvent.keyboard('{ArrowRight}')
+      await vi.waitFor(() => {
+        expect(document.activeElement).toBe(vocales)
+        expect(vocales.getAttribute('aria-selected')).toBe('true')
+      })
+
+      // ArrowRight desde la última pestaña vuelve a la primera (wrap).
+      await userEvent.keyboard('{ArrowRight}')
+      await vi.waitFor(() => {
+        expect(document.activeElement).toBe(presidente)
+      })
+
+      await userEvent.keyboard('{End}')
+      await vi.waitFor(() => {
+        expect(document.activeElement).toBe(vocales)
+      })
+      await userEvent.keyboard('{Home}')
+      await vi.waitFor(() => {
+        expect(document.activeElement).toBe(presidente)
+      })
+    })
+
+    it('UAT-A11Y-02: se puede emitir el voto en blanco íntegramente con el teclado', async () => {
+      const screen = await renderWizard()
+
+      const blanco = screen
+        .getByRole('button', { name: /Votar en blanco/i })
+        .element() as HTMLElement
+
+      // Alcanzar la opción "Votar en blanco" sólo con la tecla Tab.
+      let saltos = 0
+      while (document.activeElement !== blanco && saltos < 40) {
+        await userEvent.tab()
+        saltos += 1
+      }
+      expect(
+        document.activeElement,
+        'no se alcanzó "Votar en blanco" navegando con Tab'
+      ).toBe(blanco)
+
+      // Activar con la barra espaciadora.
+      await userEvent.keyboard(' ')
+      await vi.waitFor(() => {
+        expect(blanco.getAttribute('aria-pressed')).toBe('true')
+      })
+
+      // Continuar y firmar con Enter, sin usar el puntero.
+      const continuar = screen
+        .getByRole('button', { name: /^Continuar/i })
+        .element() as HTMLElement
+      continuar.focus()
+      await userEvent.keyboard('{Enter}')
+      await expect
+        .element(screen.getByText('Confirmar Voto'))
+        .toBeInTheDocument()
+
+      const firmar = screen
+        .getByRole('button', { name: /Firmar y confirmar/i })
+        .element() as HTMLElement
+      firmar.focus()
+      await userEvent.keyboard('{Enter}')
+      await expect
+        .element(screen.getByText('Voto Exitoso', { exact: true }))
+        .toBeInTheDocument()
+    })
+
+    it('UAT-A11Y-02: el foco por teclado en una tarjeta de candidato es perceptible', async () => {
+      const screen = await renderWizard()
+
+      const ana = screen
+        .getByRole('button', { name: /Ana Lopez/i })
+        .element() as HTMLElement
+
+      let saltos = 0
+      while (document.activeElement !== ana && saltos < 40) {
+        await userEvent.tab()
+        saltos += 1
+      }
+      expect(
+        document.activeElement,
+        'no se alcanzó la tarjeta de Ana Lopez navegando con Tab'
+      ).toBe(ana)
+
+      // El navegador debe considerar el foco "visible" para que aplique el
+      // anillo `focus-visible:ring-*` de la tarjeta.
+      expect(ana.matches(':focus-visible')).toBe(true)
+    })
+
+    it('el skip link es el primer elemento y apunta a la boleta (SC 2.4.1)', async () => {
+      const screen = await renderWizard()
+
+      const skipLink = screen.container.querySelector('a[href="#bud-main"]')
+      const main = screen.container.querySelector('#bud-main')
+      expect(skipLink).not.toBeNull()
+      expect(main).not.toBeNull()
+
+      // El enlace precede al <main> en el orden del documento y es enfocable.
+      expect(
+        skipLink!.compareDocumentPosition(main!) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy()
+      ;(skipLink as HTMLElement).focus()
+      expect(document.activeElement).toBe(skipLink)
+    })
   })
 })

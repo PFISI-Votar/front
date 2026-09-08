@@ -107,6 +107,8 @@ export default defineConfig(({ mode }) => {
               'axios',
               'recharts',
               'lucide-react',
+              // VOTAR-362: auditoría de accesibilidad en los tests de navegador.
+              'axe-core',
             ],
           },
           test: {
