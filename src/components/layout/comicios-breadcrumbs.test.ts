@@ -137,6 +137,62 @@ describe('buildComiciosBreadcrumbEntries', () => {
     ])
   })
 
+  it('turns the lista step into a switcher menu when the comicio has 2+ listas', () => {
+    expect(
+      buildComiciosBreadcrumbEntries({
+        pathname: '/comicios/42/listas/7',
+        idEleccion,
+        idLista,
+        eleccionNombre: 'Elecciones 2026',
+        listaNombre: 'Lista A',
+        listaSigla: 'LA',
+        listas: [
+          { idLista: 7, nombre: 'Lista A', sigla: 'LA' },
+          { idLista: 9, nombre: 'Lista B', sigla: 'LB' },
+        ],
+      })
+    ).toEqual([
+      { label: 'Comicios', to: '/comicios' },
+      {
+        label: 'Elecciones 2026',
+        to: '/comicios/$idEleccion/oferta',
+        params: { idEleccion: '42' },
+      },
+      {
+        label: 'Lista A (LA)',
+        menuAriaLabel: 'Cambiar de lista',
+        menuItems: [
+          {
+            label: 'Lista A (LA)',
+            to: '/comicios/$idEleccion/listas/$idLista',
+            params: { idEleccion: '42', idLista: '7' },
+            current: true,
+          },
+          {
+            label: 'Lista B (LB)',
+            to: '/comicios/$idEleccion/listas/$idLista',
+            params: { idEleccion: '42', idLista: '9' },
+            current: false,
+          },
+        ],
+      },
+    ])
+  })
+
+  it('keeps the lista step as plain text when the comicio has a single lista', () => {
+    const entries = buildComiciosBreadcrumbEntries({
+      pathname: '/comicios/42/listas/7',
+      idEleccion,
+      idLista,
+      eleccionNombre: 'Elecciones 2026',
+      listaNombre: 'Lista A',
+      listaSigla: 'LA',
+      listas: [{ idLista: 7, nombre: 'Lista A', sigla: 'LA' }],
+    })
+
+    expect(entries[entries.length - 1]).toEqual({ label: 'Lista A (LA)' })
+  })
+
   it('exposes the section switcher menu on the auditoria page', () => {
     expect(
       buildComiciosBreadcrumbEntries({
