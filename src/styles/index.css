@@ -30,6 +30,16 @@
     cursor: pointer;
   }
 
+  /* VOTAR-362 (WCAG 2.1 SC 2.4.7 / 1.4.11): indicador de foco visible por
+     defecto para cualquier elemento que reciba foco por teclado. Los
+     componentes shadcn definen su propio `focus-visible:ring-*` en la capa
+     utilities, que gana a esta regla base y la deja sólo como red de
+     seguridad para elementos sin estilo de foco propio. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
   /* Prevent focus zoom on mobile devices */
   @media screen and (max-width: 767px) {
     input,
@@ -78,6 +88,48 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-bud-squash {
     animation: none;
+  }
+
+  /* VOTAR-362: respetar la preferencia del sistema en toda la app (transiciones
+     de paso del wizard, "hover lift" de las tarjetas, spinners, scroll suave). */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* VOTAR-362: modo de alto contraste solicitado por el sistema operativo del
+   votante (WCAG 2.1 — accesibilidad de la BUD). */
+@media (prefers-contrast: more) {
+  :root,
+  .votar-light-surface {
+    --ring: #08324f;
+    --border: oklch(0.45 0.03 257);
+  }
+
+  :focus-visible {
+    outline-width: 3px;
+  }
+}
+
+/* VOTAR-362: modo de colores forzados (alto contraste de Windows). El foco y el
+   estado seleccionado de las tarjetas se comunican hoy sólo por color de fondo,
+   que el SO reemplaza; se refuerzan con contornos del sistema. */
+@media (forced-colors: active) {
+  *:focus-visible {
+    outline: 3px solid CanvasText !important;
+    outline-offset: 2px;
+  }
+
+  [aria-pressed='true'],
+  [aria-selected='true'],
+  [aria-current]:not([aria-current='false']) {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
   }
 }
 

@@ -1,4 +1,11 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { AxiosError } from 'axios'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -38,6 +45,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { SkipToMain } from '@/components/skip-to-main'
 import { CumplimientoLey25326Link } from '@/features/cumplimiento'
 import {
   TIPOS_VOTACION,
@@ -168,6 +176,7 @@ type CandidateRole = {
 type PartyList = {
   id: string
   name: string
+  numeroLista: number
   color: string
   accent: string
   initials: string
@@ -209,6 +218,10 @@ const getInitials = (value: string) => {
 
 const getSoftAccent = (color: string) => `${color}22`
 
+/** VOTAR-362: color de las iniciales de fallback en avatares/logos (contraste
+ *  AA garantizado sobre el tinte claro de cualquier color de lista). */
+const FALLBACK_INITIALS_COLOR = '#1e293b'
+
 const getListImageUrl = (candidate: CandidatoBoletaDigital) =>
   candidate.imagenListaUrl ??
   candidate.logoListaUrl ??
@@ -232,6 +245,7 @@ const buildListsFromBoleta = (boleta: BoletaDigital): PartyList[] => {
         lists.set(id, {
           id,
           name: candidate.agrupacionPolitica,
+          numeroLista: candidate.numeroLista,
           color,
           accent: getSoftAccent(color),
           initials: getInitials(candidate.agrupacionPolitica),
@@ -675,9 +689,21 @@ export const BudVotingWizard = ({
     (variant === 'lista-completa' && Boolean(selectedList)) ||
     (variant === 'candidatos' && (Boolean(selectedList) || allRolesSelected))
 
+  // VOTAR-362 (WCAG 2.1 SC 2.4.3): al cambiar de paso, mover el foco al
+  // contenedor del paso nuevo. Sin esto el botón que se pulsó se desmonta y el
+  // foco cae a <body>, obligando al votante por teclado a re-tabular desde el
+  // inicio en cada transición.
+  const stepContainerRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [step])
+    const prefersReducedMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)'
+    ).matches
+    window.scrollTo({
+      top: 0,
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+    })
+    stepContainerRef.current?.focus()
+  }, [effectiveStep])
 
   const goToSelection = () => {
     setStep('selection')
@@ -1106,11 +1132,20 @@ export const BudVotingWizard = ({
         </Alert>
       )}
       {effectiveStep !== 'limit-reached' && effectiveStep !== 'cooldown' ? (
-        <WizardStepper currentStep={effectiveStep} />
+        <>
+          <WizardStepper currentStep={effectiveStep} />
+          {/* VOTAR-362: anuncio de progreso para lectores de pantalla; sustituye
+              la numeración visual de <WizardStepper/>, que es decorativa. */}
+          <p className='sr-only' role='status'>
+            {`Paso ${getWizardProgress(effectiveStep).number} de ${getWizardProgress(effectiveStep).total}: ${getWizardProgress(effectiveStep).label}`}
+          </p>
+        </>
       ) : null}
       <div
         key={effectiveStep}
-        className='animate-in duration-300 fade-in-0 slide-in-from-bottom-3'
+        ref={stepContainerRef}
+        tabIndex={-1}
+        className='animate-in duration-300 fade-in-0 slide-in-from-bottom-3 focus-visible:outline-none'
       >
         {effectiveStep === 'limit-reached' && (
           <MaxVotesReachedPanel
@@ -1273,6 +1308,25 @@ export const BudVotingWizard = ({
   )
 }
 
+/**
+ * VOTAR-362: título de sección de la BUD expuesto como encabezado real
+ * (nivel 2, bajo el `<h1>` del shell) para que los lectores de pantalla puedan
+ * navegar la boleta por estructura. `CardTitle` de shadcn sólo renderiza un
+ * `<div>`, por eso se le asigna semántica de heading aquí sin tocar el
+ * primitivo compartido.
+ */
+const BudCardTitle = ({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string
+}) => (
+  <CardTitle role='heading' aria-level={2} className={className}>
+    {children}
+  </CardTitle>
+)
+
 const BudWizardShell = ({
   children,
   estadoRevoto,
@@ -1290,96 +1344,130 @@ const BudWizardShell = ({
   }, [])
 
   return (
-    <main className='votar-light-surface relative min-h-svh overflow-x-clip bg-[#fdfcfa] text-[#202124]'>
-      <div className='pointer-events-none absolute inset-0' aria-hidden='true'>
-        {BACKGROUND_FINGERPRINTS.map((fingerprint) => (
-          <img
-            key={`${fingerprint.top}-${fingerprint.left}`}
-            src={budFingerprint}
-            alt=''
-            className='absolute select-none'
-            style={{
-              top: fingerprint.top,
-              left: fingerprint.left,
-              width: fingerprint.width,
-              opacity: fingerprint.opacity,
-              transform: `translate(-50%, -50%) rotate(${fingerprint.rotate})`,
-            }}
-          />
-        ))}
-      </div>
-      <section className={BUD_SHELL_SECTION_CLASS}>
-        <header className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-          <div className='min-w-0'>
-            <p className='text-2xl leading-none font-extrabold tracking-tight text-[#2f6f9f] sm:text-3xl'>
-              VOTAR
-            </p>
-            <p className='mt-2 text-sm text-slate-600'>Boleta Única Digital</p>
-          </div>
-          <div className='flex max-w-full flex-wrap items-center gap-2'>
-            {estadoRevoto ? (
-              <Badge
+    <>
+      {/* VOTAR-362 (WCAG 2.1 SC 2.4.1): saltar el encabezado y llegar directo a
+          la boleta con el teclado. */}
+      <SkipToMain targetId='bud-main' label='Saltar a la boleta' />
+      <main
+        id='bud-main'
+        tabIndex={-1}
+        className='votar-light-surface relative min-h-svh overflow-x-clip bg-[#fdfcfa] text-[#202124] focus-visible:outline-none'
+      >
+        <div
+          className='pointer-events-none absolute inset-0'
+          aria-hidden='true'
+        >
+          {BACKGROUND_FINGERPRINTS.map((fingerprint) => (
+            <img
+              key={`${fingerprint.top}-${fingerprint.left}`}
+              src={budFingerprint}
+              alt=''
+              className='absolute select-none'
+              style={{
+                top: fingerprint.top,
+                left: fingerprint.left,
+                width: fingerprint.width,
+                opacity: fingerprint.opacity,
+                transform: `translate(-50%, -50%) rotate(${fingerprint.rotate})`,
+              }}
+            />
+          ))}
+        </div>
+        <section className={BUD_SHELL_SECTION_CLASS}>
+          <header className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+            <div className='min-w-0'>
+              <p className='text-2xl leading-none font-extrabold tracking-tight text-[#2f6f9f] sm:text-3xl'>
+                VOTAR
+              </p>
+              <h1 className='mt-2 text-sm font-normal text-slate-600'>
+                Boleta Única Digital
+              </h1>
+            </div>
+            <div className='flex max-w-full flex-wrap items-center gap-2'>
+              {estadoRevoto ? (
+                <Badge
+                  variant='outline'
+                  className='rounded-full border-emerald-300/70 bg-emerald-50/90 px-3 py-1 text-xs font-semibold text-emerald-900 sm:text-sm'
+                  aria-live='polite'
+                  data-testid='intentos-restantes'
+                >
+                  Intentos restantes: {estadoRevoto.intentosRestantes}
+                </Badge>
+              ) : null}
+              {/* VOTAR-445: logout siempre visible; no toca contadores de revoto. */}
+              <Button
+                type='button'
                 variant='outline'
-                className='rounded-full border-emerald-300/70 bg-emerald-50/90 px-3 py-1 text-xs font-semibold text-emerald-900 sm:text-sm'
-                aria-live='polite'
-                data-testid='intentos-restantes'
+                size='sm'
+                className='rounded-full border-slate-300 bg-white/90'
+                onClick={onLogout}
+                aria-label='Cerrar sesión'
+                data-testid='bud-logout'
               >
-                Intentos restantes: {estadoRevoto.intentosRestantes}
-              </Badge>
-            ) : null}
-            {/* VOTAR-445: logout siempre visible; no toca contadores de revoto. */}
-            <Button
-              type='button'
-              variant='outline'
-              size='sm'
-              className='rounded-full border-slate-300 bg-white/90'
-              onClick={onLogout}
-              aria-label='Cerrar sesión'
-              data-testid='bud-logout'
-            >
-              <LogOut className='size-3.5' />
-              Cerrar sesión
-            </Button>
-          </div>
-        </header>
-        {children}
-        {/* VOTAR-378: acceso a la explicación de cumplimiento Ley 25.326 */}
-        <footer className='mt-8 border-t border-[#e4e7eb] pt-4 pb-2'>
-          <CumplimientoLey25326Link />
-        </footer>
-      </section>
-    </main>
+                <LogOut className='size-3.5' />
+                Cerrar sesión
+              </Button>
+            </div>
+          </header>
+          {children}
+          {/* VOTAR-378: acceso a la explicación de cumplimiento Ley 25.326 */}
+          <footer className='mt-8 border-t border-[#e4e7eb] pt-4 pb-2'>
+            <CumplimientoLey25326Link />
+          </footer>
+        </section>
+      </main>
+    </>
   )
 }
 
+const WIZARD_STEPS = [
+  ['identity', 'Inicio'],
+  ['selection', 'Voto'],
+  ['review', 'Confirmación'],
+  ['success', 'Éxito'],
+] as const
+
+const normalizeWizardStep = (step: WizardStep) =>
+  step === 'registered' ? 'identity' : step === 'transmitting' ? 'review' : step
+
+/** VOTAR-362: progreso del wizard para el anuncio del lector de pantalla. */
+const getWizardProgress = (step: WizardStep) => {
+  const normalized = normalizeWizardStep(step)
+  const index = Math.max(
+    0,
+    WIZARD_STEPS.findIndex(([value]) => value === normalized)
+  )
+  return {
+    number: index + 1,
+    total: WIZARD_STEPS.length,
+    label: WIZARD_STEPS[index][1],
+  }
+}
+
 const WizardStepper = ({ currentStep }: { currentStep: WizardStep }) => {
-  const steps = [
-    ['identity', 'Inicio'],
-    ['selection', 'Voto'],
-    ['review', 'Confirmación'],
-    ['success', 'Éxito'],
-  ] as const
-  const normalizedStep =
-    currentStep === 'registered'
-      ? 'identity'
-      : currentStep === 'transmitting'
-        ? 'review'
-        : currentStep
+  const steps = WIZARD_STEPS
+  const normalizedStep = normalizeWizardStep(currentStep)
   const activeIndex = steps.findIndex(([step]) => step === normalizedStep)
   const currentStepInfo = steps[Math.max(activeIndex, 0)]
 
   return (
-    <div className='rounded-2xl border border-[#dbe3ea] bg-white/90 shadow-sm backdrop-blur'>
-      <details className='group sm:hidden'>
-        <summary className='flex list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden'>
+    // VOTAR-362: barra de progreso puramente visual. El estado del paso lo
+    // comunica a los lectores de pantalla el `role='status'` del contenedor del
+    // paso (ver BudVotingWizard), así que aquí se marca como decorativa para no
+    // duplicar el anuncio con la numeración "01 / 02 / …".
+    <div
+      className='rounded-2xl border border-[#dbe3ea] bg-white/90 shadow-sm backdrop-blur'
+      aria-hidden='true'
+    >
+      <div className='sm:hidden'>
+        <div className='flex items-center justify-between gap-3 px-4 py-3'>
           <div className='flex items-center gap-3 text-[#2f6f9f]'>
             <span className='grid size-10 shrink-0 place-items-center rounded-full border border-[#2f6f9f] bg-white text-sm font-bold'>
               {String(activeIndex + 1).padStart(2, '0')}
             </span>
             <span className='font-semibold'>{currentStepInfo[1]}</span>
           </div>
-          <ArrowRight className='size-4 rotate-90 transition-transform group-open:-rotate-90' />
-        </summary>
+        </div>
         <div className='grid border-t border-[#edf1f4] p-2'>
           {steps.map(([step, label], index) => (
             <div
@@ -1407,7 +1495,7 @@ const WizardStepper = ({ currentStep }: { currentStep: WizardStep }) => {
             </div>
           ))}
         </div>
-      </details>
+      </div>
 
       <div className='hidden min-w-0 overflow-hidden rounded-2xl sm:flex'>
         {steps.map(([step, label], index) => (
@@ -1467,7 +1555,7 @@ const IdentityStep = ({
         <div className='mx-auto grid size-14 place-items-center rounded-full bg-[#d7e9f7] text-[#2f6f9f]'>
           <ShieldCheck className='size-7' />
         </div>
-        <CardTitle className='text-2xl'>Antes de votar</CardTitle>
+        <BudCardTitle className='text-2xl'>Antes de votar</BudCardTitle>
         <CardDescription>
           Verificá los datos del comicio antes de abrir la boleta.
         </CardDescription>
@@ -1591,7 +1679,7 @@ const RetryTooSoonPanel = ({
             <Clock3 className='size-6' />
           </div>
           <div className='space-y-1'>
-            <CardTitle>Debe esperar antes de volver a votar</CardTitle>
+            <BudCardTitle>Debe esperar antes de volver a votar</BudCardTitle>
             <CardDescription>
               Debe esperar {remainingDuration} antes de volver a votar. Por
               favor, intente nuevamente más tarde.
@@ -1647,7 +1735,7 @@ const MaxVotesReachedPanel = ({
           <Ban className='size-6' />
         </div>
         <div className='space-y-1'>
-          <CardTitle>Alcanzaste el límite máximo de votos</CardTitle>
+          <BudCardTitle>Alcanzaste el límite máximo de votos</BudCardTitle>
           <CardDescription>
             Ya utilizaste los {maxVotos} intentos de sufragio admitidos para
             este comicio institucional. La boleta interactiva no está
@@ -1700,7 +1788,9 @@ const RegisteredVoteStep = ({
           <Clock3 className='size-6' />
         </div>
         <div className='space-y-1'>
-          <CardTitle>Ya tienes un voto registrado en este comicio.</CardTitle>
+          <BudCardTitle>
+            Ya tienes un voto registrado en este comicio.
+          </BudCardTitle>
           <CardDescription>
             Detectamos {votosConsumidos} emisión
             {votosConsumidos === 1 ? '' : 'es'} previa
@@ -1798,6 +1888,43 @@ const SelectionStep = ({
     )
 
   const goToRole = (roleId: string) => setActiveRoleId(roleId)
+  // VOTAR-362 UAT-02: navegación por teclado del patrón WAI-ARIA Tabs
+  // (roving tabindex + flechas / Home / End).
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({})
+  const focusRole = (roleId: string) => {
+    goToRole(roleId)
+    // Todas las pestañas están montadas siempre, así que el destino ya existe
+    // en el DOM: se puede enfocar de forma síncrona (patrón roving tabindex).
+    tabRefs.current[roleId]?.focus()
+  }
+  const handleTabKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const currentIndex = roles.findIndex(
+      (role) => role.id === effectiveActiveRoleId
+    )
+    if (currentIndex < 0 || roles.length === 0) return
+    let nextIndex: number
+    switch (event.key) {
+      case 'ArrowRight':
+      case 'ArrowDown':
+        nextIndex = (currentIndex + 1) % roles.length
+        break
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        nextIndex = (currentIndex - 1 + roles.length) % roles.length
+        break
+      case 'Home':
+        nextIndex = 0
+        break
+      case 'End':
+        nextIndex = roles.length - 1
+        break
+      default:
+        return
+    }
+    event.preventDefault()
+    const nextRole = roles[nextIndex]
+    if (nextRole) focusRole(nextRole.id)
+  }
   const advanceFromRole = (roleId: string) => {
     const index = roles.findIndex((role) => role.id === roleId)
     const next = roles[index + 1]
@@ -1858,7 +1985,7 @@ const SelectionStep = ({
       {variant === 'lista-completa' && (
         <Card className='border-[#e4e7eb] bg-white/95'>
           <CardHeader>
-            <CardTitle>Listas completas</CardTitle>
+            <BudCardTitle>Listas completas</BudCardTitle>
             <CardDescription>
               Elegí una lista para tomar toda la boleta como base.
             </CardDescription>
@@ -1885,7 +2012,7 @@ const SelectionStep = ({
       {!specialVote && variant === 'candidatos' && (
         <Card className='border-[#e4e7eb] bg-white/95'>
           <CardHeader>
-            <CardTitle>Candidatos por rol</CardTitle>
+            <BudCardTitle>Candidatos por rol</BudCardTitle>
             <CardDescription>{selectionHint}</CardDescription>
           </CardHeader>
           <CardContent className='grid gap-5'>
@@ -1893,7 +2020,9 @@ const SelectionStep = ({
               <div
                 role='tablist'
                 aria-label='Cargos'
+                aria-orientation='horizontal'
                 className='flex flex-wrap gap-2'
+                onKeyDown={handleTabKeyDown}
               >
                 {roles.map((role) => {
                   const resolved = isRoleResolved(role.id)
@@ -1901,14 +2030,18 @@ const SelectionStep = ({
                   return (
                     <button
                       key={role.id}
+                      ref={(node) => {
+                        tabRefs.current[role.id] = node
+                      }}
                       type='button'
                       role='tab'
                       id={`cargo-tab-${role.id}`}
                       aria-controls={`cargo-panel-${role.id}`}
                       aria-selected={active}
+                      tabIndex={active ? 0 : -1}
                       onClick={() => goToRole(role.id)}
                       className={cn(
-                        'flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors',
+                        'flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-[#2f6f9f] focus-visible:ring-offset-2 focus-visible:outline-none',
                         active
                           ? 'border-[#2f6f9f] bg-[#2f6f9f] text-white'
                           : resolved
@@ -1934,6 +2067,8 @@ const SelectionStep = ({
                     id={`cargo-panel-${role.id}`}
                     role='tabpanel'
                     aria-labelledby={`cargo-tab-${role.id}`}
+                    tabIndex={0}
+                    className='focus-visible:ring-2 focus-visible:ring-[#2f6f9f] focus-visible:ring-offset-2 focus-visible:outline-none'
                   >
                     <CandidateRoleSection
                       roleId={role.id}
@@ -1984,7 +2119,7 @@ const SelectionStep = ({
 
       <Card className='border-[#e4e7eb] bg-white/95'>
         <CardHeader>
-          <CardTitle>Opciones especiales</CardTitle>
+          <BudCardTitle>Opciones especiales</BudCardTitle>
           <CardDescription>{specialDescription}</CardDescription>
         </CardHeader>
         <CardContent
@@ -2068,7 +2203,7 @@ const ReviewStep = ({
     <div className='mx-auto grid w-full max-w-4xl gap-5'>
       <Card className='border-[#e4e7eb] bg-white/95 shadow-[0_1.5rem_5rem_rgba(30,64,95,0.07)]'>
         <CardHeader>
-          <CardTitle>Confirmar Voto</CardTitle>
+          <BudCardTitle>Confirmar Voto</BudCardTitle>
           <CardDescription>
             Revisá el resumen antes de firmar la boleta de forma local.
           </CardDescription>
@@ -2268,7 +2403,7 @@ const SuccessStep = ({
           <div className='mx-auto grid size-16 place-items-center rounded-full bg-emerald-100 text-emerald-700'>
             <CheckCircle2 className='size-9' />
           </div>
-          <CardTitle className='text-2xl'>Voto Exitoso</CardTitle>
+          <BudCardTitle className='text-2xl'>Voto Exitoso</BudCardTitle>
           <CardDescription>
             {txHash
               ? `Voto registrado exitosamente (hash: ${txHash}).`
@@ -2288,11 +2423,15 @@ const SuccessStep = ({
                 almacena en el servidor.
               </p>
               {txHash && (
-                <div className='mt-3 rounded-xl bg-white p-3 text-sm break-all text-slate-700'>
+                <div
+                  className='mt-3 rounded-xl bg-white p-3 text-sm break-all text-slate-700'
+                  role='group'
+                  aria-label={`Hash de transacción ${txHash}`}
+                >
                   <p className='mb-1 text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase'>
                     Hash de transacción
                   </p>
-                  <p aria-label={`Hash de transacción ${txHash}`}>{txHash}</p>
+                  <p>{txHash}</p>
                   {blockNumber !== null && (
                     <p className='mt-2 text-xs text-slate-500'>
                       Bloque: {blockNumber}
@@ -2437,7 +2576,9 @@ const TransmitStep = ({
               <Loader2 className='size-9 animate-spin' />
             )}
           </div>
-          <CardTitle className='text-2xl'>Registro en blockchain</CardTitle>
+          <BudCardTitle className='text-2xl'>
+            Registro en blockchain
+          </BudCardTitle>
           <CardDescription aria-live='polite'>{statusLabel}</CardDescription>
         </CardHeader>
         <CardContent className='grid gap-4'>
@@ -2539,7 +2680,7 @@ const SpecialVoteCard = ({
     aria-pressed={selected}
     aria-label={`${title}. ${description}`}
     className={cn(
-      'relative overflow-hidden rounded-2xl border bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/20 focus-visible:outline-none',
+      'relative overflow-hidden rounded-2xl border bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-2 focus-visible:ring-[#2f6f9f] focus-visible:ring-offset-2 focus-visible:outline-none',
       selected
         ? 'border-slate-700 shadow-md shadow-slate-900/10'
         : 'border-[#dbe3ea]'
@@ -2632,7 +2773,13 @@ const ListCard = ({
     >
       <button
         type='button'
-        className='w-full p-5 text-left transition-colors hover:bg-[#f7fbfd] focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/20 focus-visible:outline-none'
+        className='w-full p-5 text-left transition-colors hover:bg-[#f7fbfd] focus-visible:ring-2 focus-visible:ring-[#2f6f9f] focus-visible:ring-offset-2 focus-visible:outline-none'
+        aria-pressed={selected}
+        aria-label={
+          selected
+            ? `Lista ${list.name}, número de lista ${list.numeroLista}, elegida`
+            : `Elegir la lista ${list.name}, número de lista ${list.numeroLista}`
+        }
         onClick={onSelect}
       >
         <div className='flex items-start gap-4'>
@@ -2889,7 +3036,10 @@ const CandidateRoleSection = ({
             <div className={BUD_CANDIDATE_GRID_CLASS}>
               {group.candidates.map((candidate) => {
                 const isSelected = selectedCandidateIds.includes(candidate.id)
-                const accessibleName = `${candidate.name}, ${candidate.listName}`
+                // VOTAR-362 UAT-02: cada opción debe anunciar nombre completo,
+                // agrupación política y número de lista oficializada. El estado
+                // seleccionado lo comunica aria-pressed.
+                const accessibleName = `${candidate.name}, ${candidate.listName}, número de lista ${candidate.numeroLista}`
 
                 return (
                   // VOTAR-464: la fila avatar+nombre pasaba a "row" con `sm:` en
@@ -2905,7 +3055,7 @@ const CandidateRoleSection = ({
                       aria-pressed={isSelected}
                       aria-label={accessibleName}
                       className={cn(
-                        'flex h-full w-full flex-col items-center gap-2 rounded-2xl border bg-white p-3 text-center transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/20 focus-visible:outline-none @[15rem]:flex-row @[15rem]:gap-3 @[15rem]:p-4 @[15rem]:text-left',
+                        'flex h-full w-full flex-col items-center gap-2 rounded-2xl border bg-white p-3 text-center transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-2 focus-visible:ring-[#2f6f9f] focus-visible:ring-offset-2 focus-visible:outline-none @[15rem]:flex-row @[15rem]:gap-3 @[15rem]:p-4 @[15rem]:text-left',
                         isSelected
                           ? 'border-[#2f6f9f] shadow-md shadow-[#2f6f9f]/10'
                           : 'border-[#dbe3ea]'
@@ -2942,7 +3092,7 @@ const CandidateRoleSection = ({
         aria-pressed={isBlankSelected}
         aria-label={`Voto en Blanco para ${roleName}, no seleccionar ningún candidato`}
         className={cn(
-          'flex min-h-11 w-full items-center gap-4 rounded-2xl border border-dashed bg-slate-50 p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-3 focus-visible:ring-slate-400/40 focus-visible:outline-none',
+          'flex min-h-11 w-full items-center gap-4 rounded-2xl border border-dashed bg-slate-50 p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-2 focus-visible:ring-slate-600 focus-visible:ring-offset-2 focus-visible:outline-none',
           isBlankSelected
             ? 'border-slate-700 bg-white shadow-md shadow-slate-900/10'
             : 'border-slate-300'
@@ -3034,7 +3184,9 @@ const CandidateAvatar = ({
       className='rounded-xl text-sm font-bold'
       style={{
         backgroundColor: getSoftAccent(candidate.color),
-        color: candidate.color,
+        // VOTAR-362: iniciales en tono oscuro fijo — el color de lista suele ser
+        // claro (celeste, amarillo) y no alcanza 4.5:1 sobre su propio tinte.
+        color: FALLBACK_INITIALS_COLOR,
       }}
     >
       {candidate.initials}
@@ -3069,7 +3221,7 @@ const ListLogo = ({
       )}
       <AvatarFallback
         className={cn('rounded-2xl text-lg font-black', fallbackClassName)}
-        style={{ backgroundColor: accent, color }}
+        style={{ backgroundColor: accent, color: FALLBACK_INITIALS_COLOR }}
       >
         {list.initials}
       </AvatarFallback>
