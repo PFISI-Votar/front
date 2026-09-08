@@ -2766,7 +2766,7 @@ const ListCard = ({
     <div
       className={cn(
         'flex flex-col overflow-hidden rounded-2xl border bg-white transition-all hover:shadow-lg',
-        'focus-within:ring-2 focus-within:ring-[#2f6f9f] focus-within:ring-offset-2',
+        'has-[.btn-principal-lista:focus-visible]:ring-2 has-[.btn-principal-lista:focus-visible]:ring-[#2f6f9f] has-[.btn-principal-lista:focus-visible]:ring-offset-2',
         selected
           ? 'border-[#2f6f9f] shadow-lg shadow-[#2f6f9f]/10'
           : 'border-[#dbe3ea]'
@@ -2774,7 +2774,7 @@ const ListCard = ({
     >
       <button
         type='button'
-        className='w-full p-5 text-left transition-colors hover:bg-[#f7fbfd] focus-visible:outline-none'
+        className='btn-principal-lista w-full p-5 text-left transition-colors hover:bg-[#f7fbfd] focus-visible:outline-none'
         aria-pressed={selected}
         aria-label={
           selected
