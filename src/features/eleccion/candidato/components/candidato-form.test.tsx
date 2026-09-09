@@ -71,6 +71,24 @@ describe('CandidatoForm', () => {
     await expect.element(cancelar).toBeDisabled()
   })
 
+  it('limpia el input de archivo tras subir una imagen inválida (VOTAR-490)', async () => {
+    await renderForm()
+
+    const fileInput = document.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement
+
+    const archivoGrande = new File(
+      [new Uint8Array(3 * 1024 * 1024)],
+      'grande.png',
+      { type: 'image/png' }
+    )
+    await userEvent.upload(fileInput, archivoGrande)
+
+    await expect.element(page.getByRole('alert')).toBeInTheDocument()
+    expect(fileInput.value).toBe('')
+  })
+
   it('mantiene el label Registrar candidato en el botón de envío', async () => {
     await renderForm()
 
