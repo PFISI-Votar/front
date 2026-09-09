@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Trash2, Upload } from 'lucide-react'
 import { resolveMediaUrl } from '@/lib/media-url'
 import {
@@ -127,6 +127,7 @@ export function ConfiguracionSistemaPage() {
   const actualizarPlantillaCierre = useActualizarPlantillaActaCierre()
   const actualizarFormatoCierre = useActualizarFormatoPersonalizadoActaCierre()
   const [fileError, setFileError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = (file?: File) => {
     if (!file) {
@@ -135,6 +136,7 @@ export function ConfiguracionSistemaPage() {
     const validationError = validateElectoralImageFile(file)
     if (validationError) {
       setFileError(validationError)
+      if (fileInputRef.current) fileInputRef.current.value = ''
       return
     }
     setFileError(null)
@@ -189,6 +191,7 @@ export function ConfiguracionSistemaPage() {
                   </p>
                   <div className='flex flex-wrap items-center gap-2'>
                     <Input
+                      ref={fileInputRef}
                       type='file'
                       accept='image/png,image/jpeg,.png,.jpg,.jpeg'
                       disabled={isPending}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
@@ -101,6 +101,7 @@ export const CandidatoForm = ({
   const [hasRemovedFoto, setHasRemovedFoto] = useState(false)
   const [fotoError, setFotoError] = useState<string | null>(null)
   const [syncedFotoUrl, setSyncedFotoUrl] = useState(currentFotoUrl)
+  const fotoInputRef = useRef<HTMLInputElement>(null)
   const categoriasDisponibles = useMemo(
     () =>
       getCategoriasDisponibles(categorias, candidatosEnLista, {
@@ -166,10 +167,10 @@ export const CandidatoForm = ({
   }, [localFotoPreview])
 
   const handleFotoChange = (file?: File) => {
-    if (localFotoPreview?.startsWith('blob:')) {
-      URL.revokeObjectURL(localFotoPreview)
-    }
     if (!file) {
+      if (localFotoPreview?.startsWith('blob:')) {
+        URL.revokeObjectURL(localFotoPreview)
+      }
       form.setValue('fotoFile', null)
       setLocalFotoPreview(null)
       setHasRemovedFoto(false)
@@ -179,13 +180,14 @@ export const CandidatoForm = ({
 
     const validationError = validateElectoralImageFile(file)
     if (validationError) {
-      form.setValue('fotoFile', null)
-      setLocalFotoPreview(null)
-      setHasRemovedFoto(false)
       setFotoError(validationError)
+      if (fotoInputRef.current) fotoInputRef.current.value = ''
       return
     }
 
+    if (localFotoPreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(localFotoPreview)
+    }
     form.setValue('fotoFile', file)
     form.setValue('removeFoto', false)
     setHasRemovedFoto(false)
@@ -219,9 +221,6 @@ export const CandidatoForm = ({
       )
       return
     }
-    if (fotoError) {
-      return
-    }
     try {
       await onSubmit(values)
     } catch (error) {
@@ -241,8 +240,7 @@ export const CandidatoForm = ({
   const canSubmit =
     categorias.length > 0 &&
     categoriasDisponibles.length > 0 &&
-    Boolean(idCategoria) &&
-    !fotoError
+    Boolean(idCategoria)
 
   return (
     <Form {...form}>
@@ -322,6 +320,7 @@ export const CandidatoForm = ({
             </div>
           )}
           <Input
+            ref={fotoInputRef}
             type='file'
             accept='image/png,image/jpeg,.png,.jpg,.jpeg'
             onChange={(event) => handleFotoChange(event.target.files?.[0])}
