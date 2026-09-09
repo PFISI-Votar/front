@@ -95,10 +95,10 @@ const ListaFormDialogContent = ({
   }, [localLogoPreview])
 
   const handleLogoChange = (file?: File) => {
-    if (localLogoPreview?.startsWith('blob:')) {
-      URL.revokeObjectURL(localLogoPreview)
-    }
     if (!file) {
+      if (localLogoPreview?.startsWith('blob:')) {
+        URL.revokeObjectURL(localLogoPreview)
+      }
       form.setValue('logoFile', null)
       setLocalLogoPreview(null)
       setHasRemovedLogo(false)
@@ -108,14 +108,14 @@ const ListaFormDialogContent = ({
 
     const validationError = validateElectoralImageFile(file)
     if (validationError) {
-      form.setValue('logoFile', null)
-      setLocalLogoPreview(null)
-      setHasRemovedLogo(false)
       setLogoError(validationError)
       if (logoInputRef.current) logoInputRef.current.value = ''
       return
     }
 
+    if (localLogoPreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(localLogoPreview)
+    }
     form.setValue('logoFile', file)
     form.setValue('removeLogo', false)
     setHasRemovedLogo(false)
@@ -135,9 +135,6 @@ const ListaFormDialogContent = ({
   }
 
   const handleSubmit = async (values: CreateListaInput) => {
-    if (logoError) {
-      return
-    }
     await onSubmit(values)
     onOpenChange(false)
   }
@@ -234,10 +231,7 @@ const ListaFormDialogContent = ({
             )}
           </div>
           <DialogFooter>
-            <Button
-              type='submit'
-              disabled={form.formState.isSubmitting || Boolean(logoError)}
-            >
+            <Button type='submit' disabled={form.formState.isSubmitting}>
               {form.formState.isSubmitting
                 ? 'Guardando…'
                 : isEditMode

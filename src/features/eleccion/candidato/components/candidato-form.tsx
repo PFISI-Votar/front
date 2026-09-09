@@ -167,10 +167,10 @@ export const CandidatoForm = ({
   }, [localFotoPreview])
 
   const handleFotoChange = (file?: File) => {
-    if (localFotoPreview?.startsWith('blob:')) {
-      URL.revokeObjectURL(localFotoPreview)
-    }
     if (!file) {
+      if (localFotoPreview?.startsWith('blob:')) {
+        URL.revokeObjectURL(localFotoPreview)
+      }
       form.setValue('fotoFile', null)
       setLocalFotoPreview(null)
       setHasRemovedFoto(false)
@@ -180,14 +180,14 @@ export const CandidatoForm = ({
 
     const validationError = validateElectoralImageFile(file)
     if (validationError) {
-      form.setValue('fotoFile', null)
-      setLocalFotoPreview(null)
-      setHasRemovedFoto(false)
       setFotoError(validationError)
       if (fotoInputRef.current) fotoInputRef.current.value = ''
       return
     }
 
+    if (localFotoPreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(localFotoPreview)
+    }
     form.setValue('fotoFile', file)
     form.setValue('removeFoto', false)
     setHasRemovedFoto(false)
@@ -221,9 +221,6 @@ export const CandidatoForm = ({
       )
       return
     }
-    if (fotoError) {
-      return
-    }
     try {
       await onSubmit(values)
     } catch (error) {
@@ -243,8 +240,7 @@ export const CandidatoForm = ({
   const canSubmit =
     categorias.length > 0 &&
     categoriasDisponibles.length > 0 &&
-    Boolean(idCategoria) &&
-    !fotoError
+    Boolean(idCategoria)
 
   return (
     <Form {...form}>
