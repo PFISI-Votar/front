@@ -84,8 +84,9 @@ export const useOficializarEleccion = (
             return true
           }
 
-          setLastError(getApiErrorMessage(error))
-          // Sin toast persistente: el botón cambia a «Reintentar oficialización».
+          const message = getApiErrorMessage(error)
+          setLastError(message)
+          toast.error(message, { duration: 8_000 })
           return true
         },
         onSettled: () => {
