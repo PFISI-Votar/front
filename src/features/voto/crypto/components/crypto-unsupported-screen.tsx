@@ -48,8 +48,8 @@ export const CryptoUnsupportedScreen = () => (
         <CardContent className='space-y-4 px-6 pt-5 pb-8 text-center sm:px-8'>
           <p className='text-sm leading-relaxed text-[#5f6368]'>
             Para proteger el secreto del sufragio, la Boleta Única Digital
-            necesita un navegador actualizado con soporte de Web Crypto API y
-            una conexión segura (HTTPS).
+            necesita un navegador actualizado con soporte de Web Crypto API,
+            IndexedDB y una conexión segura (HTTPS).
           </p>
           <p className='text-xs leading-relaxed text-[#80868b]'>
             Probá con la versión más reciente de Chrome, Firefox, Safari o Edge.
