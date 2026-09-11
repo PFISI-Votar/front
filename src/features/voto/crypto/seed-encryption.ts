@@ -53,18 +53,22 @@ const writeKey = (db: IDBDatabase, key: CryptoKey): Promise<void> => {
  */
 const createEncryptionKey = async (): Promise<CryptoKey> => {
   const db = await openDatabase()
-  const stored = await readStoredKey(db)
-  if (stored) {
-    return stored
-  }
+  try {
+    const stored = await readStoredKey(db)
+    if (stored) {
+      return stored
+    }
 
-  const key = await globalThis.crypto.subtle.generateKey(
-    { name: AES_ALGORITHM, length: AES_KEY_LENGTH },
-    false,
-    ['encrypt', 'decrypt']
-  )
-  await writeKey(db, key)
-  return key
+    const key = await globalThis.crypto.subtle.generateKey(
+      { name: AES_ALGORITHM, length: AES_KEY_LENGTH },
+      false,
+      ['encrypt', 'decrypt']
+    )
+    await writeKey(db, key)
+    return key
+  } finally {
+    db.close()
+  }
 }
 
 const getOrCreateEncryptionKey = (): Promise<CryptoKey> => {

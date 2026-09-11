@@ -1,10 +1,26 @@
-import { hexToBytes } from 'viem'
+import 'fake-indexeddb/auto'
+import { bytesToHex, hexToBytes } from 'viem'
 import { privateKeyToAccount, generatePrivateKey } from 'viem/accounts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createEphemeralWalletManager } from '@/features/voto/crypto/ephemeral-wallet'
 import { signDigestWithSecp256k1 } from '@/features/voto/crypto/secp256k1-digest-signer'
 import { computeSelectionHash } from '@/features/voto/crypto/selection-hash'
 import { hashVoteTypedData } from '@/features/voto/crypto/vote-signer'
+
+// VOTAR-496: this file tests wallet/session behavior, not the real
+// encryption mechanism (that's covered end-to-end in
+// seed-encryption.test.ts, against a fake-indexeddb-backed IndexedDB).
+// A reversible XOR stands in for real AES-GCM so revote tests (which
+// depend on the same seed round-tripping through storage) keep working,
+// while the stored value still differs from the plaintext seed.
+vi.mock('@/features/voto/crypto/seed-encryption', () => ({
+  encryptSeed: async (seed: Uint8Array) => ({
+    ciphertext: bytesToHex(seed.map((byte) => byte ^ 0xff)),
+    iv: '0x00',
+  }),
+  decryptSeed: async (encrypted: { ciphertext: `0x${string}` }) =>
+    hexToBytes(encrypted.ciphertext).map((byte) => byte ^ 0xff),
+}))
 
 const TEST_BALLOT_ADDRESS =
   '0x0000000000000000000000000000000000000001' as const
@@ -81,15 +97,23 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
     }
 
     // VOTAR-353: a random per-(browser, idEleccion) seed IS persisted so the
-    // same voter reaches the same nullifier across sign attempts — but the
-    // seed is not the private/public key, and never appears verbatim in it.
+    // same voter reaches the same nullifier across sign attempts. VOTAR-496:
+    // it is now encrypted at rest — the raw hex assertion below became a
+    // shape check on { ciphertext, iv } since the stored value is no longer
+    // the plaintext seed at all (real AES-GCM coverage lives in
+    // seed-encryption.test.ts; this file mocks that module, see above).
     expect(localStorageMock.length).toBe(1)
-    expect(
-      localStorageMock.getItem(seedStorageKey(7, VOTANTE_SCOPE_A))
-    ).toMatch(/^0x[0-9a-f]{64}$/)
-    expect(
-      localStorageMock.getItem(seedStorageKey(7, VOTANTE_SCOPE_A))
-    ).not.toBe(publicKeyHex)
+    const storedRaw = localStorageMock.getItem(
+      seedStorageKey(7, VOTANTE_SCOPE_A)
+    )
+    expect(storedRaw).not.toBeNull()
+    const stored = JSON.parse(storedRaw as string) as {
+      ciphertext: string
+      iv: string
+    }
+    expect(stored.ciphertext).toMatch(/^0x[0-9a-f]+$/)
+    expect(stored.iv).toMatch(/^0x[0-9a-f]+$/)
+    expect(stored.ciphertext).not.toBe(publicKeyHex)
     expect(sessionStorageMock.length).toBe(0)
     expect(document.cookie).not.toContain(publicKeyHex.slice(2))
     expect(document.cookie.toLowerCase()).not.toContain('private')
@@ -123,10 +147,10 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
     expect(voterB.publicKeyHex).not.toBe(voterA.publicKeyHex)
     expect(
       localStorageMock.getItem(seedStorageKey(7, VOTANTE_SCOPE_A))
-    ).toMatch(/^0x[0-9a-f]{64}$/)
+    ).not.toBeNull()
     expect(
       localStorageMock.getItem(seedStorageKey(7, VOTANTE_SCOPE_B))
-    ).toMatch(/^0x[0-9a-f]{64}$/)
+    ).not.toBeNull()
   })
 
   it('UAT-03: does not expose private key accessors on the public API or window', async () => {
