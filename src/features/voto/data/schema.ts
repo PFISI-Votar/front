@@ -67,6 +67,8 @@ export type BudConfig = {
   permitirVotoNulo?: boolean
   /** VOTAR-347 — true si la urna digital está pausada; bloquea el envío de votos. */
   pausada?: boolean
+  /** VOTAR-454: observación configurable del login. Null oculta el recuadro. */
+  observacionLogin?: string | null
   /** VOTAR-459: todas en true cuando el comicio ya cerró. */
   visibilidadDashboard?: VisibilidadDashboardPublico
 }

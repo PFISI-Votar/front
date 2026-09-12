@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { isUtcIsoDateTime } from '@/lib/datetime'
 import type { MetodoAutenticacion } from '@/features/eleccion/configuracion-comicio/data/constants'
 import { metodosAutenticacionSchema } from '@/features/eleccion/configuracion-comicio/data/schema'
+import { OBSERVACION_LOGIN_MAX_LENGTH } from '@/features/eleccion/data/observacion-login'
 import {
   tipoVotacionSchema,
   type TipoVotacion,
@@ -22,6 +23,8 @@ export type Eleccion = {
   idEleccion: number
   nombre: string
   descripcion?: string | null
+  /** VOTAR-454: texto del recuadro de login en la BUD. Null oculta el recuadro. */
+  observacionLogin?: string | null
   fechaInicio: string
   fechaFin: string
   estado: EleccionEstado
@@ -57,6 +60,13 @@ export const createComicioSchema = z
   .object({
     nombre: z.string().min(1, 'El nombre es obligatorio'),
     descripcion: z.string().optional(),
+    observacionLogin: z
+      .string()
+      .max(
+        OBSERVACION_LOGIN_MAX_LENGTH,
+        `Máximo ${OBSERVACION_LOGIN_MAX_LENGTH} caracteres`
+      )
+      .optional(),
     fechaInicio: utcIsoDateTimeSchema,
     fechaFin: utcIsoDateTimeSchema,
     tipoVotacion: tipoVotacionSchema,

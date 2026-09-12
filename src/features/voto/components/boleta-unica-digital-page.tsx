@@ -250,6 +250,7 @@ const BoletaUnicaDigitalPageContent = ({
         <BudLoginScreen
           idEleccion={idEleccion}
           authMethod={authMethod}
+          observacionLogin={budConfigQuery.data?.observacionLogin}
           onAuthenticated={(user) => {
             void (async () => {
               setIsWalletBootstrapping(true)

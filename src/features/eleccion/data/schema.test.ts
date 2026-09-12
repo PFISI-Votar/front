@@ -72,4 +72,20 @@ describe('createComicioSchema', () => {
     const result = createComicioSchema.safeParse(buildValidInput())
     expect(result.success).toBe(true)
   })
+
+  it('VOTAR-454: rechaza observación de login demasiado larga', () => {
+    const input = buildValidInput()
+    const result = createComicioSchema.safeParse({
+      ...input,
+      observacionLogin: 'a'.repeat(1001),
+    })
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      const issue = result.error.issues.find(
+        (item) => item.path[0] === 'observacionLogin'
+      )
+      expect(issue?.message).toContain('Máximo')
+    }
+  })
 })
