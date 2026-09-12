@@ -27,6 +27,12 @@ const buildComicioSectionMenuItems = (
   },
 ]
 
+type BreadcrumbListaOption = {
+  idLista: number
+  nombre: string
+  sigla: string
+}
+
 type BuildComiciosBreadcrumbInput = {
   pathname: string
   idEleccion?: number
@@ -34,6 +40,12 @@ type BuildComiciosBreadcrumbInput = {
   eleccionNombre?: string
   listaNombre?: string
   listaSigla?: string
+  /**
+   * Listas del comicio para el selector del breadcrumb en la vista de detalle
+   * de lista (VOTAR-480). Con 2+ listas el paso de lista pasa a ser un menú
+   * navegable; con 0/1 queda como texto plano.
+   */
+  listas?: BreadcrumbListaOption[]
 }
 
 export const buildComiciosBreadcrumbEntries = ({
@@ -43,6 +55,7 @@ export const buildComiciosBreadcrumbEntries = ({
   eleccionNombre,
   listaNombre,
   listaSigla,
+  listas,
 }: BuildComiciosBreadcrumbInput): BreadcrumbEntry[] => {
   const entries: BreadcrumbEntry[] = [{ label: 'Comicios', to: '/comicios' }]
 
@@ -108,7 +121,18 @@ export const buildComiciosBreadcrumbEntries = ({
       params: comicioSection.params,
     }
 
-    entries.push(comicioSectionSinMenu, { label: listaLabel })
+    const listaEntry: BreadcrumbEntry = { label: listaLabel }
+    if (listas && listas.length > 1) {
+      listaEntry.menuAriaLabel = 'Cambiar de lista'
+      listaEntry.menuItems = listas.map((item) => ({
+        label: `${item.nombre} (${item.sigla})`,
+        to: '/comicios/$idEleccion/listas/$idLista',
+        params: { idEleccion: idEleccionParam, idLista: String(item.idLista) },
+        current: item.idLista === idLista,
+      }))
+    }
+
+    entries.push(comicioSectionSinMenu, listaEntry)
     return entries
   }
 
@@ -146,5 +170,10 @@ export const useComiciosBreadcrumbEntries = (): BreadcrumbEntry[] => {
     eleccionNombre: eleccionQuery.data?.nombre,
     listaNombre: lista?.nombre,
     listaSigla: lista?.sigla,
+    listas: listasQuery.data?.map((item) => ({
+      idLista: item.idLista,
+      nombre: item.nombre,
+      sigla: item.sigla,
+    })),
   })
 }
