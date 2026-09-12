@@ -21,6 +21,8 @@ import {
   getTwoFactorStatus,
   resetTwoFactor,
 } from '@/features/auth/services/auth-api'
+import { ContencionIncidentesCard } from '@/features/configuracion-sistema/components/contencion-incidentes-card'
+import { SesionesActivasCard } from '@/features/configuracion-sistema/components/sesiones-activas-card'
 
 const resetSchema = z.object({
   password: z.string().min(1, 'Ingrese su contraseña institucional.'),
@@ -88,8 +90,8 @@ export function SeguridadPage() {
           Seguridad
         </h1>
         <p className='text-muted-foreground'>
-          Gestione la autenticación en dos pasos (TOTP) de su cuenta de
-          autoridad electoral.
+          Autenticación en dos pasos, sesiones activas y contención de
+          incidentes (§12.2) de su cuenta de autoridad electoral.
         </p>
       </div>
       <Separator className='my-4 lg:my-6' />
@@ -158,6 +160,16 @@ export function SeguridadPage() {
             </form>
           </Form>
         ) : null}
+      </div>
+
+      <Separator className='my-4 lg:my-6' />
+      <div className='max-w-3xl'>
+        <SesionesActivasCard />
+      </div>
+
+      <Separator className='my-4 lg:my-6' />
+      <div className='max-w-xl'>
+        <ContencionIncidentesCard />
       </div>
     </>
   )

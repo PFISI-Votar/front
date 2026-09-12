@@ -2,10 +2,18 @@ import { AxiosError } from 'axios'
 import { useAuthStore } from '@/stores/auth-store'
 import { apiClient } from '@/lib/api-client'
 import {
+  getLastActivityAt,
+  startActivityTracking,
+  stopActivityTracking,
+} from '@/features/auth/services/activity-tracker'
+import {
   getCurrentUser,
   refreshSession,
 } from '@/features/auth/services/auth-api'
-import { ACCESS_REFRESH_INTERVAL_MS } from '@/features/auth/types/auth.types'
+import {
+  ACCESS_REFRESH_INTERVAL_MS,
+  SESSION_IDLE_TIMEOUT_MS,
+} from '@/features/auth/types/auth.types'
 
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
@@ -35,12 +43,14 @@ export const probeAdminAccessDenied = async (): Promise<void> => {
 
 export const scheduleAccessTokenRefresh = (): void => {
   clearAccessTokenRefresh()
+  startActivityTracking()
   refreshTimer = setInterval(() => {
     void handleScheduledRefresh()
   }, ACCESS_REFRESH_INTERVAL_MS)
 }
 
 export const clearAccessTokenRefresh = (): void => {
+  stopActivityTracking()
   if (!refreshTimer) {
     return
   }
@@ -72,6 +82,12 @@ export const ensureValidAccessToken = async (): Promise<boolean> => {
 }
 
 const handleScheduledRefresh = async (): Promise<void> => {
+  // VOTAR-492: no renovar una sesión ociosa — el backend la caducaría igual.
+  if (Date.now() - getLastActivityAt() >= SESSION_IDLE_TIMEOUT_MS) {
+    clearAccessTokenRefresh()
+    useAuthStore.getState().auth.reset()
+    return
+  }
   try {
     const response = await refreshSession()
     if (!response.user) {
