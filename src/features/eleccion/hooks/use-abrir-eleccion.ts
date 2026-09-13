@@ -1,6 +1,11 @@
 import { useCallback, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { getApiErrorMessage, isPreconditionFailedError } from '@/lib/api-client'
+import { toast } from 'sonner'
+import {
+  getApiErrorMessage,
+  isConflictError,
+  isPreconditionFailedError,
+} from '@/lib/api-client'
 import { runBackgroundOperation } from '@/lib/run-background-operation'
 import { isMissingOnChainContractsError } from '@/features/eleccion/lib/missing-on-chain-contracts'
 import { abrirEleccion } from '../api/eleccion-api'
@@ -78,6 +83,16 @@ export const useAbrirEleccion = (
 
           if (isMissingOnChainContractsError(message)) {
             onMissingOnChainContracts?.(message)
+            setLastError(message)
+            return true
+          }
+
+          // VOTAR-481: un 409 significa que el scheduler automático (u otro
+          // admin) ya está abriendo/cerrando este comicio — no es una falla
+          // real, así que se avisa con un toast propio en vez de dejar que
+          // el cambio de botón a «Reintentar apertura» sea la única señal.
+          if (isConflictError(error)) {
+            toast.warning(message, { duration: 8_000 })
             setLastError(message)
             return true
           }

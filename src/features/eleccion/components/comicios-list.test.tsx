@@ -1,5 +1,6 @@
 import { AxiosError } from 'axios'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
@@ -10,6 +11,7 @@ import {
   eliminarEleccion,
 } from '@/features/eleccion/api/eleccion-api'
 import type { Eleccion } from '@/features/eleccion/data/schema'
+import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
 import { oficializarEleccion } from '@/features/eleccion/lista/api/lista-api'
 import { ComiciosList } from './comicios-list'
 
@@ -62,6 +64,19 @@ vi.mock('@/features/eleccion/hooks/use-eleccion-websocket', () => ({
   useEleccionWebSocket: vi.fn(),
 }))
 
+// VOTAR-481: no hay <Toaster /> montado en este árbol de test, así que se
+// mockea sonner para poder verificar el contenido de los toasts (en lugar
+// de buscarlos en el DOM).
+vi.mock('sonner', () => ({
+  toast: {
+    loading: vi.fn(() => 'toast-id'),
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    dismiss: vi.fn(),
+  },
+}))
+
 const createPreconditionError = (message: string) =>
   new AxiosError(
     'Precondition Failed',
@@ -85,6 +100,25 @@ const createNetworkError = (message: string) =>
     config: {} as never,
     data: { message },
   })
+
+const createConflictError = (message: string) =>
+  new AxiosError('Conflict', 'ERR_BAD_REQUEST', undefined, undefined, {
+    status: 409,
+    statusText: 'Conflict',
+    headers: {},
+    config: {} as never,
+    data: { message },
+  })
+
+/** VOTAR-481: obtiene las opciones pasadas al hook mockeado para simular eventos del backend. */
+const lastEleccionWebSocketOptions = () => {
+  const calls = vi.mocked(useEleccionWebSocket).mock.calls
+  const options = calls[calls.length - 1]?.[0]
+  if (!options) {
+    throw new Error('useEleccionWebSocket no fue invocado')
+  }
+  return options
+}
 
 const mockElecciones: Eleccion[] = [
   {
@@ -575,6 +609,81 @@ describe('ComiciosList', () => {
     await expect
       .element(page.getByText(/Estado actual del árbol.*CONSOLIDADO/))
       .toBeInTheDocument()
+  })
+
+  it('muestra un toast avisando del conflicto de concurrencia cuando la apertura devuelve 409 (VOTAR-481)', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+    vi.mocked(abrirEleccion).mockRejectedValue(
+      createConflictError(
+        'Ya hay una transición de estado en curso para la elección 1. Reintentá en unos segundos.'
+      )
+    )
+
+    await renderComiciosList()
+
+    const abrirButton = page.getByRole('button', {
+      name: 'Abrir comicio Elección Municipal 2025',
+    })
+    await userEvent.click(abrirButton)
+
+    const confirmButton = page.getByRole('button', { name: 'Abrir comicio' })
+    await userEvent.click(confirmButton)
+
+    await vi.waitFor(() => {
+      expect(abrirEleccion).toHaveBeenCalledWith(1)
+    })
+
+    await vi.waitFor(() => {
+      expect(toast.warning).toHaveBeenCalledWith(
+        'Ya hay una transición de estado en curso para la elección 1. Reintentá en unos segundos.',
+        { duration: 8_000 }
+      )
+    })
+
+    await expect
+      .element(
+        page.getByRole('button', {
+          name: 'Reintentar apertura Elección Municipal 2025',
+        })
+      )
+      .toBeInTheDocument()
+  })
+
+  it('muestra el botón de apertura en estado de carga cuando el WebSocket avisa una transacción en curso (VOTAR-481)', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+
+    await renderComiciosList()
+
+    await expect
+      .element(
+        page.getByRole('button', {
+          name: 'Abrir comicio Elección Municipal 2025',
+        })
+      )
+      .toBeInTheDocument()
+
+    lastEleccionWebSocketOptions().onTransaccionEnProgreso?.({
+      idEleccion: 1,
+      tipo: 'APERTURA',
+    })
+
+    await expect
+      .element(
+        page.getByRole('button', {
+          name: 'Abriendo comicio Elección Municipal 2025',
+        })
+      )
+      .toBeDisabled()
+
+    lastEleccionWebSocketOptions().onEleccionAbierta?.({ idEleccion: 1 })
+
+    await expect
+      .element(
+        page.getByRole('button', {
+          name: 'Abrir comicio Elección Municipal 2025',
+        })
+      )
+      .not.toBeDisabled()
   })
 
   it('cierra diálogo tras apertura exitosa', async () => {

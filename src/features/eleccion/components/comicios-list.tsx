@@ -7,6 +7,7 @@ import {
   BadgeCheck,
   Eye,
   FileSpreadsheet,
+  Loader2,
   Pause,
   Pencil,
   Play,
@@ -50,7 +51,10 @@ import type { EleccionEstado } from '@/features/eleccion/data/schema'
 import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
 import { useArchivarEleccion } from '@/features/eleccion/hooks/use-archivar-eleccion'
 import { useCerrarEleccion } from '@/features/eleccion/hooks/use-cerrar-eleccion'
-import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
+import {
+  type TransaccionEleccionTipo,
+  useEleccionWebSocket,
+} from '@/features/eleccion/hooks/use-eleccion-websocket'
 import { useOficializarEleccion } from '@/features/eleccion/hooks/use-oficializar-eleccion'
 import { useReintentarDespliegueOnChain } from '@/features/eleccion/hooks/use-reintentar-despliegue-on-chain'
 import {
@@ -376,12 +380,42 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
       listarElecciones(estado === 'historicos' ? 'ARCHIVADA' : undefined),
   })
 
+  // VOTAR-481: id de toast por comicio para la retroalimentación en vivo de
+  // transacciones on-chain (apertura/cierre manual o automática).
+  const transaccionToastId = (idEleccion: number) =>
+    `ws-eleccion-tx-${idEleccion}`
+
+  // VOTAR-481: idEleccion -> tipo de transacción en curso, alimentado por el
+  // WebSocket. A diferencia de `abriendoComicio`/`isRunning` (que solo vive
+  // mientras la request HTTP de ESTE navegador está en vuelo), esto refleja
+  // el estado real del backend: sigue en true durante toda la confirmación
+  // on-chain y también cuando la apertura/cierre la disparó el scheduler
+  // automático u otra sesión de administrador.
+  const [transaccionesEnProgreso, setTransaccionesEnProgreso] = useState<
+    Record<number, TransaccionEleccionTipo>
+  >({})
+
+  const limpiarTransaccionEnProgreso = (idEleccion: number) => {
+    setTransaccionesEnProgreso((prev) => {
+      if (!(idEleccion in prev)) {
+        return prev
+      }
+      const next = { ...prev }
+      delete next[idEleccion]
+      return next
+    })
+  }
+
   useEleccionWebSocket({
-    onEleccionAbierta: () => {
+    onEleccionAbierta: (data) => {
       queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+      toast.dismiss(transaccionToastId(data.idEleccion))
+      limpiarTransaccionEnProgreso(data.idEleccion)
     },
-    onEleccionCerrada: () => {
+    onEleccionCerrada: (data) => {
       queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+      toast.dismiss(transaccionToastId(data.idEleccion))
+      limpiarTransaccionEnProgreso(data.idEleccion)
     },
     onEleccionPausada: () => {
       queryClient.invalidateQueries({ queryKey: ['elecciones'] })
@@ -391,6 +425,27 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
     },
     onEleccionArchivada: () => {
       queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+    },
+    // VOTAR-481: sincroniza en tiempo real el estado de la transacción de
+    // apertura/cierre (manual o del scheduler automático) para que ningún
+    // usuario conectado interprete la demora de confirmación en Sepolia, o
+    // un conflicto de concurrencia entre ambos procesos, como una falla.
+    onTransaccionEnProgreso: (data) => {
+      setTransaccionesEnProgreso((prev) => ({
+        ...prev,
+        [data.idEleccion]: data.tipo,
+      }))
+      const accion = data.tipo === 'APERTURA' ? 'apertura' : 'cierre'
+      toast.loading(
+        `Procesando ${accion} del comicio #${data.idEleccion} en la blockchain. Puede demorar unos segundos; no hace falta reintentar.`,
+        { id: transaccionToastId(data.idEleccion) }
+      )
+    },
+    onTransaccionConflicto: (data) => {
+      // No se limpia `transaccionesEnProgreso`: la transacción que sí tiene
+      // el lock (manual o automática) sigue en curso; esta sólo fue la que
+      // se rechazó.
+      toast.warning(data.mensaje, { id: transaccionToastId(data.idEleccion) })
     },
   })
 
@@ -676,43 +731,59 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
                           : 'Reintentar oficialización'}
                       </Button>
                     ) : (
-                      <Button
-                        size='sm'
-                        onClick={() => {
-                          if (
-                            abrirLastError &&
-                            abrirDialog.idEleccion === comicio.idEleccion
-                          ) {
-                            abrirEnBackground()
-                            return
-                          }
-                          handleOpenAbrirDialog(
-                            comicio.idEleccion,
-                            comicio.nombre
-                          )
-                        }}
-                        disabled={
-                          abriendoComicio &&
-                          abrirDialog.idEleccion === comicio.idEleccion
-                        }
-                        aria-label={
+                      (() => {
+                        // VOTAR-481: combina el estado local de ESTA request
+                        // (isRunning) con el WebSocket global, para que el
+                        // botón muestre "Abriendo..." tanto si el clic salió
+                        // de esta pestaña como si la apertura la disparó el
+                        // scheduler automático u otro admin.
+                        const abriendoEsteComicio =
+                          (abriendoComicio &&
+                            abrirDialog.idEleccion === comicio.idEleccion) ||
+                          transaccionesEnProgreso[comicio.idEleccion] ===
+                            'APERTURA'
+                        const reintentarApertura =
+                          !abriendoEsteComicio &&
                           abrirLastError &&
                           abrirDialog.idEleccion === comicio.idEleccion
-                            ? `Reintentar apertura ${comicio.nombre}`
-                            : `Abrir comicio ${comicio.nombre}`
-                        }
-                      >
-                        {abrirLastError &&
-                        abrirDialog.idEleccion === comicio.idEleccion ? (
-                          <RefreshCw />
-                        ) : (
-                          <Play />
-                        )}
-                        {abrirLastError &&
-                        abrirDialog.idEleccion === comicio.idEleccion
-                          ? 'Reintentar apertura'
-                          : 'Abrir comicio'}
-                      </Button>
+
+                        return (
+                          <Button
+                            size='sm'
+                            onClick={() => {
+                              if (reintentarApertura) {
+                                abrirEnBackground()
+                                return
+                              }
+                              handleOpenAbrirDialog(
+                                comicio.idEleccion,
+                                comicio.nombre
+                              )
+                            }}
+                            disabled={abriendoEsteComicio}
+                            aria-label={
+                              abriendoEsteComicio
+                                ? `Abriendo comicio ${comicio.nombre}`
+                                : reintentarApertura
+                                  ? `Reintentar apertura ${comicio.nombre}`
+                                  : `Abrir comicio ${comicio.nombre}`
+                            }
+                          >
+                            {abriendoEsteComicio ? (
+                              <Loader2 className='animate-spin' />
+                            ) : reintentarApertura ? (
+                              <RefreshCw />
+                            ) : (
+                              <Play />
+                            )}
+                            {abriendoEsteComicio
+                              ? 'Abriendo...'
+                              : reintentarApertura
+                                ? 'Reintentar apertura'
+                                : 'Abrir comicio'}
+                          </Button>
+                        )
+                      })()
                     ))}
                   {comicio.estado === 'ABIERTA' && (
                     <Button
@@ -724,10 +795,24 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
                           comicio.nombre
                         )
                       }
-                      aria-label={`Cerrar comicio ${comicio.nombre}`}
+                      disabled={
+                        transaccionesEnProgreso[comicio.idEleccion] === 'CIERRE'
+                      }
+                      aria-label={
+                        transaccionesEnProgreso[comicio.idEleccion] === 'CIERRE'
+                          ? `Cerrando comicio ${comicio.nombre}`
+                          : `Cerrar comicio ${comicio.nombre}`
+                      }
                     >
-                      <Square />
-                      Cerrar comicio
+                      {transaccionesEnProgreso[comicio.idEleccion] ===
+                      'CIERRE' ? (
+                        <Loader2 className='animate-spin' />
+                      ) : (
+                        <Square />
+                      )}
+                      {transaccionesEnProgreso[comicio.idEleccion] === 'CIERRE'
+                        ? 'Cerrando...'
+                        : 'Cerrar comicio'}
                     </Button>
                   )}
                   {comicio.estado === 'ABIERTA' && !comicio.pausada && (
