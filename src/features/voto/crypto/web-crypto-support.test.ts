@@ -1,3 +1,4 @@
+import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { isWebCryptoSupported } from '@/features/voto/crypto/web-crypto-support'
 
@@ -6,7 +7,7 @@ describe('isWebCryptoSupported', () => {
     vi.unstubAllGlobals()
   })
 
-  it('returns true when SubtleCrypto and getRandomValues are available', () => {
+  it('returns true when SubtleCrypto, getRandomValues and IndexedDB are available', () => {
     expect(isWebCryptoSupported()).toBe(true)
   })
 
@@ -24,6 +25,11 @@ describe('isWebCryptoSupported', () => {
     vi.stubGlobal('crypto', {
       getRandomValues: (buffer: Uint8Array) => buffer,
     })
+    expect(isWebCryptoSupported()).toBe(false)
+  })
+
+  it('returns false when indexedDB is missing (VOTAR-496)', () => {
+    vi.stubGlobal('indexedDB', undefined)
     expect(isWebCryptoSupported()).toBe(false)
   })
 })

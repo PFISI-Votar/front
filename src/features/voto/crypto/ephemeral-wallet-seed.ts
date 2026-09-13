@@ -1,5 +1,10 @@
 import { utils as secpUtils } from '@noble/secp256k1'
-import { bytesToHex, hexToBytes, keccak256, toBytes, type Hex } from 'viem'
+import { bytesToHex, keccak256, toBytes } from 'viem'
+import {
+  decryptSeed,
+  encryptSeed,
+  type EncryptedSeed,
+} from '@/features/voto/crypto/seed-encryption'
 
 const SEED_BYTES = 32
 const MAX_DERIVE_ATTEMPTS = 16
@@ -8,7 +13,29 @@ const STORAGE_PREFIX = 'votar:vote-seed:'
 const storageKey = (idEleccion: number, votanteScope: string): string =>
   `${STORAGE_PREFIX}${idEleccion}:${votanteScope}`
 
-const SEED_HEX_REGEX = /^0x[0-9a-f]{64}$/i
+const HEX_STRING_REGEX = /^0x[0-9a-f]+$/i
+
+const isEncryptedSeed = (value: unknown): value is EncryptedSeed => {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+  const candidate = value as Record<string, unknown>
+  return (
+    typeof candidate.ciphertext === 'string' &&
+    HEX_STRING_REGEX.test(candidate.ciphertext) &&
+    typeof candidate.iv === 'string' &&
+    HEX_STRING_REGEX.test(candidate.iv)
+  )
+}
+
+const tryParseEncryptedSeed = (stored: string): EncryptedSeed | null => {
+  try {
+    const parsed: unknown = JSON.parse(stored)
+    return isEncryptedSeed(parsed) ? parsed : null
+  } catch {
+    return null
+  }
+}
 
 /**
  * Returns the per-(browser, idEleccion, votanteScope) random seed used to
@@ -27,20 +54,32 @@ const SEED_HEX_REGEX = /^0x[0-9a-f]{64}$/i
  * not share a nullifier or on-chain cooldown (VOTAR-452 bug 4). Persisted
  * in localStorage so revotes resolve to the same nullifier across logout/login
  * cycles, matching server-side `estado-revoto` (VOTAR-328).
+ *
+ * VOTAR-496: the seed is encrypted at rest (AES-GCM, non-extractable key in
+ * IndexedDB — see seed-encryption.ts) so a party with mere storage read
+ * access can no longer recompute the private key from a plaintext seed.
  */
-export const getOrCreateElectionSeed = (
+export const getOrCreateElectionSeed = async (
   idEleccion: number,
   votanteScope: string
-): Uint8Array => {
+): Promise<Uint8Array> => {
   const key = storageKey(idEleccion, votanteScope)
   const stored = globalThis.localStorage.getItem(key)
-  if (stored && SEED_HEX_REGEX.test(stored)) {
-    return hexToBytes(stored as Hex)
+  if (stored) {
+    const parsed = tryParseEncryptedSeed(stored)
+    if (parsed) {
+      return decryptSeed(parsed)
+    }
+    // eslint-disable-next-line no-console -- VOTAR-496: no hay logger propio en el proyecto, alerta de storage corrupto/legado.
+    console.warn(
+      `[VOTAR-496] Valor inesperado en localStorage para "${key}" — no matchea el formato de seed cifrado. Se generará un seed nuevo.`
+    )
   }
 
   const seed = new Uint8Array(SEED_BYTES)
   globalThis.crypto.getRandomValues(seed)
-  globalThis.localStorage.setItem(key, bytesToHex(seed))
+  const encrypted = await encryptSeed(seed)
+  globalThis.localStorage.setItem(key, JSON.stringify(encrypted))
   return seed
 }
 
