@@ -1,6 +1,8 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
+import { AxiosError } from 'axios'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { getApiErrorMessage } from '@/lib/api-client'
 import { resolveMediaUrl } from '@/lib/media-url'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,6 +28,8 @@ import {
 } from '@/features/eleccion/lista/data/schema'
 import {
   IMAGE_FILE_REQUIREMENTS,
+  formatRejectedImageError,
+  isElectoralImageRejectionMessage,
   validateElectoralImageFile,
 } from '@/features/eleccion/shared/utils/image-file'
 
@@ -70,7 +74,7 @@ const ListaFormDialogContent = ({
   const [localLogoPreview, setLocalLogoPreview] = useState<string | null>(null)
   const [hasRemovedLogo, setHasRemovedLogo] = useState(false)
   const [logoError, setLogoError] = useState<string | null>(null)
-  const logoInputRef = useRef<HTMLInputElement>(null)
+  const [logoInputKey, setLogoInputKey] = useState(0)
 
   const form = useForm<CreateListaInput>({
     resolver: zodResolver(createListaSchema),
@@ -94,7 +98,11 @@ const ListaFormDialogContent = ({
     }
   }, [localLogoPreview])
 
-  const handleLogoChange = (file?: File) => {
+  const keepsPreviousLogo = () =>
+    Boolean(form.getValues('logoFile')) ||
+    Boolean(lista?.logoUrl && !hasRemovedLogo)
+
+  const handleLogoChange = async (file?: File) => {
     if (!file) {
       if (localLogoPreview?.startsWith('blob:')) {
         URL.revokeObjectURL(localLogoPreview)
@@ -106,10 +114,12 @@ const ListaFormDialogContent = ({
       return
     }
 
-    const validationError = validateElectoralImageFile(file)
+    const validationError = await validateElectoralImageFile(file)
     if (validationError) {
-      setLogoError(validationError)
-      if (logoInputRef.current) logoInputRef.current.value = ''
+      setLogoInputKey((key) => key + 1)
+      setLogoError(
+        formatRejectedImageError(validationError, keepsPreviousLogo())
+      )
       return
     }
 
@@ -135,8 +145,33 @@ const ListaFormDialogContent = ({
   }
 
   const handleSubmit = async (values: CreateListaInput) => {
-    await onSubmit(values)
-    onOpenChange(false)
+    try {
+      await onSubmit(values)
+      onOpenChange(false)
+    } catch (error) {
+      const message = getApiErrorMessage(error)
+      if (
+        error instanceof AxiosError &&
+        error.response?.status === 400 &&
+        values.logoFile &&
+        isElectoralImageRejectionMessage(message)
+      ) {
+        setLogoInputKey((key) => key + 1)
+        if (localLogoPreview?.startsWith('blob:')) {
+          URL.revokeObjectURL(localLogoPreview)
+        }
+        form.setValue('logoFile', null)
+        setLocalLogoPreview(null)
+        setLogoError(
+          formatRejectedImageError(
+            message,
+            Boolean(lista?.logoUrl && !hasRemovedLogo)
+          )
+        )
+        return
+      }
+      throw error
+    }
   }
 
   return (
@@ -219,10 +254,12 @@ const ListaFormDialogContent = ({
               </div>
             )}
             <Input
-              ref={logoInputRef}
+              key={logoInputKey}
               type='file'
               accept='image/png,image/jpeg,.png,.jpg,.jpeg'
-              onChange={(event) => handleLogoChange(event.target.files?.[0])}
+              onChange={(event) => {
+                void handleLogoChange(event.target.files?.[0])
+              }}
             />
             {logoError && (
               <p className='text-sm text-destructive' role='alert'>

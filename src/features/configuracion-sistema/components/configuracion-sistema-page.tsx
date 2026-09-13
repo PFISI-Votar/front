@@ -129,11 +129,11 @@ export function ConfiguracionSistemaPage() {
   const [fileError, setFileError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleFileChange = (file?: File) => {
+  const handleFileChange = async (file?: File) => {
     if (!file) {
       return
     }
-    const validationError = validateElectoralImageFile(file)
+    const validationError = await validateElectoralImageFile(file)
     if (validationError) {
       setFileError(validationError)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -195,9 +195,9 @@ export function ConfiguracionSistemaPage() {
                       type='file'
                       accept='image/png,image/jpeg,.png,.jpg,.jpeg'
                       disabled={isPending}
-                      onChange={(event) =>
-                        handleFileChange(event.target.files?.[0])
-                      }
+                      onChange={(event) => {
+                        void handleFileChange(event.target.files?.[0])
+                      }}
                       className='max-w-xs'
                     />
                     {logoPreview && (
