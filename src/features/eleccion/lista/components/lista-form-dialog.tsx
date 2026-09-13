@@ -102,7 +102,7 @@ const ListaFormDialogContent = ({
     Boolean(form.getValues('logoFile')) ||
     Boolean(lista?.logoUrl && !hasRemovedLogo)
 
-  const handleLogoChange = async (file?: File) => {
+  const handleLogoChange = async (file?: File, input?: HTMLInputElement) => {
     if (!file) {
       if (localLogoPreview?.startsWith('blob:')) {
         URL.revokeObjectURL(localLogoPreview)
@@ -116,7 +116,7 @@ const ListaFormDialogContent = ({
 
     const validationError = await validateElectoralImageFile(file)
     if (validationError) {
-      setLogoInputKey((key) => key + 1)
+      if (input) input.value = ''
       setLogoError(
         formatRejectedImageError(validationError, keepsPreviousLogo())
       )
@@ -258,7 +258,10 @@ const ListaFormDialogContent = ({
               type='file'
               accept='image/png,image/jpeg,.png,.jpg,.jpeg'
               onChange={(event) => {
-                void handleLogoChange(event.target.files?.[0])
+                void handleLogoChange(
+                  event.target.files?.[0],
+                  event.currentTarget
+                )
               }}
             />
             {logoError && (

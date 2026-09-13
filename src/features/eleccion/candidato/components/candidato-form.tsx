@@ -169,7 +169,7 @@ export const CandidatoForm = ({
     }
   }, [localFotoPreview])
 
-  const handleFotoChange = async (file?: File) => {
+  const handleFotoChange = async (file?: File, input?: HTMLInputElement) => {
     if (!file) {
       if (localFotoPreview?.startsWith('blob:')) {
         URL.revokeObjectURL(localFotoPreview)
@@ -183,7 +183,7 @@ export const CandidatoForm = ({
 
     const validationError = await validateElectoralImageFile(file)
     if (validationError) {
-      setFotoInputKey((key) => key + 1)
+      if (input) input.value = ''
       const keepsPrevious =
         Boolean(form.getValues('fotoFile')) ||
         Boolean(currentFotoUrl && !hasRemovedFoto)
@@ -357,7 +357,9 @@ export const CandidatoForm = ({
             key={fotoInputKey}
             type='file'
             accept='image/png,image/jpeg,.png,.jpg,.jpeg'
-            onChange={(event) => handleFotoChange(event.target.files?.[0])}
+            onChange={(event) => {
+              void handleFotoChange(event.target.files?.[0], event.currentTarget)
+            }}
           />
           {fotoError && (
             <p className='text-sm text-destructive' role='alert'>
