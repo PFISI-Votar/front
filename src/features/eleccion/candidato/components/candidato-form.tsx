@@ -358,7 +358,10 @@ export const CandidatoForm = ({
             type='file'
             accept='image/png,image/jpeg,.png,.jpg,.jpeg'
             onChange={(event) => {
-              void handleFotoChange(event.target.files?.[0], event.currentTarget)
+              void handleFotoChange(
+                event.target.files?.[0],
+                event.currentTarget
+              )
             }}
           />
           {fotoError && (
