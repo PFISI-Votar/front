@@ -21,7 +21,7 @@ const buildFile = (
       : JPEG_HEADER
     body.set(header.subarray(0, Math.min(header.length, body.length)))
   }
-  return new File([body], name, { type })
+  return new File([body.slice()], name, { type })
 }
 
 describe('validateElectoralImageFile', () => {
