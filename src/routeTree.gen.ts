@@ -29,6 +29,7 @@ import { Route as AuthenticatedComiciosRouteRouteImport } from './routes/_authen
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
 import { Route as AuthenticatedTasksIndexRouteImport } from './routes/_authenticated/tasks/index'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
+import { Route as AuthenticatedManualIndexRouteImport } from './routes/_authenticated/manual/index'
 import { Route as AuthenticatedHelpCenterIndexRouteImport } from './routes/_authenticated/help-center/index'
 import { Route as AuthenticatedConfiguracionIndexRouteImport } from './routes/_authenticated/configuracion/index'
 import { Route as AuthenticatedComiciosIndexRouteImport } from './routes/_authenticated/comicios/index'
@@ -160,6 +161,12 @@ const AuthenticatedSettingsIndexRoute =
     id: '/',
     path: '/',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
+  } as any)
+const AuthenticatedManualIndexRoute =
+  AuthenticatedManualIndexRouteImport.update({
+    id: '/manual/',
+    path: '/manual/',
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedHelpCenterIndexRoute =
   AuthenticatedHelpCenterIndexRouteImport.update({
@@ -365,6 +372,7 @@ export interface FileRoutesByFullPath {
   '/comicios/': typeof AuthenticatedComiciosIndexRoute
   '/configuracion/': typeof AuthenticatedConfiguracionIndexRoute
   '/help-center/': typeof AuthenticatedHelpCenterIndexRoute
+  '/manual/': typeof AuthenticatedManualIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/tasks/': typeof AuthenticatedTasksIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
@@ -412,6 +420,7 @@ export interface FileRoutesByTo {
   '/comicios': typeof AuthenticatedComiciosIndexRoute
   '/configuracion': typeof AuthenticatedConfiguracionIndexRoute
   '/help-center': typeof AuthenticatedHelpCenterIndexRoute
+  '/manual': typeof AuthenticatedManualIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/tasks': typeof AuthenticatedTasksIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
@@ -464,6 +473,7 @@ export interface FileRoutesById {
   '/_authenticated/comicios/': typeof AuthenticatedComiciosIndexRoute
   '/_authenticated/configuracion/': typeof AuthenticatedConfiguracionIndexRoute
   '/_authenticated/help-center/': typeof AuthenticatedHelpCenterIndexRoute
+  '/_authenticated/manual/': typeof AuthenticatedManualIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
@@ -516,6 +526,7 @@ export interface FileRouteTypes {
     | '/comicios/'
     | '/configuracion/'
     | '/help-center/'
+    | '/manual/'
     | '/settings/'
     | '/tasks/'
     | '/users/'
@@ -563,6 +574,7 @@ export interface FileRouteTypes {
     | '/comicios'
     | '/configuracion'
     | '/help-center'
+    | '/manual'
     | '/settings'
     | '/tasks'
     | '/users'
@@ -614,6 +626,7 @@ export interface FileRouteTypes {
     | '/_authenticated/comicios/'
     | '/_authenticated/configuracion/'
     | '/_authenticated/help-center/'
+    | '/_authenticated/manual/'
     | '/_authenticated/settings/'
     | '/_authenticated/tasks/'
     | '/_authenticated/users/'
@@ -793,6 +806,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings/'
       preLoaderRoute: typeof AuthenticatedSettingsIndexRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
+    }
+    '/_authenticated/manual/': {
+      id: '/_authenticated/manual/'
+      path: '/manual'
+      fullPath: '/manual/'
+      preLoaderRoute: typeof AuthenticatedManualIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/help-center/': {
       id: '/_authenticated/help-center/'
@@ -1068,6 +1088,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedChatsIndexRoute: typeof AuthenticatedChatsIndexRoute
   AuthenticatedConfiguracionIndexRoute: typeof AuthenticatedConfiguracionIndexRoute
   AuthenticatedHelpCenterIndexRoute: typeof AuthenticatedHelpCenterIndexRoute
+  AuthenticatedManualIndexRoute: typeof AuthenticatedManualIndexRoute
   AuthenticatedTasksIndexRoute: typeof AuthenticatedTasksIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
 }
@@ -1084,6 +1105,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedChatsIndexRoute: AuthenticatedChatsIndexRoute,
   AuthenticatedConfiguracionIndexRoute: AuthenticatedConfiguracionIndexRoute,
   AuthenticatedHelpCenterIndexRoute: AuthenticatedHelpCenterIndexRoute,
+  AuthenticatedManualIndexRoute: AuthenticatedManualIndexRoute,
   AuthenticatedTasksIndexRoute: AuthenticatedTasksIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
 }
