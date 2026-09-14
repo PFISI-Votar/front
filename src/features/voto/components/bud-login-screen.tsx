@@ -35,6 +35,7 @@ import {
   METODOS_AUTENTICACION,
   type MetodoAutenticacion,
 } from '@/features/eleccion/configuracion-comicio/data/constants'
+import { ManualVotanteLink } from '@/features/manual-votante'
 import { loginVotante } from '@/features/voto/services/votante-auth-api'
 import type { VotanteAuthUser } from '@/features/voto/types/votante-auth.types'
 
@@ -213,8 +214,9 @@ export const BudLoginScreen = ({
           </CardContent>
         </Card>
 
-        {/* VOTAR-378: acceso a la explicación de cumplimiento Ley 25.326 */}
-        <div className='mt-6 text-center'>
+        {/* VOTAR-389: manual del votante. VOTAR-378: Ley 25.326 */}
+        <div className='mt-6 flex flex-col items-center gap-3 text-center'>
+          <ManualVotanteLink openInNewTab />
           <CumplimientoLey25326Link />
         </div>
       </section>
