@@ -76,6 +76,7 @@ jobs:
     needs: [quality, codeql, secret-scanning]
     if: always()
     runs-on: ubuntu-latest
+    permissions: {}
     steps:
       - name: Require quality, CodeQL and secret scanning
         env:
@@ -97,6 +98,9 @@ jobs:
   browser-tests:
     needs: quality
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
     container:
       image: mcr.microsoft.com/playwright:v1.59.1-noble
 
