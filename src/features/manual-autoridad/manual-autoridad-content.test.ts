@@ -24,9 +24,12 @@ const textOf = (id: string): string => {
 
 const sidebarUrls = (): string[] =>
   sidebarData.navGroups.flatMap((group) =>
-    group.items.flatMap((item) =>
-      item.items ? item.items.map((child) => child.url) : [item.url]
-    )
+    group.items.flatMap((item) => {
+      const urls = item.items
+        ? item.items.map((child) => child.url)
+        : [item.url]
+      return urls.filter((url): url is string => typeof url === 'string')
+    })
   )
 
 describe('Manual de la Autoridad Electoral — VOTAR-395', () => {
