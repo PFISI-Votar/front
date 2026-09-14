@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
+import { postRelayerCast } from '@/features/voto/api/voto-api'
 import { BALLOT_CONTRACT_ABI } from '@/features/voto/crypto/ballot-abi'
 import { VOTE_EIP712_TYPES } from '@/features/voto/crypto/constants'
 import { assertRpcUrlsUseHttpsExceptLoopback } from '@/features/voto/crypto/rpc-failover'
 import type { SignedVotePayload } from '@/features/voto/crypto/vote-signer'
 import {
+  buildRelayerCastBody,
   transmitSignedVote,
   type TransmitSignedVoteInput,
 } from '@/features/voto/crypto/vote-transmitter'
@@ -97,38 +99,49 @@ describe('VOTAR-378 Ley 25.326 — payload de voto y HTTPS', () => {
     )
   })
 
-  it('UAT-01: transmitSignedVote no envía DNI, email ni nombre en args JSON-RPC', async () => {
-    const estimateContractGas = vi.fn().mockResolvedValue(100_000n)
-    const writeContract = vi.fn().mockResolvedValue(`0x${'f'.repeat(64)}`)
+  it('UAT-01: el cast al relayer no envía DNI, email ni nombre', async () => {
+    const relayCast = vi
+      .fn()
+      .mockResolvedValue({ txHash: `0x${'f'.repeat(64)}` })
     const waitForTransactionReceipt = vi.fn().mockResolvedValue({
       status: 'success',
       blockNumber: 1n,
     })
 
     await transmitSignedVote(input, {
-      publicClient: {
-        estimateContractGas,
-        waitForTransactionReceipt,
-      } as never,
-      walletClient: {
-        account: { address: '0x00000000000000000000000000000000000000bb' },
-        chain: { id: 31_337 },
-        writeContract,
-      } as never,
-      contractAddress: '0x0000000000000000000000000000000000000001',
+      publicClient: { waitForTransactionReceipt } as never,
+      relayCast,
     })
 
+    const body = buildRelayerCastBody(input, 'ab'.repeat(32))
     const payload = JSON.stringify(
       {
-        estimate: estimateContractGas.mock.calls[0]?.[0],
-        write: writeContract.mock.calls[0]?.[0],
+        relay: relayCast.mock.calls[0]?.[0],
+        body,
       },
       (_key, value) => (typeof value === 'bigint' ? value.toString() : value)
     )
     for (const token of PII_TOKENS) {
       expect(payload.toLowerCase()).not.toContain(token.toLowerCase())
     }
-    expect(writeContract.mock.calls[0]?.[0].functionName).toBe('castSignedVote')
+    expect(body).not.toHaveProperty('Authorization')
+    expect(JSON.stringify(body)).not.toMatch(/cookie|bearer/i)
+  })
+
+  it('VOTAR-379 UAT-04: el POST al relayer omite cookies de sesión', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ txHash: `0x${'e'.repeat(64)}` }),
+    })
+    const body = buildRelayerCastBody(input, 'cd'.repeat(32))
+
+    await postRelayerCast(input.signed.electionId, body, fetchImpl)
+
+    const init = fetchImpl.mock.calls[0]?.[1] as RequestInit
+    expect(init.credentials).toBe('omit')
+    expect(init.headers).not.toHaveProperty('Authorization')
+    expect(init.headers).not.toHaveProperty('Cookie')
+    expect(String(init.body)).not.toMatch(/Bearer|votar_voter|cookie/i)
   })
 
   it('UAT-02: RPC públicos deben ser HTTPS; HTTP sólo en loopback', () => {

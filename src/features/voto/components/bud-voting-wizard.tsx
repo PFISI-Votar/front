@@ -832,7 +832,6 @@ export const BudVotingWizard = ({
           validatorSignature: validatorSig,
         },
         {
-          contractAddress: ballotAddress,
           onProgress: (phase) => {
             setTransmitPhase(phase)
           },
