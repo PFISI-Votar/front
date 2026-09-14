@@ -49,15 +49,14 @@ export const startActivityTracking = (): void => {
   tracking = true
   const current = now()
   lastWrite = current
-  if (readStored() === 0) {
-    writeStored(current)
-  }
+  // Siempre pisa la marca al arrancar (nueva sesión o rehidratación de una
+  // vigente): si no, tras un idle detectado el próximo login heredaba el
+  // timestamp vencido y el refresh de los 14 min podía echar a un usuario
+  // activo.
+  writeStored(current)
   for (const event of ACTIVITY_EVENTS) {
     window.addEventListener(event, handleActivity, { passive: true })
   }
-  document.addEventListener('visibilitychange', handleActivity, {
-    passive: true,
-  })
 }
 
 export const stopActivityTracking = (): void => {
@@ -68,11 +67,19 @@ export const stopActivityTracking = (): void => {
   for (const event of ACTIVITY_EVENTS) {
     window.removeEventListener(event, handleActivity)
   }
-  document.removeEventListener('visibilitychange', handleActivity)
 }
 
 /** Marca de la última actividad (ms epoch); `Date.now()` si no hay registro. */
 export const getLastActivityAt = (): number => {
   const stored = readStored()
   return stored > 0 ? stored : now()
+}
+
+/** VOTAR-492: borra la marca al terminar una sesión para no heredarla en la siguiente. */
+export const clearStoredActivity = (): void => {
+  try {
+    window.localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // Modo privado / almacenamiento bloqueado: no hay nada que limpiar.
+  }
 }

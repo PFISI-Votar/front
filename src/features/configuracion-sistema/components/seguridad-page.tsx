@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2, ShieldAlert } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAuthStore } from '@/stores/auth-store'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -29,6 +30,7 @@ const resetSchema = z.object({
 })
 
 export function SeguridadPage() {
+  const esPauser = useAuthStore((state) => Boolean(state.auth.user?.esPauser))
   const [enabled, setEnabled] = useState<boolean | null>(null)
   const [isLoadingStatus, setIsLoadingStatus] = useState(true)
   const [isResetting, setIsResetting] = useState(false)
@@ -167,10 +169,14 @@ export function SeguridadPage() {
         <SesionesActivasCard />
       </div>
 
-      <Separator className='my-4 lg:my-6' />
-      <div className='max-w-xl'>
-        <ContencionIncidentesCard />
-      </div>
+      {esPauser ? (
+        <>
+          <Separator className='my-4 lg:my-6' />
+          <div className='max-w-xl'>
+            <ContencionIncidentesCard />
+          </div>
+        </>
+      ) : null}
     </>
   )
 }

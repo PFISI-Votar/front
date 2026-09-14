@@ -5,6 +5,11 @@ export interface AuthUser {
   role: JwtRole
   email?: string
   name?: string
+  /**
+   * VOTAR-492 §12.2 — true si la cuenta tiene rol PAUSER (contención de
+   * incidentes: revocación masiva de sesiones y bloqueo de autenticación).
+   */
+  esPauser?: boolean
 }
 
 export type TwoFactorStatus = 'setup_required' | 'verification_required'

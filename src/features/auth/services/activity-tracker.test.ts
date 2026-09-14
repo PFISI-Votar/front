@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  clearStoredActivity,
   getLastActivityAt,
   startActivityTracking,
   stopActivityTracking,
@@ -51,5 +52,33 @@ describe('activity-tracker (VOTAR-492)', () => {
   it('getLastActivityAt falls back to now when storage is empty', () => {
     window.localStorage.clear()
     expect(getLastActivityAt()).toBe(Date.now())
+  })
+
+  it('always stamps Date.now() on start, even over a stale stored mark', () => {
+    // Marca vencida de una sesión anterior (idle detectado hace 1h).
+    window.localStorage.setItem(STORAGE_KEY, String(Date.now() - 3_600_000))
+
+    startActivityTracking()
+
+    expect(getLastActivityAt()).toBe(Date.now())
+  })
+
+  it('does not treat visibilitychange as activity', () => {
+    startActivityTracking()
+    const seeded = getLastActivityAt()
+
+    vi.setSystemTime(Date.now() + 31_000)
+    document.dispatchEvent(new Event('visibilitychange'))
+
+    expect(getLastActivityAt()).toBe(seeded)
+  })
+
+  it('clearStoredActivity removes the stored mark', () => {
+    startActivityTracking()
+    expect(window.localStorage.getItem(STORAGE_KEY)).not.toBeNull()
+
+    clearStoredActivity()
+
+    expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull()
   })
 })

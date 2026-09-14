@@ -2,12 +2,14 @@ import { AxiosError } from 'axios'
 import { useAuthStore } from '@/stores/auth-store'
 import { apiClient } from '@/lib/api-client'
 import {
+  clearStoredActivity,
   getLastActivityAt,
   startActivityTracking,
   stopActivityTracking,
 } from '@/features/auth/services/activity-tracker'
 import {
   getCurrentUser,
+  logout,
   refreshSession,
 } from '@/features/auth/services/auth-api'
 import {
@@ -81,11 +83,30 @@ export const ensureValidAccessToken = async (): Promise<boolean> => {
   }
 }
 
+/**
+ * VOTAR-492: el corte de inactividad detectado en el cliente tiene que
+ * invalidar la sesión de verdad — no alcanza con vaciar el store, porque
+ * `ensureValidAccessToken` (`GET /auth/me`) la rehidrata sola si el access
+ * token todavía no expiró. `logout()` revoca la refresh session y limpia las
+ * cookies; la marca de actividad se borra para que el próximo login no la
+ * herede vencida.
+ */
+const terminateIdleSession = async (): Promise<void> => {
+  clearAccessTokenRefresh()
+  clearStoredActivity()
+  try {
+    await logout()
+  } catch {
+    // Best-effort: si el logout falla, el reset local de abajo igual saca al
+    // usuario de este cliente.
+  }
+  useAuthStore.getState().auth.reset()
+}
+
 const handleScheduledRefresh = async (): Promise<void> => {
   // VOTAR-492: no renovar una sesión ociosa — el backend la caducaría igual.
   if (Date.now() - getLastActivityAt() >= SESSION_IDLE_TIMEOUT_MS) {
-    clearAccessTokenRefresh()
-    useAuthStore.getState().auth.reset()
+    await terminateIdleSession()
     return
   }
   try {

@@ -4,7 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const getMock = vi.fn()
 const refreshSessionMock = vi.fn()
 const getCurrentUserMock = vi.fn()
+const logoutMock = vi.fn().mockResolvedValue(undefined)
 const getLastActivityAtMock = vi.fn(() => Date.now())
+const clearStoredActivityMock = vi.fn()
 const authResetMock = vi.fn()
 const setSessionMock = vi.fn()
 
@@ -17,10 +19,12 @@ vi.mock('@/lib/api-client', () => ({
 vi.mock('@/features/auth/services/auth-api', () => ({
   refreshSession: () => refreshSessionMock(),
   getCurrentUser: () => getCurrentUserMock(),
+  logout: () => logoutMock(),
 }))
 
 vi.mock('@/features/auth/services/activity-tracker', () => ({
   getLastActivityAt: () => getLastActivityAtMock(),
+  clearStoredActivity: () => clearStoredActivityMock(),
   startActivityTracking: vi.fn(),
   stopActivityTracking: vi.fn(),
 }))
@@ -131,7 +135,7 @@ describe('scheduled refresh — idle awareness (VOTAR-492)', () => {
     vi.useRealTimers()
   })
 
-  it('does not refresh when the session has been idle past the timeout', async () => {
+  it('does not refresh when the session has been idle past the timeout, and ends it for real', async () => {
     const { scheduleAccessTokenRefresh } = await import('./auth-session')
     // 31 min ago (SESSION_IDLE_TIMEOUT default = 30 min).
     getLastActivityAtMock.mockReturnValue(Date.now() - 31 * 60 * 1000)
@@ -140,6 +144,21 @@ describe('scheduled refresh — idle awareness (VOTAR-492)', () => {
     await vi.advanceTimersByTimeAsync(14 * 60 * 1000)
 
     expect(refreshSessionMock).not.toHaveBeenCalled()
+    // VOTAR-492: el idle detectado en cliente tiene que revocar la sesión de
+    // verdad (logout) y borrar la marca, no solo vaciar el store local.
+    expect(logoutMock).toHaveBeenCalled()
+    expect(clearStoredActivityMock).toHaveBeenCalled()
+    expect(authResetMock).toHaveBeenCalled()
+  })
+
+  it('still resets the local session when logout fails on idle', async () => {
+    logoutMock.mockRejectedValueOnce(new Error('network down'))
+    const { scheduleAccessTokenRefresh } = await import('./auth-session')
+    getLastActivityAtMock.mockReturnValue(Date.now() - 31 * 60 * 1000)
+
+    scheduleAccessTokenRefresh()
+    await vi.advanceTimersByTimeAsync(14 * 60 * 1000)
+
     expect(authResetMock).toHaveBeenCalled()
   })
 
