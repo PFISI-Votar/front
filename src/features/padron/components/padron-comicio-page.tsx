@@ -18,6 +18,7 @@ import {
 import { toast } from 'sonner'
 import { getApiErrorMessage } from '@/lib/api-client'
 import { formatDateTimeForDisplay } from '@/lib/datetime'
+import { toSafeNavigationUrl } from '@/lib/safe-url'
 import { cn } from '@/lib/utils'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -450,10 +451,14 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
                         <p className='font-mono text-xs break-all'>
                           Tx: {merkleQuery.data.txHash}
                         </p>
-                        {merkleQuery.data.explorerUrl && (
+                        {toSafeNavigationUrl(merkleQuery.data.explorerUrl) && (
                           <Button asChild variant='outline' size='sm'>
                             <a
-                              href={merkleQuery.data.explorerUrl}
+                              href={
+                                toSafeNavigationUrl(
+                                  merkleQuery.data.explorerUrl
+                                ) ?? undefined
+                              }
                               target='_blank'
                               rel='noopener noreferrer'
                               aria-label='Ver transacción en Etherscan'

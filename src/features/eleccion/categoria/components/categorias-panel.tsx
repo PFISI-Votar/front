@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FolderTree, ChevronDown, Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getApiErrorMessage } from '@/lib/api-client'
+import { toUntrustedPlainText } from '@/lib/untrusted-html'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -437,10 +438,12 @@ export const CategoriasPanel = ({
                       className='flex flex-wrap items-start justify-between gap-3 rounded-lg border px-4 py-3'
                     >
                       <div className='flex min-w-0 flex-col gap-1'>
-                        <p className='font-medium'>{categoria.nombre}</p>
+                        <p className='font-medium'>
+                          {toUntrustedPlainText(categoria.nombre)}
+                        </p>
                         {categoria.descripcion ? (
                           <p className='text-sm text-muted-foreground'>
-                            {categoria.descripcion}
+                            {toUntrustedPlainText(categoria.descripcion)}
                           </p>
                         ) : null}
                         <p className='text-sm text-muted-foreground'>
