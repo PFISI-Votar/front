@@ -3,6 +3,7 @@ import type {
   ActaAperturaModo,
   ActaAperturaPlantilla,
   ActaCierrePlantilla,
+  AuthBloqueoAlcance,
   ConfiguracionSistema,
 } from '@/features/configuracion-sistema/data/schema'
 
@@ -73,6 +74,21 @@ export const actualizarFormatoPersonalizadoActaCierre = async (patch: {
   const { data } = await apiClient.patch<ConfiguracionSistema>(
     '/configuracion-sistema/acta-cierre-formato',
     patch
+  )
+  return data
+}
+
+/**
+ * VOTAR-492 §12.2 — activar/desactivar el bloqueo de flujos de autenticación
+ * institucional (rol PAUSER). `motivo` es obligatorio salvo al desactivar.
+ */
+export const actualizarAuthBloqueo = async (input: {
+  alcance: AuthBloqueoAlcance
+  motivo?: string
+}): Promise<ConfiguracionSistema> => {
+  const { data } = await apiClient.put<ConfiguracionSistema>(
+    '/configuracion-sistema/auth-bloqueo',
+    input
   )
   return data
 }
