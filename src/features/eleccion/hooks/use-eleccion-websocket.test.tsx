@@ -34,20 +34,15 @@ describe('useEleccionWebSocket', () => {
     })
   })
 
-  it('invokes onTransaccionConflicto when a concurrent transition is rejected (VOTAR-481)', async () => {
-    const onTransaccionConflicto = vi.fn()
-    await renderHook(() => useEleccionWebSocket({ onTransaccionConflicto }))
+  it('invokes onTransaccionFallida when an in-flight on-chain transaction fails (VOTAR-481)', async () => {
+    const onTransaccionFallida = vi.fn()
+    await renderHook(() => useEleccionWebSocket({ onTransaccionFallida }))
 
-    emit('eleccion:transaccion-conflicto', {
+    emit('eleccion:transaccion-fallida', { idEleccion: 7, tipo: 'APERTURA' })
+
+    expect(onTransaccionFallida).toHaveBeenCalledWith({
       idEleccion: 7,
       tipo: 'APERTURA',
-      mensaje: 'Ya hay una transición de estado en curso para la elección 7.',
-    })
-
-    expect(onTransaccionConflicto).toHaveBeenCalledWith({
-      idEleccion: 7,
-      tipo: 'APERTURA',
-      mensaje: 'Ya hay una transición de estado en curso para la elección 7.',
     })
   })
 

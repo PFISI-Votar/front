@@ -232,19 +232,22 @@ export const OfertaElectoralPanel = ({
     },
     // VOTAR-481: sincroniza en tiempo real el estado de la transacción de
     // apertura/cierre (manual o del scheduler automático) para que este
-    // panel no interprete la demora de confirmación en Sepolia, o un
-    // conflicto de concurrencia entre ambos procesos, como una falla.
+    // panel no interprete la demora de confirmación en Sepolia como una
+    // falla.
     onTransaccionEnProgreso: (data) => {
       if (data.idEleccion === idEleccion) {
         setTransaccionEnProgreso(data.tipo)
       }
     },
-    onTransaccionConflicto: (data) => {
+    // VOTAR-481: la transacción en curso terminó en falla/revert — limpia
+    // el spinner que `onTransaccionEnProgreso` dejó activo.
+    onTransaccionFallida: (data) => {
       if (data.idEleccion === idEleccion) {
-        // No se limpia `transaccionEnProgreso`: la transacción que sí tiene
-        // el lock (manual o automática) sigue en curso; esta sólo fue la
-        // que se rechazó.
-        toast.warning(data.mensaje)
+        setTransaccionEnProgreso(null)
+        const accion = data.tipo === 'APERTURA' ? 'apertura' : 'cierre'
+        toast.error(
+          `No se pudo completar la ${accion} del comicio en la blockchain.`
+        )
       }
     },
   })

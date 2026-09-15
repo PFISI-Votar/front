@@ -347,8 +347,11 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
       )
     })
 
+    // VOTAR-481: un 409 no es una falla real — el botón no debe pasar a
+    // «Reintentar apertura» (esa señal de error queda reservada para fallas
+    // reales; la transacción que sí tiene el lock sigue en curso).
     await expect
-      .element(page.getByRole('button', { name: 'Reintentar apertura' }))
+      .element(page.getByRole('button', { name: 'Abrir comicio' }))
       .toBeInTheDocument()
   })
 
@@ -373,6 +376,31 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     await expect
       .element(page.getByRole('button', { name: 'Abrir comicio' }))
       .not.toBeDisabled()
+  })
+
+  it('limpia el spinner de apertura cuando el WebSocket avisa que la transacción falló (VOTAR-481)', async () => {
+    await renderPanel()
+
+    lastEleccionWebSocketOptions().onTransaccionEnProgreso?.({
+      idEleccion: 1,
+      tipo: 'APERTURA',
+    })
+
+    await expect
+      .element(page.getByRole('button', { name: 'Abriendo comicio' }))
+      .toBeDisabled()
+
+    lastEleccionWebSocketOptions().onTransaccionFallida?.({
+      idEleccion: 1,
+      tipo: 'APERTURA',
+    })
+
+    await expect
+      .element(page.getByRole('button', { name: 'Abrir comicio' }))
+      .not.toBeDisabled()
+    expect(toast.error).toHaveBeenCalledWith(
+      'No se pudo completar la apertura del comicio en la blockchain.'
+    )
   })
 
   it('muestra Reintentar oficialización cuando faltan contratos on-chain', async () => {
@@ -444,6 +472,42 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     await userEvent.click(confirmButton)
 
     expect(cerrarEleccion).toHaveBeenCalledWith(1)
+  })
+
+  it('muestra un toast avisando del conflicto de concurrencia cuando el cierre devuelve 409 (VOTAR-481)', async () => {
+    vi.mocked(obtenerEleccion).mockResolvedValue({
+      ...mockEleccionConfigurada,
+      estado: 'ABIERTA',
+    })
+    vi.mocked(cerrarEleccion).mockRejectedValue(
+      createConflictError(
+        'Ya hay una transición de estado en curso para la elección 1. Reintentá en unos segundos.'
+      )
+    )
+
+    await renderPanel()
+
+    await userEvent.click(page.getByRole('button', { name: 'Cerrar comicio' }))
+    await userEvent.click(
+      page.getByRole('button', { name: 'Sí, cerrar comicio' })
+    )
+
+    await vi.waitFor(() => {
+      expect(cerrarEleccion).toHaveBeenCalledWith(1)
+    })
+
+    // VOTAR-481: paridad con useAbrirEleccion — un 409 avisa con un warning
+    // propio en vez del "No se pudo cerrar el comicio" genérico.
+    await vi.waitFor(() => {
+      expect(toast.warning).toHaveBeenCalledWith(
+        'Ya hay una transición de estado en curso para la elección 1. Reintentá en unos segundos.',
+        { duration: 8_000 }
+      )
+    })
+    expect(toast.error).not.toHaveBeenCalledWith(
+      'No se pudo cerrar el comicio',
+      expect.anything()
+    )
   })
 
   it('cierra el diálogo de cierre de inmediato y continúa en segundo plano', async () => {

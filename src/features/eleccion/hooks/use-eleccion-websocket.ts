@@ -35,10 +35,9 @@ interface TransaccionEnProgresoEvent {
   tipo: TransaccionEleccionTipo
 }
 
-interface TransaccionConflictoEvent {
+interface TransaccionFallidaEvent {
   idEleccion: number
   tipo: TransaccionEleccionTipo
-  mensaje: string
 }
 
 interface UseEleccionWebSocketOptions {
@@ -50,8 +49,13 @@ interface UseEleccionWebSocketOptions {
   onEleccionReanudada?: (data: EleccionReanudadaEvent) => void
   /** VOTAR-481: la transacción on-chain (manual o automática) fue tomada y está en curso. */
   onTransaccionEnProgreso?: (data: TransaccionEnProgresoEvent) => void
-  /** VOTAR-481: la transacción fue rechazada porque otra ya está en curso para el mismo comicio. */
-  onTransaccionConflicto?: (data: TransaccionConflictoEvent) => void
+  /**
+   * VOTAR-481: la transacción on-chain que estaba en curso (ver
+   * `onTransaccionEnProgreso`) terminó en falla o revert. El conflicto de
+   * lock (409) NO dispara este evento: ya le llega al solicitante por la
+   * respuesta HTTP de su propia request.
+   */
+  onTransaccionFallida?: (data: TransaccionFallidaEvent) => void
 }
 
 /**
@@ -69,7 +73,7 @@ export function useEleccionWebSocket(
   const onEleccionPausadaRef = useRef(options.onEleccionPausada)
   const onEleccionReanudadaRef = useRef(options.onEleccionReanudada)
   const onTransaccionEnProgresoRef = useRef(options.onTransaccionEnProgreso)
-  const onTransaccionConflictoRef = useRef(options.onTransaccionConflicto)
+  const onTransaccionFallidaRef = useRef(options.onTransaccionFallida)
   const socketRef = useRef<Socket | null>(null)
 
   useEffect(() => {
@@ -101,8 +105,8 @@ export function useEleccionWebSocket(
   }, [options.onTransaccionEnProgreso])
 
   useEffect(() => {
-    onTransaccionConflictoRef.current = options.onTransaccionConflicto
-  }, [options.onTransaccionConflicto])
+    onTransaccionFallidaRef.current = options.onTransaccionFallida
+  }, [options.onTransaccionFallida])
 
   useEffect(() => {
     const socket = io(`${BACKEND_URL}/elecciones`, {
@@ -146,9 +150,9 @@ export function useEleccionWebSocket(
     )
 
     socket.on(
-      'eleccion:transaccion-conflicto',
-      (data: TransaccionConflictoEvent) => {
-        onTransaccionConflictoRef.current?.(data)
+      'eleccion:transaccion-fallida',
+      (data: TransaccionFallidaEvent) => {
+        onTransaccionFallidaRef.current?.(data)
       }
     )
 

@@ -640,10 +640,13 @@ describe('ComiciosList', () => {
       )
     })
 
+    // VOTAR-481: un 409 no es una falla real — el botón no debe pasar a
+    // «Reintentar apertura» (esa señal de error queda reservada para fallas
+    // reales; la transacción que sí tiene el lock sigue en curso).
     await expect
       .element(
         page.getByRole('button', {
-          name: 'Reintentar apertura Elección Municipal 2025',
+          name: 'Abrir comicio Elección Municipal 2025',
         })
       )
       .toBeInTheDocument()
@@ -684,6 +687,42 @@ describe('ComiciosList', () => {
         })
       )
       .not.toBeDisabled()
+  })
+
+  it('limpia el spinner de apertura cuando el WebSocket avisa que la transacción falló (VOTAR-481)', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+
+    await renderComiciosList()
+
+    lastEleccionWebSocketOptions().onTransaccionEnProgreso?.({
+      idEleccion: 1,
+      tipo: 'APERTURA',
+    })
+
+    await expect
+      .element(
+        page.getByRole('button', {
+          name: 'Abriendo comicio Elección Municipal 2025',
+        })
+      )
+      .toBeDisabled()
+
+    lastEleccionWebSocketOptions().onTransaccionFallida?.({
+      idEleccion: 1,
+      tipo: 'APERTURA',
+    })
+
+    await expect
+      .element(
+        page.getByRole('button', {
+          name: 'Abrir comicio Elección Municipal 2025',
+        })
+      )
+      .not.toBeDisabled()
+    expect(toast.error).toHaveBeenCalledWith(
+      'No se pudo completar la apertura del comicio #1 en la blockchain.',
+      { id: 'ws-eleccion-tx-1' }
+    )
   })
 
   it('cierra diálogo tras apertura exitosa', async () => {

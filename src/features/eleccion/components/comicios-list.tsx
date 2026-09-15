@@ -428,8 +428,8 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
     },
     // VOTAR-481: sincroniza en tiempo real el estado de la transacción de
     // apertura/cierre (manual o del scheduler automático) para que ningún
-    // usuario conectado interprete la demora de confirmación en Sepolia, o
-    // un conflicto de concurrencia entre ambos procesos, como una falla.
+    // usuario conectado interprete la demora de confirmación en Sepolia
+    // como una falla.
     onTransaccionEnProgreso: (data) => {
       setTransaccionesEnProgreso((prev) => ({
         ...prev,
@@ -441,11 +441,16 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
         { id: transaccionToastId(data.idEleccion) }
       )
     },
-    onTransaccionConflicto: (data) => {
-      // No se limpia `transaccionesEnProgreso`: la transacción que sí tiene
-      // el lock (manual o automática) sigue en curso; esta sólo fue la que
-      // se rechazó.
-      toast.warning(data.mensaje, { id: transaccionToastId(data.idEleccion) })
+    // VOTAR-481: la transacción en curso terminó en falla/revert — cierra
+    // el spinner que `onTransaccionEnProgreso` dejó abierto en vez de
+    // dejarlo colgado indefinidamente.
+    onTransaccionFallida: (data) => {
+      limpiarTransaccionEnProgreso(data.idEleccion)
+      const accion = data.tipo === 'APERTURA' ? 'apertura' : 'cierre'
+      toast.error(
+        `No se pudo completar la ${accion} del comicio #${data.idEleccion} en la blockchain.`,
+        { id: transaccionToastId(data.idEleccion) }
+      )
     },
   })
 

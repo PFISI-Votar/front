@@ -89,11 +89,12 @@ export const useAbrirEleccion = (
 
           // VOTAR-481: un 409 significa que el scheduler automático (u otro
           // admin) ya está abriendo/cerrando este comicio — no es una falla
-          // real, así que se avisa con un toast propio en vez de dejar que
-          // el cambio de botón a «Reintentar apertura» sea la única señal.
+          // real. No se llama a `setLastError`: eso pasaría el botón a
+          // «Reintentar apertura», que es justo la señal de falla que
+          // queremos evitar. El WebSocket de "en progreso" de la
+          // transacción que sí tiene el lock ya deshabilita el botón.
           if (isConflictError(error)) {
             toast.warning(message, { duration: 8_000 })
-            setLastError(message)
             return true
           }
 
