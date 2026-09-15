@@ -32,4 +32,9 @@ describe('isWebCryptoSupported', () => {
     vi.stubGlobal('indexedDB', undefined)
     expect(isWebCryptoSupported()).toBe(false)
   })
+
+  it('returns false when navigator.locks is missing (VOTAR-496)', () => {
+    vi.stubGlobal('navigator', {})
+    expect(isWebCryptoSupported()).toBe(false)
+  })
 })

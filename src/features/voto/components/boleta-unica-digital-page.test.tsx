@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { BoletaUnicaDigitalPage } from '@/features/voto/components/boleta-unica-digital-page'
+import { SeedDecryptionError } from '@/features/voto/crypto/ephemeral-wallet-seed'
 import type { BoletaDigital } from '@/features/voto/data/schema'
 
 const mocks = vi.hoisted(() => ({
@@ -15,6 +16,9 @@ const mocks = vi.hoisted(() => ({
   registrarConsumoIntento: vi.fn(),
   ensureVotanteSession: vi.fn(),
   clearVotanteSession: vi.fn(),
+  initialize: vi.fn(),
+  discardElectionSeed: vi.fn(),
+  leerHasVoted: vi.fn(),
   walletIsReady: true,
 }))
 
@@ -59,7 +63,7 @@ vi.mock('@/features/voto/crypto/use-ephemeral-wallet', () => ({
     session: mocks.walletIsReady
       ? { publicKeyHex: '0x' + 'ab'.repeat(33), createdAt: Date.now() }
       : null,
-    initialize: vi.fn().mockResolvedValue(undefined),
+    initialize: mocks.initialize,
     signVotePayload: vi.fn(),
     destroy: vi.fn(),
   }),
@@ -68,6 +72,32 @@ vi.mock('@/features/voto/crypto/use-ephemeral-wallet', () => ({
 vi.mock('@/features/voto/crypto/web-crypto-support', () => ({
   isWebCryptoSupported: () => true,
 }))
+
+// VOTAR-496 review: keep the real SeedDecryptionError class (production
+// code does `instanceof SeedDecryptionError`) while intercepting
+// discardElectionSeed so tests can assert it was/wasn't called.
+vi.mock(
+  '@/features/voto/crypto/ephemeral-wallet-seed',
+  async (importOriginal) => {
+    const actual =
+      (await importOriginal()) as typeof import('@/features/voto/crypto/ephemeral-wallet-seed')
+    return {
+      ...actual,
+      discardElectionSeed: mocks.discardElectionSeed,
+    }
+  }
+)
+
+vi.mock('@/features/voto/crypto/voter-state', async (importOriginal) => {
+  const actual =
+    (await importOriginal()) as typeof import('@/features/voto/crypto/voter-state')
+  return {
+    ...actual,
+    leerHasVoted: mocks.leerHasVoted,
+  }
+})
+
+const BALLOT_ADDRESS = ('0x' + '9'.repeat(40)) as `0x${string}`
 
 const budConfig = {
   idEleccion: 7,
@@ -118,6 +148,19 @@ const boleta: BoletaDigital = {
   ],
 }
 
+const boletaConBallotAddress: BoletaDigital = {
+  ...boleta,
+  ballotContractAddress: BALLOT_ADDRESS,
+}
+
+const newQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  })
+
 describe('BoletaUnicaDigitalPage', () => {
   beforeEach(() => {
     mocks.obtenerBoletaDigital.mockReset()
@@ -129,12 +172,16 @@ describe('BoletaUnicaDigitalPage', () => {
     mocks.registrarConsumoIntento.mockReset()
     mocks.ensureVotanteSession.mockReset()
     mocks.clearVotanteSession.mockReset()
+    mocks.initialize.mockReset()
+    mocks.discardElectionSeed.mockReset()
+    mocks.leerHasVoted.mockReset()
     mocks.walletIsReady = true
     mocks.ensureVotanteSession.mockResolvedValue(null)
     mocks.clearVotanteSession.mockResolvedValue(undefined)
     mocks.registrarVotoEmitidoAnonimo.mockResolvedValue(undefined)
     mocks.registrarTransaccionPublica.mockResolvedValue(undefined)
     mocks.obtenerConfiguracionBud.mockResolvedValue(budConfig)
+    mocks.initialize.mockResolvedValue(undefined)
     mocks.obtenerEstadoRevoto.mockResolvedValue({
       revoteHabilitado: true,
       maxVotosPorVotante: 3,
@@ -165,12 +212,7 @@ describe('BoletaUnicaDigitalPage', () => {
     mocks.ensureVotanteSession.mockResolvedValue(votanteSession)
     mocks.obtenerBoletaDigital.mockResolvedValue(boleta)
 
-    const queryClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false },
-        mutations: { retry: false },
-      },
-    })
+    const queryClient = newQueryClient()
     await render(
       <QueryClientProvider client={queryClient}>
         <BoletaUnicaDigitalPage idEleccion={7} showIntro={false} />
@@ -195,12 +237,7 @@ describe('BoletaUnicaDigitalPage', () => {
       })
     )
 
-    const queryClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false },
-        mutations: { retry: false },
-      },
-    })
+    const queryClient = newQueryClient()
     const screen = await render(
       <QueryClientProvider client={queryClient}>
         <BoletaUnicaDigitalPage idEleccion={7} showIntro={false} />
@@ -227,12 +264,7 @@ describe('BoletaUnicaDigitalPage', () => {
 
   it('muestra login cuando no hay sesión de votante', async () => {
     mocks.ensureVotanteSession.mockResolvedValue(null)
-    const queryClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false },
-        mutations: { retry: false },
-      },
-    })
+    const queryClient = newQueryClient()
     const screen = await render(
       <QueryClientProvider client={queryClient}>
         <BoletaUnicaDigitalPage idEleccion={7} showIntro={false} />
@@ -251,12 +283,7 @@ describe('BoletaUnicaDigitalPage', () => {
       ...budConfig,
       estado: 'CERRADA',
     })
-    const queryClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false },
-        mutations: { retry: false },
-      },
-    })
+    const queryClient = newQueryClient()
     const screen = await render(
       <QueryClientProvider client={queryClient}>
         <BoletaUnicaDigitalPage idEleccion={7} showIntro={false} />
@@ -276,12 +303,7 @@ describe('BoletaUnicaDigitalPage', () => {
     mocks.ensureVotanteSession.mockResolvedValue(votanteSession)
     mocks.obtenerBoletaDigital.mockResolvedValue(boleta)
 
-    const queryClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false },
-        mutations: { retry: false },
-      },
-    })
+    const queryClient = newQueryClient()
     const screen = await render(
       <QueryClientProvider client={queryClient}>
         <BoletaUnicaDigitalPage idEleccion={7} showIntro={false} />
@@ -294,5 +316,97 @@ describe('BoletaUnicaDigitalPage', () => {
     await expect
       .element(screen.getByText('Boleta - Centro de Estudiantes'))
       .toBeInTheDocument()
+  })
+
+  it('VOTAR-496 review: bloquea permanentemente si el seed no descifra y el votante ya sufragó on-chain', async () => {
+    mocks.ensureVotanteSession.mockResolvedValue(votanteSession)
+    mocks.obtenerBoletaDigital.mockResolvedValue(boletaConBallotAddress)
+    mocks.initialize.mockRejectedValue(new SeedDecryptionError(7))
+    mocks.leerHasVoted.mockResolvedValue(true)
+
+    const queryClient = newQueryClient()
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <BoletaUnicaDigitalPage idEleccion={7} showIntro={false} />
+      </QueryClientProvider>
+    )
+
+    await vi.waitFor(async () => {
+      await expect
+        .element(screen.getByText(/Ya registramos tu sufragio/i))
+        .toBeInTheDocument()
+    })
+    expect(mocks.discardElectionSeed).not.toHaveBeenCalled()
+    expect(mocks.initialize).toHaveBeenCalledTimes(1)
+  })
+
+  it('VOTAR-496 review: si nunca votó, descarta el seed corrupto, reintenta y muestra el wizard', async () => {
+    mocks.ensureVotanteSession.mockResolvedValue(votanteSession)
+    mocks.obtenerBoletaDigital.mockResolvedValue(boletaConBallotAddress)
+    mocks.initialize
+      .mockRejectedValueOnce(new SeedDecryptionError(7))
+      .mockResolvedValueOnce(undefined)
+    mocks.leerHasVoted.mockResolvedValue(false)
+
+    const queryClient = newQueryClient()
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <BoletaUnicaDigitalPage idEleccion={7} showIntro={false} />
+      </QueryClientProvider>
+    )
+
+    await vi.waitFor(async () => {
+      await expect
+        .element(screen.getByText('Boleta - Centro de Estudiantes'))
+        .toBeInTheDocument()
+    })
+    expect(mocks.discardElectionSeed).toHaveBeenCalledWith(
+      7,
+      votanteSession.sub
+    )
+    expect(mocks.initialize).toHaveBeenCalledTimes(2)
+  })
+
+  it('VOTAR-496 review: si no se puede verificar hasVoted, falla cerrado con mensaje distinto', async () => {
+    mocks.ensureVotanteSession.mockResolvedValue(votanteSession)
+    mocks.obtenerBoletaDigital.mockRejectedValue(new Error('network down'))
+    mocks.initialize.mockRejectedValue(new SeedDecryptionError(7))
+
+    const queryClient = newQueryClient()
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <BoletaUnicaDigitalPage idEleccion={7} showIntro={false} />
+      </QueryClientProvider>
+    )
+
+    await vi.waitFor(async () => {
+      await expect
+        .element(screen.getByText(/No pudimos verificar el estado de tu voto/i))
+        .toBeInTheDocument()
+    })
+    expect(mocks.leerHasVoted).not.toHaveBeenCalled()
+    expect(mocks.discardElectionSeed).not.toHaveBeenCalled()
+  })
+
+  it('mantiene el mensaje genérico para errores de inicialización que no son de descifrado', async () => {
+    mocks.ensureVotanteSession.mockResolvedValue(votanteSession)
+    mocks.initialize.mockRejectedValue(
+      new Error('Web Crypto API is not supported in this browser')
+    )
+
+    const queryClient = newQueryClient()
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <BoletaUnicaDigitalPage idEleccion={7} showIntro={false} />
+      </QueryClientProvider>
+    )
+
+    await vi.waitFor(async () => {
+      await expect
+        .element(screen.getByText(/Reintentá iniciar sesión/i))
+        .toBeInTheDocument()
+    })
+    expect(mocks.leerHasVoted).not.toHaveBeenCalled()
+    expect(mocks.obtenerBoletaDigital).not.toHaveBeenCalled()
   })
 })

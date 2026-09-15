@@ -38,6 +38,37 @@ const tryParseEncryptedSeed = (stored: string): EncryptedSeed | null => {
 }
 
 /**
+ * VOTAR-496 review: thrown when a stored, well-formed EncryptedSeed fails
+ * to decrypt — the encryption CryptoKey for this (idEleccion, votanteScope)
+ * is gone or mismatched (lost IndexedDB, different device/browser, or
+ * genuine corruption). Distinguishable via `instanceof` so callers can
+ * decide recovery (see boleta-unica-digital-page.tsx: checks on-chain
+ * hasVoted(voterLeaf) before deciding whether it's safe to discard and
+ * regenerate, or must block permanently).
+ */
+export class SeedDecryptionError extends Error {
+  constructor(idEleccion: number) {
+    super(
+      `No se pudo descifrar el seed de la elección ${idEleccion}: la clave de cifrado no coincide (perdida, otro dispositivo, o corrupción).`
+    )
+    this.name = 'SeedDecryptionError'
+  }
+}
+
+/**
+ * VOTAR-496 review: discards a dead/unrecoverable encrypted seed blob so a
+ * fresh one can be generated. Callers must confirm (via on-chain
+ * hasVoted(voterLeaf)) that no prior vote from this identity exists before
+ * calling this — see SeedDecryptionError.
+ */
+export const discardElectionSeed = (
+  idEleccion: number,
+  votanteScope: string
+): void => {
+  globalThis.localStorage.removeItem(storageKey(idEleccion, votanteScope))
+}
+
+/**
  * Returns the per-(browser, idEleccion, votanteScope) random seed used to
  * deterministically derive the voter's ephemeral wallet.
  *
@@ -58,6 +89,9 @@ const tryParseEncryptedSeed = (stored: string): EncryptedSeed | null => {
  * VOTAR-496: the seed is encrypted at rest (AES-GCM, non-extractable key in
  * IndexedDB — see seed-encryption.ts) so a party with mere storage read
  * access can no longer recompute the private key from a plaintext seed.
+ * The storage key doubles as AAD (additionalData) and as the per-comicio
+ * IndexedDB key record id, so a ciphertext copied to a different
+ * idEleccion/votanteScope cannot be decrypted (VOTAR-496 review).
  */
 export const getOrCreateElectionSeed = async (
   idEleccion: number,
@@ -68,17 +102,21 @@ export const getOrCreateElectionSeed = async (
   if (stored) {
     const parsed = tryParseEncryptedSeed(stored)
     if (parsed) {
-      return decryptSeed(parsed)
+      try {
+        return await decryptSeed(parsed, key)
+      } catch {
+        throw new SeedDecryptionError(idEleccion)
+      }
     }
     // eslint-disable-next-line no-console -- VOTAR-496: no hay logger propio en el proyecto, alerta de storage corrupto/legado.
     console.warn(
-      `[VOTAR-496] Valor inesperado en localStorage para "${key}" — no matchea el formato de seed cifrado. Se generará un seed nuevo.`
+      `[VOTAR-496] Valor inesperado en localStorage para idEleccion=${idEleccion} — no matchea el formato de seed cifrado. Se generará un seed nuevo.`
     )
   }
 
   const seed = new Uint8Array(SEED_BYTES)
   globalThis.crypto.getRandomValues(seed)
-  const encrypted = await encryptSeed(seed)
+  const encrypted = await encryptSeed(seed, key)
   globalThis.localStorage.setItem(key, JSON.stringify(encrypted))
   return seed
 }

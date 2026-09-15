@@ -99,7 +99,8 @@ describe('getOrCreateElectionSeed (VOTAR-496)', () => {
 
     expect(seed).toHaveLength(32)
     expect(warnSpy).toHaveBeenCalledTimes(1)
-    expect(warnSpy.mock.calls[0][0]).toContain(key)
+    expect(warnSpy.mock.calls[0][0]).toContain('7')
+    expect(warnSpy.mock.calls[0][0]).not.toContain('voter-scope-a')
 
     warnSpy.mockRestore()
   })

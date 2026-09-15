@@ -29,5 +29,12 @@ export const isWebCryptoSupported = (): boolean => {
     return false
   }
 
+  if (
+    typeof globalThis.navigator === 'undefined' ||
+    typeof globalThis.navigator.locks === 'undefined'
+  ) {
+    return false
+  }
+
   return true
 }
