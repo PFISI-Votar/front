@@ -14,6 +14,11 @@ describe('security-headers', () => {
     })
 
     expect(csp).toContain("frame-ancestors 'none'")
+    expect(csp).toContain("frame-src 'none'")
+    expect(csp).toContain("script-src 'self';")
+    expect(csp).toContain("script-src-attr 'none'")
+    expect(csp).not.toContain('unsafe-eval')
+    expect(csp).not.toContain("script-src 'self' 'unsafe-inline'")
     expect(csp).toContain('connect-src')
     expect(csp).toContain('http://localhost:3000')
     expect(csp).toContain("object-src 'none'")
@@ -73,6 +78,24 @@ describe('security-headers', () => {
     expect(
       lines.some((line) => line.includes('Strict-Transport-Security'))
     ).toBe(true)
+  })
+
+  it('keeps RPC origins in connect-src without leaking API keys', () => {
+    const secret = 'alchemy-secret-key-should-not-appear'
+    const csp = buildContentSecurityPolicy({
+      apiOrigin: 'https://api.votar.test',
+      isDev: false,
+      extraConnectSrc: [
+        `https://eth-sepolia.g.alchemy.com/v2/${secret}`,
+        'http://rpc.public.example:8545',
+      ],
+    })
+
+    expect(csp).toContain('https://eth-sepolia.g.alchemy.com')
+    expect(csp).toContain('https://api.votar.test')
+    expect(csp).not.toContain(secret)
+    expect(csp).not.toContain('/v2/')
+    expect(csp).not.toContain('rpc.public.example')
   })
 
   it('allows Hardhat RPC origins via extraConnectSrc in dev', () => {

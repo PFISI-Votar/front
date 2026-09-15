@@ -5,6 +5,7 @@ import { AlertCircle, Pencil, Plus, Trash2, UserPen } from 'lucide-react'
 import { toast } from 'sonner'
 import { getApiErrorMessage, isConflictError } from '@/lib/api-client'
 import { resolveMediaUrl } from '@/lib/media-url'
+import { toUntrustedPlainText } from '@/lib/untrusted-html'
 import { cn } from '@/lib/utils'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -268,7 +269,7 @@ export const ListaDetailPanel = ({
                   aria-hidden='true'
                 />
               )}
-              {lista.nombre}
+              {toUntrustedPlainText(lista.nombre)}
               <span className='text-xl font-normal text-muted-foreground'>
                 ({lista.sigla})
               </span>
@@ -307,7 +308,7 @@ export const ListaDetailPanel = ({
             <p className='text-xs tracking-wide text-muted-foreground uppercase'>
               Nombre
             </p>
-            <p className='font-medium'>{lista.nombre}</p>
+            <p className='font-medium'>{toUntrustedPlainText(lista.nombre)}</p>
           </div>
           <div>
             <p className='text-xs tracking-wide text-muted-foreground uppercase'>
@@ -450,7 +451,8 @@ export const ListaDetailPanel = ({
                     )}
                     <div className='flex min-w-0 flex-col gap-1'>
                       <CardTitle className='text-base'>
-                        {candidato.nombre} {candidato.apellido}
+                        {toUntrustedPlainText(candidato.nombre)}{' '}
+                        {toUntrustedPlainText(candidato.apellido)}
                       </CardTitle>
                       <CardDescription>
                         {candidato.categoriaNombre

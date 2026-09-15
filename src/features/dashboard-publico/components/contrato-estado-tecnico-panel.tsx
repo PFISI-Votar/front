@@ -1,4 +1,5 @@
 import { ExternalLink } from 'lucide-react'
+import { toSafeNavigationUrl } from '@/lib/safe-url'
 import { cn } from '@/lib/utils'
 import {
   Card,
@@ -21,27 +22,33 @@ type ContratoDireccionRowProps = {
 const ContratoDireccionRow = ({
   label,
   contrato,
-}: ContratoDireccionRowProps) => (
-  <div className='rounded-xl border border-[#e4e7eb] bg-[#fafbfc] px-4 py-3'>
-    <p className='text-xs font-semibold tracking-wide text-[#80868b] uppercase'>
-      {label}
-    </p>
-    <div className='mt-2 flex flex-wrap items-center gap-2'>
-      <code className='text-sm break-all text-[#202124]'>
-        {contrato.direccion}
-      </code>
-      <a
-        href={contrato.explorerUrl}
-        target='_blank'
-        rel='noopener noreferrer'
-        className='inline-flex items-center gap-1 rounded-md bg-[#2f6f9f]/10 px-2 py-1 text-xs font-medium text-[#2f6f9f] hover:bg-[#2f6f9f]/15'
-      >
-        Etherscan
-        <ExternalLink className='size-3' aria-hidden='true' />
-      </a>
+}: ContratoDireccionRowProps) => {
+  const explorerUrl = toSafeNavigationUrl(contrato.explorerUrl)
+
+  return (
+    <div className='rounded-xl border border-[#e4e7eb] bg-[#fafbfc] px-4 py-3'>
+      <p className='text-xs font-semibold tracking-wide text-[#80868b] uppercase'>
+        {label}
+      </p>
+      <div className='mt-2 flex flex-wrap items-center gap-2'>
+        <code className='text-sm break-all text-[#202124]'>
+          {contrato.direccion}
+        </code>
+        {explorerUrl ? (
+          <a
+            href={explorerUrl}
+            target='_blank'
+            rel='noopener noreferrer'
+            className='inline-flex items-center gap-1 rounded-md bg-[#2f6f9f]/10 px-2 py-1 text-xs font-medium text-[#2f6f9f] hover:bg-[#2f6f9f]/15'
+          >
+            Etherscan
+            <ExternalLink className='size-3' aria-hidden='true' />
+          </a>
+        ) : null}
+      </div>
     </div>
-  </div>
-)
+  )
+}
 
 type ContratoEstadoTecnicoPanelProps = {
   red: string

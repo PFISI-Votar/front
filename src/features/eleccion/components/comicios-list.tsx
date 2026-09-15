@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getApiErrorMessage } from '@/lib/api-client'
+import { toUntrustedPlainText } from '@/lib/untrusted-html'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -553,7 +554,9 @@ export const ComiciosList = ({ estado = 'activos' }: ComiciosListProps) => {
             >
               <CardHeader className='flex flex-row items-start justify-between gap-4 space-y-0'>
                 <div className='space-y-1'>
-                  <CardTitle className='text-lg'>{comicio.nombre}</CardTitle>
+                  <CardTitle className='text-lg'>
+                    {toUntrustedPlainText(comicio.nombre)}
+                  </CardTitle>
                   <CardDescription>ID {comicio.idEleccion}</CardDescription>
                   <ComicioVentanaElectoral
                     fechaInicio={comicio.fechaInicio}

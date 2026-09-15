@@ -8,6 +8,7 @@ import {
   Search,
   ShieldCheck,
 } from 'lucide-react'
+import { toSafeNavigationUrl } from '@/lib/safe-url'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -320,14 +321,14 @@ const ResultadoVerificacion = ({
             </div>
           </div>
 
-          {resultado.explorerUrl && (
+          {toSafeNavigationUrl(resultado.explorerUrl) && (
             <Button
               variant='outline'
               className='h-11 w-full rounded-lg border-[#cfd3d7] bg-white text-[#2f3337] shadow-none hover:bg-slate-50'
               asChild
             >
               <a
-                href={resultado.explorerUrl}
+                href={toSafeNavigationUrl(resultado.explorerUrl) ?? undefined}
                 target='_blank'
                 rel='noopener noreferrer'
                 aria-label='Ver transacción en el explorador de bloques'
