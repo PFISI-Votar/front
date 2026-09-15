@@ -62,6 +62,16 @@ export const AUDIT_EVENT_LABELS: AuditEventLabel[] = [
     label: 'Acta de cierre generada',
     variant: 'secondary',
   },
+  {
+    value: 'SESION_REVOCADA',
+    label: 'Sesiones revocadas',
+    variant: 'destructive',
+  },
+  {
+    value: 'BLOQUEO_AUTENTICACION',
+    label: 'Bloqueo de autenticación',
+    variant: 'destructive',
+  },
 ]
 
 export const CRITICAL_EVENT_TYPES: TipoEventoAudit[] = [
@@ -72,6 +82,8 @@ export const CRITICAL_EVENT_TYPES: TipoEventoAudit[] = [
   'COMICIO_PAUSADO',
   'COMICIO_REANUDADO',
   'ACTA_CIERRE_GENERADA',
+  'SESION_REVOCADA',
+  'BLOQUEO_AUTENTICACION',
 ]
 
 export const getAuditEventLabel = (

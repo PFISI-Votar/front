@@ -12,6 +12,7 @@ interface AuthState {
     reset: () => void
     isAuthenticated: () => boolean
     isElectionAdmin: () => boolean
+    isPauser: () => boolean
   }
 }
 
@@ -35,5 +36,6 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     },
     isAuthenticated: () => Boolean(get().auth.user),
     isElectionAdmin: () => get().auth.user?.role === ELECTION_ADMIN_ROLE,
+    isPauser: () => Boolean(get().auth.user?.esPauser),
   },
 }))
