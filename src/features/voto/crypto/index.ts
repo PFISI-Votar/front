@@ -10,7 +10,6 @@ export {
   getExplorerTxUrl,
   getRpcUrl,
   getRpcUrls,
-  getVoteTransmitterPrivateKey,
 } from '@/features/voto/crypto/constants'
 export { BALLOT_CONTRACT_ABI } from '@/features/voto/crypto/ballot-abi'
 export { createEphemeralWalletManager } from '@/features/voto/crypto/ephemeral-wallet'
@@ -18,10 +17,7 @@ export type {
   EphemeralWalletManager,
   EphemeralWalletSession,
 } from '@/features/voto/crypto/ephemeral-wallet.types'
-export {
-  createVotePublicClient,
-  createVoteTransmitterWalletClient,
-} from '@/features/voto/crypto/rpc-client'
+export { createVotePublicClient } from '@/features/voto/crypto/rpc-client'
 export {
   buildSelectionPayload,
   computeSelectionHash,

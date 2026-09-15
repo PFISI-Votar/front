@@ -1,16 +1,16 @@
 import type { Hex } from 'viem'
-import { BALLOT_CONTRACT_ABI } from '@/features/voto/crypto/ballot-abi'
 import {
-  getBallotContractAddress,
+  postRelayerCast,
+  solicitarAutorizacionRelayer,
+  type RelayCastBody,
+} from '@/features/voto/api/voto-api'
+import {
   VOTE_TX_CONFIRMATION_TIMEOUT_MS,
-  VOTE_TX_GAS_MARGIN,
   VOTE_TX_MAX_ATTEMPTS,
 } from '@/features/voto/crypto/constants'
 import {
   createVotePublicClient,
-  createVoteTransmitterWalletClient,
   type VotePublicClient,
-  type VoteWalletClient,
 } from '@/features/voto/crypto/rpc-client'
 import type { SignedVotePayload } from '@/features/voto/crypto/vote-signer'
 import {
@@ -34,15 +34,21 @@ export type TransmitSignedVoteResult = {
 
 export type TransmitProgressPhase = 'estimating' | 'sending' | 'confirming'
 
+export type RelayCastFn = (
+  input: TransmitSignedVoteInput
+) => Promise<{ txHash: Hex }>
+
 export type TransmitSignedVoteOptions = {
   publicClient?: VotePublicClient
-  walletClient?: VoteWalletClient
-  contractAddress?: Hex
-  gasMargin?: number
+  /**
+   * VOTAR-497 — el gas lo paga el relayer del backend. El override existe para
+   * tests; el default pide una capacidad autenticada y hace POST sin cookies.
+   */
+  relayCast?: RelayCastFn
   maxAttempts?: number
   confirmationTimeoutMs?: number
   onProgress?: (phase: TransmitProgressPhase) => void
-  /** VOTAR-445: fired as soon as writeContract returns, before receipt wait. */
+  /** VOTAR-445: fired as soon as the relayer returns the hash, before receipt wait. */
   onTxHash?: (txHash: Hex) => void
 }
 
@@ -67,93 +73,107 @@ const toBytes32 = (value: string): Hex => {
 const toProofBytes32 = (proof: readonly string[]): Hex[] =>
   proof.map((sibling) => toBytes32(sibling))
 
-const applyGasMargin = (estimate: bigint, margin: number): bigint => {
-  if (estimate <= 0n || !Number.isFinite(margin) || margin <= 0) {
-    throw new Error('Invalid gas estimate')
+export const buildRelayerCastBody = (
+  input: TransmitSignedVoteInput,
+  relayToken: string
+): RelayCastBody => ({
+  voterLeaf: toBytes32(input.voterLeaf),
+  nullifier: toBytes32(input.signed.nullifier),
+  selectionHash: toBytes32(input.signed.selectionHash),
+  candidateIds: input.signed.candidateIds.map((id) => id.toString()),
+  timestamp: String(input.signed.timestamp),
+  expectedSigner: input.signed.expectedSigner,
+  signature: input.signed.signature,
+  validatorSignature: input.validatorSignature,
+  merkleProof: toProofBytes32(input.merkleProof),
+  relayToken,
+})
+
+const createDefaultRelayCast = (): RelayCastFn => {
+  let relayToken: string | null = null
+  return async (input) => {
+    try {
+      if (!relayToken) {
+        const auth = await solicitarAutorizacionRelayer(input.signed.electionId)
+        relayToken = auth.relayToken
+      }
+      return await postRelayerCast(
+        input.signed.electionId,
+        buildRelayerCastBody(input, relayToken)
+      )
+    } catch (error) {
+      const data =
+        error &&
+        typeof error === 'object' &&
+        'response' in error &&
+        (error as { response?: { data?: unknown } }).response?.data
+      if (
+        data &&
+        typeof data === 'object' &&
+        'code' in data &&
+        'isTransient' in data &&
+        'severity' in data
+      ) {
+        throw data
+      }
+      throw error
+    }
   }
-  const percent = BigInt(Math.round(margin * 100))
-  // Integer ceil: (estimate * percent + 99) / 100
-  return (estimate * percent + 99n) / 100n
 }
 
-const buildCastArgs = (input: TransmitSignedVoteInput) => {
-  const { signed } = input
-  return [
-    {
-      electionId: BigInt(signed.electionId),
-      voterLeaf: toBytes32(input.voterLeaf),
-      nullifier: signed.nullifier,
-      selectionHash: signed.selectionHash,
-      candidateIds: signed.candidateIds,
-      timestamp: BigInt(signed.timestamp),
-      expectedSigner: signed.expectedSigner,
-    },
-    toProofBytes32(input.merkleProof),
-    signed.signature,
-    input.validatorSignature,
-  ] as const
+const asVoteTxError = (error: unknown): VoteTxError => {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'code' in error &&
+    'isTransient' in error &&
+    'severity' in error
+  ) {
+    return mapVoteTxError(error)
+  }
+  return mapVoteTxError(error)
 }
 
 /**
- * Assembles and broadcasts castSignedVote with gas margin, retries and receipt wait.
- * Gas is paid by the platform transmitter wallet (VOTAR-358).
+ * Pide al relayer del backend que transmita castSignedVote y espera el recibo.
+ * La clave de gas no sale del servidor (VOTAR-497).
  */
 export const transmitSignedVote = async (
   input: TransmitSignedVoteInput,
   options: TransmitSignedVoteOptions = {}
 ): Promise<TransmitSignedVoteResult> => {
   const publicClient = options.publicClient ?? createVotePublicClient()
-  const walletClient =
-    options.walletClient ?? createVoteTransmitterWalletClient()
-  const contractAddress = options.contractAddress ?? getBallotContractAddress()
-  const gasMargin = options.gasMargin ?? VOTE_TX_GAS_MARGIN
+  const relayCast = options.relayCast ?? createDefaultRelayCast()
   const maxAttempts = options.maxAttempts ?? VOTE_TX_MAX_ATTEMPTS
   const confirmationTimeoutMs =
     options.confirmationTimeoutMs ?? VOTE_TX_CONFIRMATION_TIMEOUT_MS
-  const args = buildCastArgs(input)
-  const account = walletClient.account
-  if (!account) {
-    throw mapVoteTxError(
-      new Error('Vote transmitter wallet client has no account')
-    )
-  }
 
   let lastError: VoteTxError | null = null
+  let sentHash: Hex | null = null
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      options.onProgress?.('estimating')
-      const gasEstimate = await publicClient.estimateContractGas({
-        address: contractAddress,
-        abi: BALLOT_CONTRACT_ABI,
-        functionName: 'castSignedVote',
-        args,
-        account,
-      })
-      const gas = applyGasMargin(gasEstimate, gasMargin)
-
-      options.onProgress?.('sending')
-      const txHash = await walletClient.writeContract({
-        address: contractAddress,
-        abi: BALLOT_CONTRACT_ABI,
-        functionName: 'castSignedVote',
-        args,
-        account,
-        chain: walletClient.chain,
-        gas,
-      })
-      options.onTxHash?.(txHash)
+      if (!sentHash) {
+        options.onProgress?.('estimating')
+        options.onProgress?.('sending')
+        const relayed = await relayCast(input)
+        sentHash = relayed.txHash
+        options.onTxHash?.(sentHash)
+      }
 
       options.onProgress?.('confirming')
-      return await waitForVoteTxReceipt(txHash, {
+      return await waitForVoteTxReceipt(sentHash, {
         publicClient,
         confirmationTimeoutMs,
       })
     } catch (error) {
-      const mapped = mapVoteTxError(error)
+      const mapped = asVoteTxError(error)
       lastError = mapped
       const canRetry =
-        mapped.isTransient && attempt < maxAttempts && mapped.canRetrySend
+        !sentHash &&
+        mapped.isTransient &&
+        attempt < maxAttempts &&
+        mapped.canRetrySend
       if (!canRetry) {
         throw mapped
       }
@@ -195,4 +215,4 @@ export const waitForVoteTxReceipt = async (
   }
 }
 
-export { applyGasMargin, isTransientVoteTxError, toBytes32 }
+export { isTransientVoteTxError, toBytes32 }
