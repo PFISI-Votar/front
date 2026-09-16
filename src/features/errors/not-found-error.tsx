@@ -31,18 +31,20 @@ export function NotFoundError({
   const navigate = useNavigate()
   const { history } = useRouter()
   return (
-    <div className={cn(minimal ? 'w-full py-16' : 'h-svh')}>
+    <div className={cn(minimal ? 'w-full' : 'h-svh')}>
       <div
         className={cn(
-          'flex w-full flex-col items-center justify-center gap-2',
-          !minimal && 'm-auto h-full'
+          'flex w-full flex-col gap-2',
+          minimal
+            ? 'items-start text-left'
+            : 'm-auto h-full items-center justify-center text-center'
         )}
       >
         {!minimal && (
           <h1 className='text-[7rem] leading-tight font-bold'>404</h1>
         )}
         <span className='font-medium'>{title}</span>
-        <p className='text-center text-muted-foreground'>{description}</p>
+        <p className='text-muted-foreground'>{description}</p>
         <div className='mt-6 flex gap-4'>
           <Button variant='outline' onClick={() => history.go(-1)}>
             Volver
