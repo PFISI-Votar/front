@@ -83,6 +83,10 @@ vi.mock('@/features/eleccion/hooks/use-eleccion-websocket', () => ({
   useEleccionWebSocket: vi.fn(),
 }))
 
+vi.mock('@/components/layout/app-layout', () => ({
+  useAppLayoutConfig: vi.fn(),
+}))
+
 vi.mock('@/features/padron/hooks/use-padron', () => ({
   usePadronResumen: () => ({
     data: undefined,

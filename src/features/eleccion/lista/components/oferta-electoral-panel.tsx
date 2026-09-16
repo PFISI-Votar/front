@@ -50,6 +50,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { useAppLayoutConfig } from '@/components/layout/app-layout'
 import {
   eliminarEleccion,
   obtenerEleccion,
@@ -134,6 +135,24 @@ export const OfertaElectoralPanel = ({
     queryKey: ['eleccion', idEleccion],
     queryFn: () => obtenerEleccion(idEleccion),
   })
+
+  const comicioNoEncontrado = !eleccionQuery.isLoading && !eleccionQuery.data
+
+  // VOTAR-503: al mostrar "Comicio no encontrado" se pide el mismo layout
+  // sin scroll que usan las páginas de error (/_authenticated/errors/$error).
+  useAppLayoutConfig(
+    comicioNoEncontrado
+      ? {
+          headerClassName: 'border-b',
+          mainFixed: true,
+          mainClassName: 'flex flex-1 flex-col p-0 [&>div]:h-full',
+        }
+      : {
+          headerClassName: undefined,
+          mainFixed: false,
+          mainClassName: undefined,
+        }
+  )
 
   const listasQuery = useQuery({
     queryKey: ['listas', idEleccion],
