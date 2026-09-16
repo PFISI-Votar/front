@@ -115,6 +115,15 @@ const createNetworkError = (message: string) =>
     data: { message },
   })
 
+const createNotFoundError = (message: string) =>
+  new AxiosError(message, 'ERR_BAD_REQUEST', undefined, undefined, {
+    status: 404,
+    statusText: 'Not Found',
+    headers: {},
+    config: {} as never,
+    data: { message },
+  })
+
 const mockEleccionConfigurada: Eleccion = {
   idEleccion: 1,
   nombre: 'Elección Municipal 2025',
@@ -706,5 +715,51 @@ describe('OfertaElectoralPanel - Registrar candidato', () => {
     await expandirCandidatos()
 
     await expect.element(registrarButton()).toBeDisabled()
+  })
+})
+
+describe('OfertaElectoralPanel - Comicio inexistente', () => {
+  let queryClient: QueryClient
+
+  beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    vi.clearAllMocks()
+
+    vi.mocked(obtenerEleccion).mockRejectedValue(
+      createNotFoundError('Elección 999 no encontrada')
+    )
+    vi.mocked(listarListas).mockResolvedValue([])
+    vi.mocked(obtenerMapeoListas).mockResolvedValue([])
+    vi.mocked(obtenerConfiguracionDatosCandidato).mockResolvedValue({
+      idEleccion: 999,
+      campos: [],
+      editable: false,
+      cantidadCandidatos: 0,
+    } satisfies ConfiguracionDatosCandidatoResponse)
+  })
+
+  async function renderPanel() {
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <OfertaElectoralPanel idEleccion={999} />
+      </QueryClientProvider>
+    )
+  }
+
+  it('muestra "Comicio no encontrado" en lugar del panel completo cuando el ID no existe', async () => {
+    await renderPanel()
+
+    await expect
+      .element(page.getByText('Comicio no encontrado'))
+      .toBeInTheDocument()
+
+    await expect
+      .element(page.getByRole('button', { name: 'Eliminar comicio' }))
+      .not.toBeInTheDocument()
   })
 })

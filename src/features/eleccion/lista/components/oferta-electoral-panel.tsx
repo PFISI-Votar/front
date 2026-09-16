@@ -389,6 +389,34 @@ export const OfertaElectoralPanel = ({
     eliminarComicioMutation.mutate()
   }
 
+  if (eleccionQuery.isLoading) {
+    return (
+      <p className='text-sm text-muted-foreground' aria-live='polite'>
+        Cargando comicio…
+      </p>
+    )
+  }
+
+  if (!eleccionQuery.data) {
+    return (
+      <Alert variant='destructive'>
+        <AlertCircle className='size-4' />
+        <AlertTitle>Comicio no encontrado</AlertTitle>
+        <AlertDescription>
+          No existe un comicio con el identificador #{idEleccion}, o fue
+          eliminado.{' '}
+          <Link
+            to='/comicios'
+            className='font-medium underline underline-offset-4'
+          >
+            Volver al listado de comicios
+          </Link>
+          .
+        </AlertDescription>
+      </Alert>
+    )
+  }
+
   return (
     <div className='flex flex-col gap-6'>
       <div className='flex flex-wrap items-center justify-between gap-3'>
