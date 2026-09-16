@@ -681,10 +681,17 @@ export const OfertaElectoralPanel = ({
           const categoriasElectorales = (categoriasQuery.data ?? []).map(
             mapCategoriaToElectoral
           )
+          const sinCategorias = categoriasElectorales.length === 0
           const sinCupoDisponible =
-            categoriasElectorales.length > 0 &&
+            !sinCategorias &&
             getCategoriasDisponibles(categoriasElectorales, candidatos)
               .length === 0
+          const puedeRegistrarCandidato = !sinCategorias && !sinCupoDisponible
+          const registrarCandidatoBloqueoMotivo = sinCategorias
+            ? 'Este comicio no tiene categorías electorales. Configúrelas antes de registrar candidatos.'
+            : sinCupoDisponible
+              ? 'No hay categorías con cupo disponible en esta lista'
+              : null
 
           return (
             <Collapsible
@@ -842,15 +849,10 @@ export const OfertaElectoralPanel = ({
                             <Button
                               size='sm'
                               variant='outline'
-                              aria-disabled={sinCupoDisponible}
-                              onClick={() => {
-                                if (sinCupoDisponible) return
+                              disabled={!puedeRegistrarCandidato}
+                              onClick={() =>
                                 setCandidatoDialog({ lista, candidato: null })
-                              }}
-                              className={cn(
-                                sinCupoDisponible &&
-                                  'pointer-events-none opacity-50'
-                              )}
+                              }
                               aria-label={`Registrar candidato en ${lista.nombre}`}
                             >
                               <Plus className='me-2 size-4' />
@@ -858,9 +860,9 @@ export const OfertaElectoralPanel = ({
                             </Button>
                           </span>
                         </TooltipTrigger>
-                        {sinCupoDisponible && (
+                        {registrarCandidatoBloqueoMotivo && (
                           <TooltipContent>
-                            No hay categorías con cupo disponible en esta lista
+                            {registrarCandidatoBloqueoMotivo}
                           </TooltipContent>
                         )}
                       </Tooltip>

@@ -20,6 +20,12 @@ export type BreadcrumbMenuItem = {
   label: string
   to: string
   params?: Record<string, string>
+  /**
+   * Marca explícita del ítem activo. Se usa cuando varios ítems comparten `to`
+   * y sólo difieren por `params` (p. ej. el selector de listas del comicio).
+   * Si se omite, se cae al match por `to === entry.activeTo`.
+   */
+  current?: boolean
 }
 
 export type BreadcrumbEntry = {
@@ -28,6 +34,8 @@ export type BreadcrumbEntry = {
   params?: Record<string, string>
   menuItems?: BreadcrumbMenuItem[]
   activeTo?: string
+  /** `aria-label` del trigger del menú. Default: "Cambiar sección". */
+  menuAriaLabel?: string
 }
 
 type BreadcrumbNavProps = {
@@ -38,16 +46,19 @@ const BreadcrumbSectionMenu = ({ entry }: { entry: BreadcrumbEntry }) => (
   <DropdownMenu>
     <DropdownMenuTrigger
       className='flex items-center gap-1 font-normal text-foreground transition-colors hover:text-foreground/80 focus-visible:outline-hidden'
-      aria-label='Cambiar sección'
+      aria-label={entry.menuAriaLabel ?? 'Cambiar sección'}
     >
       {entry.label}
       <ChevronDown className='size-3.5' />
     </DropdownMenuTrigger>
     <DropdownMenuContent align='start'>
       {entry.menuItems?.map((item) => {
-        const isActive = item.to === entry.activeTo
+        const isActive = item.current ?? item.to === entry.activeTo
         return (
-          <DropdownMenuItem key={item.label} asChild>
+          <DropdownMenuItem
+            key={`${item.to}-${JSON.stringify(item.params ?? {})}`}
+            asChild
+          >
             <Link
               to={item.to}
               params={item.params}

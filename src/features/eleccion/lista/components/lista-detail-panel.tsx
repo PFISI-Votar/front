@@ -5,12 +5,7 @@ import { AlertCircle, Pencil, Plus, Trash2, UserPen } from 'lucide-react'
 import { toast } from 'sonner'
 import { getApiErrorMessage, isConflictError } from '@/lib/api-client'
 import { resolveMediaUrl } from '@/lib/media-url'
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion'
+import { cn } from '@/lib/utils'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -22,6 +17,11 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
 import {
@@ -31,7 +31,10 @@ import {
 import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import { CandidatoFormDialog } from '@/features/eleccion/candidato/components/candidato-form-dialog'
 import type { Candidato } from '@/features/eleccion/candidato/data/schema'
+import { getCategoriasDisponibles } from '@/features/eleccion/candidato/utils/categorias-disponibles'
 import { buildResumenDatosAdicionales } from '@/features/eleccion/candidato/utils/format-datos-adicionales'
+import { listarCategorias } from '@/features/eleccion/categoria/api/categoria-api'
+import { mapCategoriaToElectoral } from '@/features/eleccion/categoria/data/schema'
 import { getListaEstadoBadgeLabel } from '@/features/eleccion/lib/estado-eleccion'
 import {
   actualizarLista,
@@ -43,6 +46,54 @@ import { ListaFormDialog } from '@/features/eleccion/lista/components/lista-form
 type ListaDetailPanelProps = {
   idEleccion: number
   idLista: number
+}
+
+type RegistrarCandidatoButtonProps = {
+  onClick: () => void
+  disabled: boolean
+  bloqueoMotivo: string | null
+  ariaLabel: string
+  className?: string
+}
+
+const RegistrarCandidatoButton = ({
+  onClick,
+  disabled,
+  bloqueoMotivo,
+  ariaLabel,
+  className,
+}: RegistrarCandidatoButtonProps) => {
+  const bloqueado = disabled && Boolean(bloqueoMotivo)
+
+  const button = (
+    <Button
+      className={cn(bloqueado ? 'pointer-events-none w-full' : className)}
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel}
+    >
+      <Plus className='me-2 size-4' />
+      Registrar candidato
+    </Button>
+  )
+
+  if (!bloqueado) {
+    return button
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          className={cn('inline-flex cursor-not-allowed', className)}
+          data-testid='registrar-candidato-tooltip-trigger'
+        >
+          {button}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{bloqueoMotivo}</TooltipContent>
+    </Tooltip>
+  )
 }
 
 export const ListaDetailPanel = ({
@@ -77,6 +128,11 @@ export const ListaDetailPanel = ({
   const configQuery = useQuery({
     queryKey: ['config-datos-candidato', idEleccion],
     queryFn: () => obtenerConfiguracionDatosCandidato(idEleccion),
+  })
+
+  const categoriasQuery = useQuery({
+    queryKey: ['categorias', idEleccion],
+    queryFn: () => listarCategorias(idEleccion),
   })
 
   const lista = listasQuery.data?.find((item) => item.idLista === idLista)
@@ -141,7 +197,8 @@ export const ListaDetailPanel = ({
   if (
     listasQuery.isLoading ||
     candidatosQuery.isLoading ||
-    configQuery.isLoading
+    configQuery.isLoading ||
+    categoriasQuery.isLoading
   ) {
     return (
       <p className='text-sm text-muted-foreground' aria-live='polite'>
@@ -175,6 +232,21 @@ export const ListaDetailPanel = ({
 
   const candidatos = candidatosQuery.data ?? []
   const camposConfig = configQuery.data?.campos ?? []
+  const categoriasElectorales = (categoriasQuery.data ?? []).map(
+    mapCategoriaToElectoral
+  )
+  const categoriasDisponibles = getCategoriasDisponibles(
+    categoriasElectorales,
+    candidatos
+  )
+  const sinCategorias = categoriasElectorales.length === 0
+  const sinCupoDisponible = !sinCategorias && categoriasDisponibles.length === 0
+  const puedeRegistrarCandidato = !sinCategorias && !sinCupoDisponible
+  const registrarCandidatoBloqueoMotivo = sinCategorias
+    ? 'Este comicio no tiene categorías electorales. Configúrelas en la oferta antes de registrar candidatos.'
+    : sinCupoDisponible
+      ? 'Todas las categorías alcanzaron su cupo máximo de postulantes en esta lista.'
+      : null
 
   return (
     <div className='flex flex-col gap-6'>
@@ -213,46 +285,6 @@ export const ListaDetailPanel = ({
           </Badge>
         </div>
       </div>
-
-      {listasQuery.data && listasQuery.data.length > 1 && (
-        <Accordion type='single' collapsible>
-          <AccordionItem value='listas-comicio'>
-            <AccordionTrigger className='w-fit flex-none justify-start gap-2 text-sm font-medium hover:text-primary'>
-              Ver listas del comicio ({listasQuery.data.length})
-            </AccordionTrigger>
-            <AccordionContent>
-              <ul className='flex max-h-64 flex-col gap-1 overflow-y-auto'>
-                {listasQuery.data.map((item) => {
-                  const esListaActual = item.idLista === idLista
-                  return (
-                    <li key={item.idLista}>
-                      {esListaActual ? (
-                        <span
-                          className='block rounded-md px-2 py-1.5 text-sm font-medium text-primary'
-                          aria-current='page'
-                        >
-                          {item.nombre} ({item.sigla})
-                        </span>
-                      ) : (
-                        <Link
-                          to='/comicios/$idEleccion/listas/$idLista'
-                          params={{
-                            idEleccion: String(idEleccion),
-                            idLista: String(item.idLista),
-                          }}
-                          className='block rounded-md px-2 py-1.5 text-sm hover:bg-muted'
-                        >
-                          {item.nombre} ({item.sigla})
-                        </Link>
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      )}
 
       {conflictMessage && (
         <Alert variant='destructive'>
@@ -311,43 +343,53 @@ export const ListaDetailPanel = ({
         </CardContent>
       </Card>
 
-      <div className='flex flex-wrap items-end justify-between gap-3'>
-        <div>
-          <h2 className='text-xl font-semibold tracking-tight'>Candidatos</h2>
-          <p className='text-sm text-muted-foreground'>
-            Integrantes registrados en esta lista electoral.
-          </p>
-        </div>
-        {isEditable && (
-          <div className='flex flex-wrap gap-2'>
-            <Button
-              variant='outline'
-              onClick={() => setListaDialogOpen(true)}
-              aria-label={`Editar lista ${lista.nombre}`}
-            >
-              <Pencil className='me-2 size-4' />
-              Editar lista
-            </Button>
-            <Button
-              onClick={() => {
-                setEditingCandidato(null)
-                setCandidatoDialogOpen(true)
-              }}
-              aria-label={`Registrar candidato en ${lista.nombre}`}
-            >
-              <Plus className='me-2 size-4' />
-              Registrar candidato
-            </Button>
-            <Button
-              variant='outline'
-              disabled={eliminarListaMutation.isPending}
-              onClick={() => setEliminarListaDialogOpen(true)}
-              aria-label={`Eliminar lista ${lista.nombre}`}
-            >
-              <Trash2 className='me-2 size-4 text-destructive' />
-              Eliminar lista
-            </Button>
+      <div className='flex flex-col gap-2'>
+        <div className='flex flex-wrap items-end justify-between gap-3'>
+          <div>
+            <h2 className='text-xl font-semibold tracking-tight'>Candidatos</h2>
+            <p className='text-sm text-muted-foreground'>
+              Integrantes registrados en esta lista electoral.
+            </p>
           </div>
+          {isEditable && (
+            <div className='flex flex-wrap gap-2'>
+              <Button
+                variant='outline'
+                onClick={() => setListaDialogOpen(true)}
+                aria-label={`Editar lista ${lista.nombre}`}
+              >
+                <Pencil className='me-2 size-4' />
+                Editar lista
+              </Button>
+              <RegistrarCandidatoButton
+                onClick={() => {
+                  setEditingCandidato(null)
+                  setCandidatoDialogOpen(true)
+                }}
+                disabled={!puedeRegistrarCandidato}
+                bloqueoMotivo={registrarCandidatoBloqueoMotivo}
+                ariaLabel={`Registrar candidato en ${lista.nombre}`}
+              />
+              <Button
+                variant='outline'
+                disabled={eliminarListaMutation.isPending}
+                onClick={() => setEliminarListaDialogOpen(true)}
+                aria-label={`Eliminar lista ${lista.nombre}`}
+              >
+                <Trash2 className='me-2 size-4 text-destructive' />
+                Eliminar lista
+              </Button>
+            </div>
+          )}
+        </div>
+        {isEditable && registrarCandidatoBloqueoMotivo && (
+          <p
+            className='text-sm text-muted-foreground'
+            role='note'
+            aria-live='polite'
+          >
+            {registrarCandidatoBloqueoMotivo}
+          </p>
         )}
       </div>
 
@@ -364,16 +406,27 @@ export const ListaDetailPanel = ({
           </CardHeader>
           <CardContent>
             {isEditable && (
-              <Button
-                onClick={() => {
-                  setEditingCandidato(null)
-                  setCandidatoDialogOpen(true)
-                }}
-                aria-label={`Registrar candidato en ${lista.nombre}`}
-              >
-                <Plus className='me-2 size-4' />
-                Registrar candidato
-              </Button>
+              <div className='flex flex-col gap-2'>
+                <RegistrarCandidatoButton
+                  className='w-fit'
+                  onClick={() => {
+                    setEditingCandidato(null)
+                    setCandidatoDialogOpen(true)
+                  }}
+                  disabled={!puedeRegistrarCandidato}
+                  bloqueoMotivo={registrarCandidatoBloqueoMotivo}
+                  ariaLabel={`Registrar candidato en ${lista.nombre}`}
+                />
+                {registrarCandidatoBloqueoMotivo && (
+                  <p
+                    className='text-sm text-muted-foreground'
+                    role='note'
+                    aria-live='polite'
+                  >
+                    {registrarCandidatoBloqueoMotivo}
+                  </p>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>

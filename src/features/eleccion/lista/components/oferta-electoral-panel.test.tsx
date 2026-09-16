@@ -11,6 +11,8 @@ import {
 } from '@/features/eleccion/api/eleccion-api'
 import { obtenerConfiguracionDatosCandidato } from '@/features/eleccion/candidato/api/configuracion-datos-candidato-api'
 import type { ConfiguracionDatosCandidatoResponse } from '@/features/eleccion/candidato/data/schema'
+import { listarCategorias } from '@/features/eleccion/categoria/api/categoria-api'
+import type { Categoria } from '@/features/eleccion/categoria/data/schema'
 import type { Eleccion } from '@/features/eleccion/data/schema'
 import {
   eliminarLista,
@@ -68,6 +70,13 @@ vi.mock(
     guardarConfiguracionDatosCandidato: vi.fn(),
   })
 )
+
+vi.mock('@/features/eleccion/categoria/api/categoria-api', () => ({
+  listarCategorias: vi.fn().mockResolvedValue([]),
+  crearCategoria: vi.fn(),
+  actualizarCategoria: vi.fn(),
+  eliminarCategoria: vi.fn(),
+}))
 
 vi.mock('@/features/eleccion/hooks/use-eleccion-websocket', () => ({
   useEleccionWebSocket: vi.fn(),
@@ -614,6 +623,17 @@ const mockListaConCandidato: Lista = {
   ],
 }
 
+const buildCategoria = (overrides: Partial<Categoria>): Categoria => ({
+  idCategoria: 1,
+  idBoleta: 1,
+  nombre: 'Presidencia',
+  descripcion: null,
+  cantidadCargos: 1,
+  minimoPostulantes: 1,
+  orden: 1,
+  ...overrides,
+})
+
 describe('OfertaElectoralPanel - Registrar candidato', () => {
   let queryClient: QueryClient
 
@@ -632,6 +652,9 @@ describe('OfertaElectoralPanel - Registrar candidato', () => {
     })
     vi.mocked(listarListas).mockResolvedValue([mockListaConCandidato])
     vi.mocked(obtenerMapeoListas).mockResolvedValue([])
+    vi.mocked(listarCategorias).mockResolvedValue([
+      buildCategoria({ idCategoria: 1, cantidadCargos: 3 }),
+    ])
     vi.mocked(obtenerConfiguracionDatosCandidato).mockResolvedValue({
       idEleccion: 1,
       campos: [],
@@ -648,18 +671,40 @@ describe('OfertaElectoralPanel - Registrar candidato', () => {
     )
   }
 
-  it('muestra el botón "Registrar candidato" aunque la lista ya tenga candidatos', async () => {
+  const registrarButton = () =>
+    page.getByRole('button', { name: 'Registrar candidato en Lista Azul' })
+
+  const expandirCandidatos = () =>
+    userEvent.click(
+      page.getByRole('button', { name: 'Ocultar candidatos de Lista Azul' })
+    )
+
+  it('habilita "Registrar candidato" cuando hay cupo disponible', async () => {
     await renderPanel()
+    await expandirCandidatos()
 
-    const trigger = page.getByRole('button', {
-      name: 'Ocultar candidatos de Lista Azul',
-    })
-    await userEvent.click(trigger)
+    await expect.element(registrarButton()).toBeInTheDocument()
+    await expect.element(registrarButton()).toBeEnabled()
+  })
 
-    await expect
-      .element(
-        page.getByRole('button', { name: 'Registrar candidato en Lista Azul' })
-      )
-      .toBeInTheDocument()
+  it('deshabilita "Registrar candidato" cuando el comicio no tiene categorías', async () => {
+    vi.mocked(listarCategorias).mockResolvedValue([])
+
+    await renderPanel()
+    await expandirCandidatos()
+
+    await expect.element(registrarButton()).toBeInTheDocument()
+    await expect.element(registrarButton()).toBeDisabled()
+  })
+
+  it('deshabilita "Registrar candidato" cuando todas las categorías agotaron su cupo', async () => {
+    vi.mocked(listarCategorias).mockResolvedValue([
+      buildCategoria({ idCategoria: 1, cantidadCargos: 1 }),
+    ])
+
+    await renderPanel()
+    await expandirCandidatos()
+
+    await expect.element(registrarButton()).toBeDisabled()
   })
 })

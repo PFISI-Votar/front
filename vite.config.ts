@@ -87,6 +87,8 @@ export default defineConfig(({ mode }) => {
               'src/features/padron/lib/preview-storage.test.ts',
               // VOTAR-466: usa createImageBitmap/canvas (APIs de navegador).
               'src/features/eleccion/lib/load-image-as-jpeg-data-url.test.ts',
+              // VOTAR-492: usa window/document/localStorage.
+              'src/features/auth/services/activity-tracker.test.ts',
             ],
           },
         },
@@ -109,6 +111,18 @@ export default defineConfig(({ mode }) => {
               'lucide-react',
               // VOTAR-362: auditoría de accesibilidad en los tests de navegador.
               'axe-core',
+              'react-hook-form',
+              '@hookform/resolvers/zod',
+              'zod',
+              'sonner',
+              'zustand',
+              'class-variance-authority',
+              'clsx',
+              'tailwind-merge',
+              '@radix-ui/react-alert-dialog',
+              '@radix-ui/react-label',
+              '@radix-ui/react-select',
+              '@radix-ui/react-slot',
             ],
           },
           test: {
@@ -119,6 +133,8 @@ export default defineConfig(({ mode }) => {
               'src/lib/cookies.test.ts',
               'src/features/padron/lib/preview-storage.test.ts',
               'src/features/eleccion/lib/load-image-as-jpeg-data-url.test.ts',
+              // VOTAR-492: usa window/document/localStorage.
+              'src/features/auth/services/activity-tracker.test.ts',
             ],
             browser: {
               enabled: true,

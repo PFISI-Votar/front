@@ -6,6 +6,7 @@ import {
   getApiErrorMessage,
   getApiFieldErrors,
   isConflictError,
+  isValidationError,
 } from '@/lib/api-client'
 import { resolveMediaUrl } from '@/lib/media-url'
 import { bindPersonNameInput } from '@/lib/person-name'
@@ -32,7 +33,9 @@ import { mapApiFieldErrorsToForm } from '@/features/eleccion/candidato/utils/map
 import type { CategoriaElectoral } from '@/features/eleccion/categoria/data/schema'
 import {
   IMAGE_FILE_REQUIREMENTS,
+  isElectoralImageRejectionMessage,
   validateElectoralImageFile,
+  withPreviousElectoralImageKept,
 } from '@/features/eleccion/shared/utils/image-file'
 
 type CandidatoFormProps = {
@@ -101,6 +104,7 @@ export const CandidatoForm = ({
   const [hasRemovedFoto, setHasRemovedFoto] = useState(false)
   const [fotoError, setFotoError] = useState<string | null>(null)
   const [syncedFotoUrl, setSyncedFotoUrl] = useState(currentFotoUrl)
+  const [fotoInputKey, setFotoInputKey] = useState(0)
   const categoriasDisponibles = useMemo(
     () =>
       getCategoriasDisponibles(categorias, candidatosEnLista, {
@@ -165,11 +169,11 @@ export const CandidatoForm = ({
     }
   }, [localFotoPreview])
 
-  const handleFotoChange = (file?: File) => {
-    if (localFotoPreview?.startsWith('blob:')) {
-      URL.revokeObjectURL(localFotoPreview)
-    }
+  const handleFotoChange = async (file?: File, input?: HTMLInputElement) => {
     if (!file) {
+      if (localFotoPreview?.startsWith('blob:')) {
+        URL.revokeObjectURL(localFotoPreview)
+      }
       form.setValue('fotoFile', null)
       setLocalFotoPreview(null)
       setHasRemovedFoto(false)
@@ -177,15 +181,21 @@ export const CandidatoForm = ({
       return
     }
 
-    const validationError = validateElectoralImageFile(file)
+    const validationError = await validateElectoralImageFile(file)
     if (validationError) {
-      form.setValue('fotoFile', null)
-      setLocalFotoPreview(null)
-      setHasRemovedFoto(false)
-      setFotoError(validationError)
+      if (input) input.value = ''
+      const keepsPrevious =
+        Boolean(form.getValues('fotoFile')) ||
+        Boolean(currentFotoUrl && !hasRemovedFoto)
+      setFotoError(
+        withPreviousElectoralImageKept(validationError, keepsPrevious)
+      )
       return
     }
 
+    if (localFotoPreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(localFotoPreview)
+    }
     form.setValue('fotoFile', file)
     form.setValue('removeFoto', false)
     setHasRemovedFoto(false)
@@ -204,6 +214,29 @@ export const CandidatoForm = ({
     setFotoError(null)
   }
 
+  const discardRejectedFoto = (error: unknown): boolean => {
+    if (!isValidationError(error) || !form.getValues('fotoFile')) {
+      return false
+    }
+    const message = getApiErrorMessage(error)
+    if (!isElectoralImageRejectionMessage(message)) {
+      return false
+    }
+    if (localFotoPreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(localFotoPreview)
+    }
+    form.setValue('fotoFile', null)
+    setLocalFotoPreview(null)
+    setFotoInputKey((key) => key + 1)
+    setFotoError(
+      withPreviousElectoralImageKept(
+        message,
+        Boolean(currentFotoUrl && !hasRemovedFoto)
+      )
+    )
+    return true
+  }
+
   const handleSubmit = async (values: CreateCandidatoInput) => {
     if (categorias.length === 0) {
       toast.error('No hay categorías configuradas para este comicio')
@@ -219,9 +252,6 @@ export const CandidatoForm = ({
       )
       return
     }
-    if (fotoError) {
-      return
-    }
     try {
       await onSubmit(values)
     } catch (error) {
@@ -234,6 +264,9 @@ export const CandidatoForm = ({
         mapApiFieldErrorsToForm(fieldErrors, form.setError)
         return
       }
+      if (discardRejectedFoto(error)) {
+        return
+      }
       toast.error(getApiErrorMessage(error))
     }
   }
@@ -241,8 +274,7 @@ export const CandidatoForm = ({
   const canSubmit =
     categorias.length > 0 &&
     categoriasDisponibles.length > 0 &&
-    Boolean(idCategoria) &&
-    !fotoError
+    Boolean(idCategoria)
 
   return (
     <Form {...form}>
@@ -322,9 +354,15 @@ export const CandidatoForm = ({
             </div>
           )}
           <Input
+            key={fotoInputKey}
             type='file'
             accept='image/png,image/jpeg,.png,.jpg,.jpeg'
-            onChange={(event) => handleFotoChange(event.target.files?.[0])}
+            onChange={(event) => {
+              void handleFotoChange(
+                event.target.files?.[0],
+                event.currentTarget
+              )
+            }}
           />
           {fotoError && (
             <p className='text-sm text-destructive' role='alert'>
