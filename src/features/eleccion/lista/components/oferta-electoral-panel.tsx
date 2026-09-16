@@ -145,7 +145,8 @@ export const OfertaElectoralPanel = ({
       ? {
           headerClassName: 'border-b',
           mainFixed: true,
-          mainClassName: 'flex flex-1 flex-col p-0 [&>div]:h-full',
+          mainClassName:
+            'flex flex-1 flex-col p-0 [&_[data-slot="breadcrumb"]]:mt-4 [&>div]:h-full',
         }
       : {
           headerClassName: undefined,
