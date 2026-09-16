@@ -401,7 +401,6 @@ export const OfertaElectoralPanel = ({
   if (!eleccionQuery.data) {
     return (
       <NotFoundError
-        minimal
         title='Comicio no encontrado'
         description={
           <>
