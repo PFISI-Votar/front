@@ -45,7 +45,6 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { SkipToMain } from '@/components/skip-to-main'
 import { CumplimientoLey25326Link } from '@/features/cumplimiento'
 import {
   TIPOS_VOTACION,
@@ -1345,13 +1344,9 @@ const BudWizardShell = ({
 
   return (
     <>
-      {/* VOTAR-362 (WCAG 2.1 SC 2.4.1): saltar el encabezado y llegar directo a
-          la boleta con el teclado. */}
-      <SkipToMain targetId='bud-main' label='Saltar a la boleta' />
       <main
         id='bud-main'
-        tabIndex={-1}
-        className='votar-light-surface relative min-h-svh overflow-x-clip bg-[#fdfcfa] text-[#202124] focus-visible:outline-none'
+        className='votar-light-surface relative min-h-svh overflow-x-clip bg-[#fdfcfa] text-[#202124]'
       >
         <div
           className='pointer-events-none absolute inset-0'

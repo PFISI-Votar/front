@@ -1541,22 +1541,5 @@ describe('BudVotingWizard', () => {
       // anillo `focus-visible:ring-*` de la tarjeta.
       expect(ana.matches(':focus-visible')).toBe(true)
     })
-
-    it('el skip link es el primer elemento y apunta a la boleta (SC 2.4.1)', async () => {
-      const screen = await renderWizard()
-
-      const skipLink = screen.container.querySelector('a[href="#bud-main"]')
-      const main = screen.container.querySelector('#bud-main')
-      expect(skipLink).not.toBeNull()
-      expect(main).not.toBeNull()
-
-      // El enlace precede al <main> en el orden del documento y es enfocable.
-      expect(
-        skipLink!.compareDocumentPosition(main!) &
-          Node.DOCUMENT_POSITION_FOLLOWING
-      ).toBeTruthy()
-      ;(skipLink as HTMLElement).focus()
-      expect(document.activeElement).toBe(skipLink)
-    })
   })
 })
