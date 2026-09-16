@@ -28,6 +28,7 @@ vi.mock('@tanstack/react-router', () => ({
     <a {...props}>{children}</a>
   ),
   useNavigate: () => vi.fn(),
+  useRouter: () => ({ history: { go: vi.fn() } }),
 }))
 
 vi.mock('@/features/eleccion/api/eleccion-api', () => ({

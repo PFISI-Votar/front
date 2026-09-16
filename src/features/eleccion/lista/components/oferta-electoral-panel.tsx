@@ -91,6 +91,7 @@ import {
 } from '@/features/eleccion/lista/api/lista-api'
 import { ListaFormDialog } from '@/features/eleccion/lista/components/lista-form-dialog'
 import type { Lista } from '@/features/eleccion/lista/data/schema'
+import { NotFoundError } from '@/features/errors/not-found-error'
 import { usePadronResumen } from '@/features/padron/hooks/use-padron'
 
 type CandidatoDialogState = {
@@ -399,21 +400,17 @@ export const OfertaElectoralPanel = ({
 
   if (!eleccionQuery.data) {
     return (
-      <Alert variant='destructive'>
-        <AlertCircle className='size-4' />
-        <AlertTitle>Comicio no encontrado</AlertTitle>
-        <AlertDescription>
-          No existe un comicio con el identificador #{idEleccion}, o fue
-          eliminado.{' '}
-          <Link
-            to='/comicios'
-            className='font-medium underline underline-offset-4'
-          >
-            Volver al listado de comicios
-          </Link>
-          .
-        </AlertDescription>
-      </Alert>
+      <NotFoundError
+        minimal
+        title='Comicio no encontrado'
+        description={
+          <>
+            No existe un comicio con el identificador #{idEleccion}, o fue
+            eliminado.
+          </>
+        }
+        backTo={{ label: 'Ver todos los comicios', to: '/comicios' }}
+      />
     )
   }
 
