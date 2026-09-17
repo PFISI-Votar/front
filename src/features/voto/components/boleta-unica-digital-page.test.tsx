@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   clearVotanteSession: vi.fn(),
   initialize: vi.fn(),
   discardElectionSeed: vi.fn(),
+  purgeElectionIdentity: vi.fn(),
   leerHasVoted: vi.fn(),
   walletIsReady: true,
 }))
@@ -75,7 +76,7 @@ vi.mock('@/features/voto/crypto/web-crypto-support', () => ({
 
 // VOTAR-496 review: keep the real SeedDecryptionError class (production
 // code does `instanceof SeedDecryptionError`) while intercepting
-// discardElectionSeed so tests can assert it was/wasn't called.
+// discardElectionSeed / purgeElectionIdentity so tests can assert calls.
 vi.mock(
   '@/features/voto/crypto/ephemeral-wallet-seed',
   async (importOriginal) => {
@@ -84,6 +85,7 @@ vi.mock(
     return {
       ...actual,
       discardElectionSeed: mocks.discardElectionSeed,
+      purgeElectionIdentity: mocks.purgeElectionIdentity,
     }
   }
 )
@@ -174,6 +176,7 @@ describe('BoletaUnicaDigitalPage', () => {
     mocks.clearVotanteSession.mockReset()
     mocks.initialize.mockReset()
     mocks.discardElectionSeed.mockReset()
+    mocks.purgeElectionIdentity.mockReset()
     mocks.leerHasVoted.mockReset()
     mocks.walletIsReady = true
     mocks.ensureVotanteSession.mockResolvedValue(null)
@@ -182,6 +185,7 @@ describe('BoletaUnicaDigitalPage', () => {
     mocks.registrarTransaccionPublica.mockResolvedValue(undefined)
     mocks.obtenerConfiguracionBud.mockResolvedValue(budConfig)
     mocks.initialize.mockResolvedValue(undefined)
+    mocks.purgeElectionIdentity.mockResolvedValue(undefined)
     mocks.obtenerEstadoRevoto.mockResolvedValue({
       revoteHabilitado: true,
       maxVotosPorVotante: 3,
@@ -408,5 +412,45 @@ describe('BoletaUnicaDigitalPage', () => {
     })
     expect(mocks.leerHasVoted).not.toHaveBeenCalled()
     expect(mocks.obtenerBoletaDigital).not.toHaveBeenCalled()
+  })
+
+  it('VOTAR-496 review (nosungam): purga la identidad al cerrar el comicio con sesión activa', async () => {
+    mocks.ensureVotanteSession.mockResolvedValue(votanteSession)
+    mocks.obtenerBoletaDigital.mockResolvedValue(boletaConBallotAddress)
+    mocks.obtenerConfiguracionBud.mockResolvedValue({
+      ...budConfig,
+      estado: 'CERRADA',
+    })
+
+    const queryClient = newQueryClient()
+    await render(
+      <QueryClientProvider client={queryClient}>
+        <BoletaUnicaDigitalPage idEleccion={7} showIntro={false} />
+      </QueryClientProvider>
+    )
+
+    await vi.waitFor(() => {
+      expect(mocks.purgeElectionIdentity).toHaveBeenCalledWith(
+        7,
+        votanteSession.sub
+      )
+    })
+  })
+
+  it('VOTAR-496 review (nosungam): no purga si el comicio está abierto', async () => {
+    mocks.ensureVotanteSession.mockResolvedValue(votanteSession)
+    mocks.obtenerBoletaDigital.mockResolvedValue(boletaConBallotAddress)
+
+    const queryClient = newQueryClient()
+    await render(
+      <QueryClientProvider client={queryClient}>
+        <BoletaUnicaDigitalPage idEleccion={7} showIntro={false} />
+      </QueryClientProvider>
+    )
+
+    await vi.waitFor(async () => {
+      await expect.element(document.body).toBeInTheDocument()
+    })
+    expect(mocks.purgeElectionIdentity).not.toHaveBeenCalled()
   })
 })

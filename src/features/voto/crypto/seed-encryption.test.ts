@@ -127,7 +127,7 @@ describe('seed-encryption (VOTAR-496)', () => {
     await expect(decryptSeed(encrypted, CONTEXT_B)).rejects.toThrow()
   })
 
-  it('VOTAR-496 review: a ciphertext copied to a different election/voter key cannot be decrypted', async () => {
+  it('VOTAR-496: a ciphertext copied to a different election/voter key cannot be decrypted', async () => {
     const { encryptSeed, decryptSeed } = await importFreshModule()
     const seedFromElectionSeven = new Uint8Array(32).fill(6)
 
@@ -141,7 +141,7 @@ describe('seed-encryption (VOTAR-496)', () => {
     ).rejects.toThrow()
   })
 
-  it('VOTAR-496 review: uses a separate key per comicio/votante, so losing one does not affect another', async () => {
+  it('VOTAR-496: uses a separate key per comicio/votante, so losing one does not affect another', async () => {
     const { encryptSeed } = await importFreshModule()
     const seedA = new Uint8Array(32).fill(1)
     const seedB = new Uint8Array(32).fill(2)
@@ -163,5 +163,35 @@ describe('seed-encryption (VOTAR-496)', () => {
     await expect(
       afterPartialLoss.decryptSeed(encryptedA, CONTEXT_A)
     ).rejects.toThrow()
+  })
+
+  it("VOTAR-496: deleteEncryptionKey removes only that comicio/votante's key", async () => {
+    const { encryptSeed, deleteEncryptionKey } = await importFreshModule()
+    const seedA = new Uint8Array(32).fill(1)
+    const seedB = new Uint8Array(32).fill(2)
+
+    const encryptedA = await encryptSeed(seedA, CONTEXT_A)
+    const encryptedB = await encryptSeed(seedB, CONTEXT_B)
+
+    await deleteEncryptionKey(CONTEXT_A)
+
+    // A fresh module import clears the in-memory cache too, so this forces
+    // a real IndexedDB lookup — not just a stale in-memory hit.
+    const afterDelete = await importFreshModule()
+
+    await expect(
+      afterDelete.decryptSeed(encryptedA, CONTEXT_A)
+    ).rejects.toThrow()
+
+    const decryptedB = await afterDelete.decryptSeed(encryptedB, CONTEXT_B)
+    expect(decryptedB).toEqual(seedB)
+  })
+
+  it('VOTAR-496: deleteEncryptionKey is safe to call when no key exists yet', async () => {
+    const { deleteEncryptionKey } = await importFreshModule()
+
+    await expect(
+      deleteEncryptionKey('votar:vote-seed:999:never-used')
+    ).resolves.toBeUndefined()
   })
 })

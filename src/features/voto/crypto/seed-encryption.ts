@@ -103,6 +103,25 @@ const getOrCreateEncryptionKey = (recordId: string): Promise<CryptoKey> => {
   return promise
 }
 
+const deleteKeyRecord = (db: IDBDatabase, recordId: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite')
+    tx.objectStore(STORE_NAME).delete(recordId)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+}
+
+export const deleteEncryptionKey = async (context: string): Promise<void> => {
+  cachedKeyPromises.delete(context)
+  const db = await openDatabase()
+  try {
+    await deleteKeyRecord(db, context)
+  } finally {
+    db.close()
+  }
+}
+
 export const encryptSeed = async (
   seed: Uint8Array,
   context: string

@@ -23,6 +23,7 @@ import { CryptoUnsupportedScreen } from '@/features/voto/crypto/components/crypt
 import { EphemeralWalletProvider } from '@/features/voto/crypto/ephemeral-wallet-context'
 import {
   discardElectionSeed,
+  purgeElectionIdentity,
   SeedDecryptionError,
 } from '@/features/voto/crypto/ephemeral-wallet-seed'
 import { useEphemeralWallet } from '@/features/voto/crypto/use-ephemeral-wallet'
@@ -274,6 +275,15 @@ const BoletaUnicaDigitalPageContent = ({
     }, 0)
     return () => window.clearTimeout(timeoutId)
   }, [boletaQuery.isError, boletaQuery.error, handleSessionExpired])
+
+  useEffect(() => {
+    const estado = budConfigQuery.data?.estado
+    const scope = votanteSession?.sub
+    if (!scope || (estado !== 'CERRADA' && estado !== 'ESCRUTADA')) {
+      return
+    }
+    void purgeElectionIdentity(idEleccion, scope)
+  }, [budConfigQuery.data?.estado, idEleccion, votanteSession?.sub])
 
   const boleta = boletaQuery.data
 

@@ -2,6 +2,7 @@ import { utils as secpUtils } from '@noble/secp256k1'
 import { bytesToHex, keccak256, toBytes } from 'viem'
 import {
   decryptSeed,
+  deleteEncryptionKey,
   encryptSeed,
   type EncryptedSeed,
 } from '@/features/voto/crypto/seed-encryption'
@@ -66,6 +67,15 @@ export const discardElectionSeed = (
   votanteScope: string
 ): void => {
   globalThis.localStorage.removeItem(storageKey(idEleccion, votanteScope))
+}
+
+export const purgeElectionIdentity = async (
+  idEleccion: number,
+  votanteScope: string
+): Promise<void> => {
+  const key = storageKey(idEleccion, votanteScope)
+  discardElectionSeed(idEleccion, votanteScope)
+  await deleteEncryptionKey(key)
 }
 
 /**

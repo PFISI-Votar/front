@@ -4,7 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   deriveEphemeralPrivateKey,
   getOrCreateElectionSeed,
+  purgeElectionIdentity,
 } from '@/features/voto/crypto/ephemeral-wallet-seed'
+import { deleteEncryptionKey } from '@/features/voto/crypto/seed-encryption'
 
 // VOTAR-496: same mocking rationale as ephemeral-wallet.test.ts — this file
 // covers storage/parsing behavior, not real AES-GCM (see
@@ -18,6 +20,7 @@ vi.mock('@/features/voto/crypto/seed-encryption', () => ({
   }),
   decryptSeed: async (encrypted: { ciphertext: `0x${string}` }) =>
     hexToBytes(encrypted.ciphertext).map((byte) => byte ^ 0xff),
+  deleteEncryptionKey: vi.fn(),
 }))
 
 const seedStorageKey = (idEleccion: number, scope: string) =>
@@ -116,6 +119,17 @@ describe('getOrCreateElectionSeed (VOTAR-496)', () => {
     expect(warnSpy).toHaveBeenCalledTimes(1)
 
     warnSpy.mockRestore()
+  })
+
+  it('VOTAR-496 review: purgeElectionIdentity clears both localStorage and the encryption key', async () => {
+    await getOrCreateElectionSeed(7, 'voter-scope-a')
+    const key = seedStorageKey(7, 'voter-scope-a')
+    expect(localStorageMock.getItem(key)).not.toBeNull()
+
+    await purgeElectionIdentity(7, 'voter-scope-a')
+
+    expect(localStorageMock.getItem(key)).toBeNull()
+    expect(deleteEncryptionKey).toHaveBeenCalledWith(key)
   })
 })
 
