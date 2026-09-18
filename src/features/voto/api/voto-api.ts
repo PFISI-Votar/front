@@ -1,5 +1,7 @@
+import type { Hex } from 'viem'
 import { publicApiClient } from '@/lib/public-api-client'
 import { votanteApiClient } from '@/lib/votante-api-client'
+import { VOTANTE_API_TIMEOUT_MS } from '@/features/voto/crypto/constants'
 import type {
   BoletaDigital,
   BudConfig,
@@ -35,7 +37,68 @@ export const solicitarMerkleProof = async (
   return data
 }
 
-/** VOTAR-328: consulta transparente a revotePolicyService. */
+export type RelayCastBody = {
+  voterLeaf: string
+  nullifier: string
+  selectionHash: string
+  candidateIds: string[]
+  timestamp: string
+  expectedSigner: string
+  signature: string
+  validatorSignature: string
+  relayToken: string
+}
+
+/** VOTAR-497 — capacidad de gas. Va con la sesión; no incluye el voto. */
+export const solicitarAutorizacionRelayer = async (
+  idEleccion: number
+): Promise<{ relayToken: string; expiresAt: string }> => {
+  const { data } = await votanteApiClient.post<{
+    relayToken: string
+    expiresAt: string
+  }>(`/elecciones/${idEleccion}/relayer/autorizacion`)
+  return data
+}
+
+/**
+ * VOTAR-497 — cast sin cookie de sesión. El relayer paga el gas.
+ * `credentials: omit` evita que el access log una la sesión SSO con el voto.
+ * Same anonymous-fetch pattern as `registrarVotoEmitidoAnonimo` /
+ * `registrarTransaccionPublica` (not publicApiClient — PII tests require omit).
+ */
+export const postRelayerCast = async (
+  idEleccion: number,
+  body: RelayCastBody,
+  fetchImpl: typeof fetch = fetch
+): Promise<{ txHash: Hex }> => {
+  const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+  const response = await fetchImpl(
+    `${baseUrl}/elecciones/${idEleccion}/relayer/cast`,
+    {
+      method: 'POST',
+      credentials: 'omit',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(VOTANTE_API_TIMEOUT_MS),
+    }
+  )
+  const payload = (await response.json().catch(() => null)) as {
+    txHash?: string
+    message?: string
+  } | null
+  if (!response.ok || !payload?.txHash) {
+    const error = new Error(
+      payload?.message ?? `Relayer cast failed (${response.status})`
+    )
+    Object.assign(error, payload, { status: response.status })
+    throw error
+  }
+  return { txHash: payload.txHash as Hex }
+}
+
 export const obtenerEstadoRevoto = async (
   idEleccion: number
 ): Promise<EstadoRevoto> => {
