@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { auditarAccesibilidad, formatearViolaciones } from '@/test-utils/axe'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
@@ -132,5 +133,43 @@ describe('VerificadorRecibo — VOTAR-366', () => {
       .element(screen.getByText(/inclusión confirmada/i))
       .toBeInTheDocument()
     expect(verificarInclusionMock).toHaveBeenCalledWith(txHash)
+  })
+
+  it('VOTAR-362 UAT-A11Y-01: el verificador no tiene violaciones axe (formulario y resultado)', async () => {
+    const txHash = `0x${'ab'.repeat(32)}`
+    verificarInclusionMock.mockResolvedValue({
+      confirmado: true,
+      idEleccion: 7,
+      txHash,
+      blockNumber: 4582193,
+      timestamp: '2026-07-11T14:30:00.000Z',
+      contractAddress: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
+      explorerUrl: `https://sepolia.etherscan.io/tx/${txHash}`,
+      networkName: 'Sepolia',
+      mensaje:
+        'Su voto ha sido incluido con éxito en el bloque número 4582193 de la blockchain de Sepolia',
+    })
+
+    const screen = await renderVerificador()
+    await expect
+      .element(screen.getByLabelText(/transactionhash de verificación/i))
+      .toBeInTheDocument()
+
+    let violaciones = await auditarAccesibilidad(screen.container)
+    expect(violaciones, formatearViolaciones(violaciones)).toEqual([])
+
+    await userEvent.type(
+      screen.getByLabelText(/transactionhash de verificación/i),
+      txHash
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: /verificar inclusión/i })
+    )
+    await expect
+      .element(screen.getByText(/inclusión confirmada/i))
+      .toBeInTheDocument()
+
+    violaciones = await auditarAccesibilidad(screen.container)
+    expect(violaciones, formatearViolaciones(violaciones)).toEqual([])
   })
 })
