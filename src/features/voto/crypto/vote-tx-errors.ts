@@ -50,6 +50,45 @@ const createVoteTxError = (
   cause: partial.cause,
 })
 
+const looksLikeVoteTxError = (value: unknown): value is VoteTxError =>
+  Boolean(
+    value &&
+      typeof value === 'object' &&
+      'code' in value &&
+      typeof (value as VoteTxError).code === 'string' &&
+      'message' in value &&
+      'isTransient' in value &&
+      'severity' in value
+  )
+
+/** AbortSignal.timeout / fetch abort — not viem mining TimeoutError. */
+const isRelayerOrApiTimeout = (error: unknown): boolean => {
+  if (
+    typeof DOMException !== 'undefined' &&
+    error instanceof DOMException &&
+    (error.name === 'TimeoutError' || error.name === 'AbortError')
+  ) {
+    return true
+  }
+  // viem mining timeout is handled separately below
+  if (error instanceof TimeoutError) {
+    return false
+  }
+  if (!(error instanceof Error)) {
+    return false
+  }
+  if (error.name === 'AbortError') {
+    return true
+  }
+  if (
+    error.name === 'TimeoutError' &&
+    /timeout|timed out|aborted|signal/i.test(error.message)
+  ) {
+    return true
+  }
+  return false
+}
+
 export type RevertErrorData = {
   name: string
   args: readonly unknown[]
@@ -79,16 +118,29 @@ export const getRevertErrorData = (error: unknown): RevertErrorData | null => {
  * Maps RPC / contract failures to user-facing Spanish messages (VOTAR-358 / VOTAR-359).
  */
 export const mapVoteTxError = (error: unknown): VoteTxError => {
-  if (
-    error &&
-    typeof error === 'object' &&
-    'code' in error &&
-    typeof (error as VoteTxError).code === 'string' &&
-    'message' in error &&
-    'isTransient' in error &&
-    'severity' in error
-  ) {
-    return error as VoteTxError
+  if (looksLikeVoteTxError(error)) {
+    return error
+  }
+
+  // Axios (and similar): backend may put a VoteTxError on response.data
+  if (error && typeof error === 'object' && 'response' in error) {
+    const data = (error as { response?: { data?: unknown } }).response?.data
+    if (looksLikeVoteTxError(data)) {
+      return data
+    }
+  }
+
+  if (isRelayerOrApiTimeout(error)) {
+    return createVoteTxError({
+      code: 'timeout',
+      message:
+        'El relayer no respondió a tiempo. Reintentá el envío. Tu selección se conserva.',
+      severity: 'warning',
+      isTransient: true,
+      canRetrySend: true,
+      canResign: true,
+      cause: error,
+    })
   }
 
   if (error instanceof TimeoutError) {
@@ -97,7 +149,7 @@ export const mapVoteTxError = (error: unknown): VoteTxError => {
       message:
         'La transacción no fue incluida en un bloque a tiempo. Podés reintentar el envío o volver a firmar.',
       severity: 'warning',
-      isTransient: false,
+      isTransient: true,
       canRetrySend: true,
       canResign: true,
       cause: error,

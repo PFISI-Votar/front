@@ -65,7 +65,6 @@ describe('vote-transmitter — VOTAR-497', () => {
     expect(result.blockNumber).toBe(42n)
     expect(onTxHash).toHaveBeenCalledWith(`0x${'f'.repeat(64)}`)
     expect(onProgress.mock.calls.map((call) => call[0])).toEqual([
-      'estimating',
       'sending',
       'confirming',
     ])
@@ -76,6 +75,7 @@ describe('vote-transmitter — VOTAR-497', () => {
     expect(body.candidateIds).toEqual(['101'])
     expect(body.validatorSignature).toBe(`0x${'cd'.repeat(65)}`)
     expect(body.relayToken).toBe('ab'.repeat(32))
+    expect(body).not.toHaveProperty('merkleProof')
     expect(JSON.stringify(body)).not.toMatch(/privateKey|VITE_PRIVATE_KEY/i)
   })
 
@@ -153,25 +153,31 @@ describe('vote-transmitter — VOTAR-497', () => {
     expect(relayCast).toHaveBeenCalledTimes(1)
   })
 
-  it('no retransmite si el relayer ya devolvió el hash y falla el recibo', async () => {
+  it('no retransmite si el relayer ya devolvió el hash; reintenta sólo el recibo', async () => {
     relayCast.mockResolvedValue({ txHash: `0x${'b'.repeat(64)}` })
-    waitForTransactionReceipt.mockRejectedValue({
-      code: 'timeout',
-      message: 'La transacción no fue incluida en un bloque a tiempo.',
-      severity: 'warning',
-      isTransient: false,
-      canRetrySend: true,
-      canResign: true,
+    waitForTransactionReceipt
+      .mockRejectedValueOnce({
+        code: 'timeout',
+        message: 'La transacción no fue incluida en un bloque a tiempo.',
+        severity: 'warning',
+        isTransient: true,
+        canRetrySend: true,
+        canResign: true,
+      } satisfies VoteTxError)
+      .mockResolvedValueOnce({
+        status: 'success',
+        blockNumber: 11n,
+      })
+
+    const result = await transmitSignedVote(input, {
+      publicClient: publicClient as never,
+      relayCast,
+      maxAttempts: 3,
     })
 
-    await expect(
-      transmitSignedVote(input, {
-        publicClient: publicClient as never,
-        relayCast,
-        maxAttempts: 3,
-      })
-    ).rejects.toMatchObject({ code: 'timeout' })
-
     expect(relayCast).toHaveBeenCalledTimes(1)
+    expect(waitForTransactionReceipt).toHaveBeenCalledTimes(2)
+    expect(result.txHash).toBe(`0x${'b'.repeat(64)}`)
+    expect(result.blockNumber).toBe(11n)
   })
 })

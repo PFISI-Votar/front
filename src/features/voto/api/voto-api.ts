@@ -46,7 +46,6 @@ export type RelayCastBody = {
   expectedSigner: string
   signature: string
   validatorSignature: string
-  merkleProof: string[]
   relayToken: string
 }
 
@@ -64,6 +63,8 @@ export const solicitarAutorizacionRelayer = async (
 /**
  * VOTAR-497 — cast sin cookie de sesión. El relayer paga el gas.
  * `credentials: omit` evita que el access log una la sesión SSO con el voto.
+ * Same anonymous-fetch pattern as `registrarVotoEmitidoAnonimo` /
+ * `registrarTransaccionPublica` (not publicApiClient — PII tests require omit).
  */
 export const postRelayerCast = async (
   idEleccion: number,

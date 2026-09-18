@@ -1041,6 +1041,36 @@ export const BudVotingWizard = ({
     if (!signedVote) {
       return
     }
+    // If cast was already broadcast, only resume receipt wait (avoid re-cast / gas).
+    const existingHash =
+      txHash ?? loadPendingVoteCast(boleta.idEleccion)?.txHash ?? null
+    if (existingHash) {
+      setTxError(null)
+      setStep('transmitting')
+      setTransmitPhase('confirming')
+      setTxHash(existingHash)
+      try {
+        const result = await waitForVoteTxReceipt(existingHash)
+        await finalizeSuccessfulCast({
+          txHash: result.txHash,
+          blockNumber: Number(result.blockNumber),
+          votosObjetivo: Math.max(1, (voterStateOnChain?.votesUsed ?? 0) + 1),
+        })
+      } catch (error) {
+        const mapped = mapVoteTxError(error)
+        if (mapped.code === 'already_registered') {
+          await finalizeSuccessfulCast({
+            txHash: existingHash,
+            blockNumber: null,
+          })
+          return
+        }
+        reportVoteTxError(mapped, boleta.idEleccion)
+        setTxError(mapped)
+        setTransmitPhase('error')
+      }
+      return
+    }
     await transmitVote(signedVote)
   }
 

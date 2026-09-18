@@ -22,6 +22,7 @@ import {
 export type TransmitSignedVoteInput = {
   signed: SignedVotePayload
   voterLeaf: Hex
+  /** Kept for callers that still fetch the proof; not sent in the cast body. */
   merkleProof: readonly Hex[]
   /** VOTAR-377 — institutional signature from the Entidad de Firmas Digitales. */
   validatorSignature: Hex
@@ -70,9 +71,6 @@ const toBytes32 = (value: string): Hex => {
   return normalized.toLowerCase() as Hex
 }
 
-const toProofBytes32 = (proof: readonly string[]): Hex[] =>
-  proof.map((sibling) => toBytes32(sibling))
-
 export const buildRelayerCastBody = (
   input: TransmitSignedVoteInput,
   relayToken: string
@@ -85,53 +83,21 @@ export const buildRelayerCastBody = (
   expectedSigner: input.signed.expectedSigner,
   signature: input.signed.signature,
   validatorSignature: input.validatorSignature,
-  merkleProof: toProofBytes32(input.merkleProof),
   relayToken,
 })
 
 const createDefaultRelayCast = (): RelayCastFn => {
   let relayToken: string | null = null
   return async (input) => {
-    try {
-      if (!relayToken) {
-        const auth = await solicitarAutorizacionRelayer(input.signed.electionId)
-        relayToken = auth.relayToken
-      }
-      return await postRelayerCast(
-        input.signed.electionId,
-        buildRelayerCastBody(input, relayToken)
-      )
-    } catch (error) {
-      const data =
-        error &&
-        typeof error === 'object' &&
-        'response' in error &&
-        (error as { response?: { data?: unknown } }).response?.data
-      if (
-        data &&
-        typeof data === 'object' &&
-        'code' in data &&
-        'isTransient' in data &&
-        'severity' in data
-      ) {
-        throw data
-      }
-      throw error
+    if (!relayToken) {
+      const auth = await solicitarAutorizacionRelayer(input.signed.electionId)
+      relayToken = auth.relayToken
     }
+    return await postRelayerCast(
+      input.signed.electionId,
+      buildRelayerCastBody(input, relayToken)
+    )
   }
-}
-
-const asVoteTxError = (error: unknown): VoteTxError => {
-  if (
-    error &&
-    typeof error === 'object' &&
-    'code' in error &&
-    'isTransient' in error &&
-    'severity' in error
-  ) {
-    return mapVoteTxError(error)
-  }
-  return mapVoteTxError(error)
 }
 
 /**
@@ -154,7 +120,6 @@ export const transmitSignedVote = async (
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       if (!sentHash) {
-        options.onProgress?.('estimating')
         options.onProgress?.('sending')
         const relayed = await relayCast(input)
         sentHash = relayed.txHash
@@ -167,13 +132,13 @@ export const transmitSignedVote = async (
         confirmationTimeoutMs,
       })
     } catch (error) {
-      const mapped = asVoteTxError(error)
+      const mapped = mapVoteTxError(error)
       lastError = mapped
-      const canRetry =
-        !sentHash &&
-        mapped.isTransient &&
-        attempt < maxAttempts &&
-        mapped.canRetrySend
+      // After broadcast: retry receipt wait only (never re-cast / waste gas).
+      // Before broadcast: only transient send failures may retry relayCast.
+      const canRetry = sentHash
+        ? mapped.canRetrySend && attempt < maxAttempts
+        : mapped.isTransient && attempt < maxAttempts && mapped.canRetrySend
       if (!canRetry) {
         throw mapped
       }

@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
-import { postRelayerCast } from '@/features/voto/api/voto-api'
+import {
+  postRelayerCast,
+  solicitarAutorizacionRelayer,
+} from '@/features/voto/api/voto-api'
 import { BALLOT_CONTRACT_ABI } from '@/features/voto/crypto/ballot-abi'
 import { VOTE_EIP712_TYPES } from '@/features/voto/crypto/constants'
 import { assertRpcUrlsUseHttpsExceptLoopback } from '@/features/voto/crypto/rpc-failover'
@@ -9,6 +12,7 @@ import {
   transmitSignedVote,
   type TransmitSignedVoteInput,
 } from '@/features/voto/crypto/vote-transmitter'
+import { votanteApiClient } from '@/lib/votante-api-client'
 
 const PII_TOKENS = [
   '30222333',
@@ -19,6 +23,15 @@ const PII_TOKENS = [
 
 const FORBIDDEN_PARAM_NAMES =
   /^(dni|email|nombre|apellido|documento|cuil|cuit|telefono|legajo)$/i
+
+const FORBIDDEN_VOTE_BODY_KEYS = [
+  'nullifier',
+  'selectionHash',
+  'candidateIds',
+  'voterLeaf',
+  'signature',
+  'merkleProof',
+] as const
 
 type AbiInput = {
   name: string
@@ -125,7 +138,36 @@ describe('VOTAR-378 Ley 25.326 — payload de voto y HTTPS', () => {
       expect(payload.toLowerCase()).not.toContain(token.toLowerCase())
     }
     expect(body).not.toHaveProperty('Authorization')
+    expect(body).not.toHaveProperty('merkleProof')
     expect(JSON.stringify(body)).not.toMatch(/cookie|bearer/i)
+  })
+
+  it('VOTAR-497: solicitarAutorizacionRelayer no envía voto ni PII', async () => {
+    const post = vi.spyOn(votanteApiClient, 'post').mockResolvedValue({
+      data: {
+        relayToken: 'ab'.repeat(32),
+        expiresAt: '2026-01-01T00:00:00.000Z',
+      },
+    } as never)
+
+    try {
+      await solicitarAutorizacionRelayer(378)
+
+      expect(post).toHaveBeenCalledOnce()
+      const [url, body] = post.mock.calls[0]!
+      expect(String(url)).toContain('/relayer/autorizacion')
+      expect(body).toBeUndefined()
+
+      const serialized = JSON.stringify({ url, body })
+      for (const token of PII_TOKENS) {
+        expect(serialized.toLowerCase()).not.toContain(token.toLowerCase())
+      }
+      for (const key of FORBIDDEN_VOTE_BODY_KEYS) {
+        expect(serialized).not.toContain(key)
+      }
+    } finally {
+      post.mockRestore()
+    }
   })
 
   it('VOTAR-379 UAT-04: el POST al relayer omite cookies de sesión', async () => {
@@ -142,6 +184,7 @@ describe('VOTAR-378 Ley 25.326 — payload de voto y HTTPS', () => {
     expect(init.headers).not.toHaveProperty('Authorization')
     expect(init.headers).not.toHaveProperty('Cookie')
     expect(String(init.body)).not.toMatch(/Bearer|votar_voter|cookie/i)
+    expect(JSON.parse(String(init.body))).not.toHaveProperty('merkleProof')
   })
 
   it('UAT-02: RPC públicos deben ser HTTPS; HTTP sólo en loopback', () => {
