@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { votanteApiClient } from '@/lib/votante-api-client'
 import {
   postRelayerCast,
   solicitarAutorizacionRelayer,
@@ -12,7 +13,6 @@ import {
   transmitSignedVote,
   type TransmitSignedVoteInput,
 } from '@/features/voto/crypto/vote-transmitter'
-import { votanteApiClient } from '@/lib/votante-api-client'
 
 const PII_TOKENS = [
   '30222333',

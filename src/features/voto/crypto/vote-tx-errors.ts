@@ -53,12 +53,12 @@ const createVoteTxError = (
 const looksLikeVoteTxError = (value: unknown): value is VoteTxError =>
   Boolean(
     value &&
-      typeof value === 'object' &&
-      'code' in value &&
-      typeof (value as VoteTxError).code === 'string' &&
-      'message' in value &&
-      'isTransient' in value &&
-      'severity' in value
+    typeof value === 'object' &&
+    'code' in value &&
+    typeof (value as VoteTxError).code === 'string' &&
+    'message' in value &&
+    'isTransient' in value &&
+    'severity' in value
   )
 
 /** AbortSignal.timeout / fetch abort — not viem mining TimeoutError. */
