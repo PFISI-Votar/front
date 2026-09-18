@@ -193,6 +193,19 @@ describe('buildComiciosBreadcrumbEntries', () => {
     expect(entries[entries.length - 1]).toEqual({ label: 'Lista A (LA)' })
   })
 
+  it('shows a plain "Comicio no encontrado" step without the section switcher when the comicio is 404', () => {
+    expect(
+      buildComiciosBreadcrumbEntries({
+        pathname: '/comicios/999/oferta',
+        idEleccion: 999,
+        eleccionNotFound: true,
+      })
+    ).toEqual([
+      { label: 'Comicios', to: '/comicios' },
+      { label: 'Comicio no encontrado' },
+    ])
+  })
+
   it('exposes the section switcher menu on the auditoria page', () => {
     expect(
       buildComiciosBreadcrumbEntries({

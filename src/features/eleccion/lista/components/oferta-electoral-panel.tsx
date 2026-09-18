@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { isAxiosError } from 'axios'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
@@ -25,6 +24,7 @@ import {
   getApiErrorMessage,
   getApiRulesViolations,
   isConflictError,
+  isNotFoundError,
   isValidationError,
 } from '@/lib/api-client'
 import { resolveMediaUrl } from '@/lib/media-url'
@@ -51,6 +51,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { useAppLayoutConfig } from '@/components/layout/app-layout'
 import {
   eliminarEleccion,
   obtenerEleccion,
@@ -95,6 +96,8 @@ import {
 } from '@/features/eleccion/lista/api/lista-api'
 import { ListaFormDialog } from '@/features/eleccion/lista/components/lista-form-dialog'
 import type { Lista } from '@/features/eleccion/lista/data/schema'
+import { GeneralError } from '@/features/errors/general-error'
+import { NotFoundError } from '@/features/errors/not-found-error'
 import { usePadronResumen } from '@/features/padron/hooks/use-padron'
 
 type CandidatoDialogState = {
@@ -138,6 +141,27 @@ export const OfertaElectoralPanel = ({
     queryFn: () => obtenerEleccion(idEleccion),
   })
 
+  const comicioNoEncontrado =
+    eleccionQuery.isError && isNotFoundError(eleccionQuery.error)
+
+  // VOTAR-503: al mostrar el estado de error (404 o falla genérica) se pide
+  // el mismo layout sin scroll que usan las páginas de error
+  // (/_authenticated/errors/$error).
+  useAppLayoutConfig(
+    eleccionQuery.isError
+      ? {
+          headerClassName: 'border-b',
+          mainFixed: true,
+          mainClassName:
+            'flex flex-1 flex-col p-0 [&_[data-slot="breadcrumb"]]:mt-4 [&>div]:h-full',
+        }
+      : {
+          headerClassName: undefined,
+          mainFixed: false,
+          mainClassName: undefined,
+        }
+  )
+
   const listasQuery = useQuery({
     queryKey: ['listas', idEleccion],
     queryFn: () => listarListas(idEleccion),
@@ -174,9 +198,7 @@ export const OfertaElectoralPanel = ({
 
   const isEditable = eleccionQuery.data?.estado === 'BORRADOR'
   const sinPadronCargado =
-    padronResumenQuery.isError &&
-    isAxiosError(padronResumenQuery.error) &&
-    padronResumenQuery.error.response?.status === 404
+    padronResumenQuery.isError && isNotFoundError(padronResumenQuery.error)
   const tienePadronCargado =
     Boolean(padronResumenQuery.data) && !sinPadronCargado
   const camposConfig = configQuery.data?.campos ?? []
@@ -422,6 +444,33 @@ export const OfertaElectoralPanel = ({
 
   const handleConfirmEliminarComicio = () => {
     eliminarComicioMutation.mutate()
+  }
+
+  if (eleccionQuery.isLoading) {
+    return (
+      <p className='text-sm text-muted-foreground' aria-live='polite'>
+        Cargando comicio…
+      </p>
+    )
+  }
+
+  if (comicioNoEncontrado) {
+    return (
+      <NotFoundError
+        title='Comicio no encontrado'
+        description={
+          <>
+            No existe un comicio con el identificador #{idEleccion}, o fue
+            eliminado.
+          </>
+        }
+        backTo={{ label: 'Ver todos los comicios', to: '/comicios' }}
+      />
+    )
+  }
+
+  if (eleccionQuery.isError || !eleccionQuery.data) {
+    return <GeneralError />
   }
 
   return (

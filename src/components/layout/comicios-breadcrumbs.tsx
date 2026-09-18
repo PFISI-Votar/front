@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useParams, useRouterState } from '@tanstack/react-router'
+import { isNotFoundError } from '@/lib/api-client'
 import {
   type BreadcrumbEntry,
   type BreadcrumbMenuItem,
@@ -38,6 +39,12 @@ type BuildComiciosBreadcrumbInput = {
   idEleccion?: number
   idLista?: number
   eleccionNombre?: string
+  /**
+   * VOTAR-503: el comicio referenciado por la URL no existe (404). En ese
+   * caso no tiene sentido armar el selector de secciones ni los links a
+   * subpáginas de un comicio inexistente.
+   */
+  eleccionNotFound?: boolean
   listaNombre?: string
   listaSigla?: string
   /**
@@ -53,6 +60,7 @@ export const buildComiciosBreadcrumbEntries = ({
   idEleccion,
   idLista,
   eleccionNombre,
+  eleccionNotFound = false,
   listaNombre,
   listaSigla,
   listas,
@@ -65,6 +73,11 @@ export const buildComiciosBreadcrumbEntries = ({
   }
 
   if (idEleccion == null) {
+    return entries
+  }
+
+  if (eleccionNotFound) {
+    entries.push({ label: 'Comicio no encontrado' })
     return entries
   }
 
@@ -163,11 +176,17 @@ export const useComiciosBreadcrumbEntries = (): BreadcrumbEntry[] => {
 
   const lista = listasQuery.data?.find((item) => item.idLista === idLista)
 
+  const eleccionNotFound =
+    idEleccion != null &&
+    eleccionQuery.isError &&
+    isNotFoundError(eleccionQuery.error)
+
   return buildComiciosBreadcrumbEntries({
     pathname,
     idEleccion,
     idLista,
     eleccionNombre: eleccionQuery.data?.nombre,
+    eleccionNotFound,
     listaNombre: lista?.nombre,
     listaSigla: lista?.sigla,
     listas: listasQuery.data?.map((item) => ({
