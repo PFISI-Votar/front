@@ -30,6 +30,7 @@ vi.mock('@tanstack/react-router', () => ({
     <a {...props}>{children}</a>
   ),
   useNavigate: () => vi.fn(),
+  useRouter: () => ({ history: { go: vi.fn() } }),
 }))
 
 vi.mock('@/features/eleccion/api/eleccion-api', () => ({
@@ -84,6 +85,10 @@ vi.mock('@/features/eleccion/hooks/use-eleccion-websocket', () => ({
   useEleccionWebSocket: vi.fn(),
 }))
 
+vi.mock('@/components/layout/app-layout', () => ({
+  useAppLayoutConfig: vi.fn(),
+}))
+
 // VOTAR-481: no hay <Toaster /> montado en este árbol de test, así que se
 // mockea sonner para poder verificar el contenido de los toasts.
 vi.mock('sonner', () => ({
@@ -124,6 +129,15 @@ const createNetworkError = (message: string) =>
   new AxiosError(message, 'ERR_NETWORK', undefined, undefined, {
     status: 503,
     statusText: 'Service Unavailable',
+    headers: {},
+    config: {} as never,
+    data: { message },
+  })
+
+const createNotFoundError = (message: string) =>
+  new AxiosError(message, 'ERR_BAD_REQUEST', undefined, undefined, {
+    status: 404,
+    statusText: 'Not Found',
     headers: {},
     config: {} as never,
     data: { message },
@@ -856,5 +870,67 @@ describe('OfertaElectoralPanel - Registrar candidato', () => {
     await expandirCandidatos()
 
     await expect.element(registrarButton()).toBeDisabled()
+  })
+})
+
+describe('OfertaElectoralPanel - Comicio inexistente', () => {
+  let queryClient: QueryClient
+
+  beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    vi.clearAllMocks()
+
+    vi.mocked(obtenerEleccion).mockRejectedValue(
+      createNotFoundError('Elección 999 no encontrada')
+    )
+    vi.mocked(listarListas).mockResolvedValue([])
+    vi.mocked(obtenerMapeoListas).mockResolvedValue([])
+    vi.mocked(obtenerConfiguracionDatosCandidato).mockResolvedValue({
+      idEleccion: 999,
+      campos: [],
+      editable: false,
+      cantidadCandidatos: 0,
+    } satisfies ConfiguracionDatosCandidatoResponse)
+  })
+
+  async function renderPanel() {
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <OfertaElectoralPanel idEleccion={999} />
+      </QueryClientProvider>
+    )
+  }
+
+  it('muestra "Comicio no encontrado" en lugar del panel completo cuando el ID no existe', async () => {
+    await renderPanel()
+
+    await expect
+      .element(page.getByText('Comicio no encontrado'))
+      .toBeInTheDocument()
+
+    await expect
+      .element(page.getByRole('button', { name: 'Eliminar comicio' }))
+      .not.toBeInTheDocument()
+  })
+
+  it('muestra el error genérico (no "Comicio no encontrado") ante un fallo de red/500', async () => {
+    vi.mocked(obtenerEleccion).mockRejectedValue(
+      createNetworkError('Backend caído')
+    )
+
+    await renderPanel()
+
+    await expect
+      .element(page.getByText('¡Ups! Algo salió mal', { exact: false }))
+      .toBeInTheDocument()
+
+    await expect
+      .element(page.getByText('Comicio no encontrado'))
+      .not.toBeInTheDocument()
   })
 })
