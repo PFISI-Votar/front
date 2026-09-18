@@ -72,6 +72,8 @@ vi.mock('@/features/voto/api/voto-api', () => ({
   obtenerEstadoRevoto: (...args: unknown[]) => obtenerEstadoRevotoMock(...args),
   registrarConsumoIntento: (...args: unknown[]) =>
     registrarConsumoIntentoMock(...args),
+  solicitarAutorizacionRelayer: vi.fn(),
+  postRelayerCast: vi.fn(),
 }))
 
 const clearVotanteSessionMock = vi.fn().mockResolvedValue(undefined)
