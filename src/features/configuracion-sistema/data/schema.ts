@@ -17,6 +17,9 @@ export type ActaCierrePlantilla = {
   incluirLogo: boolean
 }
 
+/** VOTAR-492 §12.2 — alcance del bloqueo de flujos de autenticación. */
+export type AuthBloqueoAlcance = 'NINGUNO' | 'ADMIN' | 'TODOS'
+
 export type ConfiguracionSistema = {
   logoUrl: string | null
   actaAperturaPlantilla: ActaAperturaPlantilla
@@ -26,4 +29,8 @@ export type ConfiguracionSistema = {
   actaCierreModo: ActaAperturaModo
   actaCierrePlantillaTexto: string | null
   fechaActualizacion: string
+  authBloqueoAlcance: AuthBloqueoAlcance
+  authBloqueoMotivo: string | null
+  authBloqueoDesde: string | null
+  authBloqueoPor: string | null
 }

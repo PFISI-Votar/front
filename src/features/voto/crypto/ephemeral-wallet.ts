@@ -73,7 +73,7 @@ export const createEphemeralWalletManager = (): EphemeralWalletManager => {
     // VOTAR-353: derive (not randomize) the ephemeral key so the same
     // voter always reaches the same nullifier across sign attempts —
     // required for LAST_VOTE_WINS revotes to overwrite, not multiply.
-    const seed = getOrCreateElectionSeed(idEleccion, votanteScope)
+    const seed = await getOrCreateElectionSeed(idEleccion, votanteScope)
     const nextPrivateKey = deriveEphemeralPrivateKey(seed, idEleccion)
     zeroize(seed)
     const publicKeyBytes = getPublicKey(nextPrivateKey, true)

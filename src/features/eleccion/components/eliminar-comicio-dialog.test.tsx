@@ -114,6 +114,50 @@ describe('EliminarComicioDialog', () => {
     await expect.element(reopenedInput).toHaveValue('')
   })
 
+  it('limpia el input cuando el diálogo se cierra externamente (ej. tras eliminar con éxito)', async () => {
+    const OTRO_COMICIO = 'Elección Municipal 2026'
+
+    // Simula que el padre cierra el modal directamente (como hace
+    // eliminarMutation.onSuccess en comicios-list.tsx), sin pasar por el
+    // onOpenChange interno del diálogo.
+    const { getByRole, rerender } = await render(
+      <EliminarComicioDialog
+        open
+        onOpenChange={vi.fn()}
+        nombreEleccion={NOMBRE_ELECCION}
+        onConfirm={vi.fn()}
+      />
+    )
+
+    const confirmInput = getByRole('textbox', {
+      name: `Escribí ${NOMBRE_ELECCION} para confirmar`,
+    })
+    await userEvent.fill(confirmInput, NOMBRE_ELECCION)
+    await expect.element(confirmInput).toHaveValue(NOMBRE_ELECCION)
+
+    await rerender(
+      <EliminarComicioDialog
+        open={false}
+        onOpenChange={vi.fn()}
+        nombreEleccion={NOMBRE_ELECCION}
+        onConfirm={vi.fn()}
+      />
+    )
+    await rerender(
+      <EliminarComicioDialog
+        open
+        onOpenChange={vi.fn()}
+        nombreEleccion={OTRO_COMICIO}
+        onConfirm={vi.fn()}
+      />
+    )
+
+    const reopenedInput = getByRole('textbox', {
+      name: `Escribí ${OTRO_COMICIO} para confirmar`,
+    })
+    await expect.element(reopenedInput).toHaveValue('')
+  })
+
   it('deshabilita cancelar y confirmar cuando isLoading es true', async () => {
     const { getByRole } = await render(
       <EliminarComicioDialog
