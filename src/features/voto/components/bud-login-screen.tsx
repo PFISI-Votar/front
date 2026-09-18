@@ -96,6 +96,7 @@ export const BudLoginScreen = ({
     >
       <VotarLoginBackground />
       <section className='relative mx-auto flex min-h-svh w-full max-w-md flex-col items-center justify-center px-4 py-8 sm:px-6'>
+        <h1 className='sr-only'>Iniciar sesión en la Boleta Única Digital</h1>
         <VotarBrandHeader className='mb-8' />
 
         <Card className='w-full min-w-0 gap-0 rounded-2xl border-[#e4e7eb] bg-white/95 py-0 shadow-[0_1rem_3rem_rgba(30,64,95,0.08)] backdrop-blur-sm'>
@@ -154,7 +155,7 @@ export const BudLoginScreen = ({
                     autoComplete='username'
                     disabled={isLoading}
                     placeholder='Ej. 14988'
-                    className='h-11 rounded-lg border-[#c9cdd2] bg-white pr-4 pl-11 text-base shadow-none placeholder:text-[#9aa0a6] focus-visible:border-[#2f6f9f] focus-visible:ring-[#2f6f9f]/20'
+                    className='h-11 rounded-lg border-[#c9cdd2] bg-white pr-4 pl-11 text-base shadow-none placeholder:text-[#6b7280] focus-visible:border-[#2f6f9f] focus-visible:ring-[#2f6f9f]'
                   />
                 </LoginField>
 
@@ -171,11 +172,11 @@ export const BudLoginScreen = ({
                     autoComplete='current-password'
                     disabled={isLoading}
                     placeholder='••••••••'
-                    className='h-11 rounded-lg border-[#c9cdd2] bg-white pr-11 pl-11 text-base shadow-none placeholder:tracking-normal focus-visible:border-[#2f6f9f] focus-visible:ring-[#2f6f9f]/20'
+                    className='h-11 rounded-lg border-[#c9cdd2] bg-white pr-11 pl-11 text-base shadow-none placeholder:tracking-normal focus-visible:border-[#2f6f9f] focus-visible:ring-[#2f6f9f]'
                   />
                   <button
                     type='button'
-                    className='absolute top-1/2 right-2.5 grid size-8 -translate-y-1/2 place-items-center rounded-md text-[#74777d] transition hover:bg-slate-100 hover:text-[#2f6f9f] focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/20 focus-visible:outline-none'
+                    className='absolute top-1/2 right-2.5 grid size-8 -translate-y-1/2 place-items-center rounded-md text-[#5c5f66] transition hover:bg-slate-100 hover:text-[#2f6f9f] focus-visible:ring-2 focus-visible:ring-[#2f6f9f] focus-visible:ring-offset-2 focus-visible:outline-none'
                     onClick={() => setShowClave((current) => !current)}
                     aria-label={showClave ? 'Ocultar clave' : 'Mostrar clave'}
                   >
