@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { isAxiosError } from 'axios'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
@@ -24,6 +23,7 @@ import {
   getApiErrorMessage,
   getApiRulesViolations,
   isConflictError,
+  isNotFoundError,
   isValidationError,
 } from '@/lib/api-client'
 import { resolveMediaUrl } from '@/lib/media-url'
@@ -92,6 +92,7 @@ import {
 } from '@/features/eleccion/lista/api/lista-api'
 import { ListaFormDialog } from '@/features/eleccion/lista/components/lista-form-dialog'
 import type { Lista } from '@/features/eleccion/lista/data/schema'
+import { GeneralError } from '@/features/errors/general-error'
 import { NotFoundError } from '@/features/errors/not-found-error'
 import { usePadronResumen } from '@/features/padron/hooks/use-padron'
 
@@ -136,12 +137,14 @@ export const OfertaElectoralPanel = ({
     queryFn: () => obtenerEleccion(idEleccion),
   })
 
-  const comicioNoEncontrado = !eleccionQuery.isLoading && !eleccionQuery.data
+  const comicioNoEncontrado =
+    eleccionQuery.isError && isNotFoundError(eleccionQuery.error)
 
-  // VOTAR-503: al mostrar "Comicio no encontrado" se pide el mismo layout
-  // sin scroll que usan las páginas de error (/_authenticated/errors/$error).
+  // VOTAR-503: al mostrar el estado de error (404 o falla genérica) se pide
+  // el mismo layout sin scroll que usan las páginas de error
+  // (/_authenticated/errors/$error).
   useAppLayoutConfig(
-    comicioNoEncontrado
+    eleccionQuery.isError
       ? {
           headerClassName: 'border-b',
           mainFixed: true,
@@ -191,9 +194,7 @@ export const OfertaElectoralPanel = ({
 
   const isEditable = eleccionQuery.data?.estado === 'BORRADOR'
   const sinPadronCargado =
-    padronResumenQuery.isError &&
-    isAxiosError(padronResumenQuery.error) &&
-    padronResumenQuery.error.response?.status === 404
+    padronResumenQuery.isError && isNotFoundError(padronResumenQuery.error)
   const tienePadronCargado =
     Boolean(padronResumenQuery.data) && !sinPadronCargado
   const camposConfig = configQuery.data?.campos ?? []
@@ -418,7 +419,7 @@ export const OfertaElectoralPanel = ({
     )
   }
 
-  if (!eleccionQuery.data) {
+  if (comicioNoEncontrado) {
     return (
       <NotFoundError
         title='Comicio no encontrado'
@@ -431,6 +432,10 @@ export const OfertaElectoralPanel = ({
         backTo={{ label: 'Ver todos los comicios', to: '/comicios' }}
       />
     )
+  }
+
+  if (eleccionQuery.isError || !eleccionQuery.data) {
+    return <GeneralError />
   }
 
   return (

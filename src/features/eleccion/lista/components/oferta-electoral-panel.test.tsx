@@ -767,4 +767,20 @@ describe('OfertaElectoralPanel - Comicio inexistente', () => {
       .element(page.getByRole('button', { name: 'Eliminar comicio' }))
       .not.toBeInTheDocument()
   })
+
+  it('muestra el error genérico (no "Comicio no encontrado") ante un fallo de red/500', async () => {
+    vi.mocked(obtenerEleccion).mockRejectedValue(
+      createNetworkError('Backend caído')
+    )
+
+    await renderPanel()
+
+    await expect
+      .element(page.getByText('¡Ups! Algo salió mal', { exact: false }))
+      .toBeInTheDocument()
+
+    await expect
+      .element(page.getByText('Comicio no encontrado'))
+      .not.toBeInTheDocument()
+  })
 })

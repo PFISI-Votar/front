@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useParams, useRouterState } from '@tanstack/react-router'
+import { isNotFoundError } from '@/lib/api-client'
 import {
   type BreadcrumbEntry,
   type BreadcrumbMenuItem,
@@ -176,7 +177,9 @@ export const useComiciosBreadcrumbEntries = (): BreadcrumbEntry[] => {
   const lista = listasQuery.data?.find((item) => item.idLista === idLista)
 
   const eleccionNotFound =
-    idEleccion != null && !eleccionQuery.isLoading && !eleccionQuery.data
+    idEleccion != null &&
+    eleccionQuery.isError &&
+    isNotFoundError(eleccionQuery.error)
 
   return buildComiciosBreadcrumbEntries({
     pathname,
