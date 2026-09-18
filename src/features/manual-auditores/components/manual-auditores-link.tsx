@@ -7,7 +7,7 @@ type ManualAuditoresLinkProps = {
 }
 
 /**
- * VOTAR-396 — Acceso al manual técnico de transparencia para auditores.
+ * VOTAR-396: Acceso al manual técnico de transparencia para auditores.
  * Usa <a> nativo para poder renderizarse fuera de RouterProvider.
  */
 export const ManualAuditoresLink = ({

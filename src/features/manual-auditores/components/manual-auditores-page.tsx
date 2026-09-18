@@ -14,7 +14,7 @@ import {
 import { MANUAL_AUDITORES_SECTIONS } from '@/features/manual-auditores/manual-auditores-content'
 
 /**
- * VOTAR-396 — Manual técnico de transparencia para auditores.
+ * VOTAR-396: Manual técnico de transparencia para auditores.
  * Público: no requiere sesión. Accesible desde el Dashboard Público.
  */
 export const ManualAuditoresPage = () => (
@@ -85,7 +85,6 @@ export const ManualAuditoresPage = () => (
                 className='font-medium text-[#2f6f9f] hover:underline'
               >
                 {section.title}
-                {section.uat ? ` (${section.uat})` : ''}
               </a>
             </li>
           ))}
@@ -99,16 +98,9 @@ export const ManualAuditoresPage = () => (
             id={section.id}
             className='scroll-mt-6 rounded-2xl border border-[#e4e7eb] bg-white/95 px-6 py-6 shadow-[0_1rem_3rem_rgba(30,64,95,0.08)] sm:px-8'
           >
-            <div className='flex flex-wrap items-center gap-2'>
-              <h2 className='text-lg font-bold tracking-tight text-[#202124]'>
-                {section.title}
-              </h2>
-              {section.uat ? (
-                <span className='rounded-full bg-[#2f6f9f]/10 px-2 py-0.5 text-[0.65rem] font-semibold tracking-wide text-[#2f6f9f] uppercase'>
-                  {section.uat}
-                </span>
-              ) : null}
-            </div>
+            <h2 className='text-lg font-bold tracking-tight text-[#202124]'>
+              {section.title}
+            </h2>
             <div className='mt-3 space-y-3 text-sm leading-relaxed text-[#5f6368]'>
               {section.body.map((paragraph) => (
                 <p key={paragraph.slice(0, 48)}>{paragraph}</p>

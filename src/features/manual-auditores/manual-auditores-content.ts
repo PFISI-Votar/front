@@ -1,5 +1,5 @@
 /**
- * VOTAR-396 — Texto del manual técnico de transparencia para auditores.
+ * VOTAR-396: Texto del manual técnico de transparencia para auditores.
  * Los pasos siguen la UI pública y los contratos on-chain reales.
  */
 
@@ -15,7 +15,6 @@ export const VOTO_NULO =
 export type ManualSection = {
   id: string
   title: string
-  uat?: string
   body: string[]
   steps?: string[]
   note?: string
@@ -37,7 +36,7 @@ export const MANUAL_AUDITORES_SECTIONS: ManualSection[] = [
     title: 'Leer el escrutinio y la participación',
     body: [
       'Abrí el Dashboard Público del comicio en /comicios/{id}/dashboard. El {id} es el número del comicio. No hace falta iniciar sesión.',
-      'Los números del escrutinio salen de la blockchain (fuente ON_CHAIN). El contrato AuditView expone lecturas sin gas — getParticipationStats y getVotesByCandidate — que leen los totales de VoteRegistry. Esos totales se actualizan con los eventos VoteCast y VoteUpdated de cada sufragio aceptado.',
+      'Los números del escrutinio salen de la blockchain (fuente ON_CHAIN). El contrato AuditView expone lecturas sin gas (getParticipationStats y getVotesByCandidate) que leen los totales de VoteRegistry. Esos totales se actualizan con los eventos VoteCast y VoteUpdated de cada sufragio aceptado.',
       'Mientras el comicio está abierto, el panel de resultados se actualiza en vivo (marca “en vivo”). Al cierre, el snapshot queda congelado y aparece la insignia “Resultados Definitivos e Inmutables”: los indicadores ya no cambian.',
     ],
     steps: [
@@ -52,7 +51,6 @@ export const MANUAL_AUDITORES_SECTIONS: ManualSection[] = [
   {
     id: 'recibo',
     title: 'Verificar un sufragio individual',
-    uat: 'UAT-01',
     body: [
       'Cada votante recibe un recibo criptográfico (PDF o pantalla de confirmación) con un TransactionHash. Ese hash es la prueba de inclusión. No contiene el candidato elegido ni datos personales.',
     ],
@@ -67,7 +65,6 @@ export const MANUAL_AUDITORES_SECTIONS: ManualSection[] = [
   {
     id: 'recuento',
     title: 'Recalcular el escrutinio desde la blockchain',
-    uat: 'UAT-04',
     body: [
       'El cómputo canónico no está solo en la interfaz. Cualquier persona puede descargar los eventos de VoteRegistry y reconstruir los totales. Un voto aceptado siempre deja un rastro público: si falta un evento, el recuento propio no coincide con getTally. Eso es lo que hace al escrutinio resistente a la censura.',
       'No uses solo el candidateId de VoteCast para recontar. VoteCast se emite una vez por boleta y su candidateId es el primer identificador de la selección (sirve para ver que hubo un sufragio). El desglose completo está en VoteUpdated: por cada candidato que entra o sale de la boleta hay un delta +1 o −1.',
@@ -88,7 +85,6 @@ export const MANUAL_AUDITORES_SECTIONS: ManualSection[] = [
   {
     id: 'audit-log',
     title: 'Inspeccionar el Audit Log',
-    uat: 'UAT-02',
     body: [
       'El Audit Log es el registro append-only de la operación institucional (apertura, cierre, carga de padrón, pausa, acta). No es la misma lista que Transacciones del dashboard: esas son eventos on-chain. El log operativo se consulta autenticado, con un usuario de Autoridad Electoral, porque incluye metadatos de operadores (id ofuscado y terminal criptográfica, nunca el DNI en claro).',
       'Las filas no se editan ni se borran. Buscar la apertura y el cierre de un comicio simulado es suficiente para ver que el rastro quedó inmutable.',
@@ -104,7 +100,6 @@ export const MANUAL_AUDITORES_SECTIONS: ManualSection[] = [
   {
     id: 'etherscan',
     title: 'Validar transacciones y la raíz Merkle',
-    uat: 'UAT-03',
     body: [
       'La solapa Estado publica la ficha técnica on-chain: red, chainId, estado del contrato, raíz Merkle del padrón, límites de re-voto y las cuatro direcciones verificadas (BallotContract, VoteRegistry, AuditViewContract y MerkleRootStore). Cada dirección tiene un enlace a Etherscan.',
       'La raíz Merkle es el sello del padrón (hojas Keccak-256). El dashboard no publica el padrón nominativo. Lo que se compara es ese hash con el anclado en MerkleRootStore.',
