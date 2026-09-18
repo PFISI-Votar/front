@@ -17,6 +17,6 @@ export const Route = createRootRouteWithContext<{
       </>
     )
   },
-  notFoundComponent: NotFoundError,
+  notFoundComponent: () => <NotFoundError />,
   errorComponent: GeneralError,
 })

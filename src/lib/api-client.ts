@@ -95,6 +95,10 @@ export const isConflictError = (error: unknown): error is AxiosError => {
   return error instanceof AxiosError && error.response?.status === 409
 }
 
+export const isNotFoundError = (error: unknown): error is AxiosError => {
+  return error instanceof AxiosError && error.response?.status === 404
+}
+
 export const isValidationError = (error: unknown): error is AxiosError => {
   const status = error instanceof AxiosError ? error.response?.status : 0
   return status === 422 || status === 400
