@@ -31,6 +31,8 @@ import { toast } from 'sonner'
 import type { Hex } from 'viem'
 import budFingerprint from '@/assets/bud-fingerprint.png'
 import { resolveMediaUrl } from '@/lib/media-url'
+import { toSafeNavigationUrl } from '@/lib/safe-url'
+import { toUntrustedPlainText } from '@/lib/untrusted-html'
 import { cn } from '@/lib/utils'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -209,7 +211,7 @@ const BACKGROUND_FINGERPRINTS = [
 ] as const
 
 const getInitials = (value: string) => {
-  const words = value.trim().split(/\s+/).filter(Boolean)
+  const words = toUntrustedPlainText(value).trim().split(/\s+/).filter(Boolean)
   if (words.length === 0) return '??'
   if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
   return `${words[0][0] ?? ''}${words[words.length - 1]?.[0] ?? ''}`.toUpperCase()
@@ -241,13 +243,14 @@ const buildListsFromBoleta = (boleta: BoletaDigital): PartyList[] => {
       const color = candidate.colorLista || '#2f6f9f'
 
       if (!lists.has(id)) {
+        const listName = toUntrustedPlainText(candidate.agrupacionPolitica)
         lists.set(id, {
           id,
-          name: candidate.agrupacionPolitica,
+          name: listName,
           numeroLista: candidate.numeroLista,
           color,
           accent: getSoftAccent(color),
-          initials: getInitials(candidate.agrupacionPolitica),
+          initials: getInitials(listName),
           imageUrl: getListImageUrl(candidate),
         })
       }
@@ -306,9 +309,9 @@ const mapCandidate = (
   id: String(candidate.idCandidato),
   roleId: String(candidate.idCategoria),
   role: roleName,
-  name: candidate.nombreCompleto,
+  name: toUntrustedPlainText(candidate.nombreCompleto),
   listId: String(candidate.idLista),
-  listName: candidate.agrupacionPolitica,
+  listName: toUntrustedPlainText(candidate.agrupacionPolitica),
   numeroLista: candidate.numeroLista,
   listInitials: getInitials(candidate.agrupacionPolitica),
   listImageUrl: getListImageUrl(candidate),
@@ -320,7 +323,7 @@ const mapCandidate = (
 const buildCandidatesFromBoleta = (boleta: BoletaDigital): Candidate[] =>
   boleta.categorias.flatMap((categoria) =>
     categoria.candidatos.map((candidate) =>
-      mapCandidate(candidate, categoria.nombre)
+      mapCandidate(candidate, toUntrustedPlainText(categoria.nombre))
     )
   )
 
@@ -2379,7 +2382,9 @@ const SuccessStep = ({
   onLogout: () => void
   onModify: () => void
 }) => {
-  const explorerUrl = txHash ? getExplorerTxUrl(txHash) : null
+  const explorerUrl = txHash
+    ? toSafeNavigationUrl(getExplorerTxUrl(txHash))
+    : null
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
   const [pdfError, setPdfError] = useState<string | null>(null)
 
@@ -2465,7 +2470,7 @@ const SuccessStep = ({
                     <a
                       href={explorerUrl}
                       target='_blank'
-                      rel='noreferrer'
+                      rel='noopener noreferrer'
                       className='mt-2 inline-flex items-center gap-1 text-[#2f6f9f] underline-offset-2 hover:underline'
                       aria-label='Ver transacción en el explorador de bloques'
                     >
@@ -2682,7 +2687,9 @@ const IdentityItem = ({ label, value }: { label: string; value: string }) => (
     <p className='text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase'>
       {label}
     </p>
-    <p className='mt-1 font-semibold text-slate-900'>{value}</p>
+    <p className='mt-1 font-semibold text-slate-900'>
+      {toUntrustedPlainText(value)}
+    </p>
   </div>
 )
 

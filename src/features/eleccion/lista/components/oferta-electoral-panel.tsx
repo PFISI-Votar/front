@@ -28,6 +28,7 @@ import {
   isValidationError,
 } from '@/lib/api-client'
 import { resolveMediaUrl } from '@/lib/media-url'
+import { toUntrustedPlainText } from '@/lib/untrusted-html'
 import { cn } from '@/lib/utils'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -810,6 +811,8 @@ export const OfertaElectoralPanel = ({
             : sinCupoDisponible
               ? 'No hay categorías con cupo disponible en esta lista'
               : null
+          const nombreLista = toUntrustedPlainText(lista.nombre)
+          const siglaLista = toUntrustedPlainText(lista.sigla)
 
           return (
             <Collapsible
@@ -822,7 +825,7 @@ export const OfertaElectoralPanel = ({
                     <button
                       type='button'
                       className='group/trigger flex min-w-0 flex-1 flex-col gap-1 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
-                      aria-label={`${candidatos.length > 0 ? 'Ocultar' : 'Mostrar'} candidatos de ${lista.nombre}`}
+                      aria-label={`${candidatos.length > 0 ? 'Ocultar' : 'Mostrar'} candidatos de ${nombreLista}`}
                     >
                       <CardTitle className='flex flex-wrap items-center gap-2 text-lg'>
                         <ChevronDown
@@ -842,13 +845,13 @@ export const OfertaElectoralPanel = ({
                         {lista.logoUrl && (
                           <img
                             src={resolveMediaUrl(lista.logoUrl)}
-                            alt={`Logotipo de ${lista.nombre}`}
+                            alt={`Logotipo de ${nombreLista}`}
                             className='h-10 w-20 rounded-md border bg-muted object-cover'
                           />
                         )}
-                        {lista.nombre}{' '}
+                        {nombreLista}{' '}
                         <span className='text-base font-normal text-muted-foreground'>
-                          ({lista.sigla})
+                          ({siglaLista})
                         </span>
                       </CardTitle>
                       <CardDescription>
@@ -869,7 +872,7 @@ export const OfertaElectoralPanel = ({
                           idEleccion: String(idEleccion),
                           idLista: String(lista.idLista),
                         }}
-                        aria-label={`Ver detalle de ${lista.nombre}`}
+                        aria-label={`Ver detalle de ${nombreLista}`}
                       >
                         <ArrowRight />
                         Ver detalle
@@ -884,7 +887,7 @@ export const OfertaElectoralPanel = ({
                             setEditingLista(lista)
                             setListaDialogOpen(true)
                           }}
-                          aria-label={`Editar lista ${lista.nombre}`}
+                          aria-label={`Editar lista ${nombreLista}`}
                         >
                           <Pencil className='size-4' />
                         </Button>
@@ -892,7 +895,7 @@ export const OfertaElectoralPanel = ({
                           size='sm'
                           variant='ghost'
                           onClick={() => setListaAEliminar(lista)}
-                          aria-label={`Eliminar lista ${lista.nombre}`}
+                          aria-label={`Eliminar lista ${nombreLista}`}
                         >
                           <Trash2 className='size-4 text-destructive' />
                         </Button>
@@ -910,54 +913,65 @@ export const OfertaElectoralPanel = ({
                     ) : (
                       <ul
                         className='flex flex-col gap-2'
-                        aria-label={`Candidatos de ${lista.nombre}`}
+                        aria-label={`Candidatos de ${nombreLista}`}
                       >
-                        {candidatos.map((candidato) => (
-                          <li
-                            key={candidato.idCandidato}
-                            className='flex flex-wrap items-start justify-between gap-3 rounded-lg border p-3'
-                          >
-                            <div className='flex min-w-0 items-center gap-3'>
-                              {candidato.fotoUrl ? (
-                                <img
-                                  src={resolveMediaUrl(candidato.fotoUrl)}
-                                  alt={`Foto de ${candidato.nombre} ${candidato.apellido}`}
-                                  className='size-12 rounded-xl border bg-muted object-cover'
-                                />
-                              ) : (
-                                <div className='grid size-12 place-items-center rounded-xl border bg-muted text-xs text-muted-foreground'>
-                                  Sin foto
+                        {candidatos.map((candidato) => {
+                          const nombreCandidato = toUntrustedPlainText(
+                            candidato.nombre
+                          )
+                          const apellidoCandidato = toUntrustedPlainText(
+                            candidato.apellido
+                          )
+                          const categoriaCandidato = candidato.categoriaNombre
+                            ? toUntrustedPlainText(candidato.categoriaNombre)
+                            : ''
+                          return (
+                            <li
+                              key={candidato.idCandidato}
+                              className='flex flex-wrap items-start justify-between gap-3 rounded-lg border p-3'
+                            >
+                              <div className='flex min-w-0 items-center gap-3'>
+                                {candidato.fotoUrl ? (
+                                  <img
+                                    src={resolveMediaUrl(candidato.fotoUrl)}
+                                    alt={`Foto de ${nombreCandidato} ${apellidoCandidato}`}
+                                    className='size-12 rounded-xl border bg-muted object-cover'
+                                  />
+                                ) : (
+                                  <div className='grid size-12 place-items-center rounded-xl border bg-muted text-xs text-muted-foreground'>
+                                    Sin foto
+                                  </div>
+                                )}
+                                <div className='flex min-w-0 flex-col gap-0.5'>
+                                  <p className='font-medium'>
+                                    {nombreCandidato} {apellidoCandidato}
+                                  </p>
+                                  <p className='text-sm text-muted-foreground'>
+                                    {categoriaCandidato
+                                      ? `${categoriaCandidato} · `
+                                      : ''}
+                                    {buildResumenDatosAdicionales(
+                                      candidato.datosAdicionales,
+                                      camposConfig
+                                    )}
+                                  </p>
                                 </div>
-                              )}
-                              <div className='flex min-w-0 flex-col gap-0.5'>
-                                <p className='font-medium'>
-                                  {candidato.nombre} {candidato.apellido}
-                                </p>
-                                <p className='text-sm text-muted-foreground'>
-                                  {candidato.categoriaNombre
-                                    ? `${candidato.categoriaNombre} · `
-                                    : ''}
-                                  {buildResumenDatosAdicionales(
-                                    candidato.datosAdicionales,
-                                    camposConfig
-                                  )}
-                                </p>
                               </div>
-                            </div>
-                            {isEditable && (
-                              <Button
-                                size='sm'
-                                variant='ghost'
-                                onClick={() =>
-                                  setCandidatoDialog({ lista, candidato })
-                                }
-                                aria-label={`Editar ${candidato.nombre} ${candidato.apellido}`}
-                              >
-                                <UserPen className='size-4' />
-                              </Button>
-                            )}
-                          </li>
-                        ))}
+                              {isEditable && (
+                                <Button
+                                  size='sm'
+                                  variant='ghost'
+                                  onClick={() =>
+                                    setCandidatoDialog({ lista, candidato })
+                                  }
+                                  aria-label={`Editar ${nombreCandidato} ${apellidoCandidato}`}
+                                >
+                                  <UserPen className='size-4' />
+                                </Button>
+                              )}
+                            </li>
+                          )
+                        })}
                       </ul>
                     )}
                     {isEditable && (
@@ -971,7 +985,7 @@ export const OfertaElectoralPanel = ({
                               onClick={() =>
                                 setCandidatoDialog({ lista, candidato: null })
                               }
-                              aria-label={`Registrar candidato en ${lista.nombre}`}
+                              aria-label={`Registrar candidato en ${nombreLista}`}
                             >
                               <Plus className='me-2 size-4' />
                               Registrar candidato
@@ -1047,8 +1061,8 @@ export const OfertaElectoralPanel = ({
           }}
           idEleccion={idEleccion}
           idLista={candidatoDialog.lista.idLista}
-          listaNombre={candidatoDialog.lista.nombre}
-          listaSigla={candidatoDialog.lista.sigla}
+          listaNombre={toUntrustedPlainText(candidatoDialog.lista.nombre)}
+          listaSigla={toUntrustedPlainText(candidatoDialog.lista.sigla)}
           candidatosEnLista={candidatoDialog.lista.candidatos ?? []}
           candidatosEnComicio={candidatosEnComicio}
           candidato={candidatoDialog.candidato}

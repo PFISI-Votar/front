@@ -17,6 +17,7 @@ import {
 import { toast } from 'sonner'
 import { getApiErrorMessage, isNotFoundError } from '@/lib/api-client'
 import { formatDateTimeForDisplay } from '@/lib/datetime'
+import { toSafeNavigationUrl } from '@/lib/safe-url'
 import { cn } from '@/lib/utils'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -445,19 +446,24 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
                         <p className='font-mono text-xs break-all'>
                           Tx: {merkleQuery.data.txHash}
                         </p>
-                        {merkleQuery.data.explorerUrl && (
-                          <Button asChild variant='outline' size='sm'>
-                            <a
-                              href={merkleQuery.data.explorerUrl}
-                              target='_blank'
-                              rel='noopener noreferrer'
-                              aria-label='Ver transacción en Etherscan'
-                            >
-                              <ExternalLink className='size-4' />
-                              Ver en Etherscan
-                            </a>
-                          </Button>
-                        )}
+                        {(() => {
+                          const explorerUrl = toSafeNavigationUrl(
+                            merkleQuery.data.explorerUrl
+                          )
+                          return explorerUrl ? (
+                            <Button asChild variant='outline' size='sm'>
+                              <a
+                                href={explorerUrl}
+                                target='_blank'
+                                rel='noopener noreferrer'
+                                aria-label='Ver transacción en Etherscan'
+                              >
+                                <ExternalLink className='size-4' />
+                                Ver en Etherscan
+                              </a>
+                            </Button>
+                          ) : null
+                        })()}
                       </div>
                     )}
                 </>

@@ -3,7 +3,11 @@ import {
   buildContentSecurityPolicy,
   buildNginxSecurityHeaderLines,
   buildSecurityHeaders,
+  requireCspOrigin,
   REQUIRED_SECURITY_HEADER_NAMES,
+  sanitizeDeployCspOrigin,
+  sanitizeDeployCspOriginsList,
+  toCspOrigin,
 } from './security-headers'
 
 describe('security-headers', () => {
@@ -14,6 +18,11 @@ describe('security-headers', () => {
     })
 
     expect(csp).toContain("frame-ancestors 'none'")
+    expect(csp).toContain("frame-src 'none'")
+    expect(csp).toContain("script-src 'self';")
+    expect(csp).toContain("script-src-attr 'none'")
+    expect(csp).not.toContain('unsafe-eval')
+    expect(csp).not.toContain("script-src 'self' 'unsafe-inline'")
     expect(csp).toContain('connect-src')
     expect(csp).toContain('http://localhost:3000')
     expect(csp).toContain("object-src 'none'")
@@ -75,6 +84,24 @@ describe('security-headers', () => {
     ).toBe(true)
   })
 
+  it('keeps RPC origins in connect-src without leaking API keys', () => {
+    const secret = 'alchemy-secret-key-should-not-appear'
+    const csp = buildContentSecurityPolicy({
+      apiOrigin: 'https://api.votar.test',
+      isDev: false,
+      extraConnectSrc: [
+        `https://eth-sepolia.g.alchemy.com/v2/${secret}`,
+        'http://rpc.public.example:8545',
+      ],
+    })
+
+    expect(csp).toContain('https://eth-sepolia.g.alchemy.com')
+    expect(csp).toContain('https://api.votar.test')
+    expect(csp).not.toContain(secret)
+    expect(csp).not.toContain('/v2/')
+    expect(csp).not.toContain('rpc.public.example')
+  })
+
   it('allows Hardhat RPC origins via extraConnectSrc in dev', () => {
     const csp = buildContentSecurityPolicy({
       apiOrigin: 'http://localhost:8000',
@@ -85,5 +112,40 @@ describe('security-headers', () => {
     expect(csp).toContain('http://127.0.0.1:8545')
     expect(csp).toContain('http://localhost:8545')
     expect(csp).toContain('http://localhost:8000')
+  })
+
+  it('fails loudly when apiOrigin lacks a scheme instead of dropping connect-src', () => {
+    expect(() =>
+      buildContentSecurityPolicy({
+        apiOrigin: 'api.votar.ar',
+        isDev: false,
+      })
+    ).toThrow(/absolute http\(s\) URL/)
+    expect(toCspOrigin('api.votar.ar')).toBeNull()
+    expect(() => requireCspOrigin('api.votar.ar', 'apiOrigin')).toThrow(
+      /absolute http\(s\) URL/
+    )
+  })
+
+  it('sanitizes deploy env values the same way nginx entrypoint must', () => {
+    const secret = 'alchemy-secret-key-should-not-appear'
+    expect(
+      sanitizeDeployCspOrigin(`https://eth-sepolia.g.alchemy.com/v2/${secret}`)
+    ).toBe('https://eth-sepolia.g.alchemy.com')
+    expect(sanitizeDeployCspOrigin('http://rpc.public.example:8545')).toBeNull()
+    expect(sanitizeDeployCspOrigin('http://127.0.0.1:8545')).toBe(
+      'http://127.0.0.1:8545'
+    )
+    expect(
+      sanitizeDeployCspOriginsList(
+        `https://eth-sepolia.g.alchemy.com/v2/${secret} http://rpc.public.example:8545`
+      )
+    ).toBeNull()
+    expect(
+      sanitizeDeployCspOriginsList(
+        `https://eth-sepolia.g.alchemy.com/v2/${secret} https://rpc.ankr.com/eth_sepolia`
+      )
+    ).toBe('https://eth-sepolia.g.alchemy.com https://rpc.ankr.com')
+    expect(sanitizeDeployCspOriginsList('')).toBe('')
   })
 })

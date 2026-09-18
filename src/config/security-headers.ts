@@ -7,20 +7,119 @@ export type SecurityHeadersOptions = {
 }
 
 const PERMISSIONS_POLICY = 'camera=(), microphone=(), geolocation=()'
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]'])
 
 export const NGINX_API_ORIGIN_PLACEHOLDER = '${API_ORIGIN}' as const
 export const NGINX_RPC_ORIGINS_PLACEHOLDER = '${RPC_ORIGINS}' as const
 
-const normalizeOrigin = (apiOrigin: string): string => {
-  if (apiOrigin === NGINX_API_ORIGIN_PLACEHOLDER) {
-    return apiOrigin
+const NGINX_PLACEHOLDERS = new Set<string>([
+  NGINX_API_ORIGIN_PLACEHOLDER,
+  NGINX_RPC_ORIGINS_PLACEHOLDER,
+])
+
+/**
+ * CSP origins are scheme+host+port only. Paths and query strings (RPC API
+ * keys) must never land in a response header.
+ */
+export const toCspOrigin = (value: string): string | null => {
+  if (NGINX_PLACEHOLDERS.has(value)) {
+    return value
   }
 
   try {
-    return new URL(apiOrigin).origin
+    const url = new URL(value)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return null
+    }
+    return url.origin
   } catch {
-    return apiOrigin
+    return null
   }
+}
+
+/**
+ * Fail loudly when an absolute http(s) URL is required. Schemeless hostnames
+ * (e.g. `api.votar.ar`) used to slip into connect-src as bare host-sources;
+ * now they abort header generation so ops typos surface at boot/build time.
+ */
+export const requireCspOrigin = (value: string, label: string): string => {
+  const origin = toCspOrigin(value)
+  if (!origin) {
+    throw new Error(
+      `${label} must be an absolute http(s) URL (got ${JSON.stringify(value)}). ` +
+        'Example: https://api.example.com'
+    )
+  }
+  return origin
+}
+
+const isLoopbackOrigin = (origin: string): boolean => {
+  try {
+    return LOOPBACK_HOSTS.has(new URL(origin).hostname)
+  } catch {
+    return false
+  }
+}
+
+export const isAllowedConnectOrigin = (
+  origin: string,
+  isDev: boolean
+): boolean => {
+  if (NGINX_PLACEHOLDERS.has(origin)) {
+    return true
+  }
+
+  try {
+    const url = new URL(origin)
+    if (url.protocol === 'https:') {
+      return true
+    }
+    if (url.protocol === 'http:' && isLoopbackOrigin(origin)) {
+      return true
+    }
+    return isDev && url.protocol === 'http:'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Sanitize a raw env value into a CSP origin for production nginx deploy.
+ * Strips paths/queries (API keys) and rejects non-https / non-loopback http.
+ */
+export const sanitizeDeployCspOrigin = (value: string): string | null => {
+  const origin = toCspOrigin(value)
+  if (!origin || NGINX_PLACEHOLDERS.has(origin)) {
+    return null
+  }
+  if (!isAllowedConnectOrigin(origin, false)) {
+    return null
+  }
+  return origin
+}
+
+/**
+ * Sanitize space-separated RPC/API origin env values for nginx envsubst.
+ * Returns null if any token is present but invalid (fail closed).
+ */
+export const sanitizeDeployCspOriginsList = (value: string): string | null => {
+  const tokens = value
+    .trim()
+    .split(/\s+/)
+    .filter((token) => token.length > 0)
+  if (tokens.length === 0) {
+    return ''
+  }
+
+  const origins: string[] = []
+  for (const token of tokens) {
+    const origin = sanitizeDeployCspOrigin(token)
+    if (!origin) {
+      return null
+    }
+    origins.push(origin)
+  }
+  return [...new Set(origins)].join(' ')
 }
 
 const buildConnectSrc = ({
@@ -28,32 +127,43 @@ const buildConnectSrc = ({
   isDev,
   extraConnectSrc = [],
 }: SecurityHeadersOptions): string => {
-  const origins = new Set<string>([normalizeOrigin(apiOrigin)])
-  for (const origin of extraConnectSrc) {
-    const normalized = normalizeOrigin(origin)
-    if (normalized) {
-      origins.add(normalized)
+  const origins = new Set<string>()
+  // apiOrigin is validated by requireCspOrigin in buildContentSecurityPolicy.
+  const api = toCspOrigin(apiOrigin)
+  if (api && isAllowedConnectOrigin(api, isDev)) {
+    origins.add(api)
+  }
+  for (const candidate of extraConnectSrc) {
+    const origin = toCspOrigin(candidate)
+    if (origin && isAllowedConnectOrigin(origin, isDev)) {
+      origins.add(origin)
     }
   }
   const extras = [...origins].join(' ')
-  return `connect-src 'self' ${extras}${isDev ? ' ws:' : ''}`
+  const prefix = extras ? ` ${extras}` : ''
+  return `connect-src 'self'${prefix}${isDev ? ' ws:' : ''}`
 }
 
 export const buildContentSecurityPolicy = (
   options: SecurityHeadersOptions
 ): string => {
   const { apiOrigin, isDev, isHttps = !isDev } = options
-  const api = normalizeOrigin(apiOrigin)
+  const api = requireCspOrigin(apiOrigin, 'apiOrigin')
+  // Vite HMR needs inline/eval scripts in development only. Production must
+  // not, or an XSS can run in the same origin as the ephemeral wallet.
   const scriptSrc = isDev
     ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
     : "script-src 'self'"
   const directives = [
     "default-src 'self'",
     scriptSrc,
+    "script-src-attr 'none'",
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self'",
     `img-src 'self' data: blob: ${api}`,
     buildConnectSrc(options),
+    "frame-src 'none'",
+    "worker-src 'none'",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
