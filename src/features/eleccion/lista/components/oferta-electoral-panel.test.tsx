@@ -1,5 +1,6 @@
 import { AxiosError } from 'axios'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
@@ -14,6 +15,7 @@ import type { ConfiguracionDatosCandidatoResponse } from '@/features/eleccion/ca
 import { listarCategorias } from '@/features/eleccion/categoria/api/categoria-api'
 import type { Categoria } from '@/features/eleccion/categoria/data/schema'
 import type { Eleccion } from '@/features/eleccion/data/schema'
+import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
 import {
   eliminarLista,
   listarListas,
@@ -87,6 +89,18 @@ vi.mock('@/components/layout/app-layout', () => ({
   useAppLayoutConfig: vi.fn(),
 }))
 
+// VOTAR-481: no hay <Toaster /> montado en este árbol de test, así que se
+// mockea sonner para poder verificar el contenido de los toasts.
+vi.mock('sonner', () => ({
+  toast: {
+    loading: vi.fn(() => 'toast-id'),
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    dismiss: vi.fn(),
+  },
+}))
+
 vi.mock('@/features/padron/hooks/use-padron', () => ({
   usePadronResumen: () => ({
     data: undefined,
@@ -128,6 +142,25 @@ const createNotFoundError = (message: string) =>
     config: {} as never,
     data: { message },
   })
+
+const createConflictError = (message: string) =>
+  new AxiosError('Conflict', 'ERR_BAD_REQUEST', undefined, undefined, {
+    status: 409,
+    statusText: 'Conflict',
+    headers: {},
+    config: {} as never,
+    data: { message },
+  })
+
+/** VOTAR-481: obtiene las opciones pasadas al hook mockeado para simular eventos del backend. */
+const lastEleccionWebSocketOptions = () => {
+  const calls = vi.mocked(useEleccionWebSocket).mock.calls
+  const options = calls[calls.length - 1]?.[0]
+  if (!options) {
+    throw new Error('useEleccionWebSocket no fue invocado')
+  }
+  return options
+}
 
 const mockEleccionConfigurada: Eleccion = {
   idEleccion: 1,
@@ -303,6 +336,87 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     })
   })
 
+  it('muestra un toast avisando del conflicto de concurrencia cuando la apertura devuelve 409 (VOTAR-481)', async () => {
+    vi.mocked(abrirEleccion).mockRejectedValue(
+      createConflictError(
+        'Ya hay una transición de estado en curso para la elección 1. Reintentá en unos segundos.'
+      )
+    )
+
+    await renderPanel()
+
+    await userEvent.click(page.getByRole('button', { name: 'Abrir comicio' }))
+    await userEvent.click(
+      page.getByRole('button', { name: 'Sí, abrir comicio' })
+    )
+
+    await vi.waitFor(() => {
+      expect(abrirEleccion).toHaveBeenCalledWith(1)
+    })
+
+    await vi.waitFor(() => {
+      expect(toast.warning).toHaveBeenCalledWith(
+        'Ya hay una transición de estado en curso para la elección 1. Reintentá en unos segundos.',
+        { duration: 8_000 }
+      )
+    })
+
+    // VOTAR-481: un 409 no es una falla real — el botón no debe pasar a
+    // «Reintentar apertura» (esa señal de error queda reservada para fallas
+    // reales; la transacción que sí tiene el lock sigue en curso).
+    await expect
+      .element(page.getByRole('button', { name: 'Abrir comicio' }))
+      .toBeInTheDocument()
+  })
+
+  it('muestra el botón de apertura en estado de carga cuando el WebSocket avisa una transacción en curso (VOTAR-481)', async () => {
+    await renderPanel()
+
+    await expect
+      .element(page.getByRole('button', { name: 'Abrir comicio' }))
+      .toBeInTheDocument()
+
+    lastEleccionWebSocketOptions().onTransaccionEnProgreso?.({
+      idEleccion: 1,
+      tipo: 'APERTURA',
+    })
+
+    await expect
+      .element(page.getByRole('button', { name: 'Abriendo comicio' }))
+      .toBeDisabled()
+
+    lastEleccionWebSocketOptions().onEleccionAbierta?.({ idEleccion: 1 })
+
+    await expect
+      .element(page.getByRole('button', { name: 'Abrir comicio' }))
+      .not.toBeDisabled()
+  })
+
+  it('limpia el spinner de apertura cuando el WebSocket avisa que la transacción falló (VOTAR-481)', async () => {
+    await renderPanel()
+
+    lastEleccionWebSocketOptions().onTransaccionEnProgreso?.({
+      idEleccion: 1,
+      tipo: 'APERTURA',
+    })
+
+    await expect
+      .element(page.getByRole('button', { name: 'Abriendo comicio' }))
+      .toBeDisabled()
+
+    lastEleccionWebSocketOptions().onTransaccionFallida?.({
+      idEleccion: 1,
+      tipo: 'APERTURA',
+    })
+
+    await expect
+      .element(page.getByRole('button', { name: 'Abrir comicio' }))
+      .not.toBeDisabled()
+    expect(toast.error).toHaveBeenCalledWith(
+      'No se pudo completar la apertura del comicio en la blockchain.'
+    )
+  })
+
   it('muestra Reintentar oficialización cuando faltan contratos on-chain', async () => {
     vi.mocked(obtenerEstadoStackOnChain).mockResolvedValue({
       idEleccion: 1,
@@ -372,6 +486,42 @@ describe('OfertaElectoralPanel - Abrir Comicio', () => {
     await userEvent.click(confirmButton)
 
     expect(cerrarEleccion).toHaveBeenCalledWith(1)
+  })
+
+  it('muestra un toast avisando del conflicto de concurrencia cuando el cierre devuelve 409 (VOTAR-481)', async () => {
+    vi.mocked(obtenerEleccion).mockResolvedValue({
+      ...mockEleccionConfigurada,
+      estado: 'ABIERTA',
+    })
+    vi.mocked(cerrarEleccion).mockRejectedValue(
+      createConflictError(
+        'Ya hay una transición de estado en curso para la elección 1. Reintentá en unos segundos.'
+      )
+    )
+
+    await renderPanel()
+
+    await userEvent.click(page.getByRole('button', { name: 'Cerrar comicio' }))
+    await userEvent.click(
+      page.getByRole('button', { name: 'Sí, cerrar comicio' })
+    )
+
+    await vi.waitFor(() => {
+      expect(cerrarEleccion).toHaveBeenCalledWith(1)
+    })
+
+    // VOTAR-481: paridad con useAbrirEleccion — un 409 avisa con un warning
+    // propio en vez del "No se pudo cerrar el comicio" genérico.
+    await vi.waitFor(() => {
+      expect(toast.warning).toHaveBeenCalledWith(
+        'Ya hay una transición de estado en curso para la elección 1. Reintentá en unos segundos.',
+        { duration: 8_000 }
+      )
+    })
+    expect(toast.error).not.toHaveBeenCalledWith(
+      'No se pudo cerrar el comicio',
+      expect.anything()
+    )
   })
 
   it('cierra el diálogo de cierre de inmediato y continúa en segundo plano', async () => {

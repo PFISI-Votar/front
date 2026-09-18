@@ -6,6 +6,7 @@ import {
   ArrowRight,
   BadgeCheck,
   ChevronDown,
+  Loader2,
   Lock,
   Pause,
   Pencil,
@@ -74,7 +75,10 @@ import { ConfiguracionVotoNuloPanel } from '@/features/eleccion/configuracion-co
 import { VisibilidadDashboardPanel } from '@/features/eleccion/configuracion-comicio/components/visibilidad-dashboard-panel'
 import { useAbrirEleccion } from '@/features/eleccion/hooks/use-abrir-eleccion'
 import { useCerrarEleccion } from '@/features/eleccion/hooks/use-cerrar-eleccion'
-import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
+import {
+  type TransaccionEleccionTipo,
+  useEleccionWebSocket,
+} from '@/features/eleccion/hooks/use-eleccion-websocket'
 import { useOficializarEleccion } from '@/features/eleccion/hooks/use-oficializar-eleccion'
 import { useReintentarDespliegueOnChain } from '@/features/eleccion/hooks/use-reintentar-despliegue-on-chain'
 import {
@@ -211,18 +215,29 @@ export const OfertaElectoralPanel = ({
     await queryClient.invalidateQueries({ queryKey: ['eleccion', idEleccion] })
   }
 
+  // VOTAR-481: tipo de transacción on-chain en curso para ESTE comicio,
+  // según lo informa el backend por WebSocket — a diferencia de
+  // `abriendoComicio`/`cerrandoComicio` (que solo viven mientras la request
+  // HTTP de esta pestaña está en vuelo), esto también cubre la confirmación
+  // en Sepolia y las aperturas/cierres disparados por el scheduler
+  // automático u otra sesión de administrador.
+  const [transaccionEnProgreso, setTransaccionEnProgreso] =
+    useState<TransaccionEleccionTipo | null>(null)
+
   // Escuchar eventos WebSocket para actualizar en tiempo real
   useEleccionWebSocket({
     onEleccionAbierta: (data) => {
       if (data.idEleccion === idEleccion) {
         invalidateOferta()
         queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+        setTransaccionEnProgreso(null)
       }
     },
     onEleccionCerrada: (data) => {
       if (data.idEleccion === idEleccion) {
         invalidateOferta()
         queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+        setTransaccionEnProgreso(null)
       }
     },
     onEleccionPausada: (data) => {
@@ -235,6 +250,26 @@ export const OfertaElectoralPanel = ({
       if (data.idEleccion === idEleccion) {
         invalidateOferta()
         queryClient.invalidateQueries({ queryKey: ['elecciones'] })
+      }
+    },
+    // VOTAR-481: sincroniza en tiempo real el estado de la transacción de
+    // apertura/cierre (manual o del scheduler automático) para que este
+    // panel no interprete la demora de confirmación en Sepolia como una
+    // falla.
+    onTransaccionEnProgreso: (data) => {
+      if (data.idEleccion === idEleccion) {
+        setTransaccionEnProgreso(data.tipo)
+      }
+    },
+    // VOTAR-481: la transacción en curso terminó en falla/revert — limpia
+    // el spinner que `onTransaccionEnProgreso` dejó activo.
+    onTransaccionFallida: (data) => {
+      if (data.idEleccion === idEleccion) {
+        setTransaccionEnProgreso(null)
+        const accion = data.tipo === 'APERTURA' ? 'apertura' : 'cierre'
+        toast.error(
+          `No se pudo completar la ${accion} del comicio en la blockchain.`
+        )
       }
     },
   })
@@ -526,27 +561,51 @@ export const OfertaElectoralPanel = ({
                   : 'Reintentar oficialización'}
               </Button>
             ) : (
-              <Button
-                onClick={() => {
-                  if (abrirLastError) {
-                    abrirComicioEnBackground()
-                    return
-                  }
-                  setAbrirDialogOpen(true)
-                }}
-                disabled={abriendoComicio}
-                aria-haspopup={abrirLastError ? undefined : 'dialog'}
-                aria-label={
-                  abrirLastError ? 'Reintentar apertura' : 'Abrir comicio'
-                }
-              >
-                {abrirLastError ? (
-                  <RefreshCw className='me-2 size-4' />
-                ) : (
-                  <Vote className='me-2 size-4' />
-                )}
-                {abrirLastError ? 'Reintentar apertura' : 'Abrir comicio'}
-              </Button>
+              (() => {
+                // VOTAR-481: combina el estado local de esta request
+                // (isRunning) con el WebSocket global, para que el botón
+                // muestre "Abriendo..." tanto si el clic salió de esta
+                // pestaña como si la apertura la disparó el scheduler
+                // automático u otro admin.
+                const abriendoEsteComicio =
+                  abriendoComicio || transaccionEnProgreso === 'APERTURA'
+                const reintentarApertura =
+                  !abriendoEsteComicio && abrirLastError
+
+                return (
+                  <Button
+                    onClick={() => {
+                      if (reintentarApertura) {
+                        abrirComicioEnBackground()
+                        return
+                      }
+                      setAbrirDialogOpen(true)
+                    }}
+                    disabled={abriendoEsteComicio}
+                    aria-haspopup={reintentarApertura ? undefined : 'dialog'}
+                    aria-label={
+                      abriendoEsteComicio
+                        ? 'Abriendo comicio'
+                        : reintentarApertura
+                          ? 'Reintentar apertura'
+                          : 'Abrir comicio'
+                    }
+                  >
+                    {abriendoEsteComicio ? (
+                      <Loader2 className='me-2 size-4 animate-spin' />
+                    ) : reintentarApertura ? (
+                      <RefreshCw className='me-2 size-4' />
+                    ) : (
+                      <Vote className='me-2 size-4' />
+                    )}
+                    {abriendoEsteComicio
+                      ? 'Abriendo...'
+                      : reintentarApertura
+                        ? 'Reintentar apertura'
+                        : 'Abrir comicio'}
+                  </Button>
+                )
+              })()
             ))}
           {eleccionQuery.data && (
             <DocumentosComicioMenu
@@ -558,12 +617,22 @@ export const OfertaElectoralPanel = ({
             <Button
               variant='destructive'
               onClick={() => setCerrarDialogOpen(true)}
-              disabled={cerrandoComicio}
+              disabled={cerrandoComicio || transaccionEnProgreso === 'CIERRE'}
               aria-haspopup='dialog'
-              aria-label='Cerrar comicio'
+              aria-label={
+                transaccionEnProgreso === 'CIERRE'
+                  ? 'Cerrando comicio'
+                  : 'Cerrar comicio'
+              }
             >
-              <Square className='me-2 size-4' />
-              Cerrar comicio
+              {transaccionEnProgreso === 'CIERRE' ? (
+                <Loader2 className='me-2 size-4 animate-spin' />
+              ) : (
+                <Square className='me-2 size-4' />
+              )}
+              {transaccionEnProgreso === 'CIERRE'
+                ? 'Cerrando...'
+                : 'Cerrar comicio'}
             </Button>
           )}
           {eleccionQuery.data?.estado === 'ABIERTA' &&
