@@ -259,6 +259,7 @@ const ResultadoVerificacion = ({
       dateStyle: 'full',
       timeStyle: 'long',
     }).format(new Date(fecha))
+  const explorerUrl = toSafeNavigationUrl(resultado.explorerUrl)
 
   return (
     <Card
@@ -321,14 +322,14 @@ const ResultadoVerificacion = ({
             </div>
           </div>
 
-          {toSafeNavigationUrl(resultado.explorerUrl) && (
+          {explorerUrl && (
             <Button
               variant='outline'
               className='h-11 w-full rounded-lg border-[#cfd3d7] bg-white text-[#2f3337] shadow-none hover:bg-slate-50'
               asChild
             >
               <a
-                href={toSafeNavigationUrl(resultado.explorerUrl) ?? undefined}
+                href={explorerUrl}
                 target='_blank'
                 rel='noopener noreferrer'
                 aria-label='Ver transacción en el explorador de bloques'

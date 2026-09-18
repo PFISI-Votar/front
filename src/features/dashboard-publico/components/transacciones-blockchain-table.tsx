@@ -1,5 +1,6 @@
 import { ExternalLink } from 'lucide-react'
 import { toSafeNavigationUrl } from '@/lib/safe-url'
+import { toUntrustedPlainText } from '@/lib/untrusted-html'
 import type { TransaccionBlockchainPublica } from '@/features/dashboard-publico/api/transacciones-publica-api'
 
 type TransaccionesBlockchainTableProps = {
@@ -70,9 +71,12 @@ export const TransaccionesBlockchainTable = ({
                     #{tx.numeroBloque.toLocaleString('es-AR')}
                   </td>
                   <td className='px-4 py-3'>
-                    <p className='font-medium'>{tx.descripcionLegible}</p>
+                    <p className='font-medium'>
+                      {toUntrustedPlainText(tx.descripcionLegible)}
+                    </p>
                     <p className='mt-0.5 text-xs text-[#80868b]'>
-                      {tx.contratoEtiqueta} · {tx.nombreEvento}
+                      {toUntrustedPlainText(tx.contratoEtiqueta)} ·{' '}
+                      {toUntrustedPlainText(tx.nombreEvento)}
                     </p>
                   </td>
                   <td className='px-4 py-3 font-mono text-xs whitespace-nowrap text-[#5f6368]'>

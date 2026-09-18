@@ -3,7 +3,11 @@ import {
   buildContentSecurityPolicy,
   buildNginxSecurityHeaderLines,
   buildSecurityHeaders,
+  requireCspOrigin,
   REQUIRED_SECURITY_HEADER_NAMES,
+  sanitizeDeployCspOrigin,
+  sanitizeDeployCspOriginsList,
+  toCspOrigin,
 } from './security-headers'
 
 describe('security-headers', () => {
@@ -108,5 +112,40 @@ describe('security-headers', () => {
     expect(csp).toContain('http://127.0.0.1:8545')
     expect(csp).toContain('http://localhost:8545')
     expect(csp).toContain('http://localhost:8000')
+  })
+
+  it('fails loudly when apiOrigin lacks a scheme instead of dropping connect-src', () => {
+    expect(() =>
+      buildContentSecurityPolicy({
+        apiOrigin: 'api.votar.ar',
+        isDev: false,
+      })
+    ).toThrow(/absolute http\(s\) URL/)
+    expect(toCspOrigin('api.votar.ar')).toBeNull()
+    expect(() => requireCspOrigin('api.votar.ar', 'apiOrigin')).toThrow(
+      /absolute http\(s\) URL/
+    )
+  })
+
+  it('sanitizes deploy env values the same way nginx entrypoint must', () => {
+    const secret = 'alchemy-secret-key-should-not-appear'
+    expect(
+      sanitizeDeployCspOrigin(`https://eth-sepolia.g.alchemy.com/v2/${secret}`)
+    ).toBe('https://eth-sepolia.g.alchemy.com')
+    expect(sanitizeDeployCspOrigin('http://rpc.public.example:8545')).toBeNull()
+    expect(sanitizeDeployCspOrigin('http://127.0.0.1:8545')).toBe(
+      'http://127.0.0.1:8545'
+    )
+    expect(
+      sanitizeDeployCspOriginsList(
+        `https://eth-sepolia.g.alchemy.com/v2/${secret} http://rpc.public.example:8545`
+      )
+    ).toBeNull()
+    expect(
+      sanitizeDeployCspOriginsList(
+        `https://eth-sepolia.g.alchemy.com/v2/${secret} https://rpc.ankr.com/eth_sepolia`
+      )
+    ).toBe('https://eth-sepolia.g.alchemy.com https://rpc.ankr.com')
+    expect(sanitizeDeployCspOriginsList('')).toBe('')
   })
 })

@@ -203,7 +203,7 @@ const BACKGROUND_FINGERPRINTS = [
 ] as const
 
 const getInitials = (value: string) => {
-  const words = value.trim().split(/\s+/).filter(Boolean)
+  const words = toUntrustedPlainText(value).trim().split(/\s+/).filter(Boolean)
   if (words.length === 0) return '??'
   if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
   return `${words[0][0] ?? ''}${words[words.length - 1]?.[0] ?? ''}`.toUpperCase()
@@ -231,12 +231,13 @@ const buildListsFromBoleta = (boleta: BoletaDigital): PartyList[] => {
       const color = candidate.colorLista || '#2f6f9f'
 
       if (!lists.has(id)) {
+        const listName = toUntrustedPlainText(candidate.agrupacionPolitica)
         lists.set(id, {
           id,
-          name: candidate.agrupacionPolitica,
+          name: listName,
           color,
           accent: getSoftAccent(color),
-          initials: getInitials(candidate.agrupacionPolitica),
+          initials: getInitials(listName),
           imageUrl: getListImageUrl(candidate),
         })
       }

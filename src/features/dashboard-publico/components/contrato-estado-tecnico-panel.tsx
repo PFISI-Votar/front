@@ -1,5 +1,6 @@
 import { ExternalLink } from 'lucide-react'
 import { toSafeNavigationUrl } from '@/lib/safe-url'
+import { toUntrustedPlainText } from '@/lib/untrusted-html'
 import { cn } from '@/lib/utils'
 import {
   Card,
@@ -32,7 +33,7 @@ const ContratoDireccionRow = ({
       </p>
       <div className='mt-2 flex flex-wrap items-center gap-2'>
         <code className='text-sm break-all text-[#202124]'>
-          {contrato.direccion}
+          {toUntrustedPlainText(contrato.direccion)}
         </code>
         {explorerUrl ? (
           <a
