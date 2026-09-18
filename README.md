@@ -83,13 +83,19 @@ La documentación completa del proyecto (alcance, reglas de negocio, diagramas, 
 
 ## Instalación y ejecución
 
+La rama estable es `master` (tag `v2.0.0`). La integración es `dev`. Ver [docs/VERSIONADO.md](./docs/VERSIONADO.md).
+
 ```bash
 git clone https://github.com/PFISI-Votar/front.git
-cd votar.front
-npm install
+cd front
+git checkout master
+npm ci
 cp .env.example .env
+npm run build
 npm run dev
 ```
+
+`npm run build` no necesita backend. `npm run dev` sí usa `VITE_API_URL` (por defecto `http://localhost:8000`).
 
 Variables de entorno disponibles:
 
@@ -138,6 +144,14 @@ npm run verify:security-headers           # validar headers en Vite preview
 - La clave privada de la billetera efímera **nunca se persiste** en el cliente ni en el servidor
 - Escrutinio público disponible en tiempo real sin autenticación
 
-## Licencia
+## Publicación open source
 
-Proyecto académico open source — UTN FRVM, 2026.
+| Archivo                                    | Rol                                                         |
+| ------------------------------------------ | ----------------------------------------------------------- |
+| [LICENSE](./LICENSE)                       | MIT (OSI). Incluye la atribución del template shadcn-admin. |
+| [CONTRIBUTING.md](./CONTRIBUTING.md)       | Cómo colaborar. Los PR entran por `dev`.                    |
+| [SECURITY.md](./SECURITY.md)               | Reporte responsable de vulnerabilidades.                    |
+| [docs/VERSIONADO.md](./docs/VERSIONADO.md) | Tags `v1.0.0` / `v2.0.0` y rama estable `master`.           |
+| [docs/LICENCIAS.md](./docs/LICENCIAS.md)   | Política de dependencias y `npm run licenses:check`.        |
+
+No commitear `.env`. Un `.env.example` alcanza para compilar.
