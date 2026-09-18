@@ -21,7 +21,6 @@ jobs:
       actions: read
       contents: read
       security-events: write
-      packages: read
 
   secret-scanning:
     uses: ./.github/workflows/secret-scanning.yml
@@ -100,7 +99,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      actions: write
     container:
       image: mcr.microsoft.com/playwright:v1.59.1-noble
 
