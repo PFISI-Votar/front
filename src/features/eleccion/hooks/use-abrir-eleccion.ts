@@ -1,6 +1,11 @@
 import { useCallback, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { getApiErrorMessage, isPreconditionFailedError } from '@/lib/api-client'
+import { toast } from 'sonner'
+import {
+  getApiErrorMessage,
+  isConflictError,
+  isPreconditionFailedError,
+} from '@/lib/api-client'
 import { runBackgroundOperation } from '@/lib/run-background-operation'
 import { isMissingOnChainContractsError } from '@/features/eleccion/lib/missing-on-chain-contracts'
 import { abrirEleccion } from '../api/eleccion-api'
@@ -79,6 +84,17 @@ export const useAbrirEleccion = (
           if (isMissingOnChainContractsError(message)) {
             onMissingOnChainContracts?.(message)
             setLastError(message)
+            return true
+          }
+
+          // VOTAR-481: un 409 significa que el scheduler automático (u otro
+          // admin) ya está abriendo/cerrando este comicio — no es una falla
+          // real. No se llama a `setLastError`: eso pasaría el botón a
+          // «Reintentar apertura», que es justo la señal de falla que
+          // queremos evitar. El WebSocket de "en progreso" de la
+          // transacción que sí tiene el lock ya deshabilita el botón.
+          if (isConflictError(error)) {
+            toast.warning(message, { duration: 8_000 })
             return true
           }
 
