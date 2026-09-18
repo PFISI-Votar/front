@@ -109,7 +109,7 @@ export const VerificadorRecibo = ({
           <p className='text-2xl leading-none font-extrabold tracking-tight text-[#2f6f9f]'>
             VOTAR
           </p>
-          <p className='text-xs font-medium tracking-wide text-[#80868b] uppercase'>
+          <p className='text-xs font-medium tracking-wide text-[#5f6368] uppercase'>
             Verificación pública
           </p>
         </div>
@@ -132,7 +132,11 @@ export const VerificadorRecibo = ({
 
           <Card className='gap-0 rounded-2xl border-[#e4e7eb] bg-white/95 py-0 shadow-[0_1rem_3rem_rgba(30,64,95,0.08)] backdrop-blur-sm'>
             <CardHeader className='space-y-1.5 px-6 pt-6 pb-0 sm:px-8'>
-              <CardTitle className='text-xl font-bold tracking-tight text-[#202124]'>
+              <CardTitle
+                role='heading'
+                aria-level={2}
+                className='text-xl font-bold tracking-tight text-[#202124]'
+              >
                 Hash del recibo
               </CardTitle>
               <CardDescription className='text-sm leading-relaxed text-[#55575d]'>
@@ -155,13 +159,13 @@ export const VerificadorRecibo = ({
                     placeholder='0x...'
                     value={txHash}
                     onChange={(event) => setTxHash(event.target.value)}
-                    className='h-11 rounded-lg border-[#c9cdd2] bg-white font-mono text-sm shadow-none placeholder:text-[#9aa0a6] focus-visible:border-[#2f6f9f] focus-visible:ring-[#2f6f9f]/20'
+                    className='h-11 rounded-lg border-[#c9cdd2] bg-white font-mono text-sm shadow-none placeholder:text-[#6b7280] focus-visible:border-[#2f6f9f] focus-visible:ring-[#2f6f9f]'
                     aria-label='Ingrese el TransactionHash de verificación'
                     aria-describedby='tx-hash-help'
                     aria-invalid={Boolean(validationError)}
                     disabled={verificarQuery.isFetching}
                   />
-                  <p id='tx-hash-help' className='text-xs text-[#80868b]'>
+                  <p id='tx-hash-help' className='text-xs text-[#5f6368]'>
                     Formato: 0x seguido de 64 caracteres hexadecimales.
                   </p>
                 </div>
@@ -226,7 +230,11 @@ export const VerificadorRecibo = ({
 
           <Card className='gap-0 rounded-2xl border-[#e4e7eb] bg-white/95 py-0 shadow-[0_1rem_3rem_rgba(30,64,95,0.08)] backdrop-blur-sm'>
             <CardHeader className='space-y-1 px-6 pt-5 pb-0 sm:px-8'>
-              <CardTitle className='text-sm font-semibold tracking-wide text-[#2f6f9f] uppercase'>
+              <CardTitle
+                role='heading'
+                aria-level={2}
+                className='text-sm font-semibold tracking-wide text-[#2f6f9f] uppercase'
+              >
                 Privacidad garantizada
               </CardTitle>
             </CardHeader>
@@ -273,7 +281,11 @@ const ResultadoVerificacion = ({
             />
           </div>
           <div>
-            <CardTitle className='text-xl font-bold tracking-tight text-[#1b4332]'>
+            <CardTitle
+              role='heading'
+              aria-level={2}
+              className='text-xl font-bold tracking-tight text-[#1b4332]'
+            >
               Inclusión confirmada
             </CardTitle>
             <CardDescription className='mt-1 text-sm leading-relaxed text-[#2d6a4f]'>
