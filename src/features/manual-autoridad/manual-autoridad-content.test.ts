@@ -65,8 +65,6 @@ describe('Manual de la Autoridad Electoral — VOTAR-395', () => {
   it('UAT-01: detalla alta, fechas, categorías, oficialización y anclaje Merkle', () => {
     const ciclo = textOf('ciclo-de-vida')
     const padron = textOf('padron-merkle')
-    expect(section('ciclo-de-vida').uat).toBe('UAT-01')
-    expect(section('padron-merkle').uat).toBe('UAT-01')
     expect(ciclo).toContain('/comicios/nuevo')
     expect(ciclo).toContain('Apertura')
     expect(ciclo).toContain('Cierre')
@@ -94,7 +92,6 @@ describe('Manual de la Autoridad Electoral — VOTAR-395', () => {
 
   it('UAT-02: indica cómo pausar ante una caída de SSO y avisar a los votantes', () => {
     const text = textOf('contingencia-sso')
-    expect(section('contingencia-sso').uat).toBe('UAT-02')
     expect(text).toContain('SSO')
     expect(text).toContain('Pausar comicio')
     expect(text).toContain('Sistema en pausa')
@@ -104,7 +101,6 @@ describe('Manual de la Autoridad Electoral — VOTAR-395', () => {
 
   it('UAT-03: indica cómo exportar el escrutinio y cotejarlo con la cadena', () => {
     const text = textOf('reporteria')
-    expect(section('reporteria').uat).toBe('UAT-03')
     expect(text).toContain('Actas oficiales')
     expect(text).toContain('Acta de Cierre')
     expect(text).toContain('Exportar resultados')
@@ -115,7 +111,6 @@ describe('Manual de la Autoridad Electoral — VOTAR-395', () => {
 
   it('UAT-04: indica cómo identificar y subsanar una lista incompleta', () => {
     const text = textOf('listas-incompletas')
-    expect(section('listas-incompletas').uat).toBe('UAT-04')
     expect(text).toContain('No se puede oficializar el comicio')
     expect(text).toContain('Mín. postulantes por lista')
     expect(text).toContain('requiere 3 candidato(s) más')
@@ -124,11 +119,16 @@ describe('Manual de la Autoridad Electoral — VOTAR-395', () => {
 
   it('UAT-05: indica cómo seguir por el nodo de respaldo y registrar el incidente', () => {
     const text = textOf('contingencia-rpc')
-    expect(section('contingencia-rpc').uat).toBe('UAT-05')
     expect(text).toContain('[VOTAR rpc-failover]')
     expect(text).toContain('SEPOLIA_RPC_FALLBACK_URLS')
     expect(text).toContain('Caída de nodo RPC')
     expect(text).toContain('Pausa de emergencia')
     expect(text).toContain('Escalamiento')
+  })
+
+  it('no expone etiquetas UAT en el contenido del manual', () => {
+    expect(MANUAL_AUTORIDAD_SECTIONS.every((item) => !('uat' in item))).toBe(
+      true
+    )
   })
 })

@@ -11,7 +11,6 @@ export const MANUAL_AUTORIDAD_NAV_TITLE = 'Manual operativo'
 export type ManualSection = {
   id: string
   title: string
-  uat?: string
   body: string[]
   steps?: string[]
   note?: string
@@ -31,7 +30,6 @@ export const MANUAL_AUTORIDAD_SECTIONS: ManualSection[] = [
   {
     id: 'ciclo-de-vida',
     title: 'Crear el comicio, cargar categorías y oficializar',
-    uat: 'UAT-01',
     body: [
       'Un comicio nuevo nace en BORRADOR. Recién se puede abrir cuando está CONFIGURADA: oferta congelada, padrón cargado y raíz de Merkle publicada. Esta sección cubre la creación, las fechas, las categorías y la oficialización. El padrón y el anclaje están en la sección siguiente; los dos bloques juntos son el recorrido de un operador nuevo.',
     ],
@@ -47,7 +45,6 @@ export const MANUAL_AUTORIDAD_SECTIONS: ManualSection[] = [
   {
     id: 'padron-merkle',
     title: 'Importar el padrón y anclar la raíz de Merkle',
-    uat: 'UAT-01',
     body: [
       'El padrón no se publica en claro. El panel guarda el listado off-chain y ancla en Sepolia solo la raíz de Merkle: un hash que permite probar después, sin revelar DNI ni correo, que un elector estaba habilitado.',
     ],
@@ -80,7 +77,6 @@ export const MANUAL_AUTORIDAD_SECTIONS: ManualSection[] = [
   {
     id: 'reporteria',
     title: 'Actas y exportación del escrutinio',
-    uat: 'UAT-03',
     body: [
       'La documentación de cierre no se arma a mano. El panel genera el PDF del acta y el Dashboard Público exporta el escrutinio leído de la cadena. El cotejo es parte del cierre: el archivo institucional tiene que coincidir con lo publicado on-chain.',
     ],
@@ -95,7 +91,6 @@ export const MANUAL_AUTORIDAD_SECTIONS: ManualSection[] = [
   {
     id: 'listas-incompletas',
     title: 'Lista que no cumple el cupo de candidatos',
-    uat: 'UAT-04',
     body: [
       'Oficializar con una lista incompleta no es un error de red: el motor de reglas rechaza el comicio. El panel no congela la oferta hasta que cada lista cubre el mínimo de cada categoría.',
     ],
@@ -111,7 +106,6 @@ export const MANUAL_AUTORIDAD_SECTIONS: ManualSection[] = [
   {
     id: 'contingencia-sso',
     title: 'Caída del SSO: pausar y avisar a los votantes',
-    uat: 'UAT-02',
     body: [
       'El votante entra a la boleta con SSO institucional. Si ese servicio cae, no puede autenticarse y no debe seguir intentando emitir un voto. La sesión del panel de autoridad es otra (login de administrador): podés operar el comicio aunque el SSO del votante esté caído. Si vos también perdés la sesión del panel, el problema no es el SSO del votante: es la sesión de administrador. Reingresá en /sign-in antes de pausar.',
     ],
@@ -127,7 +121,6 @@ export const MANUAL_AUTORIDAD_SECTIONS: ManualSection[] = [
   {
     id: 'contingencia-rpc',
     title: 'Caída de un nodo RPC: respaldo e incidente',
-    uat: 'UAT-05',
     body: [
       'Las lecturas y las transacciones salen por un nodo de Sepolia. Si el primario no responde, el sistema cambia solo al nodo de respaldo. No hay que pegar otra URL en el panel. El cambio deja un aviso [VOTAR rpc-failover] en los logs del servicio.',
       'El síntoma en pantalla: una apertura, pausa o voto no confirma, o el Dashboard Público dice que el nodo RPC no responde. Un timeout no significa que el voto se perdió: puede estar en curso por el nodo de respaldo.',

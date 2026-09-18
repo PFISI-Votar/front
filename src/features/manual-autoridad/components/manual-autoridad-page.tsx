@@ -51,7 +51,6 @@ export const ManualAutoridadPage = () => (
                 className='font-medium hover:underline'
               >
                 {section.title}
-                {section.uat ? ` (${section.uat})` : ''}
               </a>
             </li>
           ))}
@@ -63,12 +62,7 @@ export const ManualAutoridadPage = () => (
       <section key={section.id} id={section.id} className='scroll-mt-20'>
         <Card>
           <CardHeader>
-            <div className='flex flex-wrap items-center gap-2'>
-              <CardTitle className='text-lg'>{section.title}</CardTitle>
-              {section.uat ? (
-                <Badge variant='outline'>{section.uat}</Badge>
-              ) : null}
-            </div>
+            <CardTitle className='text-lg'>{section.title}</CardTitle>
           </CardHeader>
           <CardContent className='space-y-4 text-sm leading-relaxed text-muted-foreground'>
             {section.body.map((paragraph) => (
