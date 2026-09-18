@@ -15,12 +15,19 @@ import type { TipoVotacion } from '@/features/eleccion/lista/data/schema'
 import {
   obtenerBoletaDigital,
   obtenerConfiguracionBud,
+  solicitarMerkleProof,
 } from '@/features/voto/api/voto-api'
 import { BudLoginScreen } from '@/features/voto/components/bud-login-screen'
 import { BudVotingWizard } from '@/features/voto/components/bud-voting-wizard'
 import { CryptoUnsupportedScreen } from '@/features/voto/crypto/components/crypto-unsupported-screen'
 import { EphemeralWalletProvider } from '@/features/voto/crypto/ephemeral-wallet-context'
+import {
+  discardElectionSeed,
+  purgeElectionIdentity,
+  SeedDecryptionError,
+} from '@/features/voto/crypto/ephemeral-wallet-seed'
 import { useEphemeralWallet } from '@/features/voto/crypto/use-ephemeral-wallet'
+import { leerHasVoted } from '@/features/voto/crypto/voter-state'
 import { isWebCryptoSupported } from '@/features/voto/crypto/web-crypto-support'
 import { estadoRevotoQueryKey } from '@/features/voto/hooks/use-estado-revoto'
 import {
@@ -36,6 +43,22 @@ type BoletaUnicaDigitalPageProps = {
 
 const WALLET_INIT_ERROR =
   'No pudimos generar tu identidad criptográfica efímera. Reintentá iniciar sesión.'
+
+// VOTAR-496 review: shown when the local seed is unrecoverable AND we
+// confirmed on-chain (hasVoted(voterLeaf), independent of any nullifier)
+// that this identity already cast a vote. Deliberately does not offer a
+// "reset and continue" action — the prior vote stands and cannot be
+// modified from this browser.
+const SEED_UNRECOVERABLE_ALREADY_VOTED_ERROR =
+  'No pudimos recuperar tu identidad de voto en este navegador. Ya registramos tu sufragio para este comicio y sigue siendo válido: no es posible modificarlo ni repetirlo desde acá.'
+
+// VOTAR-496 review: shown when the local seed is unrecoverable and we
+// could NOT confirm on-chain whether this identity already voted (network
+// failure, missing contract address, etc.) — fail-closed rather than
+// guessing, since generating a fresh identity could enable a duplicate
+// vote if this identity had in fact already voted.
+const SEED_UNRECOVERABLE_UNKNOWN_ERROR =
+  'No pudimos verificar el estado de tu voto en este navegador. Por seguridad, no podemos continuar automáticamente. Reintentá en unos minutos o contactá a la organización del comicio.'
 
 export const BoletaUnicaDigitalPage = (props: BoletaUnicaDigitalPageProps) => {
   if (!isWebCryptoSupported()) {
@@ -130,19 +153,72 @@ const BoletaUnicaDigitalPageContent = ({
     )
   }, [clearVoterScopedCache, destroyWallet, votanteSession?.sub])
 
+  // VOTAR-496 review: when the local seed fails to decrypt, we cannot just
+  // regenerate a fresh identity blindly — that could enable a duplicate
+  // vote if this voter already cast one. We check hasVoted(voterLeaf)
+  // on-chain (independent of any nullifier, VOTAR-451's leerHasVoted) to
+  // decide: permanently block if already voted, or discard the dead blob
+  // and retry once if this is genuinely a first attempt.
+  const recoverFromSeedDecryptionError = useCallback(
+    async (votanteScope: string): Promise<boolean> => {
+      try {
+        const [merkleProof, boletaData] = await Promise.all([
+          solicitarMerkleProof(idEleccion),
+          obtenerBoletaDigital(idEleccion),
+        ])
+        if (!boletaData.ballotContractAddress) {
+          setWalletError(SEED_UNRECOVERABLE_UNKNOWN_ERROR)
+          return false
+        }
+
+        const alreadyVoted = await leerHasVoted(
+          idEleccion,
+          merkleProof.hashHoja as `0x${string}`,
+          boletaData.ballotContractAddress
+        )
+
+        if (alreadyVoted) {
+          setWalletError(SEED_UNRECOVERABLE_ALREADY_VOTED_ERROR)
+          return false
+        }
+
+        discardElectionSeed(idEleccion, votanteScope)
+        await initializeWallet(idEleccion, votanteScope)
+        setWalletError(null)
+        return true
+      } catch {
+        setWalletError(SEED_UNRECOVERABLE_UNKNOWN_ERROR)
+        return false
+      }
+    },
+    [idEleccion, initializeWallet]
+  )
+
   const prepareEphemeralWallet = useCallback(
     async (votanteScope: string): Promise<boolean> => {
       try {
         await initializeWallet(idEleccion, votanteScope)
         setWalletError(null)
         return true
-      } catch {
+      } catch (error) {
+        if (error instanceof SeedDecryptionError) {
+          const recovered = await recoverFromSeedDecryptionError(votanteScope)
+          if (!recovered) {
+            destroyWallet()
+          }
+          return recovered
+        }
         destroyWallet()
         setWalletError(WALLET_INIT_ERROR)
         return false
       }
     },
-    [destroyWallet, idEleccion, initializeWallet]
+    [
+      destroyWallet,
+      idEleccion,
+      initializeWallet,
+      recoverFromSeedDecryptionError,
+    ]
   )
 
   useEffect(() => {
@@ -199,6 +275,15 @@ const BoletaUnicaDigitalPageContent = ({
     }, 0)
     return () => window.clearTimeout(timeoutId)
   }, [boletaQuery.isError, boletaQuery.error, handleSessionExpired])
+
+  useEffect(() => {
+    const estado = budConfigQuery.data?.estado
+    const scope = votanteSession?.sub
+    if (!scope || (estado !== 'CERRADA' && estado !== 'ESCRUTADA')) {
+      return
+    }
+    void purgeElectionIdentity(idEleccion, scope)
+  }, [budConfigQuery.data?.estado, idEleccion, votanteSession?.sub])
 
   const boleta = boletaQuery.data
 
