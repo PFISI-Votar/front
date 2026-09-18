@@ -118,6 +118,10 @@ export default defineConfig(({ mode }) => {
               'src/features/padron/lib/preview-storage.test.ts',
               'src/features/eleccion/lib/load-image-as-jpeg-data-url.test.ts',
             ],
+            exclude: [
+              'src/features/manual-votante/capturar-pantallas-manual.test.tsx',
+              'src/features/manual-votante/capturar-verificador-manual.test.tsx',
+            ],
             browser: {
               enabled: true,
               provider: playwright(),

@@ -7,6 +7,7 @@ import {
 const MARGIN = 18
 const PAGE_BOTTOM = 280
 const PAGE_TOP = 22
+const IMAGE_MAX_WIDTH = 174
 
 const ensureSpace = (doc: jsPDF, yPos: number, needed: number): number => {
   if (yPos + needed <= PAGE_BOTTOM) {
@@ -46,12 +47,41 @@ const writeWrapped = (
   return yPos
 }
 
+const loadImageAsDataUrl = async (src: string): Promise<string | null> => {
+  try {
+    const response = await fetch(src)
+    if (!response.ok) {
+      return null
+    }
+    const blob = await response.blob()
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result))
+      reader.onerror = () => reject(reader.error)
+      reader.readAsDataURL(blob)
+    })
+  } catch {
+    return null
+  }
+}
+
+const probeImageSize = (
+  dataUrl: string
+): Promise<{ width: number; height: number }> =>
+  new Promise((resolve, reject) => {
+    const image = new Image()
+    image.onload = () =>
+      resolve({ width: image.naturalWidth, height: image.naturalHeight })
+    image.onerror = () => reject(new Error('No se pudo leer la captura'))
+    image.src = dataUrl
+  })
+
 /**
  * VOTAR-389 — PDF descargable del manual del votante.
- * Texto real (no una imagen) para que un lector de pantalla pueda leerlo.
- * Se genera en el navegador y no se envía al servidor.
+ * Texto real (no una imagen del PDF entero) para lectores de pantalla.
+ * Incluye capturas de la UI (UAT-02); se genera en el navegador.
  */
-export const generarManualVotantePdf = (): void => {
+export const generarManualVotantePdf = async (): Promise<void> => {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   doc.setProperties({
     title: 'Manual del votante — Boleta Única Digital',
@@ -91,6 +121,27 @@ export const generarManualVotantePdf = (): void => {
         yPos = writeWrapped(doc, `${index + 1}. ${step}`, yPos, { indent: 2 })
         yPos += 1
       })
+    }
+    if (section.screenshots) {
+      for (const shot of section.screenshots) {
+        const dataUrl = await loadImageAsDataUrl(shot.src)
+        if (!dataUrl) {
+          yPos = writeWrapped(doc, `Captura: ${shot.alt}`, yPos, {
+            size: 10,
+            indent: 2,
+          })
+          yPos += 1
+          continue
+        }
+        const { width, height } = await probeImageSize(dataUrl)
+        const drawWidth = IMAGE_MAX_WIDTH
+        const drawHeight = (height / width) * drawWidth
+        yPos = ensureSpace(doc, yPos, drawHeight + 10)
+        yPos = writeWrapped(doc, shot.alt, yPos, { size: 9, indent: 0 })
+        yPos += 1
+        doc.addImage(dataUrl, 'PNG', MARGIN, yPos, drawWidth, drawHeight)
+        yPos += drawHeight + 4
+      }
     }
     if (section.screen && section.screen.length > 0) {
       yPos = writeWrapped(

@@ -60,7 +60,7 @@ describe('Manual del votante — VOTAR-389', () => {
     expect(flowText).not.toContain('secp256k1')
   })
 
-  it('UAT-02: los rótulos coinciden con la cabina y el verificador', () => {
+  it('UAT-02: los rótulos y las capturas coinciden con la cabina y el verificador', () => {
     expect(textOf('inicio-sesion')).toContain('Número de Legajo')
     expect(textOf('inicio-sesion')).toContain('Clave Institucional')
     expect(textOf('inicio-sesion')).toContain('Iniciar sesión con Google')
@@ -75,6 +75,28 @@ describe('Manual del votante — VOTAR-389', () => {
     expect(textOf('recibo')).toContain('Hash de transacción')
     expect(textOf('verificacion')).toContain('Verificar inclusión')
     expect(textOf('verificacion')).toContain('Inclusión confirmada')
+
+    const flowIds = [
+      'inicio-sesion',
+      'seleccion',
+      'firma',
+      'recibo',
+      'verificacion',
+    ] as const
+    for (const id of flowIds) {
+      const shots = section(id).screenshots
+      expect(shots?.length).toBeGreaterThan(0)
+      for (const shot of shots ?? []) {
+        expect(shot.src).toMatch(/^\/manual-votante\/.+\.png$/)
+        expect(shot.alt.length).toBeGreaterThan(10)
+      }
+    }
+    expect(section('inicio-sesion').screenshots?.[0]?.src).toBe(
+      '/manual-votante/01-inicio-sesion.png'
+    )
+    expect(section('verificacion').screenshots?.[0]?.src).toBe(
+      '/manual-votante/05-verificacion.png'
+    )
   })
 
   it('UAT-03: explica cómo usar el hash en el Portal de Transparencia', () => {

@@ -32,15 +32,17 @@ export const ManualVotantePage = () => {
   const handleDownload = () => {
     setIsDownloading(true)
     setDownloadError(null)
-    try {
-      generarManualVotantePdf()
-    } catch {
-      setDownloadError(
-        'No se pudo generar el PDF. Podés seguir leyendo esta guía en la página.'
-      )
-    } finally {
-      setIsDownloading(false)
-    }
+    void (async () => {
+      try {
+        await generarManualVotantePdf()
+      } catch {
+        setDownloadError(
+          'No se pudo generar el PDF. Podés seguir leyendo esta guía en la página.'
+        )
+      } finally {
+        setIsDownloading(false)
+      }
+    })()
   }
 
   return (
@@ -160,6 +162,27 @@ export const ManualVotantePage = () => {
                       <li key={step.slice(0, 48)}>{step}</li>
                     ))}
                   </ol>
+                ) : null}
+
+                {section.screenshots && section.screenshots.length > 0 ? (
+                  <div className='mt-4 grid gap-4'>
+                    {section.screenshots.map((shot) => (
+                      <figure
+                        key={shot.src}
+                        className='overflow-hidden rounded-xl border border-[#d0e3f0] bg-[#f7fbfd]'
+                      >
+                        <img
+                          src={shot.src}
+                          alt={shot.alt}
+                          className='h-auto w-full'
+                          loading='lazy'
+                        />
+                        <figcaption className='border-t border-[#d0e3f0] px-4 py-2 text-xs leading-relaxed text-[#5f6368]'>
+                          {shot.alt}
+                        </figcaption>
+                      </figure>
+                    ))}
+                  </div>
                 ) : null}
 
                 {section.screen ? (

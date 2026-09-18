@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => {
   const mockSetTextColor = vi.fn()
   const mockSetProperties = vi.fn()
   const mockAddPage = vi.fn()
+  const mockAddImage = vi.fn()
   const mockSplitTextToSize = vi.fn((text: string) => [text])
 
   return {
@@ -19,6 +20,7 @@ const mocks = vi.hoisted(() => {
     mockSetTextColor,
     mockSetProperties,
     mockAddPage,
+    mockAddImage,
     mockSplitTextToSize,
   }
 })
@@ -40,6 +42,7 @@ vi.mock('jspdf', () => {
       setTextColor = mocks.mockSetTextColor
       setProperties = mocks.mockSetProperties
       addPage = mocks.mockAddPage
+      addImage = mocks.mockAddImage
       splitTextToSize = mocks.mockSplitTextToSize
     },
   }
@@ -50,10 +53,17 @@ describe('generarManualVotantePdf — VOTAR-389', () => {
     mocks.mockSave.mockReset()
     mocks.mockText.mockReset()
     mocks.mockSetProperties.mockReset()
+    mocks.mockAddImage.mockReset()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+      })
+    )
   })
 
-  it('descarga un PDF de texto con el flujo y la verificación', () => {
-    generarManualVotantePdf()
+  it('descarga un PDF de texto con el flujo y la verificación', async () => {
+    await generarManualVotantePdf()
 
     expect(mocks.mockSave).toHaveBeenCalledWith('manual-votante-bud.pdf')
     expect(mocks.mockSetProperties).toHaveBeenCalledWith(
@@ -70,5 +80,6 @@ describe('generarManualVotantePdf — VOTAR-389', () => {
     expect(joined).toContain('Portal de Transparencia')
     expect(joined).toContain('Verificar inclusión')
     expect(joined).toContain('Inclusión confirmada')
+    expect(joined).toContain('Captura:')
   })
 })

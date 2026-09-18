@@ -1,7 +1,7 @@
 /**
  * VOTAR-389 — Texto del manual del votante (BUD).
- * Misma fuente para la guía web y el PDF, para que los rótulos
- * coincidan con la cabina desplegada.
+ * Misma fuente para la guía web y el PDF, con rótulos y capturas
+ * que coinciden con la cabina desplegada (UAT-02).
  */
 
 export const MANUAL_VOTANTE_HREF = '/manual/votante'
@@ -9,6 +9,11 @@ export const MANUAL_VOTANTE_PDF_FILENAME = 'manual-votante-bud.pdf'
 export const VERIFICADOR_HREF = '/verificar'
 export const PORTAL_TRANSPARENCIA_HREF = '/comicios/{id}/dashboard'
 export const CABINA_HREF = '/comicios/{id}/votar'
+
+export type ManualVotanteScreenshot = {
+  src: string
+  alt: string
+}
 
 export type ManualVotanteSection = {
   id: string
@@ -20,6 +25,8 @@ export type ManualVotanteSection = {
   steps?: string[]
   /** Rótulos exactos de la interfaz, para contrastar con la cabina. */
   screen?: string[]
+  /** Capturas reales de la UI desplegada (UAT-02). */
+  screenshots?: ManualVotanteScreenshot[]
   note?: string
 }
 
@@ -55,6 +62,12 @@ export const MANUAL_VOTANTE_SECTIONS: ManualVotanteSection[] = [
       'Iniciar sesión con Google',
       'Boleta Única Digital',
     ],
+    screenshots: [
+      {
+        src: '/manual-votante/01-inicio-sesion.png',
+        alt: 'Pantalla Bienvenido de la cabina: Número de Legajo, Clave Institucional e Ingresar',
+      },
+    ],
     note: 'Cerrar sesión no gasta un intento de voto. Si te equivocaste de cuenta, cerrá sesión y volvé a entrar.',
   },
   {
@@ -82,6 +95,16 @@ export const MANUAL_VOTANTE_SECTIONS: ManualVotanteSection[] = [
       'Continuar',
       'Modificar mi voto',
     ],
+    screenshots: [
+      {
+        src: '/manual-votante/02a-antes-de-votar.png',
+        alt: 'Pantalla Antes de votar con el botón Comenzar a votar',
+      },
+      {
+        src: '/manual-votante/02b-seleccion.png',
+        alt: 'Boleta con Listas completas, Votar en blanco y Continuar',
+      },
+    ],
   },
   {
     id: 'firma',
@@ -104,6 +127,12 @@ export const MANUAL_VOTANTE_SECTIONS: ManualVotanteSection[] = [
       'Firmar y confirmar',
       'Firmando voto...',
       'Votación pausada',
+    ],
+    screenshots: [
+      {
+        src: '/manual-votante/03-confirmar-firma.png',
+        alt: 'Pantalla Confirmar Voto con Volver y Firmar y confirmar',
+      },
     ],
     note: 'Si aparece “Clave de votación efímera generada”, es normal: esa clave se crea solo en tu navegador para este voto y no se guarda en el servidor.',
   },
@@ -129,6 +158,12 @@ export const MANUAL_VOTANTE_SECTIONS: ManualVotanteSection[] = [
       'Descargar comprobante PDF',
       'No se pudo descargar el PDF',
     ],
+    screenshots: [
+      {
+        src: '/manual-votante/04-comprobante.png',
+        alt: 'Pantalla Voto Exitoso con Hash de transacción y Descargar comprobante PDF',
+      },
+    ],
   },
   {
     id: 'verificacion',
@@ -152,6 +187,12 @@ export const MANUAL_VOTANTE_SECTIONS: ManualVotanteSection[] = [
       'Verificar inclusión',
       'Inclusión confirmada',
     ],
+    screenshots: [
+      {
+        src: '/manual-votante/05-verificacion.png',
+        alt: 'Verificador con Hash de transacción, Verificar inclusión e Inclusión confirmada',
+      },
+    ],
     note: 'Un comprobante válido nunca muestra el candidato elegido ni tu identidad. Si una pantalla te pide el DNI para “verificar” el voto, no es este portal.',
   },
   {
@@ -159,7 +200,7 @@ export const MANUAL_VOTANTE_SECTIONS: ManualVotanteSection[] = [
     title: 'Leer esta guía con un lector de pantalla',
     uat: 'UAT-04',
     body: [
-      'La guía web es la versión principal. Está en una sola página, con un índice al inicio y un título por paso. El atajo Saltar al contenido salta el encabezado. El PDF descargable es texto, no una foto, así también se puede leer en voz alta.',
+      'La guía web es la versión principal. Está en una sola página, con un índice al inicio y un título por paso. El atajo Saltar al contenido salta el encabezado. El PDF descargable es texto, no una foto, así también se puede leer en voz alta. Las capturas de pantalla tienen texto alternativo.',
       'Los botones dicen qué hacen. En la cabina, los más importantes son Ingresar, Comenzar a votar, Continuar, Firmar y confirmar y Descargar comprobante PDF. En el verificador, el botón es Verificar inclusión.',
     ],
     steps: [
