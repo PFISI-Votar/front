@@ -1,3 +1,4 @@
+import { toUntrustedPlainText } from '@/lib/untrusted-html'
 import { CandidatoPublicoCard } from '@/features/dashboard-publico/components/candidato-publico-card'
 import { ListaPublicaHeader } from '@/features/dashboard-publico/components/lista-publica-header'
 import { groupCandidatosByLista } from '@/features/dashboard-publico/lib/candidato-display'
@@ -5,7 +6,6 @@ import {
   CATEGORIA_BOLETA_ESTADO,
   type BoletaDigital,
 } from '@/features/voto/data/schema'
-import { toUntrustedPlainText } from '@/lib/untrusted-html'
 
 type OfertaPublicaCatalogProps = {
   oferta: BoletaDigital
@@ -73,9 +73,7 @@ export const OfertaPublicaCatalog = ({ oferta }: OfertaPublicaCatalogProps) => {
                       <CandidatoPublicoCard
                         key={candidato.idCandidato}
                         candidato={candidato}
-                        categoriaNombre={toUntrustedPlainText(
-                          categoria.nombre
-                        )}
+                        categoriaNombre={toUntrustedPlainText(categoria.nombre)}
                       />
                     ))}
                   </div>

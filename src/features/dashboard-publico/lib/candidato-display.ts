@@ -1,5 +1,5 @@
-import type { CandidatoBoletaDigital } from '@/features/voto/data/schema'
 import { toUntrustedPlainText } from '@/lib/untrusted-html'
+import type { CandidatoBoletaDigital } from '@/features/voto/data/schema'
 
 export const getInitials = (value: string): string => {
   const words = toUntrustedPlainText(value).trim().split(/\s+/).filter(Boolean)
