@@ -3,6 +3,7 @@ import { auditarAccesibilidad, formatearViolaciones } from '@/test-utils/axe'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
+import { toUntrustedPlainText } from '@/lib/untrusted-html'
 import {
   TIPOS_VOTACION,
   type TipoVotacion,
@@ -837,6 +838,10 @@ describe('BudVotingWizard', () => {
   })
 
   it('VOTAR-489: no interpreta HTML de nombres de candidatos como marcado', async () => {
+    const maliciousName = 'Ana<img src=x onerror=alert(1)> Lopez'
+    const maliciousList = 'Lista <b>Azul</b>'
+    const plainName = toUntrustedPlainText(maliciousName)
+    const plainList = toUntrustedPlainText(maliciousList)
     const maliciousBoleta: BoletaDigital = {
       ...boleta,
       nombreEleccion: 'Comicio <script>alert(1)</script>',
@@ -849,8 +854,8 @@ describe('BudVotingWizard', () => {
                   candidateIndex === 0
                     ? {
                         ...candidato,
-                        nombreCompleto: 'Ana<img src=x onerror=alert(1)> Lopez',
-                        agrupacionPolitica: 'Lista <b>Azul</b>',
+                        nombreCompleto: maliciousName,
+                        agrupacionPolitica: maliciousList,
                       }
                     : candidato
               ),
@@ -866,13 +871,20 @@ describe('BudVotingWizard', () => {
     )
 
     await expect
-      .element(screen.getByRole('button', { name: /Ana Lopez, Lista Azul/i }))
+      .element(
+        screen.getByRole('button', {
+          name: `${plainName}, ${plainList}, número de lista 1`,
+        })
+      )
       .toBeInTheDocument()
     expect(document.body.querySelector('img[onerror]')).toBeNull()
+    expect(document.body.querySelector('[onerror]')).toBeNull()
     expect(document.body.querySelector('script')).toBeNull()
     expect(document.body.innerHTML).not.toContain('<script')
-    expect(document.body.innerHTML).not.toContain('onerror=')
+    expect(document.body.innerHTML).not.toContain('<img')
     expect(document.body.innerHTML).not.toContain('<b>')
+    expect(plainName).not.toMatch(/[<>]/)
+    expect(plainList).not.toMatch(/[<>]/)
     expectNoWalletSecretsInDom()
   })
 
