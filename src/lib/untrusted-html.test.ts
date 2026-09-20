@@ -34,11 +34,18 @@ const collectSourceFiles = (dir: string): string[] => {
 }
 
 describe('toUntrustedPlainText', () => {
-  it('strips tags and leftover angle brackets from stored payloads', () => {
+  it('strips angle brackets so nested or unclosed tags cannot reform', () => {
     expect(toUntrustedPlainText('Ana Lopez')).toBe('Ana Lopez')
-    expect(toUntrustedPlainText('<script>alert(1)</script>')).toBe('alert(1)')
-    expect(toUntrustedPlainText('<img src=x onerror=alert(1)>')).toBe('')
-    expect(toUntrustedPlainText('nombre <b>')).toBe('nombre ')
+    expect(toUntrustedPlainText('<script>alert(1)</script>')).toBe(
+      'scriptalert(1)/script'
+    )
+    expect(toUntrustedPlainText('<img src=x onerror=alert(1)>')).toBe(
+      'img src=x onerror=alert(1)'
+    )
+    expect(toUntrustedPlainText('nombre <b>')).toBe('nombre b')
+    expect(toUntrustedPlainText('<scr<script>ipt>')).toBe('scrscriptipt')
+    expect(toUntrustedPlainText('<script')).not.toMatch(/<script/i)
+    expect(toUntrustedPlainText('<scr<script>ipt>')).not.toMatch(/[<>]/)
   })
 })
 
