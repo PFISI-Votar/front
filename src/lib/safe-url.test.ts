@@ -12,6 +12,7 @@ describe('toSafeNavigationUrl', () => {
     expect(toSafeNavigationUrl('http://127.0.0.1:8545')).toBe(
       'http://127.0.0.1:8545/'
     )
+    expect(toSafeNavigationUrl('http://[::1]:8545')).toBe('http://[::1]:8545/')
     expect(toSafeNavigationUrl('http://evil.example/phish')).toBeNull()
   })
 

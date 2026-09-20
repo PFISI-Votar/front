@@ -37,8 +37,23 @@ to_csp_origin() {
 
 is_loopback_origin() {
   origin=$1
-  host=${origin#*://}
-  host=${host%%:*}
+  hostport=${origin#*://}
+  case "$hostport" in
+    \[*\])
+      host=$hostport
+      ;;
+    \[*\]:*)
+      # [::1]:8545 — strip port after the closing bracket (not %%:* which
+      # would truncate inside the brackets).
+      host=${hostport%:*}
+      ;;
+    *:*)
+      host=${hostport%%:*}
+      ;;
+    *)
+      host=$hostport
+      ;;
+  esac
   case "$host" in
     localhost|127.0.0.1|\[::1\]|::1) return 0 ;;
     *) return 1 ;;

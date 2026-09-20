@@ -129,10 +129,17 @@ const buildConnectSrc = ({
 }: SecurityHeadersOptions): string => {
   const origins = new Set<string>()
   // apiOrigin is validated by requireCspOrigin in buildContentSecurityPolicy.
-  const api = toCspOrigin(apiOrigin)
-  if (api && isAllowedConnectOrigin(api, isDev)) {
-    origins.add(api)
+  // Fail closed if it is not allowed for connect-src (e.g. plain http to a
+  // public host in production) — never leave img-src with an origin that
+  // connect-src silently dropped.
+  const api = requireCspOrigin(apiOrigin, 'apiOrigin')
+  if (!isAllowedConnectOrigin(api, isDev)) {
+    throw new Error(
+      `apiOrigin is not allowed in connect-src for this environment (got ${JSON.stringify(apiOrigin)}). ` +
+        'Use https, or http only for loopback (or any http in development).'
+    )
   }
+  origins.add(api)
   for (const candidate of extraConnectSrc) {
     const origin = toCspOrigin(candidate)
     if (origin && isAllowedConnectOrigin(origin, isDev)) {

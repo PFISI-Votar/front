@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useParams, useRouterState } from '@tanstack/react-router'
 import { isNotFoundError } from '@/lib/api-client'
+import { toUntrustedPlainText } from '@/lib/untrusted-html'
 import {
   type BreadcrumbEntry,
   type BreadcrumbMenuItem,
@@ -82,7 +83,9 @@ export const buildComiciosBreadcrumbEntries = ({
   }
 
   const idEleccionParam = String(idEleccion)
-  const eleccionLabel = eleccionNombre ?? `Comicio #${idEleccion}`
+  const eleccionLabel = eleccionNombre
+    ? toUntrustedPlainText(eleccionNombre)
+    : `Comicio #${idEleccion}`
   const sectionMenuItems = buildComicioSectionMenuItems(idEleccionParam)
   const activeSectionTo = pathname.includes('/auditoria')
     ? '/comicios/$idEleccion/auditoria'
@@ -123,9 +126,15 @@ export const buildComiciosBreadcrumbEntries = ({
   }
 
   if (idLista != null) {
+    const safeListaNombre = listaNombre
+      ? toUntrustedPlainText(listaNombre)
+      : undefined
+    const safeListaSigla = listaSigla
+      ? toUntrustedPlainText(listaSigla)
+      : undefined
     const listaLabel =
-      listaNombre && listaSigla
-        ? `${listaNombre} (${listaSigla})`
+      safeListaNombre && safeListaSigla
+        ? `${safeListaNombre} (${safeListaSigla})`
         : `Lista #${idLista}`
 
     const comicioSectionSinMenu: BreadcrumbEntry = {
@@ -138,7 +147,7 @@ export const buildComiciosBreadcrumbEntries = ({
     if (listas && listas.length > 1) {
       listaEntry.menuAriaLabel = 'Cambiar de lista'
       listaEntry.menuItems = listas.map((item) => ({
-        label: `${item.nombre} (${item.sigla})`,
+        label: `${toUntrustedPlainText(item.nombre)} (${toUntrustedPlainText(item.sigla)})`,
         to: '/comicios/$idEleccion/listas/$idLista',
         params: { idEleccion: idEleccionParam, idLista: String(item.idLista) },
         current: item.idLista === idLista,

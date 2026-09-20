@@ -114,6 +114,15 @@ describe('security-headers', () => {
     expect(csp).toContain('http://localhost:8000')
   })
 
+  it('fails loudly when production apiOrigin is http to a non-loopback host', () => {
+    expect(() =>
+      buildContentSecurityPolicy({
+        apiOrigin: 'http://api.votar.ar',
+        isDev: false,
+      })
+    ).toThrow(/not allowed in connect-src/)
+  })
+
   it('fails loudly when apiOrigin lacks a scheme instead of dropping connect-src', () => {
     expect(() =>
       buildContentSecurityPolicy({

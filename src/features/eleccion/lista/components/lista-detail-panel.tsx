@@ -248,6 +248,11 @@ export const ListaDetailPanel = ({
     : sinCupoDisponible
       ? 'Todas las categorías alcanzaron su cupo máximo de postulantes en esta lista.'
       : null
+  const listaNombre = toUntrustedPlainText(lista.nombre)
+  const listaSigla = toUntrustedPlainText(lista.sigla)
+  const eleccionNombre = eleccionQuery.data
+    ? toUntrustedPlainText(eleccionQuery.data.nombre)
+    : null
 
   return (
     <div className='flex flex-col gap-6'>
@@ -256,7 +261,7 @@ export const ListaDetailPanel = ({
           {lista.logoUrl && (
             <img
               src={resolveMediaUrl(lista.logoUrl)}
-              alt={`Logotipo de ${lista.nombre}`}
+              alt={`Logotipo de ${listaNombre}`}
               className='h-20 w-40 rounded-lg border bg-muted object-cover'
             />
           )}
@@ -269,14 +274,14 @@ export const ListaDetailPanel = ({
                   aria-hidden='true'
                 />
               )}
-              {toUntrustedPlainText(lista.nombre)}
+              {listaNombre}
               <span className='text-xl font-normal text-muted-foreground'>
-                ({lista.sigla})
+                ({listaSigla})
               </span>
             </h1>
             <p className='text-muted-foreground'>
               Comicio #{idEleccion}
-              {eleccionQuery.data ? ` - ${eleccionQuery.data.nombre}` : ''}
+              {eleccionNombre ? ` - ${eleccionNombre}` : ''}
             </p>
           </div>
         </div>
@@ -308,13 +313,13 @@ export const ListaDetailPanel = ({
             <p className='text-xs tracking-wide text-muted-foreground uppercase'>
               Nombre
             </p>
-            <p className='font-medium'>{toUntrustedPlainText(lista.nombre)}</p>
+            <p className='font-medium'>{listaNombre}</p>
           </div>
           <div>
             <p className='text-xs tracking-wide text-muted-foreground uppercase'>
               Sigla
             </p>
-            <p className='font-medium'>{lista.sigla}</p>
+            <p className='font-medium'>{listaSigla}</p>
           </div>
           <div>
             <p className='text-xs tracking-wide text-muted-foreground uppercase'>
@@ -357,7 +362,7 @@ export const ListaDetailPanel = ({
               <Button
                 variant='outline'
                 onClick={() => setListaDialogOpen(true)}
-                aria-label={`Editar lista ${lista.nombre}`}
+                aria-label={`Editar lista ${listaNombre}`}
               >
                 <Pencil className='me-2 size-4' />
                 Editar lista
@@ -369,13 +374,13 @@ export const ListaDetailPanel = ({
                 }}
                 disabled={!puedeRegistrarCandidato}
                 bloqueoMotivo={registrarCandidatoBloqueoMotivo}
-                ariaLabel={`Registrar candidato en ${lista.nombre}`}
+                ariaLabel={`Registrar candidato en ${listaNombre}`}
               />
               <Button
                 variant='outline'
                 disabled={eliminarListaMutation.isPending}
                 onClick={() => setEliminarListaDialogOpen(true)}
-                aria-label={`Eliminar lista ${lista.nombre}`}
+                aria-label={`Eliminar lista ${listaNombre}`}
               >
                 <Trash2 className='me-2 size-4 text-destructive' />
                 Eliminar lista
@@ -416,7 +421,7 @@ export const ListaDetailPanel = ({
                   }}
                   disabled={!puedeRegistrarCandidato}
                   bloqueoMotivo={registrarCandidatoBloqueoMotivo}
-                  ariaLabel={`Registrar candidato en ${lista.nombre}`}
+                  ariaLabel={`Registrar candidato en ${listaNombre}`}
                 />
                 {registrarCandidatoBloqueoMotivo && (
                   <p
@@ -432,7 +437,7 @@ export const ListaDetailPanel = ({
           </CardContent>
         </Card>
       ) : (
-        <ul className='grid gap-3' aria-label={`Candidatos de ${lista.nombre}`}>
+        <ul className='grid gap-3' aria-label={`Candidatos de ${listaNombre}`}>
           {candidatos.map((candidato) => (
             <li key={candidato.idCandidato}>
               <Card>
@@ -441,7 +446,7 @@ export const ListaDetailPanel = ({
                     {candidato.fotoUrl ? (
                       <img
                         src={resolveMediaUrl(candidato.fotoUrl)}
-                        alt={`Foto de ${candidato.nombre} ${candidato.apellido}`}
+                        alt={`Foto de ${toUntrustedPlainText(candidato.nombre)} ${toUntrustedPlainText(candidato.apellido)}`}
                         className='size-14 rounded-xl border bg-muted object-cover'
                       />
                     ) : (
@@ -456,7 +461,7 @@ export const ListaDetailPanel = ({
                       </CardTitle>
                       <CardDescription>
                         {candidato.categoriaNombre
-                          ? `${candidato.categoriaNombre} · `
+                          ? `${toUntrustedPlainText(candidato.categoriaNombre)} · `
                           : ''}
                         {buildResumenDatosAdicionales(
                           candidato.datosAdicionales,
@@ -474,7 +479,7 @@ export const ListaDetailPanel = ({
                           setEditingCandidato(candidato)
                           setCandidatoDialogOpen(true)
                         }}
-                        aria-label={`Editar ${candidato.nombre} ${candidato.apellido}`}
+                        aria-label={`Editar ${toUntrustedPlainText(candidato.nombre)} ${toUntrustedPlainText(candidato.apellido)}`}
                       >
                         <UserPen className='size-4' />
                       </Button>
@@ -486,7 +491,7 @@ export const ListaDetailPanel = ({
                             candidato.idCandidato
                           )
                         }
-                        aria-label={`Eliminar ${candidato.nombre} ${candidato.apellido}`}
+                        aria-label={`Eliminar ${toUntrustedPlainText(candidato.nombre)} ${toUntrustedPlainText(candidato.apellido)}`}
                       >
                         <Trash2 className='size-4 text-destructive' />
                       </Button>
@@ -523,8 +528,8 @@ export const ListaDetailPanel = ({
         }}
         idEleccion={idEleccion}
         idLista={idLista}
-        listaNombre={lista.nombre}
-        listaSigla={lista.sigla}
+        listaNombre={listaNombre}
+        listaSigla={listaSigla}
         candidatosEnLista={candidatos}
         candidatosEnComicio={candidatosEnComicio}
         candidato={editingCandidato}
@@ -537,8 +542,8 @@ export const ListaDetailPanel = ({
         desc={
           <>
             Esta acción es <strong>irreversible</strong>. Se eliminará la lista{' '}
-            <strong>{lista.nombre}</strong>
-            {lista.sigla ? ` (${lista.sigla})` : ''} y todos sus candidatos
+            <strong>{listaNombre}</strong>
+            {listaSigla ? ` (${listaSigla})` : ''} y todos sus candidatos
             asociados.
           </>
         }

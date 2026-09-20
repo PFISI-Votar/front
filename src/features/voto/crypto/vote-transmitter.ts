@@ -88,10 +88,16 @@ export const buildRelayerCastBody = (
 
 const createDefaultRelayCast = (): RelayCastFn => {
   let relayToken: string | null = null
+  let expiresAtMs = 0
   return async (input) => {
-    if (!relayToken) {
+    const now = Date.now()
+    // Refresh before expiry (30s skew) so a mid-retry cast does not reuse a
+    // stale token until maxAttempts is exhausted.
+    if (!relayToken || now >= expiresAtMs - 30_000) {
       const auth = await solicitarAutorizacionRelayer(input.signed.electionId)
       relayToken = auth.relayToken
+      const parsed = Date.parse(auth.expiresAt)
+      expiresAtMs = Number.isNaN(parsed) ? now : parsed
     }
     return await postRelayerCast(
       input.signed.electionId,
@@ -136,9 +142,10 @@ export const transmitSignedVote = async (
       lastError = mapped
       // After broadcast: retry receipt wait only (never re-cast / waste gas).
       // Before broadcast: only transient send failures may retry relayCast.
-      const canRetry = sentHash
-        ? mapped.canRetrySend && attempt < maxAttempts
-        : mapped.isTransient && attempt < maxAttempts && mapped.canRetrySend
+      // Always require isTransient so a mined-but-reverted tx (fallback:
+      // isTransient:false, canRetrySend:true) fails fast instead of looping.
+      const canRetry =
+        mapped.isTransient && mapped.canRetrySend && attempt < maxAttempts
       if (!canRetry) {
         throw mapped
       }

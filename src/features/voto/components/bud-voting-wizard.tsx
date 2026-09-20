@@ -1093,6 +1093,9 @@ export const BudVotingWizard = ({
           })
           return
         }
+        if (mapped.code === 'timeout' || mapped.code === 'network') {
+          clearPendingVoteCast(boleta.idEleccion)
+        }
         reportVoteTxError(mapped, boleta.idEleccion)
         setTxError(mapped)
         setTransmitPhase('error')
