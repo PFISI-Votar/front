@@ -131,7 +131,7 @@ export const ManualVotantePage = () => {
                 aria-labelledby={`${section.id}-titulo`}
                 className='scroll-mt-6 rounded-2xl border border-[#e4e7eb] bg-white/95 px-5 py-6 shadow-[0_1rem_3rem_rgba(30,64,95,0.08)] sm:px-7'
               >
-                <div className='flex items-start gap-3'>
+                <div className='flex items-center gap-3'>
                   {section.step ? (
                     <span
                       className='grid size-10 shrink-0 place-items-center rounded-full bg-[#2f6f9f] text-sm font-bold text-white'
@@ -143,7 +143,7 @@ export const ManualVotantePage = () => {
                   <div className='min-w-0'>
                     <h2
                       id={`${section.id}-titulo`}
-                      className='text-lg font-bold tracking-tight text-[#202124]'
+                      className='text-lg leading-none font-bold tracking-tight text-[#202124]'
                     >
                       {section.title}
                     </h2>
@@ -165,37 +165,37 @@ export const ManualVotantePage = () => {
                 ) : null}
 
                 {section.screenshots && section.screenshots.length > 0 ? (
-                  <div className='mt-4 grid gap-4'>
+                  <div className='mt-4 grid max-w-sm gap-4'>
                     {section.screenshots.map((shot) => (
-                      <figure
-                        key={shot.src}
-                        className='overflow-hidden rounded-xl border border-[#d0e3f0] bg-[#f7fbfd]'
-                      >
-                        <img
-                          src={shot.src}
-                          alt={shot.alt}
-                          className='h-auto w-full'
-                          loading='lazy'
-                        />
-                        <figcaption className='border-t border-[#d0e3f0] px-4 py-2 text-xs leading-relaxed text-[#5f6368]'>
-                          {shot.alt}
-                        </figcaption>
-                      </figure>
+                      <div key={shot.src} className='space-y-3'>
+                        <figure className='overflow-hidden rounded-xl border border-[#d0e3f0] bg-[#f7fbfd]'>
+                          <div className='bg-[#fdfcfa] pb-4'>
+                            <img
+                              src={shot.src}
+                              alt={shot.alt}
+                              className='h-auto w-full'
+                              loading='lazy'
+                            />
+                          </div>
+                          <figcaption className='border-t border-[#d0e3f0] px-3 py-2 text-xs leading-relaxed text-[#5f6368]'>
+                            Captura de pantalla - {shot.alt}
+                          </figcaption>
+                        </figure>
+                        {shot.screen && shot.screen.length > 0 ? (
+                          <details className='rounded-xl border border-[#d0e3f0] bg-[#f7fbfd] px-4 py-3'>
+                            <summary className='cursor-pointer text-sm font-semibold text-[#2f6f9f] focus-visible:rounded-sm focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/30 focus-visible:outline-none'>
+                              Textos exactos de la pantalla
+                            </summary>
+                            <ul className='mt-3 space-y-1 pb-1 text-sm text-[#202124]'>
+                              {shot.screen.map((label) => (
+                                <li key={label}>{label}</li>
+                              ))}
+                            </ul>
+                          </details>
+                        ) : null}
+                      </div>
                     ))}
                   </div>
-                ) : null}
-
-                {section.screen ? (
-                  <details className='mt-4 rounded-xl border border-[#d0e3f0] bg-[#f7fbfd] px-4 py-3'>
-                    <summary className='cursor-pointer text-sm font-semibold text-[#2f6f9f] focus-visible:rounded-sm focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/30 focus-visible:outline-none'>
-                      Textos exactos de la pantalla
-                    </summary>
-                    <ul className='mt-3 space-y-1 text-sm text-[#202124]'>
-                      {section.screen.map((label) => (
-                        <li key={label}>{label}</li>
-                      ))}
-                    </ul>
-                  </details>
                 ) : null}
 
                 {section.note ? (

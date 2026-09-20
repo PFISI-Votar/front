@@ -135,6 +135,7 @@ export default defineConfig(({ mode }) => {
               'src/features/auth/services/activity-tracker.test.ts',
             ],
             exclude: [
+              // VOTAR-389: regenerar a demanda (REGENERATE=true en el test).
               'src/features/manual-votante/capturar-pantallas-manual.test.tsx',
               'src/features/manual-votante/capturar-verificador-manual.test.tsx',
             ],

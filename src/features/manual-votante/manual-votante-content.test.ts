@@ -18,11 +18,15 @@ const section = (id: string) => {
 
 const textOf = (id: string): string => {
   const item = section(id)
+  const screenshotText = (item.screenshots ?? []).flatMap((shot) => [
+    shot.alt,
+    ...(shot.screen ?? []),
+  ])
   return [
     item.title,
     ...item.body,
     ...(item.steps ?? []),
-    ...(item.screen ?? []),
+    ...screenshotText,
     item.note,
   ]
     .filter(Boolean)
@@ -63,18 +67,21 @@ describe('Manual del votante — VOTAR-389', () => {
   it('UAT-02: los rótulos y las capturas coinciden con la cabina y el verificador', () => {
     expect(textOf('inicio-sesion')).toContain('Número de Legajo')
     expect(textOf('inicio-sesion')).toContain('Clave Institucional')
-    expect(textOf('inicio-sesion')).toContain('Iniciar sesión con Google')
+    expect(textOf('inicio-sesion')).toContain('Pantalla de inicio de sesión')
     expect(textOf('seleccion')).toContain('Comenzar a votar')
     expect(textOf('seleccion')).toContain('Votar en blanco')
     expect(textOf('seleccion')).toContain('Listas completas')
-    expect(textOf('seleccion')).toContain('Candidatos por rol')
+    expect(textOf('seleccion')).toContain('Pantalla Antes de votar')
+    expect(textOf('seleccion')).toContain('Boleta con listas completas')
     expect(textOf('firma')).toContain('Confirmar Voto')
+    expect(textOf('firma')).toContain('Firmar y continuar')
     expect(textOf('firma')).toContain('Firmando voto...')
     expect(textOf('firma')).toContain('Votación pausada')
     expect(textOf('recibo')).toContain('Voto Exitoso')
-    expect(textOf('recibo')).toContain('Hash de transacción')
+    expect(textOf('recibo')).toContain('Hash de la transacción')
     expect(textOf('verificacion')).toContain('Verificar inclusión')
     expect(textOf('verificacion')).toContain('Inclusión confirmada')
+    expect(textOf('verificacion')).toContain('Verificador con Hash de transacción')
 
     const flowIds = [
       'inicio-sesion',
@@ -89,6 +96,7 @@ describe('Manual del votante — VOTAR-389', () => {
       for (const shot of shots ?? []) {
         expect(shot.src).toMatch(/^\/manual-votante\/.+\.png$/)
         expect(shot.alt.length).toBeGreaterThan(10)
+        expect(shot.screen?.length).toBeGreaterThan(0)
       }
     }
     expect(section('inicio-sesion').screenshots?.[0]?.src).toBe(

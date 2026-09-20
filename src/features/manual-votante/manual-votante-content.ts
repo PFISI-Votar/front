@@ -13,6 +13,8 @@ export const CABINA_HREF = '/comicios/{id}/votar'
 export type ManualVotanteScreenshot = {
   src: string
   alt: string
+  /** Rótulos exactos visibles en esa captura. */
+  screen?: string[]
 }
 
 export type ManualVotanteSection = {
@@ -23,8 +25,6 @@ export type ManualVotanteSection = {
   uat?: string
   body: string[]
   steps?: string[]
-  /** Rótulos exactos de la interfaz, para contrastar con la cabina. */
-  screen?: string[]
   /** Capturas reales de la UI desplegada (UAT-02). */
   screenshots?: ManualVotanteScreenshot[]
   note?: string
@@ -54,18 +54,19 @@ export const MANUAL_VOTANTE_SECTIONS: ManualVotanteSection[] = [
       'Si en lugar del formulario ves Iniciar sesión con Google, el comicio está configurado con esa cuenta. Usá la cuenta institucional que te indicó la autoridad.',
       'Cuando entres, arriba dice VOTAR y Boleta Única Digital. Esa es la cabina. Desde ahí, y también desde el login, podés volver a abrir este manual.',
     ],
-    screen: [
-      'Bienvenido',
-      'Número de Legajo',
-      'Clave Institucional',
-      'Ingresar',
-      'Iniciar sesión con Google',
-      'Boleta Única Digital',
-    ],
     screenshots: [
       {
         src: '/manual-votante/01-inicio-sesion.png',
-        alt: 'Pantalla Bienvenido de la cabina: Número de Legajo, Clave Institucional e Ingresar',
+        alt: 'Pantalla de inicio de sesión',
+        screen: [
+          'VOTAR',
+          'Bienvenido',
+          'Número de Legajo',
+          'Clave Institucional',
+          'Ingresar',
+          'Manual de votante',
+          'Como protegemos tus datos (Ley 25.326)',
+        ],
       },
     ],
     note: 'Cerrar sesión no gasta un intento de voto. Si te equivocaste de cuenta, cerrá sesión y volvé a entrar.',
@@ -85,24 +86,42 @@ export const MANUAL_VOTANTE_SECTIONS: ManualVotanteSection[] = [
       'Cuando la elección esté hecha, el botón Continuar se habilita. Pulsalo.',
       'Si ya habías votado y el comicio permite cambiar el voto, podés ver Ya tienes un voto registrado en este comicio y el botón Modificar mi voto.',
     ],
-    screen: [
-      'Antes de votar',
-      'Comenzar a votar',
-      'Listas completas',
-      'Candidatos por rol',
-      'Votar en blanco',
-      'Anular voto',
-      'Continuar',
-      'Modificar mi voto',
-    ],
     screenshots: [
       {
         src: '/manual-votante/02a-antes-de-votar.png',
-        alt: 'Pantalla Antes de votar con el botón Comenzar a votar',
+        alt: 'Pantalla Antes de votar',
+        screen: [
+          'VOTAR',
+          'Manual del votante',
+          'Intentos restantes',
+          'Cerrar sesión',
+          'Inicio',
+          'Antes de votar',
+          'Comicio',
+          'Boleta',
+          'Estado',
+          'Categorías habilitadas',
+          'Antes de continuar',
+          'Comenzar a votar',
+          'Como protegemos tus datos (Ley 25.326)',
+        ],
       },
       {
         src: '/manual-votante/02b-seleccion.png',
-        alt: 'Boleta con Listas completas, Votar en blanco y Continuar',
+        alt: 'Boleta con listas completas',
+        screen: [
+          'VOTAR',
+          'Manual del votante',
+          'Intentos restantes',
+          'Cerrar sesión',
+          'Voto',
+          'Listas completas',
+          'Opciones especiales',
+          'Votar en blanco',
+          'Anular voto',
+          'Continuar',
+          'Como protegemos tus datos (Ley 25.326)',
+        ],
       },
     ],
   },
@@ -121,17 +140,23 @@ export const MANUAL_VOTANTE_SECTIONS: ManualVotanteSection[] = [
       'Si el botón dice Votación pausada, el comicio está detenido. No confirmes: esperá a que vuelva a decir Firmar y confirmar.',
       'No cierres el navegador en este paso. Si aparece un error, leé el mensaje y usá Volver o el reintento que te ofrezca la pantalla. Tu elección no se publica con tu nombre.',
     ],
-    screen: [
-      'Confirmar Voto',
-      'Volver',
-      'Firmar y confirmar',
-      'Firmando voto...',
-      'Votación pausada',
-    ],
     screenshots: [
       {
         src: '/manual-votante/03-confirmar-firma.png',
-        alt: 'Pantalla Confirmar Voto con Volver y Firmar y confirmar',
+        alt: 'Pantalla Confirmar Voto',
+        screen: [
+          'VOTAR',
+          'Manual del votante',
+          'Intentos restantes',
+          'Cerrar sesión',
+          'Confirmación',
+          'Confirmar Voto',
+          'Selección especial',
+          'Voto en blanco',
+          'Volver',
+          'Firmar y continuar',
+          'Como protegemos tus datos (Ley 25.326)',
+        ],
       },
     ],
     note: 'Si aparece “Clave de votación efímera generada”, es normal: esa clave se crea solo en tu navegador para este voto y no se guarda en el servidor.',
@@ -151,17 +176,23 @@ export const MANUAL_VOTANTE_SECTIONS: ManualVotanteSection[] = [
       'Si el PDF no se genera, no cierres la pantalla: el hash sigue visible. Copialo a mano o en un mensaje para vos. Si dice No se pudo descargar el PDF, reintentá la descarga.',
       'Cerrar sesión cuando ya tengas el comprobante. Si el comicio permite cambiar el voto, vas a ver Modificar mi voto. El comprobante del intento anterior sigue sirviendo para verificar ese registro.',
     ],
-    screen: [
-      'Voto Exitoso',
-      'Comprobante criptográfico',
-      'Hash de transacción',
-      'Descargar comprobante PDF',
-      'No se pudo descargar el PDF',
-    ],
     screenshots: [
       {
         src: '/manual-votante/04-comprobante.png',
         alt: 'Pantalla Voto Exitoso con Hash de transacción y Descargar comprobante PDF',
+        screen: [
+          'VOTAR',
+          'Manual del votante',
+          'Intentos restantes',
+          'Cerrar sesión',
+          'Éxito',
+          'Voto Exitoso',
+          'Comprobante criptográfico',
+          'Hash de la transacción',
+          'Descargar comprobante PDF',
+          'Modificar mi voto',
+          'Como protegemos tus datos (Ley 25.326)',
+        ],
       },
     ],
   },
@@ -182,15 +213,25 @@ export const MANUAL_VOTANTE_SECTIONS: ManualVotanteSection[] = [
       'Si aparece un aviso de registro no encontrado, el voto no está contabilizado. Conservá el comprobante y avisá a la autoridad electoral. No hace falta decir a quién votaste.',
       'Para ver participación y resultados del comicio, sin datos de personas, abrí el dashboard público en /comicios/{id}/dashboard. Es de solo lectura.',
     ],
-    screen: [
-      'Hash de transacción',
-      'Verificar inclusión',
-      'Inclusión confirmada',
-    ],
     screenshots: [
       {
         src: '/manual-votante/05-verificacion.png',
-        alt: 'Verificador con Hash de transacción, Verificar inclusión e Inclusión confirmada',
+        alt: 'Verificador con Hash de transacción',
+        screen: [
+          'VOTAR',
+          'Verificación pública',
+          'Acceso público',
+          'Verificador de voto individual',
+          'Hash del recibo',
+          'Hash de la transacción',
+          'Verificar inclusión',
+          'Nueva búsqueda',
+          'Inclusión confirmada',
+          'Certificación blockchain',
+          'Ver en explorador de bloques',
+          'Privacidad del sufragio garantizada',
+          'Privacidad garantizada',
+        ],
       },
     ],
     note: 'Un comprobante válido nunca muestra el candidato elegido ni tu identidad. Si una pantalla te pide el DNI para “verificar” el voto, no es este portal.',

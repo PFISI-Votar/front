@@ -3,15 +3,16 @@
  * para el manual del votante.
  *
  * Excluido del suite habitual (vite.config). Ejecutar:
- *   Cambiar REGENERATE_MANUAL_SCREENSHOTS a true y ejecutar:
+ *   Cambiar REGENERATE a true y ejecutar:
  *   npx vitest run --project browser src/features/manual-votante/capturar-pantallas-manual.test.tsx
  *
  * Las PNG se escriben en public/manual-votante/ (versionadas).
  */
 import '@/styles/index.css'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { toCanvas } from 'html-to-image'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { page, userEvent } from 'vitest/browser'
+import { commands, page, userEvent } from 'vitest/browser'
 import { render } from 'vitest-browser-react'
 import { TIPOS_VOTACION } from '@/features/eleccion/lista/data/schema'
 import { BudLoginScreen } from '@/features/voto/components/bud-login-screen'
@@ -20,9 +21,20 @@ import { VerificadorRecibo } from '@/features/voto/components/verificador-recibo
 import { EphemeralWalletProvider } from '@/features/voto/crypto/ephemeral-wallet-context'
 import type { BoletaDigital } from '@/features/voto/data/schema'
 
-const PUBLIC_DIR = '../../../public/manual-votante'
-
+/** Poner en true solo para regenerar public/manual-votante/*.png */
 const REGENERATE = false
+
+/**
+ * Viewport móvil sin forzar un alto enorme: Vitest escala el iframe si no
+ * entra en la ventana (viewport alto → PNG angostos). La captura completa se
+ * hace con html-to-image, que no depende del recorte del iframe.
+ */
+const CAPTURE_VIEWPORT = { width: 390, height: 844 } as const
+
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, ms)
+  })
 
 vi.mock('@/features/voto/services/votante-auth-api', () => ({
   loginVotante: vi.fn(),
@@ -195,20 +207,76 @@ const boleta: BoletaDigital = {
   ],
 }
 
-const captureMain = async (filename: string) => {
+const captureMain = async (filename: string, settleMs = 800) => {
+  await sleep(settleMs)
+  await document.fonts.ready
+
   const main = document.querySelector('main')
   expect(main).toBeTruthy()
-  await page.screenshot({
-    element: main as Element,
-    path: `${PUBLIC_DIR}/${filename}`,
+  const el = main as HTMLElement
+  window.scrollTo(0, 0)
+  el.scrollIntoView({ block: 'start' })
+
+  // Evitar min-h-svh (franja vacía) y overflow-hidden del verificador.
+  const prevMinHeight = el.style.minHeight
+  const prevOverflow = el.style.overflow
+  const prevHeight = el.style.height
+  el.style.minHeight = '0'
+  el.style.overflow = 'visible'
+  el.style.height = 'auto'
+
+  const spacer = document.createElement('div')
+  spacer.setAttribute('data-manual-capture-spacer', 'true')
+  spacer.style.cssText =
+    'height:3rem;width:100%;flex-shrink:0;pointer-events:none;'
+  el.appendChild(spacer)
+  await sleep(200)
+
+  const pixelRatio = 2
+  const bottomPadCss = 64
+  const width = Math.ceil(el.scrollWidth)
+  const contentHeight = Math.ceil(el.scrollHeight)
+
+  const source = await toCanvas(el, {
+    pixelRatio,
+    backgroundColor: '#fdfcfa',
+    cacheBust: true,
+    width,
+    height: contentHeight,
+    style: {
+      minHeight: '0px',
+      overflow: 'visible',
+      height: `${contentHeight}px`,
+    },
   })
+
+  spacer.remove()
+  el.style.minHeight = prevMinHeight
+  el.style.overflow = prevOverflow
+  el.style.height = prevHeight
+
+  const padPx = bottomPadCss * pixelRatio
+  const canvas = document.createElement('canvas')
+  canvas.width = source.width
+  canvas.height = source.height + padPx
+  const ctx = canvas.getContext('2d')
+  expect(ctx).toBeTruthy()
+  ctx!.fillStyle = '#fdfcfa'
+  ctx!.fillRect(0, 0, canvas.width, canvas.height)
+  ctx!.drawImage(source, 0, 0)
+
+  const dataUrl = canvas.toDataURL('image/png')
+  const base64 = dataUrl.replace(/^data:image\/png;base64,/, '')
+  expect(base64.length).toBeGreaterThan(1000)
+  await commands.writeFile(`public/manual-votante/${filename}`, base64, 'base64')
 }
 
 describe.skipIf(!REGENERATE)('VOTAR-389: capturas del manual del votante (UAT-02)', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       localStorage.clear()
       document.documentElement.classList.remove('dark')
       verificarInclusionMock.mockReset()
+      await page.viewport(CAPTURE_VIEWPORT.width, CAPTURE_VIEWPORT.height)
     })
 
     it('captura inicio de sesión, cabina y verificador', async () => {
@@ -243,7 +311,7 @@ describe.skipIf(!REGENERATE)('VOTAR-389: capturas del manual del votante (UAT-02
       await expect
         .element(identityScreen.getByText('Antes de votar'))
         .toBeInTheDocument()
-      await captureMain('02a-antes-de-votar.png')
+      await captureMain('02a-antes-de-votar.png', 1500)
 
       await userEvent.click(
         identityScreen.getByRole('button', { name: /Comenzar a votar/i })
@@ -251,7 +319,10 @@ describe.skipIf(!REGENERATE)('VOTAR-389: capturas del manual del votante (UAT-02
       await expect
         .element(identityScreen.getByText('Listas completas'))
         .toBeInTheDocument()
-      await captureMain('02b-seleccion.png')
+      await expect
+        .element(identityScreen.getByText('Votar en blanco'))
+        .toBeInTheDocument()
+      await captureMain('02b-seleccion.png', 1500)
 
       await userEvent.click(
         identityScreen.getByRole('button', { name: /Votar en blanco/i })
@@ -273,10 +344,16 @@ describe.skipIf(!REGENERATE)('VOTAR-389: capturas del manual del votante (UAT-02
       await expect
         .element(identityScreen.getByText('Comprobante criptográfico'))
         .toBeInTheDocument()
-      await captureMain('04-comprobante.png')
+      await expect
+        .element(
+          identityScreen.getByRole('button', {
+            name: /Descargar comprobante PDF/i,
+          })
+        )
+        .toBeInTheDocument()
+      await captureMain('04-comprobante.png', 1500)
       identityScreen.unmount()
-
-  }, 120_000)
+    }, 120_000)
 
   it('captura verificador con inclusión confirmada', async () => {
     const txHash = `0x${'ab'.repeat(32)}`
@@ -301,12 +378,22 @@ describe.skipIf(!REGENERATE)('VOTAR-389: capturas del manual del votante (UAT-02
     })
     const verifierScreen = await render(
       <QueryClientProvider client={verifierClient}>
-        <VerificadorRecibo initialTxHash={txHash} />
+        <VerificadorRecibo />
       </QueryClientProvider>
+    )
+    await expect
+      .element(verifierScreen.getByText('Verificador de voto individual'))
+      .toBeInTheDocument()
+    await userEvent.type(
+      verifierScreen.getByLabelText(/transactionhash de verificación/i),
+      txHash
+    )
+    await userEvent.click(
+      verifierScreen.getByRole('button', { name: /verificar inclusión/i })
     )
     await expect
       .element(verifierScreen.getByText(/inclusión confirmada/i))
       .toBeInTheDocument()
-    await captureMain('05-verificacion.png')
+    await captureMain('05-verificacion.png', 1500)
   }, 60_000)
 })
