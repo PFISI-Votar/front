@@ -13,8 +13,8 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as VerificarIndexRouteImport } from './routes/verificar/index'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as VerificarTxHashRouteImport } from './routes/verificar/$txHash'
-import { Route as ManualAuditoresRouteImport } from './routes/manual/auditores'
 import { Route as ManualVotanteRouteImport } from './routes/manual/votante'
+import { Route as ManualAuditoresRouteImport } from './routes/manual/auditores'
 import { Route as CumplimientoLey25326RouteImport } from './routes/cumplimiento/ley-25326'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as errors500RouteImport } from './routes/(errors)/500'
@@ -81,12 +81,14 @@ const VerificarTxHashRoute = VerificarTxHashRouteImport.update({
   path: '/verificar/$txHash',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ManualAuditoresRoute = ManualAuditoresRouteImport.update({
-  id: '/manual/auditores',
-  path: '/manual/auditores',
 const ManualVotanteRoute = ManualVotanteRouteImport.update({
   id: '/manual/votante',
   path: '/manual/votante',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ManualAuditoresRoute = ManualAuditoresRouteImport.update({
+  id: '/manual/auditores',
+  path: '/manual/auditores',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CumplimientoLey25326Route = CumplimientoLey25326RouteImport.update({
@@ -719,16 +721,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VerificarTxHashRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/manual/auditores': {
-      id: '/manual/auditores'
-      path: '/manual/auditores'
-      fullPath: '/manual/auditores'
-      preLoaderRoute: typeof ManualAuditoresRouteImport
     '/manual/votante': {
       id: '/manual/votante'
       path: '/manual/votante'
       fullPath: '/manual/votante'
       preLoaderRoute: typeof ManualVotanteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/manual/auditores': {
+      id: '/manual/auditores'
+      path: '/manual/auditores'
+      fullPath: '/manual/auditores'
+      preLoaderRoute: typeof ManualAuditoresRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cumplimiento/ley-25326': {
