@@ -59,6 +59,11 @@ const PARITY_CASES: Array<{ input: string; expected: string | null }> = [
   { input: 'http://[::1]:8545', expected: 'http://[::1]:8545' },
   { input: 'http://rpc.public.example:8545', expected: null },
   { input: 'api.votar.ar', expected: null },
+  {
+    input: 'https://api.example.com\n;frame-ancestors https://evil.example',
+    expected: null,
+  },
+  { input: 'https://api.example.com:70000', expected: null },
 ]
 
 describe('CSP origin TS ↔ shell parity (VOTAR-489)', () => {

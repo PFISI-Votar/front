@@ -192,4 +192,13 @@ describe('security-headers', () => {
       sanitizeDeployCspOrigin('https://eth.example.com/v2/KEY?ref=a@b')
     ).toBe('https://eth.example.com')
   })
+
+  it('rejects newline injection and ports above 65535', () => {
+    expect(
+      sanitizeDeployCspOrigin(
+        'https://api.example.com\n;frame-ancestors https://evil.example'
+      )
+    ).toBeNull()
+    expect(sanitizeDeployCspOrigin('https://api.example.com:70000')).toBeNull()
+  })
 })

@@ -11,7 +11,7 @@ import {
 } from './src/features/voto/crypto/rpc-failover.ts'
 
 // https://vite.dev/config/
-export default defineConfig(({ mode, command }) => {
+export default defineConfig(({ mode, command, isPreview }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiOrigin = env.VITE_API_URL ?? 'http://localhost:3000'
   const rpcUrls = parseRpcUrls(env.VITE_RPC_URL, env.VITE_RPC_FALLBACK_URLS)
@@ -22,8 +22,8 @@ export default defineConfig(({ mode, command }) => {
   // strict CSP during `vite`/`vitest`/`vite build` used to abort LAN http
   // API URLs (e.g. http://192.168.x.x) even though fail-closed for deploy is
   // already enforced by deploy/docker-entrypoint.sh.
-  const isDevServer = command === 'serve' && mode !== 'production'
-  const isPreviewServer = command === 'serve' && mode === 'production'
+  const isPreviewServer = Boolean(isPreview)
+  const isDevServer = command === 'serve' && !isPreviewServer
   const extraConnectSrc = [
     ...rpcOrigins,
     ...(isDevServer

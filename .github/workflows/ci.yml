@@ -75,20 +75,21 @@ jobs:
           kill $PREVIEW_PID
 
   ci:
-    needs: [quality, codeql, secret-scanning]
+    needs: [quality, codeql, secret-scanning, docker-nginx]
     if: always()
     runs-on: ubuntu-latest
     permissions: {}
     steps:
-      - name: Require quality, CodeQL and secret scanning
+      - name: Require quality, CodeQL, secret scanning and docker-nginx
         env:
           QUALITY: ${{ needs.quality.result }}
           CODEQL: ${{ needs.codeql.result }}
           SECRETS: ${{ needs.secret-scanning.result }}
+          DOCKER: ${{ needs.docker-nginx.result }}
         run: |
           set -eu
           failed=0
-          for name in QUALITY CODEQL SECRETS; do
+          for name in QUALITY CODEQL SECRETS DOCKER; do
             result="${!name}"
             echo "$name=$result"
             if [ "$result" != "success" ]; then
@@ -96,6 +97,41 @@ jobs:
             fi
           done
           exit "$failed"
+
+  docker-nginx:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Build nginx image
+        run: |
+          docker build -f deploy/Dockerfile \
+            --build-arg VITE_API_URL=https://api.example.test \
+            -t votar-front:ci .
+
+      - name: Smoke-test entrypoint and security headers
+        run: |
+          set -eu
+          docker run -d --name votar-front-ci -p 8080:80 \
+            -e API_ORIGIN=https://api.example.test \
+            votar-front:ci
+          cleanup() { docker rm -f votar-front-ci >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8080/ >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          headers="$(curl -sI http://127.0.0.1:8080/)"
+          echo "$headers"
+          echo "$headers" | grep -qi 'content-security-policy:'
+          echo "$headers" | grep -qi "frame-ancestors 'none'"
+          echo "$headers" | grep -qi 'https://api.example.test'
+          echo "$headers" | grep -qi 'x-frame-options: DENY'
 
   browser-tests:
     needs: quality
