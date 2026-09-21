@@ -1,78 +1,10 @@
 #!/bin/sh
 set -eu
 
-# Mirror src/config/security-headers.ts toCspOrigin + isAllowedConnectOrigin
-# (production). envsubst alone would paste raw RPC URLs (with API keys) into CSP.
-
-to_csp_origin() {
-  raw=$1
-  scheme=
-  rest=
-
-  case "$raw" in
-    https://*)
-      scheme=https
-      rest=${raw#https://}
-      ;;
-    http://*)
-      scheme=http
-      rest=${raw#http://}
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-
-  case "$rest" in
-    *@*) rest=${rest#*@} ;;
-  esac
-
-  host=${rest%%[/?#]*}
-  if [ -z "$host" ]; then
-    return 1
-  fi
-
-  printf '%s://%s' "$scheme" "$host"
-}
-
-is_loopback_origin() {
-  origin=$1
-  hostport=${origin#*://}
-  case "$hostport" in
-    \[*\])
-      host=$hostport
-      ;;
-    \[*\]:*)
-      # [::1]:8545 — strip port after the closing bracket (not %%:* which
-      # would truncate inside the brackets).
-      host=${hostport%:*}
-      ;;
-    *:*)
-      host=${hostport%%:*}
-      ;;
-    *)
-      host=$hostport
-      ;;
-  esac
-  case "$host" in
-    localhost|127.0.0.1|\[::1\]|::1) return 0 ;;
-    *) return 1 ;;
-  esac
-}
-
-is_allowed_connect_origin() {
-  origin=$1
-  case "$origin" in
-    https://*) return 0 ;;
-    http://*)
-      if is_loopback_origin "$origin"; then
-        return 0
-      fi
-      return 1
-      ;;
-    *) return 1 ;;
-  esac
-}
+# Mirror src/config/security-headers.ts. envsubst alone would paste raw RPC
+# URLs (with API keys) or CSP-breaking characters into the live header.
+# shellcheck source=csp-origin-lib.sh
+. "$(dirname "$0")/csp-origin-lib.sh"
 
 sanitize_api_origin() {
   raw=$1

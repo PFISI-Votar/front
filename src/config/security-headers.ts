@@ -9,6 +9,17 @@ export type SecurityHeadersOptions = {
 const PERMISSIONS_POLICY = 'camera=(), microphone=(), geolocation=()'
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]'])
 
+/**
+ * Strict host[+port] for CSP source expressions. Rejects `;` / `"` / spaces
+ * that would inject extra directives (e.g. a second frame-ancestors).
+ * Keep in sync with deploy/csp-origin-lib.sh `is_strict_csp_hostport`.
+ */
+export const CSP_HOSTPORT_RE =
+  /^(?:localhost|(?:[a-z0-9-]+\.)*[a-z0-9-]+)(?::\d{1,5})?$|^\[(?:[0-9a-f:]+)\](?::\d{1,5})?$/i
+
+export const isStrictCspHostPort = (hostPort: string): boolean =>
+  CSP_HOSTPORT_RE.test(hostPort)
+
 export const NGINX_API_ORIGIN_PLACEHOLDER = '${API_ORIGIN}' as const
 export const NGINX_RPC_ORIGINS_PLACEHOLDER = '${RPC_ORIGINS}' as const
 
@@ -27,11 +38,20 @@ export const toCspOrigin = (value: string): string | null => {
   }
 
   try {
-    const url = new URL(value)
+    const url = new URL(value.trim())
     if (url.protocol !== 'http:' && url.protocol !== 'https:') {
       return null
     }
-    return url.origin
+    // url.host is hostname:port (or [ipv6]:port). Reject CSP metacharacters
+    // that URL() still accepts in the hostname (e.g. `;` or `"`).
+    if (!isStrictCspHostPort(url.host)) {
+      return null
+    }
+    const origin = url.origin
+    if (/[;"'\\\s]/.test(origin)) {
+      return null
+    }
+    return origin
   } catch {
     return null
   }

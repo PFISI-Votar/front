@@ -113,16 +113,15 @@ const WALLET_PUBLIC_KEY = '0x02' + 'a'.repeat(64)
 const VOTE_SIGNATURE = '0x' + 'e'.repeat(130)
 const VALIDATOR_SIGNATURE = '0x' + '77'.repeat(65)
 const SELECTION_HASH = '0x' + 'c'.repeat(64)
-const HARDHAT_PRIVATE_KEY =
-  '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
-
 const expectNoWalletSecretsInDom = (nullifier?: string) => {
   const html = document.body.innerHTML
+  // Signature / selection material from this suite's fixtures. Private-key
+  // non-leakage is covered without crypto mocks in
+  // seed-hardening.integration.test.ts (VOTAR-489 review).
   for (const secret of [
     VOTE_SIGNATURE,
     VALIDATOR_SIGNATURE,
     SELECTION_HASH,
-    HARDHAT_PRIVATE_KEY,
     nullifier,
   ]) {
     if (!secret) continue

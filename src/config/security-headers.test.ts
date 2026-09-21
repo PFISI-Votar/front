@@ -157,4 +157,39 @@ describe('security-headers', () => {
     ).toBe('https://eth-sepolia.g.alchemy.com https://rpc.ankr.com')
     expect(sanitizeDeployCspOriginsList('')).toBe('')
   })
+
+  it('rejects CSP directive injection via ; or " in the host', () => {
+    expect(
+      toCspOrigin('https://rpc.example.com;frame-ancestorshttps://evil.example')
+    ).toBeNull()
+    expect(toCspOrigin('https://rpc.example.com"')).toBeNull()
+    expect(
+      sanitizeDeployCspOrigin(
+        'https://rpc.example.com;frame-ancestors https://evil.example'
+      )
+    ).toBeNull()
+    expect(
+      sanitizeDeployCspOriginsList(
+        'https://rpc.example.com;frame-ancestorshttps://evil.example'
+      )
+    ).toBeNull()
+  })
+
+  it('accepts HTTPS uppercase and rejects non-numeric ports', () => {
+    expect(toCspOrigin('HTTPS://api.votar.ar')).toBe('https://api.votar.ar')
+    expect(sanitizeDeployCspOrigin('HTTPS://api.votar.ar')).toBe(
+      'https://api.votar.ar'
+    )
+    expect(toCspOrigin('https://host:notaport')).toBeNull()
+    expect(sanitizeDeployCspOrigin('https://host:notaport')).toBeNull()
+  })
+
+  it('keeps authority host when @ appears only in the query', () => {
+    expect(toCspOrigin('https://eth.example.com/v2/KEY?ref=a@b')).toBe(
+      'https://eth.example.com'
+    )
+    expect(
+      sanitizeDeployCspOrigin('https://eth.example.com/v2/KEY?ref=a@b')
+    ).toBe('https://eth.example.com')
+  })
 })
