@@ -74,9 +74,13 @@ describe('Manual del votante — VOTAR-389', () => {
     expect(textOf('seleccion')).toContain('Pantalla Antes de votar')
     expect(textOf('seleccion')).toContain('Boleta con listas completas')
     expect(textOf('firma')).toContain('Confirmar Voto')
-    expect(textOf('firma')).toContain('Firmar y continuar')
+    expect(textOf('firma')).toContain('Firmar y confirmar')
     expect(textOf('firma')).toContain('Firmando voto...')
     expect(textOf('firma')).toContain('Votación pausada')
+    expect(textOf('seleccion')).toContain('Intentos restantes')
+    expect(textOf('accesibilidad')).toContain(
+      'En la guía web, las capturas de pantalla tienen texto alternativo'
+    )
     expect(textOf('recibo')).toContain('Voto Exitoso')
     expect(textOf('recibo')).toContain('Hash de la transacción')
     expect(textOf('verificacion')).toContain('Verificar inclusión')
