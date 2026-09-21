@@ -919,6 +919,16 @@ describe('BudVotingWizard', () => {
     expect(registrarConsumoIntentoMock).not.toHaveBeenCalled()
   })
 
+  it('VOTAR-389: ofrece el manual del votante durante la votación', async () => {
+    const screen = await renderWizard()
+
+    const link = screen
+      .getByRole('link', { name: /Manual del votante/i })
+      .first()
+    await expect.element(link).toHaveAttribute('href', '/manual/votante')
+    await expect.element(link).toHaveAttribute('target', '_blank')
+  })
+
   it('VOTAR-475: no muestra chip de paso en el header; el stepper conserva las etiquetas', async () => {
     const screen = await renderWizard()
 

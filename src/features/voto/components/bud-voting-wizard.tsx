@@ -50,6 +50,7 @@ import {
   TIPOS_VOTACION,
   type TipoVotacion,
 } from '@/features/eleccion/lista/data/schema'
+import { ManualVotanteLink } from '@/features/manual-votante'
 import { firmarRecibo } from '@/features/voto/api/recibo-api'
 import {
   emitirCredencialValidacion,
@@ -1408,6 +1409,10 @@ const BudWizardShell = ({
               </h1>
             </div>
             <div className='flex max-w-full flex-wrap items-center gap-2'>
+              <ManualVotanteLink
+                openInNewTab
+                className='rounded-full border border-slate-300 bg-white/90 px-3 py-1.5 text-sm text-[#202124]'
+              />
               {estadoRevoto ? (
                 <Badge
                   variant='outline'
@@ -1434,8 +1439,9 @@ const BudWizardShell = ({
             </div>
           </header>
           {children}
-          {/* VOTAR-378: acceso a la explicación de cumplimiento Ley 25.326 */}
-          <footer className='mt-8 border-t border-[#e4e7eb] pt-4 pb-2'>
+          {/* VOTAR-389: manual durante la votación. VOTAR-378: Ley 25.326 */}
+          <footer className='mt-8 flex flex-col gap-2 border-t border-[#e4e7eb] pt-4 pb-2'>
+            <ManualVotanteLink openInNewTab />
             <CumplimientoLey25326Link />
           </footer>
         </section>
