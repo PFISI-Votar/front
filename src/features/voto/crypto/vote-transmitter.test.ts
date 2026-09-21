@@ -180,4 +180,31 @@ describe('vote-transmitter — VOTAR-497', () => {
     expect(result.txHash).toBe(`0x${'b'.repeat(64)}`)
     expect(result.blockNumber).toBe(11n)
   })
+
+  it('no reintenta el recibo de una tx minada-pero-revertida (canRetrySend sin isTransient)', async () => {
+    relayCast.mockResolvedValue({ txHash: `0x${'c'.repeat(64)}` })
+    waitForTransactionReceipt.mockRejectedValue({
+      code: 'unknown',
+      message: 'Transaction reverted while waiting for confirmation',
+      severity: 'error',
+      isTransient: false,
+      canRetrySend: true,
+      canResign: true,
+    } satisfies VoteTxError)
+
+    await expect(
+      transmitSignedVote(input, {
+        publicClient: publicClient as never,
+        relayCast,
+        maxAttempts: 3,
+      })
+    ).rejects.toMatchObject({
+      code: 'unknown',
+      isTransient: false,
+      canRetrySend: true,
+    } satisfies Partial<VoteTxError>)
+
+    expect(relayCast).toHaveBeenCalledTimes(1)
+    expect(waitForTransactionReceipt).toHaveBeenCalledTimes(1)
+  })
 })

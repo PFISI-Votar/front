@@ -3,6 +3,7 @@ import { auditarAccesibilidad, formatearViolaciones } from '@/test-utils/axe'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
+import { toUntrustedPlainText } from '@/lib/untrusted-html'
 import {
   TIPOS_VOTACION,
   type TipoVotacion,
@@ -109,15 +110,33 @@ vi.mock('@/features/voto/crypto/vote-transmitter', () => ({
 }))
 
 const WALLET_PUBLIC_KEY = '0x02' + 'a'.repeat(64)
+const VOTE_SIGNATURE = '0x' + 'e'.repeat(130)
+const VALIDATOR_SIGNATURE = '0x' + '77'.repeat(65)
+const SELECTION_HASH = '0x' + 'c'.repeat(64)
+const expectNoWalletSecretsInDom = (nullifier?: string) => {
+  const html = document.body.innerHTML
+  // Signature / selection material from this suite's fixtures. Private-key
+  // non-leakage is covered without crypto mocks in
+  // seed-hardening.integration.test.ts (VOTAR-489 review).
+  for (const secret of [
+    VOTE_SIGNATURE,
+    VALIDATOR_SIGNATURE,
+    SELECTION_HASH,
+    nullifier,
+  ]) {
+    if (!secret) continue
+    expect(html).not.toContain(secret)
+  }
+}
 
 const signVotePayloadMock = vi.fn().mockResolvedValue({
   electionId: 7,
   nullifier: '0x' + 'b'.repeat(64),
-  selectionHash: '0x' + 'c'.repeat(64),
+  selectionHash: SELECTION_HASH,
   candidateIds: [101n],
   timestamp: 1_700_000_000,
   expectedSigner: '0x' + 'd'.repeat(40),
-  signature: '0x' + 'e'.repeat(130),
+  signature: VOTE_SIGNATURE,
 })
 
 const initializeWalletMock = vi.fn().mockResolvedValue({
@@ -286,7 +305,7 @@ describe('BudVotingWizard', () => {
       expiraEn: new Date(Date.now() + 900_000).toISOString(),
     })
     solicitarFirmaValidacionMock.mockResolvedValue({
-      firmaValidacion: '0x' + '77'.repeat(65),
+      firmaValidacion: VALIDATOR_SIGNATURE,
       direccionValidador: '0x' + '1'.repeat(40),
       algoritmo: 'ECDSA_SECP256K1_EIP712',
     })
@@ -321,11 +340,11 @@ describe('BudVotingWizard', () => {
     signVotePayloadMock.mockResolvedValue({
       electionId: 7,
       nullifier: '0x' + 'b'.repeat(64),
-      selectionHash: '0x' + 'c'.repeat(64),
+      selectionHash: SELECTION_HASH,
       candidateIds: [101n],
       timestamp: 1_700_000_000,
       expectedSigner: '0x' + 'd'.repeat(40),
-      signature: '0x' + 'e'.repeat(130),
+      signature: VOTE_SIGNATURE,
     })
     transmitSignedVoteMock.mockImplementation(
       async (
@@ -771,6 +790,7 @@ describe('BudVotingWizard', () => {
     )
     expect(transmitSignedVoteMock).toHaveBeenCalledOnce()
     expect(document.body.innerHTML).not.toContain(expectedNullifier)
+    expectNoWalletSecretsInDom(expectedNullifier)
     expect(registrarConsumoIntentoMock).toHaveBeenCalledOnce()
     expect(clearVotanteSessionMock).toHaveBeenCalledOnce()
     expect(registrarVotoEmitidoAnonimoMock).toHaveBeenCalledWith(
@@ -813,6 +833,59 @@ describe('BudVotingWizard', () => {
     expect(localStorage.getItem('nullifier')).toBeNull()
     expect(document.cookie).not.toContain('votar_voter_access_token')
     expect(document.body.innerHTML).not.toContain(expectedNullifier)
+    expectNoWalletSecretsInDom(expectedNullifier)
+  })
+
+  it('VOTAR-489: no interpreta HTML de nombres de candidatos como marcado', async () => {
+    const maliciousName = 'Ana<img src=x onerror=alert(1)> Lopez'
+    const maliciousList = 'Lista <b>Azul</b>'
+    const plainName = toUntrustedPlainText(maliciousName)
+    const plainList = toUntrustedPlainText(maliciousList)
+    const maliciousBoleta: BoletaDigital = {
+      ...boleta,
+      nombreEleccion: 'Comicio <script>alert(1)</script>',
+      categorias: boleta.categorias.map((categoria, index) =>
+        index === 0
+          ? {
+              ...categoria,
+              candidatos: categoria.candidatos.map(
+                (candidato, candidateIndex) =>
+                  candidateIndex === 0
+                    ? {
+                        ...candidato,
+                        nombreCompleto: maliciousName,
+                        agrupacionPolitica: maliciousList,
+                      }
+                    : candidato
+              ),
+            }
+          : categoria
+      ),
+    }
+
+    const screen = await renderWizard(
+      TIPOS_VOTACION.POR_CANDIDATO,
+      vi.fn(),
+      maliciousBoleta
+    )
+
+    await expect
+      .element(
+        screen.getByRole('button', {
+          name: `${plainName}, ${plainList}, número de lista 1`,
+        })
+      )
+      .toBeInTheDocument()
+    // Payload must render as text, not as executable/injected markup.
+    expect(document.body.querySelector('img[onerror]')).toBeNull()
+    expect(document.body.querySelector('[onerror]')).toBeNull()
+    expect(document.body.querySelector('script')).toBeNull()
+    expect(document.body.innerHTML).not.toContain('<script')
+    expect(document.body.innerHTML).not.toContain('<b>')
+    expect(document.body.innerHTML).not.toContain('<img src=x')
+    expect(plainName).not.toMatch(/[<>]/)
+    expect(plainList).not.toMatch(/[<>]/)
+    expectNoWalletSecretsInDom()
   })
 
   it('UAT-02: ante fallo de red conserva la selección y permite reintentar envío', async () => {
