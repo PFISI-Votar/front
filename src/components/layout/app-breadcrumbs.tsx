@@ -21,6 +21,7 @@ const STATIC_ROUTE_BREADCRUMBS: Record<string, StaticRouteConfig> = {
   '/chats': { label: 'Chats' },
   '/help-center': { label: 'Help Center' },
   '/auditoria': { label: 'Auditoría' },
+  '/manual': { label: 'Manual operativo' },
   '/errors/unauthorized': {
     parent: { label: 'Errores', href: '/errors/unauthorized' },
     label: 'No autorizado',
