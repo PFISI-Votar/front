@@ -115,6 +115,16 @@ describe('BudLoginScreen', () => {
     expect(loginVotanteMock).not.toHaveBeenCalled()
   })
 
+  it('VOTAR-389: ofrece el manual del votante desde el login', async () => {
+    const screen = await render(
+      <BudLoginScreen idEleccion={2} onAuthenticated={onAuthenticatedMock} />
+    )
+
+    const link = screen.getByRole('link', { name: /Manual del votante/i })
+    await expect.element(link).toHaveAttribute('href', '/manual/votante')
+    await expect.element(link).toHaveAttribute('target', '_blank')
+  })
+
   it('VOTAR-362 UAT-A11Y-01: la pantalla de login no tiene violaciones axe', async () => {
     document.documentElement.classList.remove('dark')
     const screen = await render(

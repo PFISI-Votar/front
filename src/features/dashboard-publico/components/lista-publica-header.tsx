@@ -1,4 +1,5 @@
 import { resolveMediaUrl } from '@/lib/media-url'
+import { toUntrustedPlainText } from '@/lib/untrusted-html'
 import {
   getInitials,
   type ListaPublicaGroup,
@@ -9,14 +10,15 @@ type ListaPublicaHeaderProps = {
 }
 
 export const ListaPublicaHeader = ({ lista }: ListaPublicaHeaderProps) => {
-  const initials = getInitials(lista.nombre)
+  const listaNombre = toUntrustedPlainText(lista.nombre)
+  const initials = getInitials(listaNombre)
 
   return (
     <div className='mb-3 flex items-center gap-3'>
       {lista.logoUrl ? (
         <img
           src={resolveMediaUrl(lista.logoUrl)}
-          alt={`Logo de ${lista.nombre}`}
+          alt={`Logo de ${listaNombre}`}
           className='size-10 shrink-0 rounded-lg object-cover'
         />
       ) : (
@@ -30,7 +32,7 @@ export const ListaPublicaHeader = ({ lista }: ListaPublicaHeaderProps) => {
       )}
       <div className='min-w-0'>
         <p className='truncate text-sm font-semibold text-[#202124]'>
-          Lista {lista.numeroLista} — {lista.nombre}
+          Lista {lista.numeroLista} — {listaNombre}
         </p>
         <div
           className='mt-1 h-1 w-16 rounded-full'

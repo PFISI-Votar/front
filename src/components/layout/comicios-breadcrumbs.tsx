@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useParams, useRouterState } from '@tanstack/react-router'
+import { isNotFoundError } from '@/lib/api-client'
+import { toUntrustedPlainText } from '@/lib/untrusted-html'
 import {
   type BreadcrumbEntry,
   type BreadcrumbMenuItem,
@@ -38,6 +40,12 @@ type BuildComiciosBreadcrumbInput = {
   idEleccion?: number
   idLista?: number
   eleccionNombre?: string
+  /**
+   * VOTAR-503: el comicio referenciado por la URL no existe (404). En ese
+   * caso no tiene sentido armar el selector de secciones ni los links a
+   * subpáginas de un comicio inexistente.
+   */
+  eleccionNotFound?: boolean
   listaNombre?: string
   listaSigla?: string
   /**
@@ -53,6 +61,7 @@ export const buildComiciosBreadcrumbEntries = ({
   idEleccion,
   idLista,
   eleccionNombre,
+  eleccionNotFound = false,
   listaNombre,
   listaSigla,
   listas,
@@ -68,8 +77,15 @@ export const buildComiciosBreadcrumbEntries = ({
     return entries
   }
 
+  if (eleccionNotFound) {
+    entries.push({ label: 'Comicio no encontrado' })
+    return entries
+  }
+
   const idEleccionParam = String(idEleccion)
-  const eleccionLabel = eleccionNombre ?? `Comicio #${idEleccion}`
+  const eleccionLabel = eleccionNombre
+    ? toUntrustedPlainText(eleccionNombre)
+    : `Comicio #${idEleccion}`
   const sectionMenuItems = buildComicioSectionMenuItems(idEleccionParam)
   const activeSectionTo = pathname.includes('/auditoria')
     ? '/comicios/$idEleccion/auditoria'
@@ -110,9 +126,15 @@ export const buildComiciosBreadcrumbEntries = ({
   }
 
   if (idLista != null) {
+    const safeListaNombre = listaNombre
+      ? toUntrustedPlainText(listaNombre)
+      : undefined
+    const safeListaSigla = listaSigla
+      ? toUntrustedPlainText(listaSigla)
+      : undefined
     const listaLabel =
-      listaNombre && listaSigla
-        ? `${listaNombre} (${listaSigla})`
+      safeListaNombre && safeListaSigla
+        ? `${safeListaNombre} (${safeListaSigla})`
         : `Lista #${idLista}`
 
     const comicioSectionSinMenu: BreadcrumbEntry = {
@@ -125,7 +147,7 @@ export const buildComiciosBreadcrumbEntries = ({
     if (listas && listas.length > 1) {
       listaEntry.menuAriaLabel = 'Cambiar de lista'
       listaEntry.menuItems = listas.map((item) => ({
-        label: `${item.nombre} (${item.sigla})`,
+        label: `${toUntrustedPlainText(item.nombre)} (${toUntrustedPlainText(item.sigla)})`,
         to: '/comicios/$idEleccion/listas/$idLista',
         params: { idEleccion: idEleccionParam, idLista: String(item.idLista) },
         current: item.idLista === idLista,
@@ -163,11 +185,17 @@ export const useComiciosBreadcrumbEntries = (): BreadcrumbEntry[] => {
 
   const lista = listasQuery.data?.find((item) => item.idLista === idLista)
 
+  const eleccionNotFound =
+    idEleccion != null &&
+    eleccionQuery.isError &&
+    isNotFoundError(eleccionQuery.error)
+
   return buildComiciosBreadcrumbEntries({
     pathname,
     idEleccion,
     idLista,
     eleccionNombre: eleccionQuery.data?.nombre,
+    eleccionNotFound,
     listaNombre: lista?.nombre,
     listaSigla: lista?.sigla,
     listas: listasQuery.data?.map((item) => ({

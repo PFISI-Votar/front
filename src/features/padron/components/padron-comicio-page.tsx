@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { isAxiosError } from 'axios'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import {
@@ -16,8 +15,9 @@ import {
   Upload,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { getApiErrorMessage } from '@/lib/api-client'
+import { getApiErrorMessage, isNotFoundError } from '@/lib/api-client'
 import { formatDateTimeForDisplay } from '@/lib/datetime'
+import { toSafeNavigationUrl } from '@/lib/safe-url'
 import { cn } from '@/lib/utils'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -75,10 +75,6 @@ import { PadronUploadForm } from './padron-upload-form'
 
 type PadronComicioPageProps = {
   idEleccion: number
-}
-
-function esError404(error: unknown): boolean {
-  return isAxiosError(error) && error.response?.status === 404
 }
 
 export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
@@ -141,7 +137,7 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
   const votantesQuery = usePadronVotantes(idEleccion, page, limit, tablaAbierta)
 
   const esBorrador = eleccionQuery.data?.estado === 'BORRADOR'
-  const sinPadron = resumenQuery.isError && esError404(resumenQuery.error)
+  const sinPadron = resumenQuery.isError && isNotFoundError(resumenQuery.error)
   const tienePadron = Boolean(resumenQuery.data) && !sinPadron
   const merkleQuery = usePadronMerkle(idEleccion, tienePadron)
   const {
@@ -450,19 +446,24 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
                         <p className='font-mono text-xs break-all'>
                           Tx: {merkleQuery.data.txHash}
                         </p>
-                        {merkleQuery.data.explorerUrl && (
-                          <Button asChild variant='outline' size='sm'>
-                            <a
-                              href={merkleQuery.data.explorerUrl}
-                              target='_blank'
-                              rel='noopener noreferrer'
-                              aria-label='Ver transacción en Etherscan'
-                            >
-                              <ExternalLink className='size-4' />
-                              Ver en Etherscan
-                            </a>
-                          </Button>
-                        )}
+                        {(() => {
+                          const explorerUrl = toSafeNavigationUrl(
+                            merkleQuery.data.explorerUrl
+                          )
+                          return explorerUrl ? (
+                            <Button asChild variant='outline' size='sm'>
+                              <a
+                                href={explorerUrl}
+                                target='_blank'
+                                rel='noopener noreferrer'
+                                aria-label='Ver transacción en Etherscan'
+                              >
+                                <ExternalLink className='size-4' />
+                                Ver en Etherscan
+                              </a>
+                            </Button>
+                          ) : null
+                        })()}
                       </div>
                     )}
                 </>

@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
   registrarTransaccionPublica: vi.fn(),
   obtenerEstadoRevoto: vi.fn(),
   registrarConsumoIntento: vi.fn(),
+  solicitarAutorizacionRelayer: vi.fn(),
+  postRelayerCast: vi.fn(),
   ensureVotanteSession: vi.fn(),
   clearVotanteSession: vi.fn(),
   initialize: vi.fn(),
@@ -47,6 +49,8 @@ vi.mock('@/features/voto/api/voto-api', () => ({
   registrarTransaccionPublica: mocks.registrarTransaccionPublica,
   obtenerEstadoRevoto: mocks.obtenerEstadoRevoto,
   registrarConsumoIntento: mocks.registrarConsumoIntento,
+  solicitarAutorizacionRelayer: mocks.solicitarAutorizacionRelayer,
+  postRelayerCast: mocks.postRelayerCast,
 }))
 
 vi.mock('@/features/voto/services/votante-session', () => ({

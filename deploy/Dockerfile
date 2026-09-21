@@ -23,6 +23,7 @@ RUN apk add --no-cache gettext
 COPY deploy/nginx/security-headers.conf.template /etc/nginx/templates/security-headers.conf.template
 COPY deploy/nginx/default.conf.template /etc/nginx/templates/default.conf.template
 COPY deploy/docker-entrypoint.sh /docker-entrypoint.sh
+COPY deploy/csp-origin-lib.sh /csp-origin-lib.sh
 RUN chmod +x /docker-entrypoint.sh
 
 COPY --from=build /app/dist /usr/share/nginx/html

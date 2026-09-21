@@ -7,20 +7,151 @@ export type SecurityHeadersOptions = {
 }
 
 const PERMISSIONS_POLICY = 'camera=(), microphone=(), geolocation=()'
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]'])
+
+/**
+ * Strict host[+port] for CSP source expressions. Rejects `;` / `"` / spaces /
+ * newlines that would inject extra directives (e.g. a second frame-ancestors).
+ * Keep in sync with deploy/csp-origin-lib.sh `is_strict_csp_hostport`.
+ */
+export const CSP_HOSTPORT_RE =
+  /^(?:localhost|(?:[a-z0-9-]+\.)*[a-z0-9-]+)(?::\d{1,5})?$|^\[(?:[0-9a-f:]+)\](?::\d{1,5})?$/i
+
+export const isStrictCspHostPort = (hostPort: string): boolean => {
+  // Mirror the shell char-class guard (grep is line-oriented).
+  if (/[^\]a-z0-9.:[-]/i.test(hostPort)) {
+    return false
+  }
+  if (!CSP_HOSTPORT_RE.test(hostPort)) {
+    return false
+  }
+  const portMatch = hostPort.match(/:(\d{1,5})$/)
+  if (portMatch && Number(portMatch[1]) > 65535) {
+    return false
+  }
+  return true
+}
 
 export const NGINX_API_ORIGIN_PLACEHOLDER = '${API_ORIGIN}' as const
 export const NGINX_RPC_ORIGINS_PLACEHOLDER = '${RPC_ORIGINS}' as const
 
-const normalizeOrigin = (apiOrigin: string): string => {
-  if (apiOrigin === NGINX_API_ORIGIN_PLACEHOLDER) {
-    return apiOrigin
+const NGINX_PLACEHOLDERS = new Set<string>([
+  NGINX_API_ORIGIN_PLACEHOLDER,
+  NGINX_RPC_ORIGINS_PLACEHOLDER,
+])
+
+/**
+ * CSP origins are scheme+host+port only. Paths and query strings (RPC API
+ * keys) must never land in a response header.
+ */
+export const toCspOrigin = (value: string): string | null => {
+  if (NGINX_PLACEHOLDERS.has(value)) {
+    return value
   }
 
   try {
-    return new URL(apiOrigin).origin
+    const url = new URL(value.trim())
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return null
+    }
+    // url.host is hostname:port (or [ipv6]:port). Reject CSP metacharacters
+    // that URL() still accepts in the hostname (e.g. `;` or `"`).
+    if (!isStrictCspHostPort(url.host)) {
+      return null
+    }
+    const origin = url.origin
+    if (/[;"'\\\s]/.test(origin)) {
+      return null
+    }
+    return origin
   } catch {
-    return apiOrigin
+    return null
   }
+}
+
+/**
+ * Fail loudly when an absolute http(s) URL is required. Schemeless hostnames
+ * (e.g. `api.votar.ar`) used to slip into connect-src as bare host-sources;
+ * now they abort header generation so ops typos surface at boot/build time.
+ */
+export const requireCspOrigin = (value: string, label: string): string => {
+  const origin = toCspOrigin(value)
+  if (!origin) {
+    throw new Error(
+      `${label} must be an absolute http(s) URL (got ${JSON.stringify(value)}). ` +
+        'Example: https://api.example.com'
+    )
+  }
+  return origin
+}
+
+const isLoopbackOrigin = (origin: string): boolean => {
+  try {
+    return LOOPBACK_HOSTS.has(new URL(origin).hostname)
+  } catch {
+    return false
+  }
+}
+
+export const isAllowedConnectOrigin = (
+  origin: string,
+  isDev: boolean
+): boolean => {
+  if (NGINX_PLACEHOLDERS.has(origin)) {
+    return true
+  }
+
+  try {
+    const url = new URL(origin)
+    if (url.protocol === 'https:') {
+      return true
+    }
+    if (url.protocol === 'http:' && isLoopbackOrigin(origin)) {
+      return true
+    }
+    return isDev && url.protocol === 'http:'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Sanitize a raw env value into a CSP origin for production nginx deploy.
+ * Strips paths/queries (API keys) and rejects non-https / non-loopback http.
+ */
+export const sanitizeDeployCspOrigin = (value: string): string | null => {
+  const origin = toCspOrigin(value)
+  if (!origin || NGINX_PLACEHOLDERS.has(origin)) {
+    return null
+  }
+  if (!isAllowedConnectOrigin(origin, false)) {
+    return null
+  }
+  return origin
+}
+
+/**
+ * Sanitize space-separated RPC/API origin env values for nginx envsubst.
+ * Returns null if any token is present but invalid (fail closed).
+ */
+export const sanitizeDeployCspOriginsList = (value: string): string | null => {
+  const tokens = value
+    .trim()
+    .split(/\s+/)
+    .filter((token) => token.length > 0)
+  if (tokens.length === 0) {
+    return ''
+  }
+
+  const origins: string[] = []
+  for (const token of tokens) {
+    const origin = sanitizeDeployCspOrigin(token)
+    if (!origin) {
+      return null
+    }
+    origins.push(origin)
+  }
+  return [...new Set(origins)].join(' ')
 }
 
 const buildConnectSrc = ({
@@ -28,32 +159,50 @@ const buildConnectSrc = ({
   isDev,
   extraConnectSrc = [],
 }: SecurityHeadersOptions): string => {
-  const origins = new Set<string>([normalizeOrigin(apiOrigin)])
-  for (const origin of extraConnectSrc) {
-    const normalized = normalizeOrigin(origin)
-    if (normalized) {
-      origins.add(normalized)
+  const origins = new Set<string>()
+  // apiOrigin is validated by requireCspOrigin in buildContentSecurityPolicy.
+  // Fail closed if it is not allowed for connect-src (e.g. plain http to a
+  // public host in production) — never leave img-src with an origin that
+  // connect-src silently dropped.
+  const api = requireCspOrigin(apiOrigin, 'apiOrigin')
+  if (!isAllowedConnectOrigin(api, isDev)) {
+    throw new Error(
+      `apiOrigin is not allowed in connect-src for this environment (got ${JSON.stringify(apiOrigin)}). ` +
+        'Use https, or http only for loopback (or any http in development).'
+    )
+  }
+  origins.add(api)
+  for (const candidate of extraConnectSrc) {
+    const origin = toCspOrigin(candidate)
+    if (origin && isAllowedConnectOrigin(origin, isDev)) {
+      origins.add(origin)
     }
   }
   const extras = [...origins].join(' ')
-  return `connect-src 'self' ${extras}${isDev ? ' ws:' : ''}`
+  const prefix = extras ? ` ${extras}` : ''
+  return `connect-src 'self'${prefix}${isDev ? ' ws:' : ''}`
 }
 
 export const buildContentSecurityPolicy = (
   options: SecurityHeadersOptions
 ): string => {
   const { apiOrigin, isDev, isHttps = !isDev } = options
-  const api = normalizeOrigin(apiOrigin)
+  const api = requireCspOrigin(apiOrigin, 'apiOrigin')
+  // Vite HMR needs inline/eval scripts in development only. Production must
+  // not, or an XSS can run in the same origin as the ephemeral wallet.
   const scriptSrc = isDev
     ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
     : "script-src 'self'"
   const directives = [
     "default-src 'self'",
     scriptSrc,
+    "script-src-attr 'none'",
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self'",
     `img-src 'self' data: blob: ${api}`,
     buildConnectSrc(options),
+    "frame-src 'none'",
+    "worker-src 'none'",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
