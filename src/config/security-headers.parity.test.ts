@@ -1,28 +1,29 @@
 import { execFileSync } from 'node:child_process'
+import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { sanitizeDeployCspOrigin } from './security-headers'
 
-const libPath = path.resolve(
+const SANITIZE_ONE = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
-  '../../deploy/csp-origin-lib.sh'
+  '../../deploy/csp-origin-sanitize-one.sh'
 )
 
 /**
  * Run the same sanitize path as docker-entrypoint (to_csp_origin + production
  * is_allowed_connect_origin). Returns null when shell rejects the value.
+ *
+ * Uses execFileSync with a fixed script path + argv (no shell string
+ * interpolation) so CodeQL js/shell-command-injection-from-environment stays clean.
  */
 const shellSanitizeDeployOrigin = (raw: string): string | null => {
-  const script = `
-set -eu
-. "${libPath}"
-origin=$(to_csp_origin "$1") || exit 0
-is_allowed_connect_origin "$origin" || exit 0
-printf '%s' "$origin"
-`
+  if (!fs.existsSync(SANITIZE_ONE)) {
+    throw new Error(`missing CSP sanitize helper at ${SANITIZE_ONE}`)
+  }
+
   try {
-    const out = execFileSync('sh', ['-c', script, 'sh', raw], {
+    const out = execFileSync('sh', [SANITIZE_ONE, raw], {
       encoding: 'utf8',
     }).trim()
     return out.length > 0 ? out : null
