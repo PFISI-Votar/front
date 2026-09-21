@@ -179,11 +179,7 @@ const writeSectionHeading = (
   return yPos + 6
 }
 
-const writeSteps = (
-  doc: jsPDF,
-  steps: string[],
-  yPos: number
-): number => {
+const writeSteps = (doc: jsPDF, steps: string[], yPos: number): number => {
   steps.forEach((step, index) => {
     const number = String(index + 1)
     const textWidth = CONTENT_WIDTH - 10

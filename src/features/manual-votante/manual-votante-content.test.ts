@@ -85,7 +85,9 @@ describe('Manual del votante — VOTAR-389', () => {
     expect(textOf('recibo')).toContain('Hash de la transacción')
     expect(textOf('verificacion')).toContain('Verificar inclusión')
     expect(textOf('verificacion')).toContain('Inclusión confirmada')
-    expect(textOf('verificacion')).toContain('Verificador con Hash de transacción')
+    expect(textOf('verificacion')).toContain(
+      'Verificador con Hash de transacción'
+    )
 
     const flowIds = [
       'inicio-sesion',

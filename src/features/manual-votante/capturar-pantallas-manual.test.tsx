@@ -8,12 +8,12 @@
  *
  * Las PNG se escriben en public/manual-votante/ (versionadas).
  */
-import '@/styles/index.css'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import '@/styles/index.css'
 import { toCanvas } from 'html-to-image'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { commands, page, userEvent } from 'vitest/browser'
 import { render } from 'vitest-browser-react'
+import { commands, page, userEvent } from 'vitest/browser'
 import { TIPOS_VOTACION } from '@/features/eleccion/lista/data/schema'
 import { BudLoginScreen } from '@/features/voto/components/bud-login-screen'
 import { BudVotingWizard } from '@/features/voto/components/bud-voting-wizard'
@@ -49,7 +49,9 @@ vi.mock('@/features/voto/crypto/log-vote-tx-error', () => ({
 }))
 
 vi.mock('@/features/voto/crypto/voter-state', () => ({
-  leerVoterState: vi.fn().mockRejectedValue(new Error('contract not reachable')),
+  leerVoterState: vi
+    .fn()
+    .mockRejectedValue(new Error('contract not reachable')),
   leerHasVoted: vi.fn().mockResolvedValue(false),
   leerIsNullifierUsed: vi.fn().mockResolvedValue(false),
 }))
@@ -99,19 +101,21 @@ vi.mock('@/features/voto/api/validacion-api', () => ({
 }))
 
 vi.mock('@/features/voto/crypto/vote-transmitter', () => ({
-  transmitSignedVote: vi.fn().mockImplementation(
-    async (
-      _input: unknown,
-      options?: { onTxHash?: (hash: string) => void }
-    ) => {
-      const result = {
-        txHash: ('0x' + 'f'.repeat(64)) as `0x${string}`,
-        blockNumber: 42n,
+  transmitSignedVote: vi
+    .fn()
+    .mockImplementation(
+      async (
+        _input: unknown,
+        options?: { onTxHash?: (hash: string) => void }
+      ) => {
+        const result = {
+          txHash: ('0x' + 'f'.repeat(64)) as `0x${string}`,
+          blockNumber: 42n,
+        }
+        options?.onTxHash?.(result.txHash)
+        return result
       }
-      options?.onTxHash?.(result.txHash)
-      return result
-    }
-  ),
+    ),
   waitForVoteTxReceipt: vi.fn(),
 }))
 
@@ -268,10 +272,16 @@ const captureMain = async (filename: string, settleMs = 800) => {
   const dataUrl = canvas.toDataURL('image/png')
   const base64 = dataUrl.replace(/^data:image\/png;base64,/, '')
   expect(base64.length).toBeGreaterThan(1000)
-  await commands.writeFile(`public/manual-votante/${filename}`, base64, 'base64')
+  await commands.writeFile(
+    `public/manual-votante/${filename}`,
+    base64,
+    'base64'
+  )
 }
 
-describe.skipIf(!REGENERATE)('VOTAR-389: capturas del manual del votante (UAT-02)', () => {
+describe.skipIf(!REGENERATE)(
+  'VOTAR-389: capturas del manual del votante (UAT-02)',
+  () => {
     beforeEach(async () => {
       localStorage.clear()
       document.documentElement.classList.remove('dark')
@@ -355,45 +365,46 @@ describe.skipIf(!REGENERATE)('VOTAR-389: capturas del manual del votante (UAT-02
       identityScreen.unmount()
     }, 120_000)
 
-  it('captura verificador con inclusión confirmada', async () => {
-    const txHash = `0x${'ab'.repeat(32)}`
-    verificarInclusionMock.mockResolvedValue({
-      confirmado: true,
-      idEleccion: 7,
-      txHash,
-      blockNumber: 4582193,
-      timestamp: '2026-07-11T14:30:00.000Z',
-      contractAddress: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
-      explorerUrl: `https://sepolia.etherscan.io/tx/${txHash}`,
-      networkName: 'Sepolia',
-      mensaje:
-        'Su voto ha sido incluido con éxito en el bloque número 4582193 de la blockchain de Sepolia',
-    })
+    it('captura verificador con inclusión confirmada', async () => {
+      const txHash = `0x${'ab'.repeat(32)}`
+      verificarInclusionMock.mockResolvedValue({
+        confirmado: true,
+        idEleccion: 7,
+        txHash,
+        blockNumber: 4582193,
+        timestamp: '2026-07-11T14:30:00.000Z',
+        contractAddress: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
+        explorerUrl: `https://sepolia.etherscan.io/tx/${txHash}`,
+        networkName: 'Sepolia',
+        mensaje:
+          'Su voto ha sido incluido con éxito en el bloque número 4582193 de la blockchain de Sepolia',
+      })
 
-    const verifierClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false },
-        mutations: { retry: false },
-      },
-    })
-    const verifierScreen = await render(
-      <QueryClientProvider client={verifierClient}>
-        <VerificadorRecibo />
-      </QueryClientProvider>
-    )
-    await expect
-      .element(verifierScreen.getByText('Verificador de voto individual'))
-      .toBeInTheDocument()
-    await userEvent.type(
-      verifierScreen.getByLabelText(/transactionhash de verificación/i),
-      txHash
-    )
-    await userEvent.click(
-      verifierScreen.getByRole('button', { name: /verificar inclusión/i })
-    )
-    await expect
-      .element(verifierScreen.getByText(/inclusión confirmada/i))
-      .toBeInTheDocument()
-    await captureMain('05-verificacion.png', 1500)
-  }, 60_000)
-})
+      const verifierClient = new QueryClient({
+        defaultOptions: {
+          queries: { retry: false },
+          mutations: { retry: false },
+        },
+      })
+      const verifierScreen = await render(
+        <QueryClientProvider client={verifierClient}>
+          <VerificadorRecibo />
+        </QueryClientProvider>
+      )
+      await expect
+        .element(verifierScreen.getByText('Verificador de voto individual'))
+        .toBeInTheDocument()
+      await userEvent.type(
+        verifierScreen.getByLabelText(/transactionhash de verificación/i),
+        txHash
+      )
+      await userEvent.click(
+        verifierScreen.getByRole('button', { name: /verificar inclusión/i })
+      )
+      await expect
+        .element(verifierScreen.getByText(/inclusión confirmada/i))
+        .toBeInTheDocument()
+      await captureMain('05-verificacion.png', 1500)
+    }, 60_000)
+  }
+)

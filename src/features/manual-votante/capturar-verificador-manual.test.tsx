@@ -2,12 +2,12 @@
  * VOTAR-389 / UAT-02 — Captura del verificador (inclusión confirmada).
  * Solo a demanda: describe.skipIf(!REGENERATE).
  */
-import '@/styles/index.css'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import '@/styles/index.css'
 import { toCanvas } from 'html-to-image'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { commands, page, userEvent } from 'vitest/browser'
 import { render } from 'vitest-browser-react'
+import { commands, page, userEvent } from 'vitest/browser'
 import { VerificadorRecibo } from '@/features/voto/components/verificador-recibo'
 
 const REGENERATE = false
@@ -80,7 +80,11 @@ const captureMain = async (filename: string, settleMs = 800) => {
   const dataUrl = canvas.toDataURL('image/png')
   const base64 = dataUrl.replace(/^data:image\/png;base64,/, '')
   expect(base64.length).toBeGreaterThan(1000)
-  await commands.writeFile(`public/manual-votante/${filename}`, base64, 'base64')
+  await commands.writeFile(
+    `public/manual-votante/${filename}`,
+    base64,
+    'base64'
+  )
 }
 
 const verificarInclusionMock = vi.fn()
