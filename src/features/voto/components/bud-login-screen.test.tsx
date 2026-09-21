@@ -1,4 +1,5 @@
 import { AxiosError } from 'axios'
+import { auditarAccesibilidad, formatearViolaciones } from '@/test-utils/axe'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
@@ -122,5 +123,18 @@ describe('BudLoginScreen', () => {
     const link = screen.getByRole('link', { name: /Manual del votante/i })
     await expect.element(link).toHaveAttribute('href', '/manual/votante')
     await expect.element(link).toHaveAttribute('target', '_blank')
+  })
+
+  it('VOTAR-362 UAT-A11Y-01: la pantalla de login no tiene violaciones axe', async () => {
+    document.documentElement.classList.remove('dark')
+    const screen = await render(
+      <BudLoginScreen idEleccion={2} onAuthenticated={onAuthenticatedMock} />
+    )
+    await expect
+      .element(screen.getByLabelText(/^Número de Legajo$/i))
+      .toBeInTheDocument()
+
+    const violaciones = await auditarAccesibilidad(screen.container)
+    expect(violaciones, formatearViolaciones(violaciones)).toEqual([])
   })
 })

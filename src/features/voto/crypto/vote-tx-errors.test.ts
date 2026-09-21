@@ -184,8 +184,49 @@ describe('mapVoteTxError — VOTAR-358 / VOTAR-341 / VOTAR-359', () => {
       })
     )
     expect(mapped.code).toBe('timeout')
+    expect(mapped.message).toMatch(/incluida en un bloque/i)
+    expect(mapped.isTransient).toBe(true)
     expect(mapped.canRetrySend).toBe(true)
     expect(mapped.canResign).toBe(true)
+  })
+
+  it('maps AbortSignal.timeout / fetch AbortError to relayer timeout copy', () => {
+    const abortTimeout = new DOMException(
+      'The operation was aborted due to timeout',
+      'TimeoutError'
+    )
+    const mappedAbortTimeout = mapVoteTxError(abortTimeout)
+    expect(mappedAbortTimeout.code).toBe('timeout')
+    expect(mappedAbortTimeout.message).toMatch(/relayer no respondió/i)
+    expect(mappedAbortTimeout.isTransient).toBe(true)
+    expect(mappedAbortTimeout.canRetrySend).toBe(true)
+
+    const abortError = new Error('The user aborted a request')
+    abortError.name = 'AbortError'
+    const mappedAbort = mapVoteTxError(abortError)
+    expect(mappedAbort.code).toBe('timeout')
+    expect(mappedAbort.message).toMatch(/relayer no respondió/i)
+    expect(mappedAbort.isTransient).toBe(true)
+    expect(mappedAbort.canRetrySend).toBe(true)
+  })
+
+  it('unwraps VoteTxError from axios-like response.data', () => {
+    const mapped = mapVoteTxError({
+      response: {
+        data: {
+          code: 'insufficient_funds',
+          message: 'sin gas',
+          severity: 'error',
+          isTransient: false,
+          canRetrySend: true,
+          canResign: false,
+        },
+      },
+      message: 'Request failed with status code 400',
+    })
+    expect(mapped.code).toBe('insufficient_funds')
+    expect(mapped.message).toBe('sin gas')
+    expect(mapped.canRetrySend).toBe(true)
   })
 
   it('VOTAR-345: maps InvalidCandidateId(electionId, candidateId) to not_eligible ticket copy', () => {

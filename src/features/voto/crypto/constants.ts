@@ -79,6 +79,8 @@ export const getRpcUrl = (): string => getRpcUrls()[0]
 /**
  * Primary + backup RPC endpoints (VOTAR-386).
  * `VITE_RPC_FALLBACK_URLS` is a comma-separated Infura/Alchemy/QuickNode list.
+ * El gas de castSignedVote lo paga el relayer del backend (VOTAR-497): el
+ * cliente sólo consulta recibos por RPC público y no tiene clave privada.
  */
 export const getRpcUrls = (): string[] => {
   const urls = parseRpcUrls(
@@ -95,24 +97,6 @@ export const getRpcUrls = (): string[] => {
     return localUrls
   }
   throw new Error('VITE_RPC_URL no está configurada para transmitir el voto')
-}
-
-/**
- * Platform transmitter private key that pays gas for castSignedVote.
- * Testnet/local only — never use a mainnet key in the frontend bundle.
- */
-export const getVoteTransmitterPrivateKey = (): `0x${string}` => {
-  const value = import.meta.env.VITE_PRIVATE_KEY
-  if (value && /^0x[0-9a-fA-F]{64}$/.test(value)) {
-    return value as `0x${string}`
-  }
-  if (import.meta.env.DEV || import.meta.env.MODE === 'test') {
-    // Hardhat/Anvil account #0 — local only.
-    return '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
-  }
-  throw new Error(
-    'VITE_PRIVATE_KEY no está configurada para transmitir el voto'
-  )
 }
 
 export const getExplorerTxUrl = (
