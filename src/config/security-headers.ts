@@ -19,7 +19,7 @@ export const CSP_HOSTPORT_RE =
 
 export const isStrictCspHostPort = (hostPort: string): boolean => {
   // Mirror the shell char-class guard (grep is line-oriented).
-  if (/[^a-z0-9.:\[\]-]/i.test(hostPort)) {
+  if (/[^\]a-z0-9.:[-]/i.test(hostPort)) {
     return false
   }
   if (!CSP_HOSTPORT_RE.test(hostPort)) {
