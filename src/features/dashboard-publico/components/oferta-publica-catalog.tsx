@@ -1,3 +1,4 @@
+import { toUntrustedPlainText } from '@/lib/untrusted-html'
 import { CandidatoPublicoCard } from '@/features/dashboard-publico/components/candidato-publico-card'
 import { ListaPublicaHeader } from '@/features/dashboard-publico/components/lista-publica-header'
 import { groupCandidatosByLista } from '@/features/dashboard-publico/lib/candidato-display'
@@ -51,11 +52,11 @@ export const OfertaPublicaCatalog = ({ oferta }: OfertaPublicaCatalogProps) => {
                 id={headingId}
                 className='text-sm font-semibold tracking-wide text-[#2f6f9f] uppercase'
               >
-                {categoria.nombre}
+                {toUntrustedPlainText(categoria.nombre)}
               </h2>
               {categoria.descripcion ? (
                 <p className='text-sm leading-relaxed text-[#5f6368]'>
-                  {categoria.descripcion}
+                  {toUntrustedPlainText(categoria.descripcion)}
                 </p>
               ) : null}
             </div>
@@ -72,7 +73,7 @@ export const OfertaPublicaCatalog = ({ oferta }: OfertaPublicaCatalogProps) => {
                       <CandidatoPublicoCard
                         key={candidato.idCandidato}
                         candidato={candidato}
-                        categoriaNombre={categoria.nombre}
+                        categoriaNombre={toUntrustedPlainText(categoria.nombre)}
                       />
                     ))}
                   </div>

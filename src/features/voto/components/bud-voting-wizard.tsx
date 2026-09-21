@@ -31,6 +31,8 @@ import { toast } from 'sonner'
 import type { Hex } from 'viem'
 import budFingerprint from '@/assets/bud-fingerprint.png'
 import { resolveMediaUrl } from '@/lib/media-url'
+import { toSafeNavigationUrl } from '@/lib/safe-url'
+import { toUntrustedPlainText } from '@/lib/untrusted-html'
 import { cn } from '@/lib/utils'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -50,6 +52,7 @@ import {
   TIPOS_VOTACION,
   type TipoVotacion,
 } from '@/features/eleccion/lista/data/schema'
+import { ManualVotanteLink } from '@/features/manual-votante'
 import { firmarRecibo } from '@/features/voto/api/recibo-api'
 import {
   emitirCredencialValidacion,
@@ -209,7 +212,7 @@ const BACKGROUND_FINGERPRINTS = [
 ] as const
 
 const getInitials = (value: string) => {
-  const words = value.trim().split(/\s+/).filter(Boolean)
+  const words = toUntrustedPlainText(value).trim().split(/\s+/).filter(Boolean)
   if (words.length === 0) return '??'
   if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
   return `${words[0][0] ?? ''}${words[words.length - 1]?.[0] ?? ''}`.toUpperCase()
@@ -241,13 +244,14 @@ const buildListsFromBoleta = (boleta: BoletaDigital): PartyList[] => {
       const color = candidate.colorLista || '#2f6f9f'
 
       if (!lists.has(id)) {
+        const listName = toUntrustedPlainText(candidate.agrupacionPolitica)
         lists.set(id, {
           id,
-          name: candidate.agrupacionPolitica,
+          name: listName,
           numeroLista: candidate.numeroLista,
           color,
           accent: getSoftAccent(color),
-          initials: getInitials(candidate.agrupacionPolitica),
+          initials: getInitials(listName),
           imageUrl: getListImageUrl(candidate),
         })
       }
@@ -306,9 +310,9 @@ const mapCandidate = (
   id: String(candidate.idCandidato),
   roleId: String(candidate.idCategoria),
   role: roleName,
-  name: candidate.nombreCompleto,
+  name: toUntrustedPlainText(candidate.nombreCompleto),
   listId: String(candidate.idLista),
-  listName: candidate.agrupacionPolitica,
+  listName: toUntrustedPlainText(candidate.agrupacionPolitica),
   numeroLista: candidate.numeroLista,
   listInitials: getInitials(candidate.agrupacionPolitica),
   listImageUrl: getListImageUrl(candidate),
@@ -320,7 +324,7 @@ const mapCandidate = (
 const buildCandidatesFromBoleta = (boleta: BoletaDigital): Candidate[] =>
   boleta.categorias.flatMap((categoria) =>
     categoria.candidatos.map((candidate) =>
-      mapCandidate(candidate, categoria.nombre)
+      mapCandidate(candidate, toUntrustedPlainText(categoria.nombre))
     )
   )
 
@@ -857,7 +861,6 @@ export const BudVotingWizard = ({
           validatorSignature: validatorSig,
         },
         {
-          contractAddress: ballotAddress,
           onProgress: (phase) => {
             setTransmitPhase(phase)
           },
@@ -1065,6 +1068,39 @@ export const BudVotingWizard = ({
 
   const handleRetryTransmit = async () => {
     if (!signedVote) {
+      return
+    }
+    // If cast was already broadcast, only resume receipt wait (avoid re-cast / gas).
+    const existingHash =
+      txHash ?? loadPendingVoteCast(boleta.idEleccion)?.txHash ?? null
+    if (existingHash) {
+      setTxError(null)
+      setStep('transmitting')
+      setTransmitPhase('confirming')
+      setTxHash(existingHash)
+      try {
+        const result = await waitForVoteTxReceipt(existingHash)
+        await finalizeSuccessfulCast({
+          txHash: result.txHash,
+          blockNumber: Number(result.blockNumber),
+          votosObjetivo: Math.max(1, (voterStateOnChain?.votesUsed ?? 0) + 1),
+        })
+      } catch (error) {
+        const mapped = mapVoteTxError(error)
+        if (mapped.code === 'already_registered') {
+          await finalizeSuccessfulCast({
+            txHash: existingHash,
+            blockNumber: null,
+          })
+          return
+        }
+        if (mapped.code === 'timeout' || mapped.code === 'network') {
+          clearPendingVoteCast(boleta.idEleccion)
+        }
+        reportVoteTxError(mapped, boleta.idEleccion)
+        setTxError(mapped)
+        setTransmitPhase('error')
+      }
       return
     }
     await transmitVote(signedVote)
@@ -1379,6 +1415,10 @@ const BudWizardShell = ({
               </h1>
             </div>
             <div className='flex max-w-full flex-wrap items-center gap-2'>
+              <ManualVotanteLink
+                openInNewTab
+                className='rounded-full border border-slate-300 bg-white/90 px-3 py-1.5 text-sm text-[#202124]'
+              />
               {estadoRevoto ? (
                 <Badge
                   variant='outline'
@@ -1405,8 +1445,9 @@ const BudWizardShell = ({
             </div>
           </header>
           {children}
-          {/* VOTAR-378: acceso a la explicación de cumplimiento Ley 25.326 */}
-          <footer className='mt-8 border-t border-[#e4e7eb] pt-4 pb-2'>
+          {/* VOTAR-389: manual durante la votación. VOTAR-378: Ley 25.326 */}
+          <footer className='mt-8 flex flex-col gap-2 border-t border-[#e4e7eb] pt-4 pb-2'>
+            <ManualVotanteLink openInNewTab />
             <CumplimientoLey25326Link />
           </footer>
         </section>
@@ -2350,7 +2391,9 @@ const SuccessStep = ({
   onLogout: () => void
   onModify: () => void
 }) => {
-  const explorerUrl = txHash ? getExplorerTxUrl(txHash) : null
+  const explorerUrl = txHash
+    ? toSafeNavigationUrl(getExplorerTxUrl(txHash))
+    : null
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
   const [pdfError, setPdfError] = useState<string | null>(null)
 
@@ -2436,7 +2479,7 @@ const SuccessStep = ({
                     <a
                       href={explorerUrl}
                       target='_blank'
-                      rel='noreferrer'
+                      rel='noopener noreferrer'
                       className='mt-2 inline-flex items-center gap-1 text-[#2f6f9f] underline-offset-2 hover:underline'
                       aria-label='Ver transacción en el explorador de bloques'
                     >
@@ -2653,7 +2696,9 @@ const IdentityItem = ({ label, value }: { label: string; value: string }) => (
     <p className='text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase'>
       {label}
     </p>
-    <p className='mt-1 font-semibold text-slate-900'>{value}</p>
+    <p className='mt-1 font-semibold text-slate-900'>
+      {toUntrustedPlainText(value)}
+    </p>
   </div>
 )
 

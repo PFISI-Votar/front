@@ -8,6 +8,7 @@ import {
   Search,
   ShieldCheck,
 } from 'lucide-react'
+import { toSafeNavigationUrl } from '@/lib/safe-url'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -101,10 +102,10 @@ export const VerificadorRecibo = ({
 
   return (
     <main
-      className={`relative min-h-svh overflow-hidden bg-[#fdfcfa] ${VOTAR_LIGHT_SURFACE_CLASS}`}
+      className={`relative min-h-svh overflow-x-clip bg-[#fdfcfa] ${VOTAR_LIGHT_SURFACE_CLASS}`}
     >
       <VotarLoginBackground />
-      <div className='relative mx-auto flex min-h-svh w-full max-w-3xl flex-col px-4 py-10 sm:px-6 sm:py-14'>
+      <div className='relative mx-auto flex min-h-svh w-full max-w-3xl flex-col px-4 pt-10 pb-16 sm:px-6 sm:pt-14 sm:pb-20'>
         <div className='mb-10 flex items-center justify-between gap-4'>
           <p className='text-2xl leading-none font-extrabold tracking-tight text-[#2f6f9f]'>
             VOTAR
@@ -130,7 +131,7 @@ export const VerificadorRecibo = ({
             </p>
           </header>
 
-          <Card className='gap-0 rounded-2xl border-[#e4e7eb] bg-white/95 py-0 shadow-[0_1rem_3rem_rgba(30,64,95,0.08)] backdrop-blur-sm'>
+          <Card className='gap-0 rounded-2xl border-[#e4e7eb] bg-white/95 py-0 !shadow-none backdrop-blur-sm'>
             <CardHeader className='space-y-1.5 px-6 pt-6 pb-0 sm:px-8'>
               <CardTitle
                 role='heading'
@@ -216,7 +217,7 @@ export const VerificadorRecibo = ({
             <Alert
               variant='destructive'
               role='alert'
-              className='rounded-2xl border-red-200 bg-white/95 shadow-[0_1rem_3rem_rgba(30,64,95,0.08)]'
+              className='rounded-2xl border-red-200 bg-white/95 !shadow-none'
             >
               <AlertCircle className='size-4' />
               <AlertTitle>Registro no encontrado</AlertTitle>
@@ -228,7 +229,7 @@ export const VerificadorRecibo = ({
             <ResultadoVerificacion resultado={verificarQuery.data} />
           )}
 
-          <Card className='gap-0 rounded-2xl border-[#e4e7eb] bg-white/95 py-0 shadow-[0_1rem_3rem_rgba(30,64,95,0.08)] backdrop-blur-sm'>
+          <Card className='gap-0 rounded-2xl border-[#e4e7eb] bg-white/95 py-0 !shadow-none backdrop-blur-sm'>
             <CardHeader className='space-y-1 px-6 pt-5 pb-0 sm:px-8'>
               <CardTitle
                 role='heading'
@@ -266,10 +267,11 @@ const ResultadoVerificacion = ({
       dateStyle: 'full',
       timeStyle: 'long',
     }).format(new Date(fecha))
+  const explorerUrl = toSafeNavigationUrl(resultado.explorerUrl)
 
   return (
     <Card
-      className='gap-0 rounded-2xl border-[#b7d7c4] bg-white/95 py-0 shadow-[0_1rem_3rem_rgba(30,64,95,0.08)] backdrop-blur-sm'
+      className='gap-0 rounded-2xl border-[#b7d7c4] bg-white/95 py-0 !shadow-none backdrop-blur-sm'
       role='status'
     >
       <CardHeader className='space-y-0 px-6 pt-6 pb-0 sm:px-8'>
@@ -332,14 +334,14 @@ const ResultadoVerificacion = ({
             </div>
           </div>
 
-          {resultado.explorerUrl && (
+          {explorerUrl && (
             <Button
               variant='outline'
               className='h-11 w-full rounded-lg border-[#cfd3d7] bg-white text-[#2f3337] shadow-none hover:bg-slate-50'
               asChild
             >
               <a
-                href={resultado.explorerUrl}
+                href={explorerUrl}
                 target='_blank'
                 rel='noopener noreferrer'
                 aria-label='Ver transacción en el explorador de bloques'

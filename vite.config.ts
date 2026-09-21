@@ -11,17 +11,22 @@ import {
 } from './src/features/voto/crypto/rpc-failover.ts'
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command, isPreview }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiOrigin = env.VITE_API_URL ?? 'http://localhost:3000'
   const rpcUrls = parseRpcUrls(env.VITE_RPC_URL, env.VITE_RPC_FALLBACK_URLS)
   const rpcOrigins = rpcUrls
     .map((url) => rpcUrlToOrigin(url))
     .filter((origin) => origin.length > 0)
-  const isDev = mode === 'development'
+  // Only attach headers for the matching Vite command. Building production-
+  // strict CSP during `vite`/`vitest`/`vite build` used to abort LAN http
+  // API URLs (e.g. http://192.168.x.x) even though fail-closed for deploy is
+  // already enforced by deploy/docker-entrypoint.sh.
+  const isPreviewServer = Boolean(isPreview)
+  const isDevServer = command === 'serve' && !isPreviewServer
   const extraConnectSrc = [
     ...rpcOrigins,
-    ...(isDev
+    ...(isDevServer
       ? [
           // Hardhat accepts both hostnames; CSP treats them as distinct origins.
           'http://127.0.0.1:8545',
@@ -33,15 +38,6 @@ export default defineConfig(({ mode }) => {
     apiOrigin,
     extraConnectSrc,
   }
-  const devHeaders = buildSecurityHeaders({
-    ...headerOptions,
-    isDev: true,
-  })
-  const previewHeaders = buildSecurityHeaders({
-    ...headerOptions,
-    isDev: false,
-    isHttps: true,
-  })
 
   return {
     plugins: [
@@ -57,12 +53,27 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(__dirname, './src'),
       },
     },
-    server: {
-      headers: devHeaders,
-    },
-    preview: {
-      headers: previewHeaders,
-    },
+    ...(isDevServer
+      ? {
+          server: {
+            headers: buildSecurityHeaders({
+              ...headerOptions,
+              isDev: true,
+            }),
+          },
+        }
+      : {}),
+    ...(isPreviewServer
+      ? {
+          preview: {
+            headers: buildSecurityHeaders({
+              ...headerOptions,
+              isDev: false,
+              isHttps: true,
+            }),
+          },
+        }
+      : {}),
     optimizeDeps: {
       include: [
         'react',
@@ -135,6 +146,11 @@ export default defineConfig(({ mode }) => {
               'src/features/eleccion/lib/load-image-as-jpeg-data-url.test.ts',
               // VOTAR-492: usa window/document/localStorage.
               'src/features/auth/services/activity-tracker.test.ts',
+            ],
+            exclude: [
+              // VOTAR-389: regenerar a demanda (REGENERATE=true en el test).
+              'src/features/manual-votante/capturar-pantallas-manual.test.tsx',
+              'src/features/manual-votante/capturar-verificador-manual.test.tsx',
             ],
             browser: {
               enabled: true,

@@ -16,8 +16,8 @@ docker run --rm -p 8080:80 \
 
 | Variable       | Descripción                                      | Default                 |
 | -------------- | ------------------------------------------------ | ----------------------- |
-| `API_ORIGIN`   | Origen del backend en CSP (`connect-src`, `img-src`) | `http://localhost:3000` |
-| `RPC_ORIGINS`  | Orígenes RPC en CSP (`connect-src`), separados por espacio (VOTAR-386) | vacío |
+| `API_ORIGIN`   | Origen del backend en CSP (`connect-src`, `img-src`). El entrypoint exige `http(s)://host[:port]` y descarta path/query (p. ej. claves RPC). HTTP sólo en loopback. | `http://localhost:3000` |
+| `RPC_ORIGINS`  | Orígenes RPC en CSP (`connect-src`), separados por espacio (VOTAR-386). Misma sanitización que `API_ORIGIN` antes de `envsubst`. | vacío |
 
 ## Cabeceras de seguridad
 
