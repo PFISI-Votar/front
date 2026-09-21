@@ -14,6 +14,7 @@ import { Route as VerificarIndexRouteImport } from './routes/verificar/index'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as VerificarTxHashRouteImport } from './routes/verificar/$txHash'
 import { Route as ManualVotanteRouteImport } from './routes/manual/votante'
+import { Route as ManualAuditoresRouteImport } from './routes/manual/auditores'
 import { Route as CumplimientoLey25326RouteImport } from './routes/cumplimiento/ley-25326'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
 import { Route as errors500RouteImport } from './routes/(errors)/500'
@@ -83,6 +84,11 @@ const VerificarTxHashRoute = VerificarTxHashRouteImport.update({
 const ManualVotanteRoute = ManualVotanteRouteImport.update({
   id: '/manual/votante',
   path: '/manual/votante',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ManualAuditoresRoute = ManualAuditoresRouteImport.update({
+  id: '/manual/auditores',
+  path: '/manual/auditores',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CumplimientoLey25326Route = CumplimientoLey25326RouteImport.update({
@@ -361,6 +367,7 @@ export interface FileRoutesByFullPath {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/cumplimiento/ley-25326': typeof CumplimientoLey25326Route
+  '/manual/auditores': typeof ManualAuditoresRoute
   '/manual/votante': typeof ManualVotanteRoute
   '/verificar/$txHash': typeof VerificarTxHashRoute
   '/verificar/': typeof VerificarIndexRoute
@@ -410,6 +417,7 @@ export interface FileRoutesByTo {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/cumplimiento/ley-25326': typeof CumplimientoLey25326Route
+  '/manual/auditores': typeof ManualAuditoresRoute
   '/manual/votante': typeof ManualVotanteRoute
   '/verificar/$txHash': typeof VerificarTxHashRoute
   '/': typeof AuthenticatedIndexRoute
@@ -463,6 +471,7 @@ export interface FileRoutesById {
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
   '/cumplimiento/ley-25326': typeof CumplimientoLey25326Route
+  '/manual/auditores': typeof ManualAuditoresRoute
   '/manual/votante': typeof ManualVotanteRoute
   '/verificar/$txHash': typeof VerificarTxHashRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
@@ -518,6 +527,7 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/cumplimiento/ley-25326'
+    | '/manual/auditores'
     | '/manual/votante'
     | '/verificar/$txHash'
     | '/verificar/'
@@ -567,6 +577,7 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/cumplimiento/ley-25326'
+    | '/manual/auditores'
     | '/manual/votante'
     | '/verificar/$txHash'
     | '/'
@@ -619,6 +630,7 @@ export interface FileRouteTypes {
     | '/(errors)/500'
     | '/(errors)/503'
     | '/cumplimiento/ley-25326'
+    | '/manual/auditores'
     | '/manual/votante'
     | '/verificar/$txHash'
     | '/_authenticated/'
@@ -671,6 +683,7 @@ export interface RootRouteChildren {
   errors500Route: typeof errors500Route
   errors503Route: typeof errors503Route
   CumplimientoLey25326Route: typeof CumplimientoLey25326Route
+  ManualAuditoresRoute: typeof ManualAuditoresRoute
   ManualVotanteRoute: typeof ManualVotanteRoute
   VerificarTxHashRoute: typeof VerificarTxHashRoute
   VerificarIndexRoute: typeof VerificarIndexRoute
@@ -713,6 +726,13 @@ declare module '@tanstack/react-router' {
       path: '/manual/votante'
       fullPath: '/manual/votante'
       preLoaderRoute: typeof ManualVotanteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/manual/auditores': {
+      id: '/manual/auditores'
+      path: '/manual/auditores'
+      fullPath: '/manual/auditores'
+      preLoaderRoute: typeof ManualAuditoresRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cumplimiento/ley-25326': {
@@ -1182,6 +1202,7 @@ const rootRouteChildren: RootRouteChildren = {
   errors500Route: errors500Route,
   errors503Route: errors503Route,
   CumplimientoLey25326Route: CumplimientoLey25326Route,
+  ManualAuditoresRoute: ManualAuditoresRoute,
   ManualVotanteRoute: ManualVotanteRoute,
   VerificarTxHashRoute: VerificarTxHashRoute,
   VerificarIndexRoute: VerificarIndexRoute,
