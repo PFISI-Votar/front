@@ -1,5 +1,6 @@
 import { AxiosError } from 'axios'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
@@ -10,6 +11,7 @@ import {
   eliminarEleccion,
 } from '@/features/eleccion/api/eleccion-api'
 import type { Eleccion } from '@/features/eleccion/data/schema'
+import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
 import { oficializarEleccion } from '@/features/eleccion/lista/api/lista-api'
 import { ComiciosList } from './comicios-list'
 
@@ -54,10 +56,25 @@ vi.mock('@/features/eleccion/api/eleccion-api', () => ({
 
 vi.mock('@/features/eleccion/lista/api/lista-api', () => ({
   oficializarEleccion: vi.fn(),
+  reintentarDespliegueOnChain: vi.fn(),
+  obtenerEstadoStackOnChain: vi.fn(),
 }))
 
 vi.mock('@/features/eleccion/hooks/use-eleccion-websocket', () => ({
   useEleccionWebSocket: vi.fn(),
+}))
+
+// VOTAR-481: no hay <Toaster /> montado en este árbol de test, así que se
+// mockea sonner para poder verificar el contenido de los toasts (en lugar
+// de buscarlos en el DOM).
+vi.mock('sonner', () => ({
+  toast: {
+    loading: vi.fn(() => 'toast-id'),
+    success: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    dismiss: vi.fn(),
+  },
 }))
 
 const createPreconditionError = (message: string) =>
@@ -74,6 +91,34 @@ const createPreconditionError = (message: string) =>
       data: { message },
     }
   )
+
+const createNetworkError = (message: string) =>
+  new AxiosError(message, 'ERR_NETWORK', undefined, undefined, {
+    status: 503,
+    statusText: 'Service Unavailable',
+    headers: {},
+    config: {} as never,
+    data: { message },
+  })
+
+const createConflictError = (message: string) =>
+  new AxiosError('Conflict', 'ERR_BAD_REQUEST', undefined, undefined, {
+    status: 409,
+    statusText: 'Conflict',
+    headers: {},
+    config: {} as never,
+    data: { message },
+  })
+
+/** VOTAR-481: obtiene las opciones pasadas al hook mockeado para simular eventos del backend. */
+const lastEleccionWebSocketOptions = () => {
+  const calls = vi.mocked(useEleccionWebSocket).mock.calls
+  const options = calls[calls.length - 1]?.[0]
+  if (!options) {
+    throw new Error('useEleccionWebSocket no fue invocado')
+  }
+  return options
+}
 
 const mockElecciones: Eleccion[] = [
   {
@@ -337,6 +382,7 @@ describe('ComiciosList', () => {
       idEleccion: 2,
       estado: 'CONFIGURADA',
       mapeo: [],
+      onChainDesplegado: true,
     })
 
     await renderComiciosList()
@@ -360,11 +406,13 @@ describe('ComiciosList', () => {
       idEleccion: number
       estado: 'CONFIGURADA'
       mapeo: []
+      onChainDesplegado: boolean
     }) => void
     const pendingOficializar = new Promise<{
       idEleccion: number
       estado: 'CONFIGURADA'
       mapeo: []
+      onChainDesplegado: boolean
     }>((resolve) => {
       resolveOficializar = resolve
     })
@@ -393,11 +441,87 @@ describe('ComiciosList', () => {
       idEleccion: 2,
       estado: 'CONFIGURADA',
       mapeo: [],
+      onChainDesplegado: true,
     })
 
     await vi.waitFor(() => {
       expect(oficializarEleccion).toHaveBeenCalledWith(2)
     })
+  })
+
+  it('cambia el botón a Reintentar oficialización ante error de red', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+    vi.mocked(oficializarEleccion)
+      .mockRejectedValueOnce(createNetworkError('Timeout on-chain'))
+      .mockResolvedValueOnce({
+        idEleccion: 2,
+        estado: 'CONFIGURADA',
+        mapeo: [],
+        onChainDesplegado: true,
+      })
+
+    await renderComiciosList()
+
+    await userEvent.click(
+      page.getByRole('button', {
+        name: 'Oficializar comicio Elección Provincial 2025',
+      })
+    )
+    await userEvent.click(
+      page.getByRole('button', { name: 'Sí, oficializar comicio' })
+    )
+
+    await expect
+      .element(
+        page.getByRole('button', {
+          name: 'Reintentar oficialización Elección Provincial 2025',
+        })
+      )
+      .toBeInTheDocument()
+
+    await userEvent.click(
+      page.getByRole('button', {
+        name: 'Reintentar oficialización Elección Provincial 2025',
+      })
+    )
+
+    await vi.waitFor(() => {
+      expect(oficializarEleccion).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  it('muestra Reintentar oficialización cuando abrir falla por contratos faltantes', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+    vi.mocked(abrirEleccion).mockRejectedValue(
+      new AxiosError('sin contratos', 'ERR_BAD_REQUEST', undefined, undefined, {
+        status: 422,
+        statusText: 'Unprocessable Entity',
+        headers: {},
+        config: {} as never,
+        data: {
+          message:
+            'El comicio 1 no tiene contratos electorales desplegados on-chain.',
+        },
+      })
+    )
+
+    await renderComiciosList()
+
+    await userEvent.click(
+      page.getByRole('button', {
+        name: 'Abrir comicio Elección Municipal 2025',
+      })
+    )
+    const confirmButtons = page.getByRole('button', { name: 'Abrir comicio' })
+    await userEvent.click(confirmButtons)
+
+    await expect
+      .element(
+        page.getByRole('button', {
+          name: 'Reintentar oficialización Elección Municipal 2025',
+        })
+      )
+      .toBeInTheDocument()
   })
 
   it('elimina un comicio en BORRADOR tras confirmar con el nombre exacto', async () => {
@@ -485,6 +609,120 @@ describe('ComiciosList', () => {
     await expect
       .element(page.getByText(/Estado actual del árbol.*CONSOLIDADO/))
       .toBeInTheDocument()
+  })
+
+  it('muestra un toast avisando del conflicto de concurrencia cuando la apertura devuelve 409 (VOTAR-481)', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+    vi.mocked(abrirEleccion).mockRejectedValue(
+      createConflictError(
+        'Ya hay una transición de estado en curso para la elección 1. Reintentá en unos segundos.'
+      )
+    )
+
+    await renderComiciosList()
+
+    const abrirButton = page.getByRole('button', {
+      name: 'Abrir comicio Elección Municipal 2025',
+    })
+    await userEvent.click(abrirButton)
+
+    const confirmButton = page.getByRole('button', { name: 'Abrir comicio' })
+    await userEvent.click(confirmButton)
+
+    await vi.waitFor(() => {
+      expect(abrirEleccion).toHaveBeenCalledWith(1)
+    })
+
+    await vi.waitFor(() => {
+      expect(toast.warning).toHaveBeenCalledWith(
+        'Ya hay una transición de estado en curso para la elección 1. Reintentá en unos segundos.',
+        { duration: 8_000 }
+      )
+    })
+
+    // VOTAR-481: un 409 no es una falla real — el botón no debe pasar a
+    // «Reintentar apertura» (esa señal de error queda reservada para fallas
+    // reales; la transacción que sí tiene el lock sigue en curso).
+    await expect
+      .element(
+        page.getByRole('button', {
+          name: 'Abrir comicio Elección Municipal 2025',
+        })
+      )
+      .toBeInTheDocument()
+  })
+
+  it('muestra el botón de apertura en estado de carga cuando el WebSocket avisa una transacción en curso (VOTAR-481)', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+
+    await renderComiciosList()
+
+    await expect
+      .element(
+        page.getByRole('button', {
+          name: 'Abrir comicio Elección Municipal 2025',
+        })
+      )
+      .toBeInTheDocument()
+
+    lastEleccionWebSocketOptions().onTransaccionEnProgreso?.({
+      idEleccion: 1,
+      tipo: 'APERTURA',
+    })
+
+    await expect
+      .element(
+        page.getByRole('button', {
+          name: 'Abriendo comicio Elección Municipal 2025',
+        })
+      )
+      .toBeDisabled()
+
+    lastEleccionWebSocketOptions().onEleccionAbierta?.({ idEleccion: 1 })
+
+    await expect
+      .element(
+        page.getByRole('button', {
+          name: 'Abrir comicio Elección Municipal 2025',
+        })
+      )
+      .not.toBeDisabled()
+  })
+
+  it('limpia el spinner de apertura cuando el WebSocket avisa que la transacción falló (VOTAR-481)', async () => {
+    vi.mocked(listarElecciones).mockResolvedValue(mockElecciones)
+
+    await renderComiciosList()
+
+    lastEleccionWebSocketOptions().onTransaccionEnProgreso?.({
+      idEleccion: 1,
+      tipo: 'APERTURA',
+    })
+
+    await expect
+      .element(
+        page.getByRole('button', {
+          name: 'Abriendo comicio Elección Municipal 2025',
+        })
+      )
+      .toBeDisabled()
+
+    lastEleccionWebSocketOptions().onTransaccionFallida?.({
+      idEleccion: 1,
+      tipo: 'APERTURA',
+    })
+
+    await expect
+      .element(
+        page.getByRole('button', {
+          name: 'Abrir comicio Elección Municipal 2025',
+        })
+      )
+      .not.toBeDisabled()
+    expect(toast.error).toHaveBeenCalledWith(
+      'No se pudo completar la apertura del comicio #1 en la blockchain.',
+      { id: 'ws-eleccion-tx-1' }
+    )
   })
 
   it('cierra diálogo tras apertura exitosa', async () => {

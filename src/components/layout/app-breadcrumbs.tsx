@@ -4,6 +4,7 @@ import {
   type BreadcrumbEntry,
 } from '@/components/layout/breadcrumb-nav'
 import { useComiciosBreadcrumbEntries } from '@/components/layout/comicios-breadcrumbs'
+import { buildConfiguracionBreadcrumbEntries } from '@/components/layout/configuracion-breadcrumbs'
 
 type StaticRouteConfig = {
   label: string
@@ -19,23 +20,8 @@ const STATIC_ROUTE_BREADCRUMBS: Record<string, StaticRouteConfig> = {
   '/apps': { label: 'Apps' },
   '/chats': { label: 'Chats' },
   '/help-center': { label: 'Help Center' },
-  '/settings': { label: 'Settings' },
-  '/settings/account': {
-    parent: { label: 'Settings', href: '/settings' },
-    label: 'Account',
-  },
-  '/settings/appearance': {
-    parent: { label: 'Settings', href: '/settings' },
-    label: 'Appearance',
-  },
-  '/settings/notifications': {
-    parent: { label: 'Settings', href: '/settings' },
-    label: 'Notifications',
-  },
-  '/settings/display': {
-    parent: { label: 'Settings', href: '/settings' },
-    label: 'Display',
-  },
+  '/auditoria': { label: 'Auditoría' },
+  '/manual': { label: 'Manual operativo' },
   '/errors/unauthorized': {
     parent: { label: 'Errores', href: '/errors/unauthorized' },
     label: 'No autorizado',
@@ -85,6 +71,11 @@ const StaticBreadcrumbsNav = ({ pathname }: { pathname: string }) => {
   return <BreadcrumbNav entries={entries} />
 }
 
+const ConfiguracionBreadcrumbsNav = ({ pathname }: { pathname: string }) => {
+  const entries = buildConfiguracionBreadcrumbEntries(pathname)
+  return <BreadcrumbNav entries={entries} />
+}
+
 export const AppBreadcrumbs = () => {
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
@@ -92,6 +83,10 @@ export const AppBreadcrumbs = () => {
 
   if (pathname.startsWith('/comicios')) {
     return <ComiciosBreadcrumbsNav />
+  }
+
+  if (pathname.startsWith('/configuracion')) {
+    return <ConfiguracionBreadcrumbsNav pathname={pathname} />
   }
 
   return <StaticBreadcrumbsNav pathname={pathname} />

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FolderTree, ChevronDown, Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getApiErrorMessage } from '@/lib/api-client'
+import { toUntrustedPlainText } from '@/lib/untrusted-html'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -194,7 +195,7 @@ const CategoriaForm = ({
           name='maximoPostulantes'
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Máx. postulantes por lista</FormLabel>
+              <FormLabel>Máx. postulantes / selecciones</FormLabel>
               <FormControl>
                 <Input
                   type='number'
@@ -216,6 +217,10 @@ const CategoriaForm = ({
                   ref={field.ref}
                 />
               </FormControl>
+              <p className='text-xs text-muted-foreground'>
+                Tope de candidatos por lista y de opciones que el votante puede
+                elegir en este cargo (ej. 2 vocales).
+              </p>
               <CategoriaFormMessage />
             </FormItem>
           )}
@@ -433,14 +438,16 @@ export const CategoriasPanel = ({
                       className='flex flex-wrap items-start justify-between gap-3 rounded-lg border px-4 py-3'
                     >
                       <div className='flex min-w-0 flex-col gap-1'>
-                        <p className='font-medium'>{categoria.nombre}</p>
+                        <p className='font-medium'>
+                          {toUntrustedPlainText(categoria.nombre)}
+                        </p>
                         {categoria.descripcion ? (
                           <p className='text-sm text-muted-foreground'>
-                            {categoria.descripcion}
+                            {toUntrustedPlainText(categoria.descripcion)}
                           </p>
                         ) : null}
                         <p className='text-sm text-muted-foreground'>
-                          Postulantes por lista: mín.{' '}
+                          Postulantes / selecciones: mín.{' '}
                           {categoria.minimoPostulantes} · máx.{' '}
                           {categoria.cantidadCargos}
                         </p>

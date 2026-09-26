@@ -9,6 +9,29 @@ const ESTADO_LABEL: Record<EleccionEstado, string> = {
   ARCHIVADA: 'Archivada',
 }
 
+type EstadoComicioFinalizado = Extract<
+  EleccionEstado,
+  'CERRADA' | 'ESCRUTADA' | 'ARCHIVADA'
+>
+
+const ESTADOS_COMICIO_FINALIZADO = new Set<EleccionEstado>([
+  'CERRADA',
+  'ESCRUTADA',
+  'ARCHIVADA',
+])
+
+/** Labels del badge en detalle de lista: dejan claro que hablan del comicio. */
+const ESTADO_COMICIO_FINALIZADO_LABEL: Record<EstadoComicioFinalizado, string> =
+  {
+    CERRADA: 'Comicio cerrado',
+    ESCRUTADA: 'Resultados escrutados',
+    ARCHIVADA: 'Comicio archivado',
+  }
+
+const isEstadoComicioFinalizado = (
+  estado: EleccionEstado
+): estado is EstadoComicioFinalizado => ESTADOS_COMICIO_FINALIZADO.has(estado)
+
 export const getEstadoEleccionLabel = (
   estado: EleccionEstado | string
 ): string => {
@@ -27,4 +50,18 @@ export const getEstadoEleccionBadgeVariant = (
   if (estado === 'CERRADA') return 'destructive'
   if (estado === 'ARCHIVADA') return 'outline'
   return 'outline'
+}
+
+/**
+ * Badge del detalle de lista: muestra estado de la lista mientras el comicio
+ * sigue activo; cuando el comicio terminó, prioriza el estado del comicio.
+ */
+export const getListaEstadoBadgeLabel = (
+  estadoLista: string,
+  estadoComicio: EleccionEstado | undefined
+): string => {
+  if (estadoComicio && isEstadoComicioFinalizado(estadoComicio)) {
+    return ESTADO_COMICIO_FINALIZADO_LABEL[estadoComicio]
+  }
+  return estadoLista
 }

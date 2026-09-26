@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Trash2, Upload } from 'lucide-react'
 import { resolveMediaUrl } from '@/lib/media-url'
 import {
@@ -127,14 +127,16 @@ export function ConfiguracionSistemaPage() {
   const actualizarPlantillaCierre = useActualizarPlantillaActaCierre()
   const actualizarFormatoCierre = useActualizarFormatoPersonalizadoActaCierre()
   const [fileError, setFileError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleFileChange = (file?: File) => {
+  const handleFileChange = async (file?: File) => {
     if (!file) {
       return
     }
-    const validationError = validateElectoralImageFile(file)
+    const validationError = await validateElectoralImageFile(file)
     if (validationError) {
       setFileError(validationError)
+      if (fileInputRef.current) fileInputRef.current.value = ''
       return
     }
     setFileError(null)
@@ -148,7 +150,7 @@ export function ConfiguracionSistemaPage() {
     <>
       <div className='space-y-0.5'>
         <h1 className='text-2xl font-bold tracking-tight md:text-3xl'>
-          Configuración
+          Configuración institucional
         </h1>
         <p className='text-muted-foreground'>
           Parámetros globales, válidos para todos los comicios.
@@ -189,12 +191,13 @@ export function ConfiguracionSistemaPage() {
                   </p>
                   <div className='flex flex-wrap items-center gap-2'>
                     <Input
+                      ref={fileInputRef}
                       type='file'
                       accept='image/png,image/jpeg,.png,.jpg,.jpeg'
                       disabled={isPending}
-                      onChange={(event) =>
-                        handleFileChange(event.target.files?.[0])
-                      }
+                      onChange={(event) => {
+                        void handleFileChange(event.target.files?.[0])
+                      }}
                       className='max-w-xs'
                     />
                     {logoPreview && (

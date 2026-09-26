@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SignedVotePayload } from '@/features/voto/crypto/vote-signer'
 import {
-  applyGasMargin,
+  buildRelayerCastBody,
   transmitSignedVote,
   waitForVoteTxReceipt,
   type TransmitSignedVoteInput,
@@ -14,7 +14,7 @@ const signed: SignedVotePayload = {
     '0x1111111111111111111111111111111111111111111111111111111111111111',
   selectionHash:
     '0x2222222222222222222222222222222222222222222222222222222222222222',
-  candidateId: 101n,
+  candidateIds: [101n],
   timestamp: 1_700_000_000,
   expectedSigner: '0x00000000000000000000000000000000000000aa',
   signature: `0x${'ab'.repeat(65)}`,
@@ -27,35 +27,26 @@ const input: TransmitSignedVoteInput = {
   merkleProof: [
     '0x4444444444444444444444444444444444444444444444444444444444444444',
   ],
+  validatorSignature: `0x${'cd'.repeat(65)}`,
 }
 
-describe('vote-transmitter — VOTAR-358', () => {
-  const estimateContractGas = vi.fn()
-  const writeContract = vi.fn()
+describe('vote-transmitter — VOTAR-497', () => {
   const waitForTransactionReceipt = vi.fn()
+  const relayCast = vi.fn()
   const onProgress = vi.fn()
 
   const publicClient = {
-    estimateContractGas,
     waitForTransactionReceipt,
   }
 
-  const walletClient = {
-    account: { address: '0x00000000000000000000000000000000000000bb' },
-    chain: { id: 31_337 },
-    writeContract,
-  }
-
   beforeEach(() => {
-    estimateContractGas.mockReset()
-    writeContract.mockReset()
     waitForTransactionReceipt.mockReset()
+    relayCast.mockReset()
     onProgress.mockReset()
   })
 
-  it('UAT-01: estimates gas with +10% margin, sends and returns tx hash', async () => {
-    estimateContractGas.mockResolvedValue(100_000n)
-    writeContract.mockResolvedValue('0x' + 'f'.repeat(64))
+  it('UAT-01: pide el cast al relayer y espera el recibo sin clave local', async () => {
+    relayCast.mockResolvedValue({ txHash: `0x${'f'.repeat(64)}` })
     waitForTransactionReceipt.mockResolvedValue({
       status: 'success',
       blockNumber: 42n,
@@ -64,33 +55,28 @@ describe('vote-transmitter — VOTAR-358', () => {
 
     const result = await transmitSignedVote(input, {
       publicClient: publicClient as never,
-      walletClient: walletClient as never,
-      contractAddress: '0x0000000000000000000000000000000000000001',
+      relayCast,
       onProgress,
       onTxHash,
     })
 
-    expect(estimateContractGas).toHaveBeenCalledOnce()
-    const estimateArgs = estimateContractGas.mock.calls[0]?.[0] as {
-      args: unknown[]
-    }
-    expect(estimateArgs.args[estimateArgs.args.length - 1]).toBe(101n)
-    expect(writeContract).toHaveBeenCalledWith(
-      expect.objectContaining({
-        gas: 110_000n,
-        args: expect.arrayContaining([101n]),
-      })
-    )
-    const writeArgs = writeContract.mock.calls[0]?.[0] as { args: unknown[] }
-    expect(writeArgs.args[writeArgs.args.length - 1]).toBe(101n)
-    expect(result.txHash).toBe('0x' + 'f'.repeat(64))
+    expect(relayCast).toHaveBeenCalledWith(input)
+    expect(result.txHash).toBe(`0x${'f'.repeat(64)}`)
     expect(result.blockNumber).toBe(42n)
-    expect(onTxHash).toHaveBeenCalledWith('0x' + 'f'.repeat(64))
+    expect(onTxHash).toHaveBeenCalledWith(`0x${'f'.repeat(64)}`)
     expect(onProgress.mock.calls.map((call) => call[0])).toEqual([
-      'estimating',
       'sending',
       'confirming',
     ])
+  })
+
+  it('el body del relayer lleva candidateIds y la firma institucional, no una clave', () => {
+    const body = buildRelayerCastBody(input, 'ab'.repeat(32))
+    expect(body.candidateIds).toEqual(['101'])
+    expect(body.validatorSignature).toBe(`0x${'cd'.repeat(65)}`)
+    expect(body.relayToken).toBe('ab'.repeat(32))
+    expect(body).not.toHaveProperty('merkleProof')
+    expect(JSON.stringify(body)).not.toMatch(/privateKey|VITE_PRIVATE_KEY/i)
   })
 
   it('VOTAR-445: waitForVoteTxReceipt resumes a broadcast cast', async () => {
@@ -99,28 +85,35 @@ describe('vote-transmitter — VOTAR-358', () => {
       blockNumber: 77n,
     })
 
-    const result = await waitForVoteTxReceipt(
-      ('0x' + 'a'.repeat(64)) as never,
-      {
-        publicClient: publicClient as never,
-      }
-    )
+    const result = await waitForVoteTxReceipt(`0x${'a'.repeat(64)}` as never, {
+      publicClient: publicClient as never,
+    })
 
     expect(result).toEqual({
-      txHash: '0x' + 'a'.repeat(64),
+      txHash: `0x${'a'.repeat(64)}`,
       blockNumber: 77n,
     })
-    expect(waitForTransactionReceipt).toHaveBeenCalledWith(
-      expect.objectContaining({ hash: '0x' + 'a'.repeat(64) })
-    )
   })
 
   it('UAT-02: retries transient network errors up to 3 attempts', async () => {
-    estimateContractGas
-      .mockRejectedValueOnce(new Error('Failed to fetch'))
-      .mockRejectedValueOnce(new Error('network timeout'))
-      .mockResolvedValueOnce(50_000n)
-    writeContract.mockResolvedValue('0x' + 'a'.repeat(64))
+    relayCast
+      .mockRejectedValueOnce({
+        code: 'network',
+        message: 'red',
+        severity: 'warning',
+        isTransient: true,
+        canRetrySend: true,
+        canResign: false,
+      } satisfies VoteTxError)
+      .mockRejectedValueOnce({
+        code: 'network',
+        message: 'red',
+        severity: 'warning',
+        isTransient: true,
+        canRetrySend: true,
+        canResign: false,
+      } satisfies VoteTxError)
+      .mockResolvedValueOnce({ txHash: `0x${'a'.repeat(64)}` })
     waitForTransactionReceipt.mockResolvedValue({
       status: 'success',
       blockNumber: 7n,
@@ -128,25 +121,28 @@ describe('vote-transmitter — VOTAR-358', () => {
 
     const result = await transmitSignedVote(input, {
       publicClient: publicClient as never,
-      walletClient: walletClient as never,
-      contractAddress: '0x0000000000000000000000000000000000000001',
+      relayCast,
       maxAttempts: 3,
     })
 
-    expect(estimateContractGas).toHaveBeenCalledTimes(3)
-    expect(result.txHash).toBe('0x' + 'a'.repeat(64))
+    expect(relayCast).toHaveBeenCalledTimes(3)
+    expect(result.txHash).toBe(`0x${'a'.repeat(64)}`)
   })
 
   it('UAT-03: does not retry insufficient funds and preserves error code', async () => {
-    estimateContractGas.mockRejectedValue(
-      new Error('insufficient funds for transfer')
-    )
+    relayCast.mockRejectedValue({
+      code: 'insufficient_funds',
+      message: 'sin gas',
+      severity: 'error',
+      isTransient: false,
+      canRetrySend: true,
+      canResign: false,
+    } satisfies VoteTxError)
 
     await expect(
       transmitSignedVote(input, {
         publicClient: publicClient as never,
-        walletClient: walletClient as never,
-        contractAddress: '0x0000000000000000000000000000000000000001',
+        relayCast,
         maxAttempts: 3,
       })
     ).rejects.toMatchObject({
@@ -154,37 +150,61 @@ describe('vote-transmitter — VOTAR-358', () => {
       canRetrySend: true,
     } satisfies Partial<VoteTxError>)
 
-    expect(estimateContractGas).toHaveBeenCalledTimes(1)
-    expect(writeContract).not.toHaveBeenCalled()
+    expect(relayCast).toHaveBeenCalledTimes(1)
   })
 
-  it('VOTAR-379 UAT-04: castSignedVote no envía Authorization ni cookie SSO', async () => {
-    estimateContractGas.mockResolvedValue(100_000n)
-    writeContract.mockResolvedValue('0x' + 'f'.repeat(64))
-    waitForTransactionReceipt.mockResolvedValue({
-      status: 'success',
-      blockNumber: 42n,
-    })
+  it('no retransmite si el relayer ya devolvió el hash; reintenta sólo el recibo', async () => {
+    relayCast.mockResolvedValue({ txHash: `0x${'b'.repeat(64)}` })
+    waitForTransactionReceipt
+      .mockRejectedValueOnce({
+        code: 'timeout',
+        message: 'La transacción no fue incluida en un bloque a tiempo.',
+        severity: 'warning',
+        isTransient: true,
+        canRetrySend: true,
+        canResign: true,
+      } satisfies VoteTxError)
+      .mockResolvedValueOnce({
+        status: 'success',
+        blockNumber: 11n,
+      })
 
-    await transmitSignedVote(input, {
+    const result = await transmitSignedVote(input, {
       publicClient: publicClient as never,
-      walletClient: walletClient as never,
-      contractAddress: '0x0000000000000000000000000000000000000001',
+      relayCast,
+      maxAttempts: 3,
     })
 
-    const writeArgs = writeContract.mock.calls[0]?.[0] as Record<
-      string,
-      unknown
-    >
-    expect(writeArgs).not.toHaveProperty('Authorization')
-    expect(writeArgs).not.toHaveProperty('headers')
-    expect(Object.keys(writeArgs)).not.toContain('authorization')
-    expect(String(writeArgs.abi)).not.toMatch(/Bearer|votar_voter/i)
-    expect(writeArgs.functionName).toBe('castSignedVote')
+    expect(relayCast).toHaveBeenCalledTimes(1)
+    expect(waitForTransactionReceipt).toHaveBeenCalledTimes(2)
+    expect(result.txHash).toBe(`0x${'b'.repeat(64)}`)
+    expect(result.blockNumber).toBe(11n)
   })
 
-  it('applies ceil gas margin correctly', () => {
-    expect(applyGasMargin(100n, 1.1)).toBe(110n)
-    expect(applyGasMargin(101n, 1.1)).toBe(112n)
+  it('no reintenta el recibo de una tx minada-pero-revertida (canRetrySend sin isTransient)', async () => {
+    relayCast.mockResolvedValue({ txHash: `0x${'c'.repeat(64)}` })
+    waitForTransactionReceipt.mockRejectedValue({
+      code: 'unknown',
+      message: 'Transaction reverted while waiting for confirmation',
+      severity: 'error',
+      isTransient: false,
+      canRetrySend: true,
+      canResign: true,
+    } satisfies VoteTxError)
+
+    await expect(
+      transmitSignedVote(input, {
+        publicClient: publicClient as never,
+        relayCast,
+        maxAttempts: 3,
+      })
+    ).rejects.toMatchObject({
+      code: 'unknown',
+      isTransient: false,
+      canRetrySend: true,
+    } satisfies Partial<VoteTxError>)
+
+    expect(relayCast).toHaveBeenCalledTimes(1)
+    expect(waitForTransactionReceipt).toHaveBeenCalledTimes(1)
   })
 })

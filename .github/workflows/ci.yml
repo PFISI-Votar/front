@@ -12,7 +12,22 @@ on:
       - master
 
 jobs:
-  ci:
+  # VOTAR-488: el ruleset exige el check `ci`. El job homónimo más abajo
+  # solo pasa si calidad, CodeQL y secret scanning pasan, así que un
+  # hallazgo crítico o un secreto bloquean el merge sin cambiar el ruleset.
+  codeql:
+    uses: ./.github/workflows/codeql.yml
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+  secret-scanning:
+    uses: ./.github/workflows/secret-scanning.yml
+    permissions:
+      contents: read
+
+  quality:
     runs-on: ubuntu-latest
 
     steps:
@@ -27,6 +42,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Check open-source licenses
+        run: npm run licenses:check
 
       - name: Lint
         run: npm run lint
@@ -56,9 +74,70 @@ jobs:
           SECURITY_HEADERS_URL=http://127.0.0.1:4173/ npm run verify:security-headers
           kill $PREVIEW_PID
 
-  browser-tests:
-    needs: ci
+  ci:
+    needs: [quality, codeql, secret-scanning, docker-nginx]
+    if: always()
     runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Require quality, CodeQL, secret scanning and docker-nginx
+        env:
+          QUALITY: ${{ needs.quality.result }}
+          CODEQL: ${{ needs.codeql.result }}
+          SECRETS: ${{ needs.secret-scanning.result }}
+          DOCKER: ${{ needs.docker-nginx.result }}
+        run: |
+          set -eu
+          failed=0
+          for name in QUALITY CODEQL SECRETS DOCKER; do
+            result="${!name}"
+            echo "$name=$result"
+            if [ "$result" != "success" ]; then
+              failed=1
+            fi
+          done
+          exit "$failed"
+
+  docker-nginx:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Build nginx image
+        run: |
+          docker build -f deploy/Dockerfile \
+            --build-arg VITE_API_URL=https://api.example.test \
+            -t votar-front:ci .
+
+      - name: Smoke-test entrypoint and security headers
+        run: |
+          set -eu
+          docker run -d --name votar-front-ci -p 8080:80 \
+            -e API_ORIGIN=https://api.example.test \
+            votar-front:ci
+          cleanup() { docker rm -f votar-front-ci >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8080/ >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          headers="$(curl -sI http://127.0.0.1:8080/)"
+          echo "$headers"
+          echo "$headers" | grep -qi 'content-security-policy:'
+          echo "$headers" | grep -qi "frame-ancestors 'none'"
+          echo "$headers" | grep -qi 'https://api.example.test'
+          echo "$headers" | grep -qi 'x-frame-options: DENY'
+
+  browser-tests:
+    needs: quality
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
     container:
       image: mcr.microsoft.com/playwright:v1.59.1-noble
 

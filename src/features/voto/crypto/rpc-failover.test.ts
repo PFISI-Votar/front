@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  assertRpcUrlsUseHttpsExceptLoopback,
   classifyRpcFailoverReason,
   isBlockSkewAcceptable,
   isRpcFailoverError,
@@ -35,6 +36,18 @@ describe('rpc-failover — VOTAR-386', () => {
     expect(classifyRpcFailoverReason({ status: 401 })).toBe('auth')
     expect(isRpcFailoverError(new Error('429 Too Many Requests'))).toBe(true)
     expect(isRpcFailoverError(new Error('execution reverted'))).toBe(false)
+  })
+
+  it('VOTAR-378 UAT-02: exige HTTPS salvo loopback', () => {
+    expect(() =>
+      assertRpcUrlsUseHttpsExceptLoopback([
+        'https://sepolia.infura.io/v3/aaa',
+        'http://127.0.0.1:8545',
+      ])
+    ).not.toThrow()
+    expect(() =>
+      assertRpcUrlsUseHttpsExceptLoopback(['http://sepolia.infura.io/v3/aaa'])
+    ).toThrow(/HTTPS/)
   })
 
   it('rejects backups with significant block skew', () => {

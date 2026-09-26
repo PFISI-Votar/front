@@ -29,6 +29,9 @@ const processRefreshQueue = (error: unknown): void => {
 
 export const refreshAccessToken = async (): Promise<AuthResponse> => {
   const { data } = await apiClient.post<AuthResponse>('/auth/refresh')
+  if (!data.user) {
+    throw new Error('Refresh sin usuario autenticado')
+  }
   useAuthStore.getState().auth.setSession(data.user)
   return data
 }
@@ -38,6 +41,7 @@ const isAuthEndpoint = (url: string): boolean =>
   url.includes('/auth/refresh') ||
   url.includes('/auth/logout') ||
   url.includes('/auth/me') ||
+  url.includes('/auth/2fa/') ||
   url.includes('/auth/votante/')
 
 const isVotanteProtectedEndpoint = (url: string): boolean =>
@@ -89,6 +93,10 @@ apiClient.interceptors.response.use(
 
 export const isConflictError = (error: unknown): error is AxiosError => {
   return error instanceof AxiosError && error.response?.status === 409
+}
+
+export const isNotFoundError = (error: unknown): error is AxiosError => {
+  return error instanceof AxiosError && error.response?.status === 404
 }
 
 export const isValidationError = (error: unknown): error is AxiosError => {

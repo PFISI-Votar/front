@@ -2,7 +2,9 @@ import { type ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
 import { VotarLoginBackground } from '@/features/auth/sign-in/components/login-screen-shared'
+import { CumplimientoLey25326Link } from '@/features/cumplimiento'
 import { useDashboardPublicoComicio } from '@/features/dashboard-publico/hooks/use-dashboard-publico-comicio'
+import { ManualAuditoresLink } from '@/features/manual-auditores'
 import type { VisibilidadDashboardPublico } from '@/features/voto/data/schema'
 
 type DashboardSection =
@@ -100,13 +102,16 @@ export const DashboardPublicoShell = ({
     <main className='relative min-h-svh overflow-hidden bg-[#fdfcfa] text-[#202124]'>
       <VotarLoginBackground />
       <div className='relative mx-auto flex min-h-svh w-full max-w-5xl flex-col px-4 py-10 sm:px-6 sm:py-14'>
-        <div className='mb-10 flex items-center justify-between gap-4'>
+        <div className='mb-10 flex flex-wrap items-center justify-between gap-4'>
           <p className='text-2xl leading-none font-extrabold tracking-tight text-[#2f6f9f]'>
             VOTAR
           </p>
-          <p className='text-xs font-medium tracking-wide text-[#80868b] uppercase'>
-            Transparencia electoral
-          </p>
+          <div className='flex flex-wrap items-center justify-end gap-x-4 gap-y-2'>
+            <ManualAuditoresLink className='text-[#2f6f9f]' />
+            <p className='text-xs font-medium tracking-wide text-[#80868b] uppercase'>
+              Transparencia electoral
+            </p>
+          </div>
         </div>
 
         <nav
@@ -131,6 +136,13 @@ export const DashboardPublicoShell = ({
         </nav>
 
         {children}
+
+        <footer className='mt-auto flex flex-col gap-2 border-t border-[#e4e7eb] pt-6 pb-2'>
+          {/* VOTAR-396: manual técnico de transparencia para auditores */}
+          <ManualAuditoresLink />
+          {/* VOTAR-378: acceso a la explicación de cumplimiento Ley 25.326 */}
+          <CumplimientoLey25326Link />
+        </footer>
       </div>
     </main>
   )

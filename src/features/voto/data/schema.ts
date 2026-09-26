@@ -28,6 +28,8 @@ export type CategoriaBoletaDigital = {
   nombre: string
   descripcion: string | null
   orden: number
+  /** Max candidates the voter may pick in this category (VOTAR-474). */
+  cantidadCargos: number
   estado: CategoriaBoletaEstado
   candidatos: CandidatoBoletaDigital[]
 }

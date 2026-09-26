@@ -1,11 +1,19 @@
 import { useCallback, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { getApiErrorMessage, isPreconditionFailedError } from '@/lib/api-client'
+import { toast } from 'sonner'
+import {
+  getApiErrorMessage,
+  isConflictError,
+  isPreconditionFailedError,
+} from '@/lib/api-client'
 import { runBackgroundOperation } from '@/lib/run-background-operation'
+import { isMissingOnChainContractsError } from '@/features/eleccion/lib/missing-on-chain-contracts'
 import { abrirEleccion } from '../api/eleccion-api'
 
 type UseAbrirEleccionOptions = {
   onPreconditionError?: (message: string) => void
+  /** VOTAR-473: comicio oficializado sin contratos on-chain. */
+  onMissingOnChainContracts?: (message: string) => void
   onSuccess?: () => void
   padronPath?: string
 }
@@ -14,9 +22,15 @@ export const useAbrirEleccion = (
   idEleccion: number,
   options: UseAbrirEleccionOptions = {}
 ) => {
-  const { onPreconditionError, onSuccess, padronPath } = options
+  const {
+    onPreconditionError,
+    onMissingOnChainContracts,
+    onSuccess,
+    padronPath,
+  } = options
   const queryClient = useQueryClient()
   const [isRunning, setIsRunning] = useState(false)
+  const [lastError, setLastError] = useState<string | null>(null)
   const isRunningRef = useRef(false)
 
   const invalidateEleccion = useCallback(() => {
@@ -24,42 +38,69 @@ export const useAbrirEleccion = (
     queryClient.invalidateQueries({ queryKey: ['eleccion', idEleccion] })
   }, [idEleccion, queryClient])
 
+  const clearLastError = useCallback(() => {
+    setLastError(null)
+  }, [])
+
   const runInBackground = useCallback(() => {
     const attempt = (): void => {
-      if (isRunningRef.current) {
+      if (isRunningRef.current || idEleccion <= 0) {
         return
       }
 
       isRunningRef.current = true
       setIsRunning(true)
+      setLastError(null)
 
       runBackgroundOperation({
         loadingMessage: 'Abriendo comicio...',
         successMessage: 'Comicio abierto correctamente.',
         errorTitle: 'No se pudo abrir el comicio',
+        errorDuration: 8_000,
         operation: () => abrirEleccion(idEleccion),
         onSuccess: () => {
+          setLastError(null)
           invalidateEleccion()
           onSuccess?.()
         },
         onError: (error) => {
-          if (!isPreconditionFailedError(error)) {
-            return
-          }
-
           const message = getApiErrorMessage(error)
-          onPreconditionError?.(message)
 
-          return {
-            label: padronPath ? 'Ver padrón' : 'Reintentar',
-            onClick: () => {
-              if (padronPath) {
-                window.location.assign(padronPath)
-                return
-              }
-              attempt()
-            },
+          if (isPreconditionFailedError(error)) {
+            onPreconditionError?.(message)
+
+            return {
+              label: padronPath ? 'Ver padrón' : 'Reintentar',
+              onClick: () => {
+                if (padronPath) {
+                  window.location.assign(padronPath)
+                  return
+                }
+                attempt()
+              },
+            }
           }
+
+          if (isMissingOnChainContractsError(message)) {
+            onMissingOnChainContracts?.(message)
+            setLastError(message)
+            return true
+          }
+
+          // VOTAR-481: un 409 significa que el scheduler automático (u otro
+          // admin) ya está abriendo/cerrando este comicio — no es una falla
+          // real. No se llama a `setLastError`: eso pasaría el botón a
+          // «Reintentar apertura», que es justo la señal de falla que
+          // queremos evitar. El WebSocket de "en progreso" de la
+          // transacción que sí tiene el lock ya deshabilita el botón.
+          if (isConflictError(error)) {
+            toast.warning(message, { duration: 8_000 })
+            return true
+          }
+
+          setLastError(message)
+          // Sin toast persistente: el botón cambia a «Reintentar apertura».
+          return true
         },
         onSettled: () => {
           isRunningRef.current = false
@@ -72,10 +113,11 @@ export const useAbrirEleccion = (
   }, [
     idEleccion,
     invalidateEleccion,
+    onMissingOnChainContracts,
     onPreconditionError,
     onSuccess,
     padronPath,
   ])
 
-  return { runInBackground, isRunning }
+  return { runInBackground, isRunning, lastError, clearLastError }
 }

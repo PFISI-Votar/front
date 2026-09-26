@@ -1,5 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { getApiErrorMessage, isConflictError } from '@/lib/api-client'
 import { runBackgroundOperation } from '@/lib/run-background-operation'
 import { cerrarEleccion } from '../api/eleccion-api'
 
@@ -40,6 +42,16 @@ export const useCerrarEleccion = (
       onSuccess: () => {
         invalidateEleccion()
         onSuccess?.()
+      },
+      onError: (error) => {
+        // VOTAR-481: un 409 significa que el scheduler automático (u otro
+        // admin) ya está abriendo/cerrando este comicio — no es una falla
+        // real, a diferencia del "No se pudo cerrar el comicio" genérico.
+        // Paridad con el 409 de useAbrirEleccion.
+        if (isConflictError(error)) {
+          toast.warning(getApiErrorMessage(error), { duration: 8_000 })
+          return true
+        }
       },
       onSettled: () => {
         isRunningRef.current = false

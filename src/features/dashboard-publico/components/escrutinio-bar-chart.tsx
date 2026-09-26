@@ -15,12 +15,14 @@ type EscrutinioBarChartProps = {
   data: BarChartDatum[]
   className?: string
   height?: number
+  title?: string
 }
 
 export const EscrutinioBarChart = ({
   data,
   className,
   height = 320,
+  title = 'Votos por candidato',
 }: EscrutinioBarChartProps) => {
   if (data.length === 0) {
     return null
@@ -33,10 +35,10 @@ export const EscrutinioBarChart = ({
         className
       )}
       role='img'
-      aria-label='Gráfico de barras con votos por candidato'
+      aria-label={title}
     >
       <h3 className='mb-4 text-sm font-semibold tracking-wide text-[#2f6f9f] uppercase'>
-        Votos por candidato
+        {title}
       </h3>
       <ResponsiveContainer width='100%' height={height}>
         <BarChart
@@ -85,22 +87,22 @@ export const EscrutinioBarChart = ({
             animationDuration={600}
           >
             {data.map((entry) => (
-              <Cell key={entry.idCandidato} fill={entry.fill} />
+              <Cell key={entry.id} fill={entry.fill} />
             ))}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
       <table className='sr-only'>
-        <caption>Tabla de votos por candidato</caption>
+        <caption>{title}</caption>
         <thead>
           <tr>
-            <th>Candidato</th>
+            <th>Opción</th>
             <th>Votos</th>
           </tr>
         </thead>
         <tbody>
           {data.map((row) => (
-            <tr key={row.idCandidato}>
+            <tr key={row.id}>
               <td>{row.name}</td>
               <td>{row.votos}</td>
             </tr>
