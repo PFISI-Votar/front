@@ -1448,6 +1448,42 @@ describe('BudVotingWizard', () => {
     expect(grid.className).toContain('xl:grid-cols-3')
   })
 
+  it('en mobile, al seleccionar una lista no avanza automáticamente a revisión y requiere confirmación con Continuar', async () => {
+    const originalMatchMedia = window.matchMedia
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes('767px') || query.includes('max-width'),
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+
+    try {
+      const screen = await renderWizard(TIPOS_VOTACION.POR_LISTA)
+
+      await userEvent.click(
+        screen.getByRole('button', { name: /Elegir la lista Lista Azul/i })
+      )
+
+      await expect
+        .element(screen.getByText('Listas completas'))
+        .toBeInTheDocument()
+
+      const continueButton = screen.getByRole('button', { name: /^Continuar/i })
+      await expect.element(continueButton).toBeEnabled()
+
+      await userEvent.click(continueButton)
+      await expect
+        .element(screen.getByText('Confirmar Voto'))
+        .toBeInTheDocument()
+    } finally {
+      window.matchMedia = originalMatchMedia
+    }
+  })
+
   it('en por cargo no hay una grilla de listas separada: el atajo de lista completa vive dentro de cada agrupación por rol', async () => {
     const screen = await renderWizard()
 

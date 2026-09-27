@@ -18,7 +18,8 @@ export type SolicitudFirmaValidacion = {
   secreto: Hex
   nullifier: Hex
   selectionHash: Hex
-  candidateId: string
+  candidateIds?: string[]
+  candidateId?: string
   timestamp: number
   expectedSigner: Hex
 }

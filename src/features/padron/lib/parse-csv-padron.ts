@@ -76,7 +76,7 @@ export function parseCsvLinea(linea: string): string[] {
 
 export function parseCsvPadron(
   texto: string,
-  camposEsperados: ClaveCampoPadron[] = ['dni', 'email']
+  camposEsperados: ClaveCampoPadron[] = ['dni']
 ): RegistroPreview[] {
   const lineas = texto
     .replace(/^\uFEFF/, '')
@@ -98,7 +98,7 @@ export function parseCsvPadron(
 export function parseFilasPadron(
   cabeceraCruda: string[],
   filas: Array<{ linea: number; celdas: string[] | null }>,
-  camposEsperados: ClaveCampoPadron[] = ['dni', 'email']
+  camposEsperados: ClaveCampoPadron[] = ['dni']
 ): RegistroPreview[] {
   const cabecera = cabeceraCruda.map((c) => c.trim().toLowerCase())
   return parseFilasDesdeCabecera(cabecera, filas, camposEsperados)
@@ -129,6 +129,8 @@ function parseFilasDesdeCabecera(
     throw new CsvColumnasError(faltantes)
   }
 
+  const idxEmail = cabecera.indexOf('email')
+
   const registros: RegistroPreview[] = []
   for (const fila of filas) {
     if (fila.celdas === null) continue
@@ -138,7 +140,9 @@ function parseFilasDesdeCabecera(
       : ''
     const email = indices.has('email')
       ? (celdas[indices.get('email')!] ?? '').trim()
-      : ''
+      : idxEmail !== -1
+        ? (celdas[idxEmail] ?? '').trim()
+        : ''
     const adicionales: RegistroPreview['adicionales'] = {}
     for (const clave of campos) {
       if (clave === 'dni' || clave === 'email') continue

@@ -261,8 +261,8 @@ export function PadronUploadForm({
                 </label>
               </FormControl>
               <FormDescription>
-                El archivo debe incluir las columnas seleccionadas. DNI y email
-                se usan para el hash de identidad del padrón.
+                El archivo debe incluir las columnas seleccionadas. El DNI se
+                usa para el hash de identidad del padrón.
               </FormDescription>
               <FormMessage />
             </FormItem>

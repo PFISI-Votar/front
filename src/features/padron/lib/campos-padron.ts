@@ -31,8 +31,8 @@ export const CAMPOS_PADRON_PREDEFINIDOS: CampoPadronDefinicion[] = [
   {
     clave: 'email',
     etiqueta: 'Email',
-    preseleccionado: true,
-    obligatorio: true,
+    preseleccionado: false,
+    obligatorio: false,
     ejemplos: [
       'ana.perez@frvm.utn.edu.ar',
       'bruno.gomez@frvm.utn.edu.ar',
@@ -73,7 +73,7 @@ export const CAMPOS_PADRON_PREDEFINIDOS: CampoPadronDefinicion[] = [
 /** @deprecated usar CAMPOS_PADRON_PREDEFINIDOS */
 export const CAMPOS_PADRON = CAMPOS_PADRON_PREDEFINIDOS
 
-export const CLAVES_IDENTIDAD = ['dni', 'email'] as const
+export const CLAVES_IDENTIDAD = ['dni'] as const
 
 export function clavesObligatorias(): ClaveCampoPadron[] {
   return CAMPOS_PADRON_PREDEFINIDOS.filter((c) => c.obligatorio).map(

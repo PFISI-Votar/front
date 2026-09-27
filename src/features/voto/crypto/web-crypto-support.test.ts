@@ -1,8 +1,16 @@
 import 'fake-indexeddb/auto'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { isWebCryptoSupported } from '@/features/voto/crypto/web-crypto-support'
 
 describe('isWebCryptoSupported', () => {
+  beforeEach(() => {
+    vi.stubGlobal('navigator', {
+      locks: {
+        request: vi.fn(),
+      },
+    })
+  })
+
   afterEach(() => {
     vi.unstubAllGlobals()
   })

@@ -10,16 +10,12 @@ import {
 } from './campos-padron'
 
 describe('campos-padron', () => {
-  it('camposPreseleccionados arranca con dni y email', () => {
-    expect(camposPreseleccionados()).toEqual(['dni', 'email'])
+  it('camposPreseleccionados arranca con dni', () => {
+    expect(camposPreseleccionados()).toEqual(['dni'])
   })
 
-  it('normalizarCamposSeleccionados siempre incluye dni y email', () => {
-    expect(normalizarCamposSeleccionados(['nombre'])).toEqual([
-      'dni',
-      'email',
-      'nombre',
-    ])
+  it('normalizarCamposSeleccionados siempre incluye dni', () => {
+    expect(normalizarCamposSeleccionados(['nombre'])).toEqual(['dni', 'nombre'])
   })
 
   it('normalizarCamposSeleccionados preserva orden de definiciones', () => {

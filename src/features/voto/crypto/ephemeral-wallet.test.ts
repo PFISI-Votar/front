@@ -70,6 +70,14 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
     vi.stubGlobal('localStorage', localStorageMock)
     vi.stubGlobal('sessionStorage', sessionStorageMock)
     vi.stubGlobal('document', { cookie: '' })
+    vi.stubGlobal('navigator', {
+      locks: {
+        request: async (
+          _name: string,
+          callback: () => Promise<unknown>
+        ): Promise<unknown> => callback(),
+      },
+    })
   })
 
   afterEach(() => {
