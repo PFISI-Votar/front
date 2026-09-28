@@ -22,6 +22,7 @@ export type Eleccion = {
   idEleccion: number
   nombre: string
   descripcion?: string | null
+  observacionLogin?: string | null
   fechaInicio: string
   fechaFin: string
   estado: EleccionEstado
@@ -57,6 +58,10 @@ export const createComicioSchema = z
   .object({
     nombre: z.string().min(1, 'El nombre es obligatorio'),
     descripcion: z.string().optional(),
+    observacionLogin: z
+      .string()
+      .max(1000, 'El mensaje de login no puede superar los 1000 caracteres')
+      .optional(),
     fechaInicio: utcIsoDateTimeSchema,
     fechaFin: utcIsoDateTimeSchema,
     tipoVotacion: tipoVotacionSchema,

@@ -71,6 +71,7 @@ import { DocumentosComicioMenu } from '@/features/eleccion/components/documentos
 import { EliminarComicioDialog } from '@/features/eleccion/components/eliminar-comicio-dialog'
 import { PausarComicioDialog } from '@/features/eleccion/components/pausar-comicio-dialog'
 import { ReanudarComicioDialog } from '@/features/eleccion/components/reanudar-comicio-dialog'
+import { ConfiguracionMensajeBudPanel } from '@/features/eleccion/configuracion-comicio/components/configuracion-mensaje-bud-panel'
 import { ConfiguracionRevotoPanel } from '@/features/eleccion/configuracion-comicio/components/configuracion-revoto-panel'
 import { ConfiguracionVotoNuloPanel } from '@/features/eleccion/configuracion-comicio/components/configuracion-voto-nulo-panel'
 import { VisibilidadDashboardPanel } from '@/features/eleccion/configuracion-comicio/components/visibilidad-dashboard-panel'
@@ -755,6 +756,8 @@ export const OfertaElectoralPanel = ({
           </AlertDescription>
         </Alert>
       )}
+
+      <ConfiguracionMensajeBudPanel idEleccion={idEleccion} />
 
       <ConfiguracionRevotoPanel
         idEleccion={idEleccion}

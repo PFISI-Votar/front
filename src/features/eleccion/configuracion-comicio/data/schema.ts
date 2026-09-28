@@ -101,3 +101,19 @@ export type VisibilidadDashboard = {
   /** True cuando el comicio está en BORRADOR o CONFIGURADA y admite cambios. */
   editable: boolean
 }
+
+export const guardarMensajeBudSchema = z.object({
+  observacionLogin: z
+    .string()
+    .max(1000, 'El mensaje no puede superar los 1000 caracteres')
+    .optional()
+    .nullable(),
+})
+
+export type GuardarMensajeBudInput = z.infer<typeof guardarMensajeBudSchema>
+
+export type MensajeBud = {
+  idEleccion: number
+  observacionLogin: string | null
+  editable: boolean
+}

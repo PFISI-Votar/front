@@ -72,4 +72,27 @@ describe('createComicioSchema', () => {
     const result = createComicioSchema.safeParse(buildValidInput())
     expect(result.success).toBe(true)
   })
+
+  it('valida observacionLogin opcional y longitud máxima de 1000 caracteres', () => {
+    const validWithObservacion = {
+      ...buildValidInput(),
+      observacionLogin: 'Mensaje personalizado de acceso institucional.',
+    }
+    expect(createComicioSchema.safeParse(validWithObservacion).success).toBe(
+      true
+    )
+
+    const invalidTooLong = {
+      ...buildValidInput(),
+      observacionLogin: 'a'.repeat(1001),
+    }
+    const result = createComicioSchema.safeParse(invalidTooLong)
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      const issue = result.error.issues.find(
+        (item) => item.path[0] === 'observacionLogin'
+      )
+      expect(issue?.message).toContain('1000 caracteres')
+    }
+  })
 })
