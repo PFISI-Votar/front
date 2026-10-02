@@ -2,6 +2,7 @@ import { AxiosError } from 'axios'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
+import { resolveMediaUrl } from '@/lib/media-url'
 import { OfertaPublicaPage } from './oferta-publica-page'
 
 const mocks = vi.hoisted(() => ({
@@ -163,10 +164,7 @@ describe('OfertaPublicaPage — VOTAR-368', () => {
     // '/imagenes/...') resolvería contra el origen equivocado.
     await expect
       .element(fotoAna)
-      .toHaveAttribute(
-        'src',
-        'http://localhost:3000/uploads/candidatos/ana.jpg'
-      )
+      .toHaveAttribute('src', resolveMediaUrl('/uploads/candidatos/ana.jpg')!)
     await expect
       .element(screen.getByText(/Autoridad máxima del centro/i))
       .toBeInTheDocument()
