@@ -39,9 +39,13 @@ import { ManualVotanteLink } from '@/features/manual-votante'
 import { loginVotante } from '@/features/voto/services/votante-auth-api'
 import type { VotanteAuthUser } from '@/features/voto/types/votante-auth.types'
 
+export const DEFAULT_BUD_LOGIN_OBSERVACION =
+  'El acceso se realiza con tu cuenta institucional. Para poder emitir el voto, el correo electrónico cargado en la sección Datos Personales de Autogestión debe coincidir con el registrado en el padrón electoral.'
+
 type BudLoginScreenProps = {
   idEleccion: number
   authMethod?: MetodoAutenticacion
+  observacionLogin?: string | null
   onAuthenticated: (user: VotanteAuthUser) => void
 }
 
@@ -51,6 +55,7 @@ const GENERIC_LOGIN_ERROR =
 export const BudLoginScreen = ({
   idEleccion,
   authMethod = METODOS_AUTENTICACION.SSO_INSTITUCIONAL,
+  observacionLogin,
   onAuthenticated,
 }: BudLoginScreenProps) => {
   const [legajo, setLegajo] = useState('')
@@ -59,6 +64,11 @@ export const BudLoginScreen = ({
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const isGoogleLogin = authMethod === METODOS_AUTENTICACION.GOOGLE
+
+  const mensajeObservacion =
+    observacionLogin !== undefined
+      ? observacionLogin
+      : DEFAULT_BUD_LOGIN_OBSERVACION
 
   const handleGoogleStub = () => {
     toast.info('El inicio de sesión con Google estará disponible próximamente.')
@@ -111,18 +121,17 @@ export const BudLoginScreen = ({
           </CardHeader>
 
           <CardContent className='px-6 pt-6 pb-8 sm:px-8'>
-            <div className='mb-5 flex items-start gap-2 rounded-lg border border-[#dbe3ea] bg-[#f7fbfd] p-3 text-xs text-[#55575d]'>
-              <Mail
-                className='mt-0.5 size-4 shrink-0 text-[#2f6f9f]'
-                aria-hidden='true'
-              />
-              <p>
-                El acceso se realiza con tu cuenta institucional. Para poder
-                emitir el voto, el correo electrónico cargado en la sección{' '}
-                <strong>Datos Personales</strong> de Autogestión debe coincidir
-                con el registrado en el padrón electoral.
-              </p>
-            </div>
+            {mensajeObservacion && mensajeObservacion.trim().length > 0 ? (
+              <div className='mb-5 flex items-start gap-2 rounded-lg border border-[#dbe3ea] bg-[#f7fbfd] p-3 text-xs text-[#55575d]'>
+                <Mail
+                  className='mt-0.5 size-4 shrink-0 text-[#2f6f9f]'
+                  aria-hidden='true'
+                />
+                <p className='leading-relaxed whitespace-pre-line'>
+                  {mensajeObservacion}
+                </p>
+              </div>
+            ) : null}
             {errorMessage ? (
               <Alert variant='destructive' className='mb-5'>
                 <AlertTitle>Error de autenticación</AlertTitle>

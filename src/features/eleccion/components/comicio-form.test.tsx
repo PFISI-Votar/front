@@ -82,5 +82,8 @@ describe('ComicioForm', () => {
     await expect
       .element(page.getByText('Descripción (opcional)'))
       .toBeInTheDocument()
+    await expect
+      .element(page.getByText('Mensaje en el login del BUD (opcional)'))
+      .toBeInTheDocument()
   })
 })

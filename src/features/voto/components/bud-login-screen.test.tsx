@@ -137,4 +137,34 @@ describe('BudLoginScreen', () => {
     const violaciones = await auditarAccesibilidad(screen.container)
     expect(violaciones, formatearViolaciones(violaciones)).toEqual([])
   })
+
+  it('VOTAR-454: renderiza mensaje configurable en el login del BUD', async () => {
+    const customMessage =
+      'Aviso especial: recordá utilizar tu correo institucional @frro.utn.edu.ar'
+    const screen = await render(
+      <BudLoginScreen
+        idEleccion={2}
+        observacionLogin={customMessage}
+        onAuthenticated={onAuthenticatedMock}
+      />
+    )
+
+    await expect.element(screen.getByText(customMessage)).toBeInTheDocument()
+  })
+
+  it('VOTAR-454: oculta el recuadro de observación cuando observacionLogin es null', async () => {
+    const screen = await render(
+      <BudLoginScreen
+        idEleccion={2}
+        observacionLogin={null}
+        onAuthenticated={onAuthenticatedMock}
+      />
+    )
+
+    await expect
+      .element(
+        screen.getByText(/El acceso se realiza con tu cuenta institucional/i)
+      )
+      .not.toBeInTheDocument()
+  })
 })

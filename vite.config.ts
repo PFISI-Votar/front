@@ -56,6 +56,19 @@ export default defineConfig(({ mode, command, isPreview }) => {
     ...(isDevServer
       ? {
           server: {
+            allowedHosts: true,
+            proxy: {
+              '/auth': 'http://localhost:3000',
+              '/elecciones': 'http://localhost:3000',
+              '/audit-log': 'http://localhost:3000',
+              '/listas': 'http://localhost:3000',
+              '/candidatos': 'http://localhost:3000',
+              '/configuracion-sistema': 'http://localhost:3000',
+              '/imagenes': 'http://localhost:3000',
+              '/recibos': 'http://localhost:3000',
+              '/validacion': 'http://localhost:3000',
+              '/blockchain': 'http://localhost:3000',
+            },
             headers: buildSecurityHeaders({
               ...headerOptions,
               isDev: true,
@@ -66,6 +79,7 @@ export default defineConfig(({ mode, command, isPreview }) => {
     ...(isPreviewServer
       ? {
           preview: {
+            allowedHosts: true,
             headers: buildSecurityHeaders({
               ...headerOptions,
               isDev: false,

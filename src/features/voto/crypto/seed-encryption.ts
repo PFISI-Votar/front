@@ -64,30 +64,39 @@ const writeKey = (
  * persisted (VOTAR-496 review).
  */
 const createEncryptionKey = async (recordId: string): Promise<CryptoKey> => {
-  return globalThis.navigator.locks.request(
-    `${LOCK_NAME_PREFIX}${recordId}`,
-    async () => {
-      const db = await openDatabase()
-      try {
-        // Re-check inside the lock: another tab may have created and
-        // persisted this comicio's key while we were waiting our turn.
-        const stored = await readStoredKey(db, recordId)
-        if (stored) {
-          return stored
-        }
-
-        const key = await globalThis.crypto.subtle.generateKey(
-          { name: AES_ALGORITHM, length: AES_KEY_LENGTH },
-          false,
-          ['encrypt', 'decrypt']
-        )
-        await writeKey(db, recordId, key)
-        return key
-      } finally {
-        db.close()
+  const executeKeyCreation = async () => {
+    const db = await openDatabase()
+    try {
+      // Re-check inside the lock: another tab may have created and
+      // persisted this comicio's key while we were waiting our turn.
+      const stored = await readStoredKey(db, recordId)
+      if (stored) {
+        return stored
       }
+
+      const key = await globalThis.crypto.subtle.generateKey(
+        { name: AES_ALGORITHM, length: AES_KEY_LENGTH },
+        false,
+        ['encrypt', 'decrypt']
+      )
+      await writeKey(db, recordId, key)
+      return key
+    } finally {
+      db.close()
     }
-  )
+  }
+
+  if (
+    typeof globalThis.navigator !== 'undefined' &&
+    globalThis.navigator.locks?.request
+  ) {
+    return globalThis.navigator.locks.request(
+      `${LOCK_NAME_PREFIX}${recordId}`,
+      executeKeyCreation
+    )
+  }
+
+  return executeKeyCreation()
 }
 
 const getOrCreateEncryptionKey = (recordId: string): Promise<CryptoKey> => {

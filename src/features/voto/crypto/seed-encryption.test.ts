@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { bytesToHex } from 'viem'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const DB_NAME = 'votar-ephemeral-crypto'
 const STORE_NAME = 'keys'
@@ -43,7 +43,19 @@ const importFreshModule = async () => {
 
 describe('seed-encryption (VOTAR-496)', () => {
   beforeEach(async () => {
+    vi.stubGlobal('navigator', {
+      locks: {
+        request: async (
+          _name: string,
+          callback: () => Promise<unknown>
+        ): Promise<unknown> => callback(),
+      },
+    })
     await deleteDatabase()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('decrypts back to the exact original seed', async () => {

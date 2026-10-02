@@ -34,6 +34,7 @@ import { resolveMediaUrl } from '@/lib/media-url'
 import { toSafeNavigationUrl } from '@/lib/safe-url'
 import { toUntrustedPlainText } from '@/lib/untrusted-html'
 import { cn } from '@/lib/utils'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -416,6 +417,7 @@ export const BudVotingWizard = ({
   onLogout,
 }: BudVotingWizardProps) => {
   const queryClient = useQueryClient()
+  const isMobile = useIsMobile()
   const [step, setStep] = useState<WizardStep>('identity')
   const variant = getVotingVariant(tipoVotacion)
   const [selectedListId, setSelectedListId] = useState<string | null>(null)
@@ -749,10 +751,10 @@ export const BudVotingWizard = ({
       listId ? getCandidateSelectionsForList(listId, roles, candidates) : {}
     )
 
-    // Elegir una lista completa (por lista o como atajo "por cargo") ya deja
-    // la boleta lista — avanza directo a revisión en vez de esperar un
-    // "Continuar" aparte. Deseleccionar (listId null) no avanza.
-    if (listId) {
+    // Elegir una lista completa en modo por lista en mobile no avanza automáticamente,
+    // requiere confirmación explícita con el botón "Continuar".
+    // En desktop o en el atajo por cargo avanza directo a revisión.
+    if (listId && (!isMobile || variant === 'candidatos')) {
       setStep('review')
     }
   }
@@ -1032,9 +1034,7 @@ export const BudVotingWizard = ({
             secreto: credential.secreto,
             nullifier: signed.nullifier,
             selectionHash: signed.selectionHash,
-            // Validation EIP-712 (VOTAR-377) still binds a single audit id until
-            // the on-chain Validation typehash is updated for candidateIds[].
-            candidateId: signed.candidateIds[0]!.toString(),
+            candidateIds: signed.candidateIds.map((id) => id.toString()),
             timestamp: signed.timestamp,
             expectedSigner: signed.expectedSigner,
           }
@@ -2435,22 +2435,22 @@ const SuccessStep = ({
   }
 
   return (
-    <div className='mx-auto grid w-full max-w-2xl gap-5'>
-      <Card className='border-[#d7eadf] bg-white/95 text-center shadow-[0_1.5rem_5rem_rgba(30,64,95,0.07)]'>
-        <CardHeader>
+    <div className='mx-auto grid w-full max-w-2xl min-w-0 gap-5'>
+      <Card className='max-w-full min-w-0 overflow-hidden border-[#d7eadf] bg-white/95 text-center shadow-[0_1.5rem_5rem_rgba(30,64,95,0.07)]'>
+        <CardHeader className='px-4 sm:px-6'>
           <div className='mx-auto grid size-16 place-items-center rounded-full bg-emerald-100 text-emerald-700'>
             <CheckCircle2 className='size-9' />
           </div>
           <BudCardTitle className='text-2xl'>Voto Exitoso</BudCardTitle>
-          <CardDescription>
+          <CardDescription className='max-w-full min-w-0 [overflow-wrap:anywhere] break-all'>
             {txHash
               ? `Voto registrado exitosamente (hash: ${txHash}).`
               : 'Su voto ha sido firmado con éxito.'}
           </CardDescription>
         </CardHeader>
-        <CardContent className='grid gap-4 text-left'>
+        <CardContent className='grid gap-4 px-4 text-left sm:px-6'>
           {voteReceiptReady && (
-            <div className='rounded-2xl bg-slate-50 p-4'>
+            <div className='max-w-full min-w-0 rounded-2xl bg-slate-50 p-4'>
               <p className='mb-2 text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase'>
                 Comprobante criptográfico
               </p>
@@ -2462,14 +2462,14 @@ const SuccessStep = ({
               </p>
               {txHash && (
                 <div
-                  className='mt-3 rounded-xl bg-white p-3 text-sm break-all text-slate-700'
+                  className='mt-3 max-w-full min-w-0 rounded-xl bg-white p-3 text-sm [overflow-wrap:anywhere] break-all text-slate-700'
                   role='group'
                   aria-label={`Hash de transacción ${txHash}`}
                 >
                   <p className='mb-1 text-xs font-semibold tracking-[0.16em] text-slate-500 uppercase'>
                     Hash de transacción
                   </p>
-                  <p>{txHash}</p>
+                  <p className='[overflow-wrap:anywhere] break-all'>{txHash}</p>
                   {blockNumber !== null && (
                     <p className='mt-2 text-xs text-slate-500'>
                       Bloque: {blockNumber}
@@ -2480,33 +2480,37 @@ const SuccessStep = ({
                       href={explorerUrl}
                       target='_blank'
                       rel='noopener noreferrer'
-                      className='mt-2 inline-flex items-center gap-1 text-[#2f6f9f] underline-offset-2 hover:underline'
+                      className='mt-2 inline-flex max-w-full items-center gap-1 text-[#2f6f9f] underline-offset-2 hover:underline'
                       aria-label='Ver transacción en el explorador de bloques'
                     >
-                      Ver en explorador
-                      <ExternalLink className='size-3.5' />
+                      <span className='truncate'>Ver en explorador</span>
+                      <ExternalLink className='size-3.5 shrink-0' />
                     </a>
                   )}
                 </div>
               )}
               {pdfError && (
                 <Alert variant='destructive' className='mt-3'>
-                  <AlertTriangle className='size-4' />
+                  <AlertTriangle className='size-4 shrink-0' />
                   <AlertTitle>No se pudo descargar el PDF</AlertTitle>
-                  <AlertDescription>{pdfError}</AlertDescription>
+                  <AlertDescription className='[overflow-wrap:anywhere] break-all'>
+                    {pdfError}
+                  </AlertDescription>
                 </Alert>
               )}
             </div>
           )}
           {signingError && (
             <Alert variant='destructive'>
-              <AlertTriangle className='size-4' />
+              <AlertTriangle className='size-4 shrink-0' />
               <AlertTitle>No se pudo continuar</AlertTitle>
-              <AlertDescription>{signingError}</AlertDescription>
+              <AlertDescription className='[overflow-wrap:anywhere] break-all'>
+                {signingError}
+              </AlertDescription>
             </Alert>
           )}
         </CardContent>
-        <CardFooter className='grid gap-3'>
+        <CardFooter className='grid gap-3 px-4 sm:px-6'>
           {voteReceiptReady && txHash && (
             <Button
               size='lg'
@@ -2520,12 +2524,12 @@ const SuccessStep = ({
             >
               {isDownloadingPdf ? (
                 <>
-                  <Loader2 className='size-4 animate-spin' />
+                  <Loader2 className='size-4 shrink-0 animate-spin' />
                   Generando PDF...
                 </>
               ) : (
                 <>
-                  <Download className='size-4' />
+                  <Download className='size-4 shrink-0' />
                   Descargar comprobante PDF
                 </>
               )}
@@ -2538,7 +2542,7 @@ const SuccessStep = ({
             onClick={onModify}
             aria-label='Modificar mi voto'
           >
-            <PenLine className='size-4' />
+            <PenLine className='size-4 shrink-0' />
             Modificar mi voto
           </Button>
           <Button
@@ -2547,7 +2551,7 @@ const SuccessStep = ({
             className='h-12 w-full'
             onClick={onLogout}
           >
-            <LogOut className='size-4' />
+            <LogOut className='size-4 shrink-0' />
             Cerrar sesión
           </Button>
         </CardFooter>
