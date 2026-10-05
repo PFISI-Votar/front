@@ -1,4 +1,5 @@
-import { hexToBytes } from 'viem'
+import 'fake-indexeddb/auto'
+import { bytesToHex, hexToBytes } from 'viem'
 import { privateKeyToAccount, generatePrivateKey } from 'viem/accounts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createEphemeralWalletManager } from '@/features/voto/crypto/ephemeral-wallet'
@@ -6,8 +7,28 @@ import { signDigestWithSecp256k1 } from '@/features/voto/crypto/secp256k1-digest
 import { computeSelectionHash } from '@/features/voto/crypto/selection-hash'
 import { hashVoteTypedData } from '@/features/voto/crypto/vote-signer'
 
+// VOTAR-496: this file tests wallet/session behavior, not the real
+// encryption mechanism (that's covered end-to-end in
+// seed-encryption.test.ts, against a fake-indexeddb-backed IndexedDB).
+// A reversible XOR stands in for real AES-GCM so revote tests (which
+// depend on the same seed round-tripping through storage) keep working,
+// while the stored value still differs from the plaintext seed.
+vi.mock('@/features/voto/crypto/seed-encryption', () => ({
+  encryptSeed: async (seed: Uint8Array) => ({
+    ciphertext: bytesToHex(seed.map((byte) => byte ^ 0xff)),
+    iv: '0x00',
+  }),
+  decryptSeed: async (encrypted: { ciphertext: `0x${string}` }) =>
+    hexToBytes(encrypted.ciphertext).map((byte) => byte ^ 0xff),
+}))
+
 const TEST_BALLOT_ADDRESS =
   '0x0000000000000000000000000000000000000001' as const
+
+const VOTANTE_SCOPE_A = 'voter-scope-a'
+const VOTANTE_SCOPE_B = 'voter-scope-b'
+const seedStorageKey = (idEleccion: number, scope: string) =>
+  `votar:vote-seed:${idEleccion}:${scope}`
 
 const createMemoryStorage = () => {
   const store = new Map<string, string>()
@@ -49,6 +70,14 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
     vi.stubGlobal('localStorage', localStorageMock)
     vi.stubGlobal('sessionStorage', sessionStorageMock)
     vi.stubGlobal('document', { cookie: '' })
+    vi.stubGlobal('navigator', {
+      locks: {
+        request: async (
+          _name: string,
+          callback: () => Promise<unknown>
+        ): Promise<unknown> => callback(),
+      },
+    })
   })
 
   afterEach(() => {
@@ -57,7 +86,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
   })
 
   it('generates a compressed secp256k1 public key for a valid election', async () => {
-    const session = await manager.initialize(7)
+    const session = await manager.initialize(7, VOTANTE_SCOPE_A)
 
     expect(session.idEleccion).toBe(7)
     expect(session.publicKeyHex).toMatch(/^0x0[23][0-9a-f]{64}$/)
@@ -67,7 +96,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
   })
 
   it('UAT-01: never persists private/public key material in storage or cookies', async () => {
-    const session = await manager.initialize(7)
+    const session = await manager.initialize(7, VOTANTE_SCOPE_A)
     const publicKeyHex = session.publicKeyHex
 
     for (const key of STORAGE_KEYS) {
@@ -76,40 +105,64 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
     }
 
     // VOTAR-353: a random per-(browser, idEleccion) seed IS persisted so the
-    // same voter reaches the same nullifier across sign attempts — but the
-    // seed is not the private/public key, and never appears verbatim in it.
+    // same voter reaches the same nullifier across sign attempts. VOTAR-496:
+    // it is now encrypted at rest — the raw hex assertion below became a
+    // shape check on { ciphertext, iv } since the stored value is no longer
+    // the plaintext seed at all (real AES-GCM coverage lives in
+    // seed-encryption.test.ts; this file mocks that module, see above).
     expect(localStorageMock.length).toBe(1)
-    expect(localStorageMock.getItem('votar:vote-seed:7')).toMatch(
-      /^0x[0-9a-f]{64}$/
+    const storedRaw = localStorageMock.getItem(
+      seedStorageKey(7, VOTANTE_SCOPE_A)
     )
-    expect(localStorageMock.getItem('votar:vote-seed:7')).not.toBe(publicKeyHex)
+    expect(storedRaw).not.toBeNull()
+    const stored = JSON.parse(storedRaw as string) as {
+      ciphertext: string
+      iv: string
+    }
+    expect(stored.ciphertext).toMatch(/^0x[0-9a-f]+$/)
+    expect(stored.iv).toMatch(/^0x[0-9a-f]+$/)
+    expect(stored.ciphertext).not.toBe(publicKeyHex)
     expect(sessionStorageMock.length).toBe(0)
     expect(document.cookie).not.toContain(publicKeyHex.slice(2))
     expect(document.cookie.toLowerCase()).not.toContain('private')
   })
 
   it('VOTAR-353: destroy clears the session, but regenerating for the same election yields the same public key (LAST_VOTE_WINS revote support)', async () => {
-    const firstSession = await manager.initialize(7)
+    const firstSession = await manager.initialize(7, VOTANTE_SCOPE_A)
     manager.destroy()
 
     expect(manager.getSession()).toBeNull()
     expect(manager.getPublicKeyHex()).toBeNull()
 
-    const secondSession = await manager.initialize(7)
+    const secondSession = await manager.initialize(7, VOTANTE_SCOPE_A)
     expect(secondSession.publicKeyHex).toBe(firstSession.publicKeyHex)
     expect(secondSession.publicKeyHex).toMatch(/^0x0[23][0-9a-f]{64}$/)
   })
 
   it('VOTAR-353: two different elections derive different public keys from the same browser', async () => {
-    const electionSeven = await manager.initialize(7)
+    const electionSeven = await manager.initialize(7, VOTANTE_SCOPE_A)
     manager.destroy()
-    const electionEight = await manager.initialize(8)
+    const electionEight = await manager.initialize(8, VOTANTE_SCOPE_A)
 
     expect(electionEight.publicKeyHex).not.toBe(electionSeven.publicKeyHex)
   })
 
+  it('VOTAR-452: distintos votanteScope derivan claves distintas para la misma elección', async () => {
+    const voterA = await manager.initialize(7, VOTANTE_SCOPE_A)
+    manager.destroy()
+    const voterB = await manager.initialize(7, VOTANTE_SCOPE_B)
+
+    expect(voterB.publicKeyHex).not.toBe(voterA.publicKeyHex)
+    expect(
+      localStorageMock.getItem(seedStorageKey(7, VOTANTE_SCOPE_A))
+    ).not.toBeNull()
+    expect(
+      localStorageMock.getItem(seedStorageKey(7, VOTANTE_SCOPE_B))
+    ).not.toBeNull()
+  })
+
   it('UAT-03: does not expose private key accessors on the public API or window', async () => {
-    await manager.initialize(7)
+    await manager.initialize(7, VOTANTE_SCOPE_A)
 
     expect(manager).not.toHaveProperty('getPrivateKey')
     expect(manager).not.toHaveProperty('privateKey')
@@ -131,7 +184,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
   })
 
   it('UAT-04 / VOTAR-418: signVotePayload destroys session so a second sign fails', async () => {
-    await manager.initialize(357)
+    await manager.initialize(357, VOTANTE_SCOPE_A)
     const selection = {
       selecciones: [{ idCategoria: 1, idCandidato: 101 }],
     }
@@ -156,7 +209,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
 
   it('VOTAR-418: signVotePayload zeroizes the private-key Uint8Array buffer', async () => {
     const fillSpy = vi.spyOn(Uint8Array.prototype, 'fill')
-    await manager.initialize(418)
+    await manager.initialize(418, VOTANTE_SCOPE_A)
     const selection = {
       selecciones: [{ idCategoria: 1, idCandidato: 101 }],
     }
@@ -174,7 +227,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
   })
 
   it('VOTAR-418: failed signature does not destroy the wallet', async () => {
-    await manager.initialize(418)
+    await manager.initialize(418, VOTANTE_SCOPE_A)
     const publicKeyBefore = manager.getPublicKeyHex()
     const selection = {
       selecciones: [{ idCategoria: 1, idCandidato: 101 }],
@@ -216,7 +269,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
       357,
       selectionHash,
       nullifier,
-      101n,
+      [101n],
       timestamp,
       {
         chainId: 31_337,
@@ -228,7 +281,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
     const viemSig = await account.signTypedData({
       domain: {
         name: 'VOTAR',
-        version: '1',
+        version: '2',
         chainId: 31_337,
         verifyingContract: '0x0000000000000000000000000000000000000001',
       },
@@ -237,7 +290,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
           { name: 'electionId', type: 'uint256' },
           { name: 'nullifier', type: 'bytes32' },
           { name: 'selectionHash', type: 'bytes32' },
-          { name: 'candidateId', type: 'uint256' },
+          { name: 'candidateIds', type: 'uint256[]' },
           { name: 'timestamp', type: 'uint256' },
         ],
       },
@@ -246,7 +299,7 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
         electionId: BigInt(357),
         nullifier,
         selectionHash,
-        candidateId: 101n,
+        candidateIds: [101n],
         timestamp: BigInt(timestamp),
       },
     })
@@ -255,17 +308,23 @@ describe('createEphemeralWalletManager (VOTAR-352)', () => {
   })
 
   it('rejects invalid election ids', async () => {
-    await expect(manager.initialize(0)).rejects.toThrow(
+    await expect(manager.initialize(0, VOTANTE_SCOPE_A)).rejects.toThrow(
       'idEleccion must be a positive integer'
     )
-    await expect(manager.initialize(-1)).rejects.toThrow(
+    await expect(manager.initialize(-1, VOTANTE_SCOPE_A)).rejects.toThrow(
       'idEleccion must be a positive integer'
+    )
+  })
+
+  it('rejects initialization without votanteScope', async () => {
+    await expect(manager.initialize(7, '')).rejects.toThrow(
+      'votanteScope is required'
     )
   })
 
   it('rejects initialization when Web Crypto is unavailable', async () => {
     vi.stubGlobal('crypto', undefined)
-    await expect(manager.initialize(7)).rejects.toThrow(
+    await expect(manager.initialize(7, VOTANTE_SCOPE_A)).rejects.toThrow(
       'Web Crypto API is not supported in this browser'
     )
   })

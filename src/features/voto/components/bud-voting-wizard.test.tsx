@@ -1,12 +1,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { auditarAccesibilidad, formatearViolaciones } from '@/test-utils/axe'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
+import { toUntrustedPlainText } from '@/lib/untrusted-html'
 import {
   TIPOS_VOTACION,
   type TipoVotacion,
 } from '@/features/eleccion/lista/data/schema'
-import { BUD_CATEGORY_GRID_CLASS } from '@/features/voto/components/bud-layout.constants'
+import { BUD_LIST_GRID_CLASS } from '@/features/voto/components/bud-layout.constants'
 import { BudVotingWizard } from '@/features/voto/components/bud-voting-wizard'
 import { EphemeralWalletProvider } from '@/features/voto/crypto/ephemeral-wallet-context'
 import { calcularNullifier } from '@/features/voto/crypto/nullifier'
@@ -38,9 +40,13 @@ const registrarTransaccionPublicaMock = vi.fn().mockResolvedValue(undefined)
 const registrarConsumoIntentoMock = vi.fn()
 const obtenerEstadoRevotoMock = vi.fn()
 const leerVoterStateMock = vi.fn()
+const leerHasVotedMock = vi.fn()
+const leerIsNullifierUsedMock = vi.fn()
 
 vi.mock('@/features/voto/crypto/voter-state', () => ({
   leerVoterState: (...args: unknown[]) => leerVoterStateMock(...args),
+  leerHasVoted: (...args: unknown[]) => leerHasVotedMock(...args),
+  leerIsNullifierUsed: (...args: unknown[]) => leerIsNullifierUsedMock(...args),
 }))
 
 const defaultEstadoRevoto: EstadoRevoto = {
@@ -67,12 +73,31 @@ vi.mock('@/features/voto/api/voto-api', () => ({
   obtenerEstadoRevoto: (...args: unknown[]) => obtenerEstadoRevotoMock(...args),
   registrarConsumoIntento: (...args: unknown[]) =>
     registrarConsumoIntentoMock(...args),
+  solicitarAutorizacionRelayer: vi.fn(),
+  postRelayerCast: vi.fn(),
 }))
 
 const clearVotanteSessionMock = vi.fn().mockResolvedValue(undefined)
 
 vi.mock('@/features/voto/services/votante-session', () => ({
   clearVotanteSession: (...args: unknown[]) => clearVotanteSessionMock(...args),
+}))
+
+// VOTAR-377 — Entidad de Firmas Digitales (dos fases).
+const emitirCredencialValidacionMock = vi
+  .fn()
+  .mockResolvedValue({ expiraEn: new Date(Date.now() + 900_000).toISOString() })
+const solicitarFirmaValidacionMock = vi.fn().mockResolvedValue({
+  firmaValidacion: '0x' + '77'.repeat(65),
+  direccionValidador: '0x' + '1'.repeat(40),
+  algoritmo: 'ECDSA_SECP256K1_EIP712',
+})
+
+vi.mock('@/features/voto/api/validacion-api', () => ({
+  emitirCredencialValidacion: (...args: unknown[]) =>
+    emitirCredencialValidacionMock(...args),
+  solicitarFirmaValidacion: (...args: unknown[]) =>
+    solicitarFirmaValidacionMock(...args),
 }))
 
 const transmitSignedVoteMock = vi.fn()
@@ -85,15 +110,33 @@ vi.mock('@/features/voto/crypto/vote-transmitter', () => ({
 }))
 
 const WALLET_PUBLIC_KEY = '0x02' + 'a'.repeat(64)
+const VOTE_SIGNATURE = '0x' + 'e'.repeat(130)
+const VALIDATOR_SIGNATURE = '0x' + '77'.repeat(65)
+const SELECTION_HASH = '0x' + 'c'.repeat(64)
+const expectNoWalletSecretsInDom = (nullifier?: string) => {
+  const html = document.body.innerHTML
+  // Signature / selection material from this suite's fixtures. Private-key
+  // non-leakage is covered without crypto mocks in
+  // seed-hardening.integration.test.ts (VOTAR-489 review).
+  for (const secret of [
+    VOTE_SIGNATURE,
+    VALIDATOR_SIGNATURE,
+    SELECTION_HASH,
+    nullifier,
+  ]) {
+    if (!secret) continue
+    expect(html).not.toContain(secret)
+  }
+}
 
 const signVotePayloadMock = vi.fn().mockResolvedValue({
   electionId: 7,
   nullifier: '0x' + 'b'.repeat(64),
-  selectionHash: '0x' + 'c'.repeat(64),
-  candidateId: 101n,
+  selectionHash: SELECTION_HASH,
+  candidateIds: [101n],
   timestamp: 1_700_000_000,
   expectedSigner: '0x' + 'd'.repeat(40),
-  signature: '0x' + 'e'.repeat(130),
+  signature: VOTE_SIGNATURE,
 })
 
 const initializeWalletMock = vi.fn().mockResolvedValue({
@@ -141,6 +184,7 @@ const boleta: BoletaDigital = {
       nombre: 'Presidente',
       descripcion: null,
       orden: 1,
+      cantidadCargos: 1,
       estado: 'DISPONIBLE',
       candidatos: [
         {
@@ -189,6 +233,7 @@ const boleta: BoletaDigital = {
       nombre: 'Vocales',
       descripcion: null,
       orden: 2,
+      cantidadCargos: 1,
       estado: 'DISPONIBLE',
       candidatos: [
         {
@@ -209,6 +254,8 @@ const boleta: BoletaDigital = {
   ],
 }
 
+const VOTANTE_SCOPE = 'test-voter-sub'
+
 async function renderWizard(
   tipoVotacion: TipoVotacion = TIPOS_VOTACION.POR_CANDIDATO,
   onLogout: () => void = vi.fn(),
@@ -223,6 +270,7 @@ async function renderWizard(
         <BudVotingWizard
           boleta={boletaOverride}
           tipoVotacion={tipoVotacion}
+          votanteScope={VOTANTE_SCOPE}
           onLogout={onLogout}
         />
       </EphemeralWalletProvider>
@@ -251,11 +299,23 @@ describe('BudVotingWizard', () => {
     registrarVotoEmitidoAnonimoMock.mockClear()
     registrarTransaccionPublicaMock.mockClear()
     registrarConsumoIntentoMock.mockClear()
+    emitirCredencialValidacionMock.mockClear()
+    solicitarFirmaValidacionMock.mockClear()
+    emitirCredencialValidacionMock.mockResolvedValue({
+      expiraEn: new Date(Date.now() + 900_000).toISOString(),
+    })
+    solicitarFirmaValidacionMock.mockResolvedValue({
+      firmaValidacion: VALIDATOR_SIGNATURE,
+      direccionValidador: '0x' + '1'.repeat(40),
+      algoritmo: 'ECDSA_SECP256K1_EIP712',
+    })
     toastWarningMock.mockClear()
     toastErrorMock.mockClear()
     logVoteTxErrorMock.mockClear()
     obtenerEstadoRevotoMock.mockReset()
     leerVoterStateMock.mockReset()
+    leerHasVotedMock.mockReset()
+    leerIsNullifierUsedMock.mockReset()
     clearVotanteSessionMock.mockResolvedValue(undefined)
     registrarVotoEmitidoAnonimoMock.mockResolvedValue(undefined)
     registrarTransaccionPublicaMock.mockResolvedValue(undefined)
@@ -264,6 +324,9 @@ describe('BudVotingWizard', () => {
     // alcanzable; los tests existentes (que asumen el estado off-chain como
     // única fuente) siguen valiendo sin cambios. Los tests on-chain overridean esto.
     leerVoterStateMock.mockRejectedValue(new Error('contract not reachable'))
+    // VOTAR-451: leaf libre por defecto → el camino feliz sigue transmitiendo.
+    leerHasVotedMock.mockResolvedValue(false)
+    leerIsNullifierUsedMock.mockResolvedValue(false)
     registrarConsumoIntentoMock.mockResolvedValue({
       ...defaultEstadoRevoto,
       votosConsumidos: 1,
@@ -277,11 +340,11 @@ describe('BudVotingWizard', () => {
     signVotePayloadMock.mockResolvedValue({
       electionId: 7,
       nullifier: '0x' + 'b'.repeat(64),
-      selectionHash: '0x' + 'c'.repeat(64),
-      candidateId: 101n,
+      selectionHash: SELECTION_HASH,
+      candidateIds: [101n],
       timestamp: 1_700_000_000,
       expectedSigner: '0x' + 'd'.repeat(40),
-      signature: '0x' + 'e'.repeat(130),
+      signature: VOTE_SIGNATURE,
     })
     transmitSignedVoteMock.mockImplementation(
       async (
@@ -340,23 +403,29 @@ describe('BudVotingWizard', () => {
   it('VOTAR-356 UAT-03: inicia sin preseleccionar candidatos ni voto en blanco', async () => {
     const screen = await renderWizard()
 
+    // VOTAR-464: por cargo muestra un cargo a la vez — Presidente es el
+    // primero, Vocales recién aparece al navegar a esa tab.
     const blankPresidente = screen.getByRole('button', {
       name: /Voto en Blanco para Presidente/i,
     })
+    const ana = screen.getByRole('button', { name: /Ana Lopez/i })
+    expect(blankPresidente.element().getAttribute('aria-pressed')).toBe('false')
+    expect(ana.element().getAttribute('aria-pressed')).toBe('false')
+
+    await userEvent.click(screen.getByRole('tab', { name: /Vocales/i }))
     const blankVocales = screen.getByRole('button', {
       name: /Voto en Blanco para Vocales/i,
     })
-    const ana = screen.getByRole('button', { name: /Ana Lopez/i })
-
-    expect(blankPresidente.element().getAttribute('aria-pressed')).toBe('false')
     expect(blankVocales.element().getAttribute('aria-pressed')).toBe('false')
-    expect(ana.element().getAttribute('aria-pressed')).toBe('false')
   })
 
   it('VOTAR-356 UAT-01: voto en blanco por categoría desmarca candidatos y permite confirmar', async () => {
     const screen = await renderWizard()
 
+    // Elegir un candidato avanza automáticamente al siguiente cargo
+    // (VOTAR-464), así que volvemos a la tab de Presidente para verificar.
     await userEvent.click(screen.getByRole('button', { name: /Ana Lopez/i }))
+    await userEvent.click(screen.getByRole('tab', { name: /Presidente/i }))
     expect(
       screen
         .getByRole('button', { name: /Ana Lopez/i })
@@ -369,6 +438,7 @@ describe('BudVotingWizard', () => {
         name: /Voto en Blanco para Presidente/i,
       })
     )
+    await userEvent.click(screen.getByRole('tab', { name: /Presidente/i }))
 
     expect(
       screen
@@ -383,12 +453,14 @@ describe('BudVotingWizard', () => {
         .getAttribute('aria-pressed')
     ).toBe('true')
 
+    await userEvent.click(screen.getByRole('tab', { name: /Vocales/i }))
     await userEvent.click(
       screen.getByRole('button', {
         name: /Voto en Blanco para Vocales/i,
       })
     )
-    await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
+    // VOTAR-464: resolver el último cargo pendiente avanza directo a
+    // revisión — no queda un "Continuar" para clickear.
 
     await expect.element(screen.getByText('Voto en blanco')).toBeInTheDocument()
     await expect.element(screen.getByText('Ana Lopez')).not.toBeInTheDocument()
@@ -402,6 +474,7 @@ describe('BudVotingWizard', () => {
         name: /Voto en Blanco para Presidente/i,
       })
     )
+    await userEvent.click(screen.getByRole('tab', { name: /Presidente/i }))
     expect(
       screen
         .getByRole('button', { name: /Voto en Blanco para Presidente/i })
@@ -410,6 +483,7 @@ describe('BudVotingWizard', () => {
     ).toBe('true')
 
     await userEvent.click(screen.getByRole('button', { name: /Bruno Paz/i }))
+    await userEvent.click(screen.getByRole('tab', { name: /Presidente/i }))
 
     expect(
       screen
@@ -438,6 +512,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={{ ...boleta, permitirVotoEnBlanco: false }}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -474,6 +549,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={{ ...boleta, permitirVotoNulo: false }}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -512,6 +588,7 @@ describe('BudVotingWizard', () => {
               permitirVotoNulo: false,
             }}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -537,49 +614,150 @@ describe('BudVotingWizard', () => {
     const screen = await renderWizard()
 
     await userEvent.click(screen.getByRole('button', { name: /Ana Lopez/i }))
+    // Elegir Ana avanzó a Vocales (VOTAR-464); volvemos a Presidente para
+    // cambiar la selección a Bruno.
+    await userEvent.click(screen.getByRole('tab', { name: /Presidente/i }))
     await userEvent.click(screen.getByRole('button', { name: /Bruno Paz/i }))
     await userEvent.click(screen.getByRole('button', { name: /Carla Rio/i }))
-    await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
+    // VOTAR-464: Carla resuelve el último cargo pendiente y avanza directo
+    // a revisión — no queda un "Continuar" para clickear.
 
     await expect.element(screen.getByText('Bruno Paz')).toBeInTheDocument()
     await expect.element(screen.getByText('Carla Rio')).toBeInTheDocument()
     await expect.element(screen.getByText('Ana Lopez')).not.toBeInTheDocument()
   })
 
-  it('en voto mixto no muestra candidatos por rol al confirmar voto especial', async () => {
-    const screen = await renderWizard(TIPOS_VOTACION.MIXTO)
+  it('VOTAR-474: permite elegir hasta cantidadCargos candidatos en la misma categoría', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    const boletaMulti: BoletaDigital = {
+      ...boleta,
+      categorias: [
+        {
+          ...boleta.categorias[0],
+          cantidadCargos: 1,
+        },
+        {
+          idCategoria: 2,
+          nombre: 'Vocales',
+          descripcion: null,
+          orden: 2,
+          cantidadCargos: 2,
+          estado: 'DISPONIBLE',
+          candidatos: [
+            {
+              idCandidato: 201,
+              idCategoria: 2,
+              idLista: 11,
+              listId: 11,
+              nombre: 'Carla',
+              apellido: 'Rio',
+              nombreCompleto: 'Carla Rio',
+              agrupacionPolitica: 'Lista Azul',
+              numeroLista: 1,
+              colorLista: '#0ea5e9',
+              fotoUrl: null,
+            },
+            {
+              idCandidato: 202,
+              idCategoria: 2,
+              idLista: 12,
+              listId: 12,
+              nombre: 'Diego',
+              apellido: 'Mar',
+              nombreCompleto: 'Diego Mar',
+              agrupacionPolitica: 'Lista Celeste',
+              numeroLista: 2,
+              colorLista: '#2563eb',
+              fotoUrl: null,
+            },
+          ],
+        },
+      ],
+    }
+
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <EphemeralWalletProvider>
+          <BudVotingWizard
+            boleta={boletaMulti}
+            tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
+            onLogout={vi.fn()}
+          />
+        </EphemeralWalletProvider>
+      </QueryClientProvider>
+    )
 
     await userEvent.click(
-      screen.getByRole('button', { name: /^LA Lista Azul Lista LA/i })
+      screen.getByRole('button', { name: /Comenzar a votar/i })
     )
-    await userEvent.click(
-      screen.getByRole('button', { name: /Votar en blanco/i })
-    )
-
+    await userEvent.click(screen.getByRole('button', { name: /Ana Lopez/i }))
+    // Multi-selección: el primer click no auto-avanza a revisión.
+    await userEvent.click(screen.getByRole('button', { name: /Carla Rio/i }))
     await expect
-      .element(screen.getByText('Candidatos por rol'))
-      .not.toBeInTheDocument()
+      .element(screen.getByText(/1 de 2 seleccionados/i))
+      .toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /Diego Mar/i }))
+    // Al llegar al máximo del último cargo avanza a revisión.
 
-    await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
-
-    await expect.element(screen.getByText('Voto en blanco')).toBeInTheDocument()
-    await expect.element(screen.getByText('Ana Lopez')).not.toBeInTheDocument()
-    await expect
-      .element(screen.getByText('Candidatos por rol'))
-      .not.toBeInTheDocument()
+    await expect.element(screen.getByText('Ana Lopez')).toBeInTheDocument()
+    await expect.element(screen.getByText('Carla Rio')).toBeInTheDocument()
+    await expect.element(screen.getByText('Diego Mar')).toBeInTheDocument()
   })
 
-  it('en voto mixto autoselecciona un candidato por rol al elegir lista', async () => {
-    const screen = await renderWizard(TIPOS_VOTACION.MIXTO)
+  it('en por cargo, elegir la lista completa desde la agrupación de un rol autoselecciona un candidato por rol y avanza a revisión', async () => {
+    const screen = await renderWizard()
 
     await userEvent.click(
-      screen.getByRole('button', { name: /^LA Lista Azul Lista LA/i })
+      screen.getByRole('button', {
+        name: /Elegir la lista completa Lista Azul/i,
+      })
     )
-    await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
+    // VOTAR-464: elegir la lista completa ya deja la boleta lista y avanza
+    // directo a revisión — no queda un "Continuar" para clickear.
 
     await expect.element(screen.getByText('Ana Lopez')).toBeInTheDocument()
     await expect.element(screen.getByText('Carla Rio')).toBeInTheDocument()
     await expect.element(screen.getByText('Alicia Sol')).not.toBeInTheDocument()
+  })
+
+  it('en por cargo, se puede sobrescribir un candidato individual tras elegir la lista completa (corte de boleta)', async () => {
+    const screen = await renderWizard()
+
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: /Elegir la lista completa Lista Azul/i,
+      })
+    )
+    // Elegir la lista ya avanzó a revisión; volvemos a selección para poder
+    // sobrescribir un candidato individual sin tocar Vocales.
+    await userEvent.click(screen.getByRole('button', { name: /Volver/i }))
+    // Presidente venía precargado con Ana Lopez (Lista Azul); lo cambiamos
+    // por Bruno Paz. La boleta ya estaba completa por el auto-relleno, así
+    // que este cambio vuelve a avanzar directo a revisión (VOTAR-464).
+    await userEvent.click(screen.getByRole('button', { name: /Bruno Paz/i }))
+
+    await expect.element(screen.getByText('Bruno Paz')).toBeInTheDocument()
+    await expect.element(screen.getByText('Carla Rio')).toBeInTheDocument()
+    await expect.element(screen.getByText('Ana Lopez')).not.toBeInTheDocument()
+  })
+
+  it('VOTAR-464: en por cargo, si la lista elegida no postuló candidato para un rol, la revisión lo muestra en blanco en vez de omitirlo', async () => {
+    const screen = await renderWizard()
+
+    // Lista Celeste sólo postuló candidato para Presidente, no para Vocales.
+    // Elegir la lista ya deja la boleta completa y avanza directo a revisión.
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: /Elegir la lista completa Lista Celeste/i,
+      })
+    )
+
+    await expect.element(screen.getByText('Bruno Paz')).toBeInTheDocument()
+    await expect.element(screen.getByText('Voto en blanco')).toBeInTheDocument()
+    await expect.element(screen.getByText('Vocales')).toBeInTheDocument()
   })
 
   it('UAT-01: firma localmente y transmite el voto a la blockchain', async () => {
@@ -612,6 +790,7 @@ describe('BudVotingWizard', () => {
     )
     expect(transmitSignedVoteMock).toHaveBeenCalledOnce()
     expect(document.body.innerHTML).not.toContain(expectedNullifier)
+    expectNoWalletSecretsInDom(expectedNullifier)
     expect(registrarConsumoIntentoMock).toHaveBeenCalledOnce()
     expect(clearVotanteSessionMock).toHaveBeenCalledOnce()
     expect(registrarVotoEmitidoAnonimoMock).toHaveBeenCalledWith(
@@ -654,6 +833,59 @@ describe('BudVotingWizard', () => {
     expect(localStorage.getItem('nullifier')).toBeNull()
     expect(document.cookie).not.toContain('votar_voter_access_token')
     expect(document.body.innerHTML).not.toContain(expectedNullifier)
+    expectNoWalletSecretsInDom(expectedNullifier)
+  })
+
+  it('VOTAR-489: no interpreta HTML de nombres de candidatos como marcado', async () => {
+    const maliciousName = 'Ana<img src=x onerror=alert(1)> Lopez'
+    const maliciousList = 'Lista <b>Azul</b>'
+    const plainName = toUntrustedPlainText(maliciousName)
+    const plainList = toUntrustedPlainText(maliciousList)
+    const maliciousBoleta: BoletaDigital = {
+      ...boleta,
+      nombreEleccion: 'Comicio <script>alert(1)</script>',
+      categorias: boleta.categorias.map((categoria, index) =>
+        index === 0
+          ? {
+              ...categoria,
+              candidatos: categoria.candidatos.map(
+                (candidato, candidateIndex) =>
+                  candidateIndex === 0
+                    ? {
+                        ...candidato,
+                        nombreCompleto: maliciousName,
+                        agrupacionPolitica: maliciousList,
+                      }
+                    : candidato
+              ),
+            }
+          : categoria
+      ),
+    }
+
+    const screen = await renderWizard(
+      TIPOS_VOTACION.POR_CANDIDATO,
+      vi.fn(),
+      maliciousBoleta
+    )
+
+    await expect
+      .element(
+        screen.getByRole('button', {
+          name: `${plainName}, ${plainList}, número de lista 1`,
+        })
+      )
+      .toBeInTheDocument()
+    // Payload must render as text, not as executable/injected markup.
+    expect(document.body.querySelector('img[onerror]')).toBeNull()
+    expect(document.body.querySelector('[onerror]')).toBeNull()
+    expect(document.body.querySelector('script')).toBeNull()
+    expect(document.body.innerHTML).not.toContain('<script')
+    expect(document.body.innerHTML).not.toContain('<b>')
+    expect(document.body.innerHTML).not.toContain('<img src=x')
+    expect(plainName).not.toMatch(/[<>]/)
+    expect(plainList).not.toMatch(/[<>]/)
+    expectNoWalletSecretsInDom()
   })
 
   it('UAT-02: ante fallo de red conserva la selección y permite reintentar envío', async () => {
@@ -729,6 +961,27 @@ describe('BudVotingWizard', () => {
       .not.toBeInTheDocument()
   })
 
+  it('VOTAR-451: si el leaf ya votó con otro nullifier, no retransmite y muestra éxito', async () => {
+    leerHasVotedMock.mockResolvedValue(true)
+    leerIsNullifierUsedMock.mockResolvedValue(false)
+
+    const screen = await renderWizard()
+    await userEvent.click(
+      screen.getByRole('button', { name: /Votar en blanco/i })
+    )
+    await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
+    await userEvent.click(
+      screen.getByRole('button', { name: /Firmar y confirmar/i })
+    )
+
+    await expect
+      .element(screen.getByText('Voto Exitoso', { exact: true }))
+      .toBeInTheDocument()
+    expect(transmitSignedVoteMock).not.toHaveBeenCalled()
+    expect(registrarConsumoIntentoMock).toHaveBeenCalledOnce()
+    expect(registrarConsumoIntentoMock).toHaveBeenCalledWith(7, 1)
+  })
+
   it('VOTAR-445: muestra Cerrar sesión en pasos activos del wizard', async () => {
     const onLogout = vi.fn()
     const screen = await renderWizard(TIPOS_VOTACION.POR_CANDIDATO, onLogout)
@@ -737,6 +990,29 @@ describe('BudVotingWizard', () => {
     await userEvent.click(screen.getByTestId('bud-logout'))
     expect(onLogout).toHaveBeenCalledOnce()
     expect(registrarConsumoIntentoMock).not.toHaveBeenCalled()
+  })
+
+  it('VOTAR-389: ofrece el manual del votante durante la votación', async () => {
+    const screen = await renderWizard()
+
+    const link = screen
+      .getByRole('link', { name: /Manual del votante/i })
+      .first()
+    await expect.element(link).toHaveAttribute('href', '/manual/votante')
+    await expect.element(link).toHaveAttribute('target', '_blank')
+  })
+
+  it('VOTAR-475: no muestra chip de paso en el header; el stepper conserva las etiquetas', async () => {
+    const screen = await renderWizard()
+
+    await expect
+      .element(screen.getByText('Selección de voto'))
+      .not.toBeInTheDocument()
+    await expect.element(screen.getByText('Inicio').first()).toBeInTheDocument()
+    await expect
+      .element(screen.getByText('Confirmación').first())
+      .toBeInTheDocument()
+    await expect.element(screen.getByText('Éxito').first()).toBeInTheDocument()
   })
 
   it('VOTAR-445: reanuda cast pendiente tras reload y completa el recibo', async () => {
@@ -766,6 +1042,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={boleta}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -868,6 +1145,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={boleta}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -915,6 +1193,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={boleta}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -953,6 +1232,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={boleta}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -1000,6 +1280,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={boleta}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -1067,6 +1348,7 @@ describe('BudVotingWizard', () => {
           <BudVotingWizard
             boleta={boleta}
             tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
             onLogout={vi.fn()}
           />
         </EphemeralWalletProvider>
@@ -1088,14 +1370,15 @@ describe('BudVotingWizard', () => {
   })
 
   it('VOTAR-363 UAT-01: layout mobile-first en paso selección', async () => {
+    // VOTAR-464: "por candidato" muestra un cargo a la vez (tabs), en vez de
+    // una grilla multi-columna de categorías.
     const screen = await renderWizard()
 
     const main = document.querySelector('main')
     expect(main?.className).toContain('overflow-x-clip')
 
     const grid = screen.getByTestId('bud-category-grid').element()
-    expect(grid.className).toContain('grid-cols-1')
-    expect(grid.className).toContain('md:grid-cols-2')
+    expect(grid.className).toBe('grid gap-5')
 
     const continueButton = screen.getByRole('button', { name: /^Continuar/i })
     expect(continueButton.element().className).toContain('w-full')
@@ -1106,12 +1389,278 @@ describe('BudVotingWizard', () => {
     expect(stickyContainer?.className).toContain('justify-stretch')
   })
 
-  it('VOTAR-363 UAT-02: grid de categorías declara columnas paralelas desde md', async () => {
+  it('VOTAR-464: en "por candidato" se muestra un cargo a la vez y se avanza con tabs', async () => {
     const screen = await renderWizard()
 
-    const grid = screen.getByTestId('bud-category-grid').element()
-    expect(grid.className).toBe(BUD_CATEGORY_GRID_CLASS)
+    // Presidente es el primer cargo; Vocales todavía no se ve.
+    await expect
+      .element(screen.getByRole('tab', { name: /Presidente/i }))
+      .toBeInTheDocument()
+    await expect
+      .element(
+        screen.getByRole('button', { name: /Voto en Blanco para Vocales/i })
+      )
+      .not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: /Ana Lopez/i }))
+
+    // Elegir un candidato avanza automáticamente al siguiente cargo.
+    await expect
+      .element(
+        screen.getByRole('button', { name: /Voto en Blanco para Vocales/i })
+      )
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByRole('button', { name: /Ana Lopez/i }))
+      .not.toBeInTheDocument()
+
+    // La tab de Presidente queda marcada como resuelta y navegable.
+    await userEvent.click(screen.getByRole('tab', { name: /Presidente/i }))
+    await expect
+      .element(screen.getByRole('button', { name: /Ana Lopez/i }))
+      .toBeInTheDocument()
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /Siguiente cargo/i })
+    )
+    await expect
+      .element(
+        screen.getByRole('button', { name: /Voto en Blanco para Vocales/i })
+      )
+      .toBeInTheDocument()
+  })
+
+  it('VOTAR-465 UAT-01: listas completas usan grid mobile-first', async () => {
+    const screen = await renderWizard(TIPOS_VOTACION.POR_LISTA)
+
+    const grid = screen.getByTestId('bud-list-grid').element()
+    expect(grid.className).toContain('grid-cols-1')
+    expect(grid.className).toContain('md:grid-cols-2')
+    expect(grid.className).toContain('items-start')
+  })
+
+  it('VOTAR-465 UAT-02: grid de listas declara columnas paralelas desde md', async () => {
+    const screen = await renderWizard(TIPOS_VOTACION.POR_LISTA)
+
+    const grid = screen.getByTestId('bud-list-grid').element()
+    expect(grid.className).toBe(BUD_LIST_GRID_CLASS)
     expect(grid.className).toContain('md:grid-cols-2')
     expect(grid.className).toContain('xl:grid-cols-3')
+  })
+
+  it('en mobile, al seleccionar una lista no avanza automáticamente a revisión y requiere confirmación con Continuar', async () => {
+    const originalMatchMedia = window.matchMedia
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes('767px') || query.includes('max-width'),
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+
+    try {
+      const screen = await renderWizard(TIPOS_VOTACION.POR_LISTA)
+
+      await userEvent.click(
+        screen.getByRole('button', { name: /Elegir la lista Lista Azul/i })
+      )
+
+      await expect
+        .element(screen.getByText('Listas completas'))
+        .toBeInTheDocument()
+
+      const continueButton = screen.getByRole('button', { name: /^Continuar/i })
+      await expect.element(continueButton).toBeEnabled()
+
+      await userEvent.click(continueButton)
+      await expect
+        .element(screen.getByText('Confirmar Voto'))
+        .toBeInTheDocument()
+    } finally {
+      window.matchMedia = originalMatchMedia
+    }
+  })
+
+  it('en por cargo no hay una grilla de listas separada: el atajo de lista completa vive dentro de cada agrupación por rol', async () => {
+    const screen = await renderWizard()
+
+    await expect
+      .element(screen.getByTestId('bud-list-grid'))
+      .not.toBeInTheDocument()
+
+    const categoryGrid = screen.getByTestId('bud-category-grid').element()
+    expect(categoryGrid.className).toBe('grid gap-5')
+
+    await expect
+      .element(
+        screen.getByRole('button', {
+          name: /Elegir la lista completa Lista Azul/i,
+        })
+      )
+      .toBeInTheDocument()
+    await expect
+      .element(
+        screen.getByRole('button', {
+          name: /Elegir la lista completa Lista Celeste/i,
+        })
+      )
+      .toBeInTheDocument()
+  })
+
+  // VOTAR-362 — Accesibilidad WCAG 2.1 AA de la BUD.
+  describe('accesibilidad WCAG 2.1 AA (VOTAR-362)', () => {
+    it('UAT-A11Y-01: el paso de selección por candidato no tiene violaciones axe', async () => {
+      const screen = await renderWizard()
+      await expect
+        .element(screen.getByText('Candidatos por rol'))
+        .toBeInTheDocument()
+
+      const violaciones = await auditarAccesibilidad(screen.container)
+      expect(violaciones, formatearViolaciones(violaciones)).toEqual([])
+    })
+
+    it('UAT-A11Y-01: el paso de selección por lista no tiene violaciones axe', async () => {
+      const screen = await renderWizard(TIPOS_VOTACION.POR_LISTA)
+      await expect
+        .element(screen.getByText('Listas completas'))
+        .toBeInTheDocument()
+
+      const violaciones = await auditarAccesibilidad(screen.container)
+      expect(violaciones, formatearViolaciones(violaciones)).toEqual([])
+    })
+
+    it('UAT-A11Y-01: el paso de revisión no tiene violaciones axe', async () => {
+      const screen = await renderWizard()
+      await userEvent.click(
+        screen.getByRole('button', { name: /Votar en blanco/i })
+      )
+      await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
+      await expect
+        .element(screen.getByText('Confirmar Voto'))
+        .toBeInTheDocument()
+
+      const violaciones = await auditarAccesibilidad(screen.container)
+      expect(violaciones, formatearViolaciones(violaciones)).toEqual([])
+    })
+
+    it('UAT-A11Y-01: el comprobante de voto no tiene violaciones axe', async () => {
+      const screen = await renderWizard()
+      await userEvent.click(
+        screen.getByRole('button', { name: /Votar en blanco/i })
+      )
+      await userEvent.click(screen.getByRole('button', { name: /^Continuar/i }))
+      await userEvent.click(
+        screen.getByRole('button', { name: /Firmar y confirmar/i })
+      )
+      await expect
+        .element(screen.getByText('Voto Exitoso', { exact: true }))
+        .toBeInTheDocument()
+
+      const violaciones = await auditarAccesibilidad(screen.container)
+      expect(violaciones, formatearViolaciones(violaciones)).toEqual([])
+    })
+
+    it('UAT-A11Y-02: las pestañas de cargo se recorren con las flechas y arrastran el foco', async () => {
+      const screen = await renderWizard()
+      const presidente = screen
+        .getByRole('tab', { name: /Presidente/i })
+        .element() as HTMLElement
+      const vocales = screen
+        .getByRole('tab', { name: /Vocales/i })
+        .element() as HTMLElement
+
+      presidente.focus()
+      expect(document.activeElement).toBe(presidente)
+
+      await userEvent.keyboard('{ArrowRight}')
+      await vi.waitFor(() => {
+        expect(document.activeElement).toBe(vocales)
+        expect(vocales.getAttribute('aria-selected')).toBe('true')
+      })
+
+      // ArrowRight desde la última pestaña vuelve a la primera (wrap).
+      await userEvent.keyboard('{ArrowRight}')
+      await vi.waitFor(() => {
+        expect(document.activeElement).toBe(presidente)
+      })
+
+      await userEvent.keyboard('{End}')
+      await vi.waitFor(() => {
+        expect(document.activeElement).toBe(vocales)
+      })
+      await userEvent.keyboard('{Home}')
+      await vi.waitFor(() => {
+        expect(document.activeElement).toBe(presidente)
+      })
+    })
+
+    it('UAT-A11Y-02: se puede emitir el voto en blanco íntegramente con el teclado', async () => {
+      const screen = await renderWizard()
+
+      const blanco = screen
+        .getByRole('button', { name: /Votar en blanco/i })
+        .element() as HTMLElement
+
+      // Alcanzar la opción "Votar en blanco" sólo con la tecla Tab.
+      let saltos = 0
+      while (document.activeElement !== blanco && saltos < 40) {
+        await userEvent.tab()
+        saltos += 1
+      }
+      expect(
+        document.activeElement,
+        'no se alcanzó "Votar en blanco" navegando con Tab'
+      ).toBe(blanco)
+
+      // Activar con la barra espaciadora.
+      await userEvent.keyboard(' ')
+      await vi.waitFor(() => {
+        expect(blanco.getAttribute('aria-pressed')).toBe('true')
+      })
+
+      // Continuar y firmar con Enter, sin usar el puntero.
+      const continuar = screen
+        .getByRole('button', { name: /^Continuar/i })
+        .element() as HTMLElement
+      continuar.focus()
+      await userEvent.keyboard('{Enter}')
+      await expect
+        .element(screen.getByText('Confirmar Voto'))
+        .toBeInTheDocument()
+
+      const firmar = screen
+        .getByRole('button', { name: /Firmar y confirmar/i })
+        .element() as HTMLElement
+      firmar.focus()
+      await userEvent.keyboard('{Enter}')
+      await expect
+        .element(screen.getByText('Voto Exitoso', { exact: true }))
+        .toBeInTheDocument()
+    })
+
+    it('UAT-A11Y-02: el foco por teclado en una tarjeta de candidato es perceptible', async () => {
+      const screen = await renderWizard()
+
+      const ana = screen
+        .getByRole('button', { name: /Ana Lopez/i })
+        .element() as HTMLElement
+
+      let saltos = 0
+      while (document.activeElement !== ana && saltos < 40) {
+        await userEvent.tab()
+        saltos += 1
+      }
+      expect(
+        document.activeElement,
+        'no se alcanzó la tarjeta de Ana Lopez navegando con Tab'
+      ).toBe(ana)
+
+      // El navegador debe considerar el foco "visible" para que aplique el
+      // anillo `focus-visible:ring-*` de la tarjeta.
+      expect(ana.matches(':focus-visible')).toBe(true)
+    })
   })
 })

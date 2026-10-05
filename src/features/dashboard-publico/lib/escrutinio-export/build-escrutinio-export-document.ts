@@ -64,5 +64,6 @@ export const buildEscrutinioExportDocument = (
     participacion: validated.participacion,
     candidatos: validated.candidatos,
     resultados: buildResultados(validated),
+    permitirVotoNulo: validated.permitirVotoNulo ?? true,
   }
 }

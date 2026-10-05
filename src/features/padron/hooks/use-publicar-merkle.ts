@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { runBackgroundOperation } from '@/lib/run-background-operation'
+import { toSafeNavigationUrl } from '@/lib/safe-url'
 import { publicarMerkleOnChain } from '../api/padron-api'
 
 export const usePublicarMerkle = (idEleccion: number) => {
@@ -31,13 +32,14 @@ export const usePublicarMerkle = (idEleccion: number) => {
       operation: () => publicarMerkleOnChain(idEleccion),
       onSuccess: (resultado) => {
         invalidatePadron()
-        if (resultado.explorerUrl) {
+        const explorerUrl = toSafeNavigationUrl(resultado.explorerUrl)
+        if (explorerUrl) {
           toast.message('Transacción confirmada en Sepolia', {
             description: 'Verifique el evento RootPublished en el explorador.',
             action: {
               label: 'Abrir Etherscan',
               onClick: () =>
-                window.open(resultado.explorerUrl, '_blank', 'noopener'),
+                window.open(explorerUrl, '_blank', 'noopener,noreferrer'),
             },
           })
         }

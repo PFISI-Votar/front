@@ -6,12 +6,14 @@ type EscrutinioDonutChartProps = {
   data: DonutChartDatum[]
   className?: string
   height?: number
+  title?: string
 }
 
 export const EscrutinioDonutChart = ({
   data,
   className,
   height = 280,
+  title = 'Distribución relativa',
 }: EscrutinioDonutChartProps) => {
   if (data.length === 0) {
     return null
@@ -24,10 +26,10 @@ export const EscrutinioDonutChart = ({
         className
       )}
       role='img'
-      aria-label='Gráfico de distribución relativa de votos'
+      aria-label={title}
     >
       <h3 className='mb-4 text-sm font-semibold tracking-wide text-[#2f6f9f] uppercase'>
-        Distribución relativa
+        {title}
       </h3>
       <ResponsiveContainer width='100%' height={height}>
         <PieChart>
@@ -78,7 +80,7 @@ export const EscrutinioDonutChart = ({
         ))}
       </ul>
       <table className='sr-only'>
-        <caption>Distribución relativa de votos</caption>
+        <caption>{title}</caption>
         <thead>
           <tr>
             <th>Opción</th>

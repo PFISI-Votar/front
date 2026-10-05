@@ -16,6 +16,11 @@ describe('isPublicRoute', () => {
     expect(isPublicRoute('/verificar/0xabc')).toBe(true)
   })
 
+  it('reconoce el manual para auditores (VOTAR-396)', () => {
+    expect(isPublicRoute('/manual/auditores')).toBe(true)
+    expect(isPublicRoute('/manual/auditores/')).toBe(true)
+  })
+
   it('no marca rutas administrativas o de login', () => {
     expect(isPublicRoute('/')).toBe(false)
     expect(isPublicRoute('/sign-in')).toBe(false)

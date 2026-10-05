@@ -5,7 +5,7 @@ import {
   type TypedDataDomain,
   hashTypedData,
 } from 'viem'
-import { resolveAuditCandidateId } from '@/features/voto/crypto/audit-candidate-id'
+import { resolveAuditCandidateIds } from '@/features/voto/crypto/audit-candidate-id'
 import {
   getBallotContractAddress,
   getChainId,
@@ -22,8 +22,8 @@ export type SignedVotePayload = {
   electionId: number
   nullifier: Hex
   selectionHash: Hex
-  /** Audit candidate id bound in the EIP-712 digest (VOTAR-346). */
-  candidateId: bigint
+  /** Audit candidate ids bound in the EIP-712 digest (VOTAR-474). */
+  candidateIds: readonly bigint[]
   timestamp: number
   expectedSigner: Address
   signature: Hex
@@ -41,7 +41,7 @@ export type VoteTypedDataMessage = {
   electionId: bigint
   nullifier: Hex
   selectionHash: Hex
-  candidateId: bigint
+  candidateIds: readonly bigint[]
   timestamp: bigint
 }
 
@@ -67,13 +67,13 @@ export const buildVoteTypedDataMessage = (
   electionId: number,
   selectionHash: Hex,
   nullifier: Hex,
-  candidateId: bigint,
+  candidateIds: readonly bigint[],
   timestamp: number
 ): VoteTypedDataMessage => ({
   electionId: BigInt(electionId),
   nullifier,
   selectionHash,
-  candidateId,
+  candidateIds,
   timestamp: BigInt(timestamp),
 })
 
@@ -81,7 +81,7 @@ export const hashVoteTypedData = (
   electionId: number,
   selectionHash: Hex,
   nullifier: Hex,
-  candidateId: bigint,
+  candidateIds: readonly bigint[],
   timestamp: number,
   options?: Pick<SignVotePayloadOptions, 'chainId' | 'verifyingContract'>
 ): Hex => {
@@ -97,7 +97,7 @@ export const hashVoteTypedData = (
       electionId,
       selectionHash,
       nullifier,
-      candidateId,
+      candidateIds,
       timestamp
     ),
   })
@@ -107,7 +107,7 @@ export const assembleSignedVotePayload = (input: {
   electionId: number
   nullifier: Hex
   selectionHash: Hex
-  candidateId: bigint
+  candidateIds: readonly bigint[]
   timestamp: number
   expectedSigner: Address
   signature: Hex
@@ -115,7 +115,7 @@ export const assembleSignedVotePayload = (input: {
   electionId: input.electionId,
   nullifier: input.nullifier,
   selectionHash: input.selectionHash,
-  candidateId: input.candidateId,
+  candidateIds: input.candidateIds,
   timestamp: input.timestamp,
   expectedSigner: input.expectedSigner,
   signature: input.signature,
@@ -124,7 +124,7 @@ export const assembleSignedVotePayload = (input: {
 /**
  * Signs the EIP-712 Vote payload via a digest signer callback.
  * Used by the ephemeral wallet so the private key never leaves its Uint8Array buffer.
- * `candidateId` is derived from the selection so the audit id cannot diverge from the signed intent.
+ * `candidateIds` are derived from the selection so audit ids cannot diverge from the signed intent.
  */
 export const signVotePayloadWithDigestSigner = async (
   electionId: number,
@@ -139,12 +139,12 @@ export const signVotePayloadWithDigestSigner = async (
 
   const timestamp = options.timestamp ?? Math.floor(Date.now() / 1000)
   const selectionHash = computeSelectionHash(selection)
-  const candidateId = resolveAuditCandidateId(selection)
+  const candidateIds = resolveAuditCandidateIds(selection)
   const digest = hashVoteTypedData(
     electionId,
     selectionHash,
     options.nullifier,
-    candidateId,
+    candidateIds,
     timestamp,
     {
       chainId: options.chainId,
@@ -157,7 +157,7 @@ export const signVotePayloadWithDigestSigner = async (
     electionId,
     nullifier: options.nullifier,
     selectionHash,
-    candidateId,
+    candidateIds,
     timestamp,
     expectedSigner: options.expectedSigner,
     signature,
@@ -185,7 +185,7 @@ export const signVotePayload = async (
     options.verifyingContract ?? getBallotContractAddress()
   const timestamp = options.timestamp ?? Math.floor(Date.now() / 1000)
   const selectionHash = computeSelectionHash(selection)
-  const candidateId = resolveAuditCandidateId(selection)
+  const candidateIds = resolveAuditCandidateIds(selection)
   const chainId = options.chainId ?? getChainId()
   const { nullifier } = options
 
@@ -197,7 +197,7 @@ export const signVotePayload = async (
       electionId,
       selectionHash,
       nullifier,
-      candidateId,
+      candidateIds,
       timestamp
     ),
   })
@@ -206,7 +206,7 @@ export const signVotePayload = async (
     electionId,
     nullifier,
     selectionHash,
-    candidateId,
+    candidateIds,
     timestamp,
     expectedSigner: account.address,
     signature,

@@ -11,6 +11,8 @@ export type RunBackgroundOperationOptions<T> = {
   successMessage: string | ((result: T) => string)
   operation: () => Promise<T>
   errorTitle?: string
+  /** Duration of the error toast in ms. Defaults to 8s (not persistent). */
+  errorDuration?: number
   onSuccess?: (result: T) => void
   onError?: (error: unknown) => BackgroundOperationAction | true | void
   onSettled?: () => void
@@ -27,12 +29,18 @@ export const runBackgroundOperation = <T>({
   successMessage,
   operation,
   errorTitle = 'Operación fallida',
+  errorDuration = 8_000,
   onSuccess,
   onError,
   onSettled,
 }: RunBackgroundOperationOptions<T>): void => {
+  let toastId: string | number | undefined
+
   const attempt = async (): Promise<void> => {
-    const toastId = toast.loading(loadingMessage)
+    toastId =
+      toastId === undefined
+        ? toast.loading(loadingMessage)
+        : toast.loading(loadingMessage, { id: toastId })
 
     try {
       const result = await operation()
@@ -59,7 +67,7 @@ export const runBackgroundOperation = <T>({
         id: toastId,
         description: getApiErrorMessage(error),
         action: customAction ?? retryAction,
-        duration: 10_000,
+        duration: errorDuration,
       })
     } finally {
       onSettled?.()

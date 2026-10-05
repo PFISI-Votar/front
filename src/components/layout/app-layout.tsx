@@ -7,7 +7,6 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { ConfigDrawer } from '@/components/config-drawer'
 import { AppBreadcrumbs } from '@/components/layout/app-breadcrumbs'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -35,12 +34,7 @@ type AppLayoutContextValue = {
 
 const AppLayoutContext = createContext<AppLayoutContextValue | null>(null)
 
-export const AppHeaderActions = () => (
-  <>
-    <ThemeSwitch />
-    <ConfigDrawer />
-  </>
-)
+export const AppHeaderActions = () => <ThemeSwitch />
 
 type AppLayoutProviderProps = {
   children: ReactNode

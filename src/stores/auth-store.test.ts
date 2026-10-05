@@ -60,4 +60,24 @@ describe('useAuthStore', () => {
 
     expect(useAuthStore.getState().auth.isElectionAdmin()).toBe(true)
   })
+
+  it('isPauser returns false without a signed-in user', async () => {
+    const useAuthStore = await importAuthStore()
+
+    expect(useAuthStore.getState().auth.isPauser()).toBe(false)
+  })
+
+  it('isPauser returns false for an election_admin without rol PAUSER', async () => {
+    const useAuthStore = await importAuthStore()
+    useAuthStore.getState().auth.setSession(sampleUser)
+
+    expect(useAuthStore.getState().auth.isPauser()).toBe(false)
+  })
+
+  it('isPauser returns true when esPauser is set on the session', async () => {
+    const useAuthStore = await importAuthStore()
+    useAuthStore.getState().auth.setSession({ ...sampleUser, esPauser: true })
+
+    expect(useAuthStore.getState().auth.isPauser()).toBe(true)
+  })
 })

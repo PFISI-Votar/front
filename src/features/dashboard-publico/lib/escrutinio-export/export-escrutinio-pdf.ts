@@ -84,13 +84,18 @@ export const exportEscrutinioPdf = async (
   doc.text('Participación', MARGIN, yPos)
   yPos += 8
 
-  const participacionRows = [
+  const participacionRows: Array<[string, string]> = [
     ['Votos emitidos', String(participacion.totalVotos)],
     ['Participación (%)', `${participacion.porcentajeParticipacion}%`],
     ['Votos en blanco', String(participacion.votosBlanco)],
-    ['Votos nulos', String(participacion.votosNulo)],
-    ['Votantes habilitados', String(participacion.totalVotantesHabilitados)],
   ]
+  if (document.permitirVotoNulo) {
+    participacionRows.push(['Votos nulos', String(participacion.votosNulo)])
+  }
+  participacionRows.push([
+    'Votantes habilitados',
+    String(participacion.totalVotantesHabilitados),
+  ])
 
   doc.setFontSize(10)
   for (const [label, value] of participacionRows) {

@@ -26,8 +26,13 @@ import {
 import { Input } from '@/components/ui/input'
 import { login } from '@/features/auth/services/auth-api'
 import { scheduleAccessTokenRefresh } from '@/features/auth/services/auth-session'
+import { AdminTwoFactorForm } from '@/features/auth/sign-in/components/admin-two-factor-form'
 import { LoginField } from '@/features/auth/sign-in/components/login-screen-shared'
-import { ELECTION_ADMIN_ROLE } from '@/features/auth/types/auth.types'
+import {
+  ELECTION_ADMIN_ROLE,
+  type AuthUser,
+  type TwoFactorChallenge,
+} from '@/features/auth/types/auth.types'
 
 const formSchema = z.object({
   nick: z.string().min(1, 'Ingrese su usuario.'),
@@ -37,16 +42,20 @@ const formSchema = z.object({
 interface UserAuthFormProps extends React.HTMLAttributes<HTMLFormElement> {
   redirectTo?: string
   variant?: 'default' | 'panel'
+  onTwoFactorStepChange?: (active: boolean) => void
 }
 
 export function UserAuthForm({
   className,
   redirectTo,
   variant = 'default',
+  onTwoFactorStepChange,
   ...props
 }: UserAuthFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [twoFactorChallenge, setTwoFactorChallenge] =
+    useState<TwoFactorChallenge | null>(null)
   const navigate = useNavigate()
   const { auth } = useAuthStore()
   const isPanelVariant = variant === 'panel'
@@ -59,6 +68,22 @@ export function UserAuthForm({
     },
   })
 
+  const completeLogin = (user: AuthUser) => {
+    if (user.role !== ELECTION_ADMIN_ROLE) {
+      toast.error(
+        'Acceso denegado. Su cuenta no tiene privilegios de Autoridad Electoral.'
+      )
+      return
+    }
+
+    auth.setSession(user)
+    scheduleAccessTokenRefresh()
+
+    const targetPath = redirectTo || '/'
+    navigate({ to: targetPath, replace: true })
+    toast.success(`Bienvenido${user.name ? `, ${user.name}` : ''}.`)
+  }
+
   const handleSubmit = async (data: z.infer<typeof formSchema>) => {
     setIsLoading(true)
     try {
@@ -67,21 +92,18 @@ export function UserAuthForm({
         password: data.password,
       })
 
-      if (response.user.role !== ELECTION_ADMIN_ROLE) {
-        toast.error(
-          'Acceso denegado. Su cuenta no tiene privilegios de Autoridad Electoral.'
-        )
+      if (response.twoFactor) {
+        setTwoFactorChallenge(response.twoFactor)
+        onTwoFactorStepChange?.(true)
         return
       }
 
-      auth.setSession(response.user)
-      scheduleAccessTokenRefresh()
+      if (!response.user) {
+        toast.error('Respuesta de autenticación inválida.')
+        return
+      }
 
-      const targetPath = redirectTo || '/'
-      navigate({ to: targetPath, replace: true })
-      toast.success(
-        `Bienvenido${response.user.name ? `, ${response.user.name}` : ''}.`
-      )
+      completeLogin(response.user)
     } catch (error) {
       const message =
         error instanceof AxiosError
@@ -92,6 +114,23 @@ export function UserAuthForm({
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (twoFactorChallenge) {
+    return (
+      <AdminTwoFactorForm
+        challenge={twoFactorChallenge}
+        className={className}
+        onCancel={() => {
+          setTwoFactorChallenge(null)
+          onTwoFactorStepChange?.(false)
+        }}
+        onVerified={(user) => {
+          onTwoFactorStepChange?.(false)
+          completeLogin(user)
+        }}
+      />
+    )
   }
 
   if (isPanelVariant) {

@@ -13,6 +13,8 @@ type ParticipacionStatsCardsProps = {
   participacion: ParticipacionEscrutinio
   className?: string
   compact?: boolean
+  /** VOTAR-447: blank votes always shown; null votes only when enabled. */
+  permitirVotoNulo?: boolean
 }
 
 const StatCard = ({
@@ -64,11 +66,12 @@ export const ParticipacionStatsCards = ({
   participacion,
   className,
   compact = false,
+  permitirVotoNulo = true,
 }: ParticipacionStatsCardsProps) => (
   <div
     className={cn(
       'grid gap-4 sm:grid-cols-2',
-      compact ? 'lg:grid-cols-4' : 'lg:grid-cols-4',
+      permitirVotoNulo ? 'lg:grid-cols-4' : 'lg:grid-cols-3',
       className
     )}
     role='group'
@@ -95,12 +98,14 @@ export const ParticipacionStatsCards = ({
       description='Votos en blanco contabilizados'
       compact={compact}
     />
-    <StatCard
-      icon={FileWarning}
-      title='Nulos'
-      value={participacion.votosNulo.toLocaleString('es-AR')}
-      description='Votos nulos contabilizados'
-      compact={compact}
-    />
+    {permitirVotoNulo && (
+      <StatCard
+        icon={FileWarning}
+        title='Nulos'
+        value={participacion.votosNulo.toLocaleString('es-AR')}
+        description='Votos nulos contabilizados'
+        compact={compact}
+      />
+    )}
   </div>
 )

@@ -1,4 +1,5 @@
 import { AxiosError } from 'axios'
+import { auditarAccesibilidad, formatearViolaciones } from '@/test-utils/axe'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
@@ -112,5 +113,58 @@ describe('BudLoginScreen', () => {
       .element(screen.getByText('Ingresá tu legajo y clave institucional.'))
       .toBeInTheDocument()
     expect(loginVotanteMock).not.toHaveBeenCalled()
+  })
+
+  it('VOTAR-389: ofrece el manual del votante desde el login', async () => {
+    const screen = await render(
+      <BudLoginScreen idEleccion={2} onAuthenticated={onAuthenticatedMock} />
+    )
+
+    const link = screen.getByRole('link', { name: /Manual del votante/i })
+    await expect.element(link).toHaveAttribute('href', '/manual/votante')
+    await expect.element(link).toHaveAttribute('target', '_blank')
+  })
+
+  it('VOTAR-362 UAT-A11Y-01: la pantalla de login no tiene violaciones axe', async () => {
+    document.documentElement.classList.remove('dark')
+    const screen = await render(
+      <BudLoginScreen idEleccion={2} onAuthenticated={onAuthenticatedMock} />
+    )
+    await expect
+      .element(screen.getByLabelText(/^Número de Legajo$/i))
+      .toBeInTheDocument()
+
+    const violaciones = await auditarAccesibilidad(screen.container)
+    expect(violaciones, formatearViolaciones(violaciones)).toEqual([])
+  })
+
+  it('VOTAR-454: renderiza mensaje configurable en el login del BUD', async () => {
+    const customMessage =
+      'Aviso especial: recordá utilizar tu correo institucional @frro.utn.edu.ar'
+    const screen = await render(
+      <BudLoginScreen
+        idEleccion={2}
+        observacionLogin={customMessage}
+        onAuthenticated={onAuthenticatedMock}
+      />
+    )
+
+    await expect.element(screen.getByText(customMessage)).toBeInTheDocument()
+  })
+
+  it('VOTAR-454: oculta el recuadro de observación cuando observacionLogin es null', async () => {
+    const screen = await render(
+      <BudLoginScreen
+        idEleccion={2}
+        observacionLogin={null}
+        onAuthenticated={onAuthenticatedMock}
+      />
+    )
+
+    await expect
+      .element(
+        screen.getByText(/El acceso se realiza con tu cuenta institucional/i)
+      )
+      .not.toBeInTheDocument()
   })
 })

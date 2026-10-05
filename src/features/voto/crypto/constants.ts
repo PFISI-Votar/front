@@ -1,21 +1,27 @@
+import {
+  assertRpcUrlsUseHttpsExceptLoopback,
+  parseRpcUrls,
+} from '@/features/voto/crypto/rpc-failover'
+
 /**
- * Cross-repo EIP-712 contract for VOTAR-357 / VOTAR-346 (must match BallotContract.sol).
+ * Cross-repo EIP-712 contract for VOTAR-357 / VOTAR-346 / VOTAR-474
+ * (must match BallotContract.sol).
  *
- * Domain: name "VOTAR", version "1", chainId, verifyingContract
- * Type: Vote(uint256 electionId, bytes32 nullifier, bytes32 selectionHash, uint256 candidateId, uint256 timestamp)
+ * Domain: name "VOTAR", version "2", chainId, verifyingContract
+ * Type: Vote(uint256 electionId, bytes32 nullifier, bytes32 selectionHash, uint256[] candidateIds, uint256 timestamp)
  * Nullifier: opaque bytes32 produced by VOTAR-353 (not derived in this module)
  * selectionHash: keccak256(JSON.stringify(normalizedPayload))
- * candidateId: audit id (or reserved blanco/nulo), bound in the digest for tally integrity
+ * candidateIds: all audit ids (one per category, or single blanco/nulo), bound in the digest
  */
 export const VOTE_EIP712_DOMAIN_NAME = 'VOTAR' as const
-export const VOTE_EIP712_DOMAIN_VERSION = '1' as const
+export const VOTE_EIP712_DOMAIN_VERSION = '2' as const
 
 export const VOTE_EIP712_TYPES = {
   Vote: [
     { name: 'electionId', type: 'uint256' },
     { name: 'nullifier', type: 'bytes32' },
     { name: 'selectionHash', type: 'bytes32' },
-    { name: 'candidateId', type: 'uint256' },
+    { name: 'candidateIds', type: 'uint256[]' },
     { name: 'timestamp', type: 'uint256' },
   ],
 } as const
@@ -68,33 +74,29 @@ const DEV_RPC_URL = 'http://127.0.0.1:8545'
 /**
  * JSON-RPC endpoint for vote transmission (VOTAR-358).
  */
-export const getRpcUrl = (): string => {
-  const value = import.meta.env.VITE_RPC_URL
-  if (typeof value === 'string' && value.trim().length > 0) {
-    return value.trim()
-  }
-  if (import.meta.env.DEV || import.meta.env.MODE === 'test') {
-    return DEV_RPC_URL
-  }
-  throw new Error('VITE_RPC_URL no está configurada para transmitir el voto')
-}
+export const getRpcUrl = (): string => getRpcUrls()[0]
 
 /**
- * Platform transmitter private key that pays gas for castSignedVote.
- * Testnet/local only — never use a mainnet key in the frontend bundle.
+ * Primary + backup RPC endpoints (VOTAR-386).
+ * `VITE_RPC_FALLBACK_URLS` is a comma-separated Infura/Alchemy/QuickNode list.
+ * El gas de castSignedVote lo paga el relayer del backend (VOTAR-497): el
+ * cliente sólo consulta recibos por RPC público y no tiene clave privada.
  */
-export const getVoteTransmitterPrivateKey = (): `0x${string}` => {
-  const value = import.meta.env.VITE_PRIVATE_KEY
-  if (value && /^0x[0-9a-fA-F]{64}$/.test(value)) {
-    return value as `0x${string}`
+export const getRpcUrls = (): string[] => {
+  const urls = parseRpcUrls(
+    import.meta.env.VITE_RPC_URL,
+    import.meta.env.VITE_RPC_FALLBACK_URLS
+  )
+  if (urls.length > 0) {
+    assertRpcUrlsUseHttpsExceptLoopback(urls)
+    return urls
   }
   if (import.meta.env.DEV || import.meta.env.MODE === 'test') {
-    // Hardhat/Anvil account #0 — local only.
-    return '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
+    const localUrls = [DEV_RPC_URL]
+    assertRpcUrlsUseHttpsExceptLoopback(localUrls)
+    return localUrls
   }
-  throw new Error(
-    'VITE_PRIVATE_KEY no está configurada para transmitir el voto'
-  )
+  throw new Error('VITE_RPC_URL no está configurada para transmitir el voto')
 }
 
 export const getExplorerTxUrl = (
@@ -123,3 +125,16 @@ export const VOTE_TX_MAX_ATTEMPTS = 3
  */
 export const VOTE_TX_CONFIRMATION_TIMEOUT_MS =
   import.meta.env.DEV || import.meta.env.MODE === 'test' ? 30_000 : 90_000
+
+/** Per-request JSON-RPC timeout so estimate/gas reads cannot hang forever (VOTAR-451). */
+export const VOTE_RPC_REQUEST_TIMEOUT_MS = 30_000
+
+/** Axios timeout for voter-scoped API calls during cast finalization (VOTAR-451). */
+export const VOTANTE_API_TIMEOUT_MS = 30_000
+
+/**
+ * Pending casts older than receipt wait + buffer are discarded on load (VOTAR-451).
+ * Avoids auto-resuming a stale txHash that traps the wizard on mount.
+ */
+export const PENDING_VOTE_CAST_MAX_AGE_MS =
+  VOTE_TX_CONFIRMATION_TIMEOUT_MS + 60_000

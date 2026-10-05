@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
+import { AxiosError } from 'axios'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { getApiErrorMessage } from '@/lib/api-client'
 import { resolveMediaUrl, toSafeImageSrc } from '@/lib/media-url'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,6 +28,8 @@ import {
 } from '@/features/eleccion/lista/data/schema'
 import {
   IMAGE_FILE_REQUIREMENTS,
+  formatRejectedImageError,
+  isElectoralImageRejectionMessage,
   validateElectoralImageFile,
 } from '@/features/eleccion/shared/utils/image-file'
 
@@ -70,6 +74,7 @@ const ListaFormDialogContent = ({
   const [localLogoPreview, setLocalLogoPreview] = useState<string | null>(null)
   const [hasRemovedLogo, setHasRemovedLogo] = useState(false)
   const [logoError, setLogoError] = useState<string | null>(null)
+  const [logoInputKey, setLogoInputKey] = useState(0)
 
   const form = useForm<CreateListaInput>({
     resolver: zodResolver(createListaSchema),
@@ -94,11 +99,15 @@ const ListaFormDialogContent = ({
     }
   }, [localLogoPreview])
 
-  const handleLogoChange = (file?: File) => {
-    if (localLogoPreview?.startsWith('blob:')) {
-      URL.revokeObjectURL(localLogoPreview)
-    }
+  const keepsPreviousLogo = () =>
+    Boolean(form.getValues('logoFile')) ||
+    Boolean(lista?.logoUrl && !hasRemovedLogo)
+
+  const handleLogoChange = async (file?: File, input?: HTMLInputElement) => {
     if (!file) {
+      if (localLogoPreview?.startsWith('blob:')) {
+        URL.revokeObjectURL(localLogoPreview)
+      }
       form.setValue('logoFile', null)
       setLocalLogoPreview(null)
       setHasRemovedLogo(false)
@@ -106,15 +115,18 @@ const ListaFormDialogContent = ({
       return
     }
 
-    const validationError = validateElectoralImageFile(file)
+    const validationError = await validateElectoralImageFile(file)
     if (validationError) {
-      form.setValue('logoFile', null)
-      setLocalLogoPreview(null)
-      setHasRemovedLogo(false)
-      setLogoError(validationError)
+      if (input) input.value = ''
+      setLogoError(
+        formatRejectedImageError(validationError, keepsPreviousLogo())
+      )
       return
     }
 
+    if (localLogoPreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(localLogoPreview)
+    }
     form.setValue('logoFile', file)
     form.setValue('removeLogo', false)
     setHasRemovedLogo(false)
@@ -134,11 +146,33 @@ const ListaFormDialogContent = ({
   }
 
   const handleSubmit = async (values: CreateListaInput) => {
-    if (logoError) {
-      return
+    try {
+      await onSubmit(values)
+      onOpenChange(false)
+    } catch (error) {
+      const message = getApiErrorMessage(error)
+      if (
+        error instanceof AxiosError &&
+        error.response?.status === 400 &&
+        values.logoFile &&
+        isElectoralImageRejectionMessage(message)
+      ) {
+        setLogoInputKey((key) => key + 1)
+        if (localLogoPreview?.startsWith('blob:')) {
+          URL.revokeObjectURL(localLogoPreview)
+        }
+        form.setValue('logoFile', null)
+        setLocalLogoPreview(null)
+        setLogoError(
+          formatRejectedImageError(
+            message,
+            Boolean(lista?.logoUrl && !hasRemovedLogo)
+          )
+        )
+        return
+      }
+      throw error
     }
-    await onSubmit(values)
-    onOpenChange(false)
   }
 
   return (
@@ -224,9 +258,15 @@ const ListaFormDialogContent = ({
               </div>
             )}
             <Input
+              key={logoInputKey}
               type='file'
               accept='image/png,image/jpeg,.png,.jpg,.jpeg'
-              onChange={(event) => handleLogoChange(event.target.files?.[0])}
+              onChange={(event) => {
+                void handleLogoChange(
+                  event.target.files?.[0],
+                  event.currentTarget
+                )
+              }}
             />
             {logoError && (
               <p className='text-sm text-destructive' role='alert'>
@@ -235,10 +275,7 @@ const ListaFormDialogContent = ({
             )}
           </div>
           <DialogFooter>
-            <Button
-              type='submit'
-              disabled={form.formState.isSubmitting || Boolean(logoError)}
-            >
+            <Button type='submit' disabled={form.formState.isSubmitting}>
               {form.formState.isSubmitting
                 ? 'Guardando…'
                 : isEditMode

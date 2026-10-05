@@ -20,6 +20,12 @@ vi.mock('@/stores/auth-store', () => ({
 
 vi.mock('@/features/auth/services/auth-api', () => ({
   login: vi.fn(),
+  verifyTwoFactor: vi.fn(),
+  getTwoFactorStatus: vi.fn(),
+  resetTwoFactor: vi.fn(),
+  getCurrentUser: vi.fn(),
+  refreshSession: vi.fn(),
+  logout: vi.fn(),
 }))
 
 vi.mock('@/features/auth/services/auth-session', () => ({

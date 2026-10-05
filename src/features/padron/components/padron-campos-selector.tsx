@@ -65,9 +65,9 @@ export function PadronCamposSelector({
         Campos del archivo CSV / Excel
       </legend>
       <p className='text-xs text-muted-foreground'>
-        DNI y email son obligatorios: forman el hash de identidad del padrón
-        (mismo cálculo que el login vía Autogestión). El resto de columnas es
-        opcional y sólo se usa en la previsualización.
+        El DNI es el único campo obligatorio para el hash de identidad del
+        padrón (mismo cálculo que el login vía Autogestión). El resto de
+        columnas es opcional y sólo se usa en la previsualización.
       </p>
       <div className='flex flex-wrap gap-x-6 gap-y-3'>
         {predefinidos.map((campo) => {

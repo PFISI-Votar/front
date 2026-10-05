@@ -3,7 +3,10 @@ import {
   buildAnchorFromBackend,
   buildAnchorFromOnChain,
   computeRemainingSeconds,
+  cooldownStorageKey,
+  loadPersistedCooldownAnchor,
   mergeCooldownAnchor,
+  persistCooldownAnchor,
   resolveCooldownAnchor,
 } from '@/features/voto/crypto/cooldown-clock'
 
@@ -146,5 +149,40 @@ describe('cooldown-clock (VOTAR-449)', () => {
       nowWallMs: 115_000,
     })!
     expect(computeRemainingSeconds(resolved, 115_000)).toBe(5)
+  })
+
+  it('VOTAR-452: persiste el ancla en localStorage para sobrevivir cierre de pestaña', () => {
+    const storage = {
+      store: {} as Record<string, string>,
+      getItem(key: string) {
+        return this.store[key] ?? null
+      },
+      setItem(key: string, value: string) {
+        this.store[key] = value
+      },
+      removeItem(key: string) {
+        delete this.store[key]
+      },
+    }
+
+    const anchor = buildAnchorFromOnChain(
+      {
+        lastVoteAt: 1_000,
+        cooldownRemaining: 20,
+        blockTimestamp: 1_000,
+      },
+      20,
+      1_000_000
+    )!
+
+    persistCooldownAnchor(7, '0xabc', anchor, storage)
+    const loaded = loadPersistedCooldownAnchor(7, '0xabc', storage)
+
+    expect(loaded).toMatchObject({
+      unlockAtNodeSeconds: anchor.unlockAtNodeSeconds,
+      lastVoteAt: 1_000,
+    })
+    expect(computeRemainingSeconds(loaded!, 1_012_000)).toBe(8)
+    expect(storage.getItem(cooldownStorageKey(7, '0xabc'))).not.toBeNull()
   })
 })

@@ -79,3 +79,41 @@ export type ConfiguracionVotoNulo = {
   permitirVotoNulo: boolean
   editable: boolean
 }
+
+/** VOTAR-459: visibilidad de las solapas del dashboard público mientras el comicio está en curso. */
+export const guardarVisibilidadDashboardSchema = z.object({
+  mostrarResultados: z.boolean(),
+  mostrarParticipacion: z.boolean(),
+  mostrarRevoto: z.boolean(),
+  mostrarTransacciones: z.boolean(),
+})
+
+export type GuardarVisibilidadDashboardInput = z.infer<
+  typeof guardarVisibilidadDashboardSchema
+>
+
+export type VisibilidadDashboard = {
+  idEleccion: number
+  mostrarResultados: boolean
+  mostrarParticipacion: boolean
+  mostrarRevoto: boolean
+  mostrarTransacciones: boolean
+  /** True cuando el comicio está en BORRADOR o CONFIGURADA y admite cambios. */
+  editable: boolean
+}
+
+export const guardarMensajeBudSchema = z.object({
+  observacionLogin: z
+    .string()
+    .max(1000, 'El mensaje no puede superar los 1000 caracteres')
+    .optional()
+    .nullable(),
+})
+
+export type GuardarMensajeBudInput = z.infer<typeof guardarMensajeBudSchema>
+
+export type MensajeBud = {
+  idEleccion: number
+  observacionLogin: string | null
+  editable: boolean
+}

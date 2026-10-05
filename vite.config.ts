@@ -5,31 +5,39 @@ import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import { playwright } from '@vitest/browser-playwright'
 import { buildSecurityHeaders } from './src/config/security-headers'
+import {
+  parseRpcUrls,
+  rpcUrlToOrigin,
+} from './src/features/voto/crypto/rpc-failover.ts'
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command, isPreview }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiOrigin = env.VITE_API_URL ?? 'http://localhost:3000'
-  const rpcOrigin = env.VITE_RPC_URL ?? 'http://127.0.0.1:8545'
-  const isDev = mode === 'development'
-  const extraConnectSrc = isDev
-    ? [
-        rpcOrigin,
-        // Hardhat accepts both hostnames; CSP treats them as distinct origins.
-        'http://127.0.0.1:8545',
-        'http://localhost:8545',
-      ]
-    : []
-  const devHeaders = buildSecurityHeaders({
+  const rpcUrls = parseRpcUrls(env.VITE_RPC_URL, env.VITE_RPC_FALLBACK_URLS)
+  const rpcOrigins = rpcUrls
+    .map((url) => rpcUrlToOrigin(url))
+    .filter((origin) => origin.length > 0)
+  // Only attach headers for the matching Vite command. Building production-
+  // strict CSP during `vite`/`vitest`/`vite build` used to abort LAN http
+  // API URLs (e.g. http://192.168.x.x) even though fail-closed for deploy is
+  // already enforced by deploy/docker-entrypoint.sh.
+  const isPreviewServer = Boolean(isPreview)
+  const isDevServer = command === 'serve' && !isPreviewServer
+  const extraConnectSrc = [
+    ...rpcOrigins,
+    ...(isDevServer
+      ? [
+          // Hardhat accepts both hostnames; CSP treats them as distinct origins.
+          'http://127.0.0.1:8545',
+          'http://localhost:8545',
+        ]
+      : []),
+  ]
+  const headerOptions = {
     apiOrigin,
-    isDev: true,
     extraConnectSrc,
-  })
-  const previewHeaders = buildSecurityHeaders({
-    apiOrigin,
-    isDev: false,
-    isHttps: true,
-  })
+  }
 
   return {
     plugins: [
@@ -45,12 +53,41 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(__dirname, './src'),
       },
     },
-    server: {
-      headers: devHeaders,
-    },
-    preview: {
-      headers: previewHeaders,
-    },
+    ...(isDevServer
+      ? {
+          server: {
+            allowedHosts: true,
+            proxy: {
+              '/auth': 'http://localhost:3000',
+              '/elecciones': 'http://localhost:3000',
+              '/audit-log': 'http://localhost:3000',
+              '/listas': 'http://localhost:3000',
+              '/candidatos': 'http://localhost:3000',
+              '/configuracion-sistema': 'http://localhost:3000',
+              '/imagenes': 'http://localhost:3000',
+              '/recibos': 'http://localhost:3000',
+              '/validacion': 'http://localhost:3000',
+              '/blockchain': 'http://localhost:3000',
+            },
+            headers: buildSecurityHeaders({
+              ...headerOptions,
+              isDev: true,
+            }),
+          },
+        }
+      : {}),
+    ...(isPreviewServer
+      ? {
+          preview: {
+            allowedHosts: true,
+            headers: buildSecurityHeaders({
+              ...headerOptions,
+              isDev: false,
+              isHttps: true,
+            }),
+          },
+        }
+      : {}),
     optimizeDeps: {
       include: [
         'react',
@@ -73,6 +110,10 @@ export default defineConfig(({ mode }) => {
               'src/hooks/use-table-url-state.test.ts',
               'src/lib/cookies.test.ts',
               'src/features/padron/lib/preview-storage.test.ts',
+              // VOTAR-466: usa createImageBitmap/canvas (APIs de navegador).
+              'src/features/eleccion/lib/load-image-as-jpeg-data-url.test.ts',
+              // VOTAR-492: usa window/document/localStorage.
+              'src/features/auth/services/activity-tracker.test.ts',
             ],
           },
         },
@@ -93,6 +134,20 @@ export default defineConfig(({ mode }) => {
               'axios',
               'recharts',
               'lucide-react',
+              // VOTAR-362: auditoría de accesibilidad en los tests de navegador.
+              'axe-core',
+              'react-hook-form',
+              '@hookform/resolvers/zod',
+              'zod',
+              'sonner',
+              'zustand',
+              'class-variance-authority',
+              'clsx',
+              'tailwind-merge',
+              '@radix-ui/react-alert-dialog',
+              '@radix-ui/react-label',
+              '@radix-ui/react-select',
+              '@radix-ui/react-slot',
             ],
           },
           test: {
@@ -102,6 +157,14 @@ export default defineConfig(({ mode }) => {
               'src/hooks/use-table-url-state.test.ts',
               'src/lib/cookies.test.ts',
               'src/features/padron/lib/preview-storage.test.ts',
+              'src/features/eleccion/lib/load-image-as-jpeg-data-url.test.ts',
+              // VOTAR-492: usa window/document/localStorage.
+              'src/features/auth/services/activity-tracker.test.ts',
+            ],
+            exclude: [
+              // VOTAR-389: regenerar a demanda (REGENERATE=true en el test).
+              'src/features/manual-votante/capturar-pantallas-manual.test.tsx',
+              'src/features/manual-votante/capturar-verificador-manual.test.tsx',
             ],
             browser: {
               enabled: true,
