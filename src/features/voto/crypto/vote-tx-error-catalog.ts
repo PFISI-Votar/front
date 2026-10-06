@@ -13,15 +13,19 @@ export type VoteTxErrorCode =
   | 'retry_too_soon'
   | 'timeout'
   | 'user_rejected'
+  | 'validator_signature'
   | 'unknown'
 
 export type OnChainRevertName =
   | 'RetryTooSoon'
   | 'InvalidSignature'
+  | 'MissingValidatorSignature'
+  | 'InvalidValidatorSignature'
   | 'EnforcedPause'
   | 'InvalidMerkleProof'
   | 'ElectionClosed'
   | 'RevoteDisabled'
+  | 'AlreadyVoted'
   | 'NullifierAlreadyUsed'
   | 'MerkleRootNotPublished'
   | 'MaxVotesReached'
@@ -34,6 +38,8 @@ export const VOTE_TX_FALLBACK_MESSAGE =
 export const VOTE_TX_MESSAGES = {
   invalidSignature:
     'La firma de su voto no es válida. Por favor, asegúrese de que su sesión esté activa y vuelva a intentar.',
+  validatorSignature:
+    'Firma de validación institucional ausente o inválida. Vuelva a iniciar el proceso de votación para obtener una nueva certificación.',
   electionPaused:
     'El comicio se encuentra temporalmente pausado por medidas de seguridad. Por favor, consulte los canales oficiales.',
   notEligible:
@@ -85,6 +91,22 @@ export const getMessageForRevert = (
     }
   }
 
+  if (
+    revertName === 'MissingValidatorSignature' ||
+    revertName === 'InvalidValidatorSignature'
+  ) {
+    // VOTAR-377 — el Smart Contract rechaza todo voto sin la firma de la
+    // Entidad de Validación institucional (UAT-01).
+    return {
+      code: 'validator_signature',
+      message: VOTE_TX_MESSAGES.validatorSignature,
+      severity: 'error',
+      isTransient: false,
+      canRetrySend: false,
+      canResign: true,
+    }
+  }
+
   if (revertName === 'EnforcedPause') {
     return {
       code: 'election_paused',
@@ -120,6 +142,7 @@ export const getMessageForRevert = (
 
   if (
     revertName === 'RevoteDisabled' ||
+    revertName === 'AlreadyVoted' ||
     revertName === 'NullifierAlreadyUsed'
   ) {
     return {

@@ -5,7 +5,7 @@ import axios from 'axios'
  * No envía cookies ni intenta refresh de sesión (VOTAR-315).
  */
 export const publicApiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3000',
+  baseURL: import.meta.env.VITE_API_URL || '',
   withCredentials: false,
   headers: {
     'Content-Type': 'application/json',

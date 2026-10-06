@@ -13,6 +13,7 @@ import {
   isDashboardFrozen,
   useDashboardPublicoComicio,
 } from '@/features/dashboard-publico/hooks/use-dashboard-publico-comicio'
+import { useSeccionDashboardVisible } from '@/features/dashboard-publico/hooks/use-seccion-dashboard-visible'
 import { TotalVotantesCard } from '@/features/padron/components/total-votantes-card'
 
 type DashboardPublicoPageProps = {
@@ -25,6 +26,18 @@ export const DashboardPublicoPage = ({
   section = 'resumen',
 }: DashboardPublicoPageProps) => {
   const comicioQuery = useDashboardPublicoComicio(idEleccion)
+  const visibleResultados = useSeccionDashboardVisible(idEleccion, 'resultados')
+  const visibleParticipacion = useSeccionDashboardVisible(
+    idEleccion,
+    'participacion'
+  )
+  // VOTAR-459: computado fuera del JSX condicional de abajo — dentro de ese
+  // bloque TS ya angosta visibleResultados a `true | undefined` (se entra
+  // solo si !== false), así que repetir la comparación ahí sería redundante
+  // para el compilador. Este flag es la única fuente de verdad para gatear
+  // el fetch/WS de EscrutinioPanel.
+  const escrutinioEnabled =
+    comicioQuery.isSuccess && visibleResultados !== false
 
   useEffect(() => {
     const previousTitle = document.title
@@ -88,21 +101,32 @@ export const DashboardPublicoPage = ({
         }
       />
 
-      {(section === 'resumen' || section === 'resultados') && (
-        <section
-          aria-labelledby='escrutinio-publico-heading'
-          className={section === 'resumen' ? 'mb-8 space-y-4' : 'space-y-4'}
-        >
-          <h2 id='escrutinio-publico-heading' className='sr-only'>
-            Resultados del escrutinio
-          </h2>
-          <EscrutinioPanel
-            idEleccion={idEleccion}
-            fullCharts={section === 'resultados'}
-            estadoComicio={estado}
-          />
-        </section>
+      {/* VOTAR-459: en 'resumen' se omite en silencio (vista simplificada); en
+          'resultados' se muestra el panel "Sección no disponible". */}
+      {section === 'resultados' && visibleResultados === false && (
+        <DashboardPublicoErrorPanel
+          title='Sección no disponible'
+          description='La autoridad electoral no publica esta información mientras el comicio está en curso. Estará disponible al cierre.'
+        />
       )}
+
+      {(section === 'resumen' || section === 'resultados') &&
+        visibleResultados !== false && (
+          <section
+            aria-labelledby='escrutinio-publico-heading'
+            className={section === 'resumen' ? 'mb-8 space-y-4' : 'space-y-4'}
+          >
+            <h2 id='escrutinio-publico-heading' className='sr-only'>
+              Resultados del escrutinio
+            </h2>
+            <EscrutinioPanel
+              idEleccion={idEleccion}
+              fullCharts={section === 'resultados'}
+              estadoComicio={estado}
+              enabled={escrutinioEnabled}
+            />
+          </section>
+        )}
 
       {(section === 'resumen' || section === 'padron') && (
         <section aria-labelledby='padron-publico-heading' className='space-y-4'>
@@ -119,7 +143,7 @@ export const DashboardPublicoPage = ({
         </section>
       )}
 
-      {section === 'resumen' && (
+      {section === 'resumen' && visibleParticipacion !== false && (
         <section
           aria-labelledby='participacion-resumen-heading'
           className='mt-8 space-y-4'

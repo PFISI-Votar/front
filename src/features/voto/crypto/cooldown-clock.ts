@@ -42,6 +42,21 @@ export type ResolveCooldownInput = {
 
 const STORAGE_PREFIX = 'votar:cooldown-anchor:v1'
 
+/** VOTAR-452 — localStorage survives tab close; sessionStorage does not. */
+export const COOLDOWN_ANCHOR_STORAGE: Pick<
+  Storage,
+  'getItem' | 'setItem' | 'removeItem'
+> =
+  typeof localStorage !== 'undefined'
+    ? localStorage
+    : typeof sessionStorage !== 'undefined'
+      ? sessionStorage
+      : {
+          getItem: () => null,
+          setItem: () => undefined,
+          removeItem: () => undefined,
+        }
+
 export const cooldownStorageKey = (idEleccion: number, scope: string): string =>
   `${STORAGE_PREFIX}:${idEleccion}:${scope}`
 
@@ -197,7 +212,7 @@ export const resolveCooldownAnchor = (
 export const loadPersistedCooldownAnchor = (
   idEleccion: number,
   scope: string,
-  storage: Pick<Storage, 'getItem'> = sessionStorage
+  storage: Pick<Storage, 'getItem'> = COOLDOWN_ANCHOR_STORAGE
 ): CooldownAnchor | null => {
   try {
     const raw = storage.getItem(cooldownStorageKey(idEleccion, scope))
@@ -228,7 +243,7 @@ export const persistCooldownAnchor = (
   idEleccion: number,
   scope: string,
   anchor: CooldownAnchor | null,
-  storage: Pick<Storage, 'setItem' | 'removeItem'> = sessionStorage
+  storage: Pick<Storage, 'setItem' | 'removeItem'> = COOLDOWN_ANCHOR_STORAGE
 ): void => {
   const key = cooldownStorageKey(idEleccion, scope)
   if (!anchor) {

@@ -30,16 +30,22 @@ import {
   VotarBrandHeader,
   VotarLoginBackground,
 } from '@/features/auth/sign-in/components/login-screen-shared'
+import { CumplimientoLey25326Link } from '@/features/cumplimiento'
 import {
   METODOS_AUTENTICACION,
   type MetodoAutenticacion,
 } from '@/features/eleccion/configuracion-comicio/data/constants'
+import { ManualVotanteLink } from '@/features/manual-votante'
 import { loginVotante } from '@/features/voto/services/votante-auth-api'
 import type { VotanteAuthUser } from '@/features/voto/types/votante-auth.types'
+
+export const DEFAULT_BUD_LOGIN_OBSERVACION =
+  'El acceso se realiza con tu cuenta institucional. Para poder emitir el voto, el correo electrónico cargado en la sección Datos Personales de Autogestión debe coincidir con el registrado en el padrón electoral.'
 
 type BudLoginScreenProps = {
   idEleccion: number
   authMethod?: MetodoAutenticacion
+  observacionLogin?: string | null
   onAuthenticated: (user: VotanteAuthUser) => void
 }
 
@@ -49,6 +55,7 @@ const GENERIC_LOGIN_ERROR =
 export const BudLoginScreen = ({
   idEleccion,
   authMethod = METODOS_AUTENTICACION.SSO_INSTITUCIONAL,
+  observacionLogin,
   onAuthenticated,
 }: BudLoginScreenProps) => {
   const [legajo, setLegajo] = useState('')
@@ -57,6 +64,11 @@ export const BudLoginScreen = ({
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const isGoogleLogin = authMethod === METODOS_AUTENTICACION.GOOGLE
+
+  const mensajeObservacion =
+    observacionLogin !== undefined
+      ? observacionLogin
+      : DEFAULT_BUD_LOGIN_OBSERVACION
 
   const handleGoogleStub = () => {
     toast.info('El inicio de sesión con Google estará disponible próximamente.')
@@ -95,6 +107,7 @@ export const BudLoginScreen = ({
     >
       <VotarLoginBackground />
       <section className='relative mx-auto flex min-h-svh w-full max-w-md flex-col items-center justify-center px-4 py-8 sm:px-6'>
+        <h1 className='sr-only'>Iniciar sesión en la Boleta Única Digital</h1>
         <VotarBrandHeader className='mb-8' />
 
         <Card className='w-full min-w-0 gap-0 rounded-2xl border-[#e4e7eb] bg-white/95 py-0 shadow-[0_1rem_3rem_rgba(30,64,95,0.08)] backdrop-blur-sm'>
@@ -108,18 +121,17 @@ export const BudLoginScreen = ({
           </CardHeader>
 
           <CardContent className='px-6 pt-6 pb-8 sm:px-8'>
-            <div className='mb-5 flex items-start gap-2 rounded-lg border border-[#dbe3ea] bg-[#f7fbfd] p-3 text-xs text-[#55575d]'>
-              <Mail
-                className='mt-0.5 size-4 shrink-0 text-[#2f6f9f]'
-                aria-hidden='true'
-              />
-              <p>
-                El acceso se realiza con tu cuenta institucional. Para poder
-                emitir el voto, el correo electrónico cargado en la sección{' '}
-                <strong>Datos Personales</strong> de Autogestión debe coincidir
-                con el registrado en el padrón electoral.
-              </p>
-            </div>
+            {mensajeObservacion && mensajeObservacion.trim().length > 0 ? (
+              <div className='mb-5 flex items-start gap-2 rounded-lg border border-[#dbe3ea] bg-[#f7fbfd] p-3 text-xs text-[#55575d]'>
+                <Mail
+                  className='mt-0.5 size-4 shrink-0 text-[#2f6f9f]'
+                  aria-hidden='true'
+                />
+                <p className='leading-relaxed whitespace-pre-line'>
+                  {mensajeObservacion}
+                </p>
+              </div>
+            ) : null}
             {errorMessage ? (
               <Alert variant='destructive' className='mb-5'>
                 <AlertTitle>Error de autenticación</AlertTitle>
@@ -153,7 +165,7 @@ export const BudLoginScreen = ({
                     autoComplete='username'
                     disabled={isLoading}
                     placeholder='Ej. 14988'
-                    className='h-11 rounded-lg border-[#c9cdd2] bg-white pr-4 pl-11 text-base shadow-none placeholder:text-[#9aa0a6] focus-visible:border-[#2f6f9f] focus-visible:ring-[#2f6f9f]/20'
+                    className='h-11 rounded-lg border-[#c9cdd2] bg-white pr-4 pl-11 text-base shadow-none placeholder:text-[#6b7280] focus-visible:border-[#2f6f9f] focus-visible:ring-[#2f6f9f]'
                   />
                 </LoginField>
 
@@ -170,11 +182,11 @@ export const BudLoginScreen = ({
                     autoComplete='current-password'
                     disabled={isLoading}
                     placeholder='••••••••'
-                    className='h-11 rounded-lg border-[#c9cdd2] bg-white pr-11 pl-11 text-base shadow-none placeholder:tracking-normal focus-visible:border-[#2f6f9f] focus-visible:ring-[#2f6f9f]/20'
+                    className='h-11 rounded-lg border-[#c9cdd2] bg-white pr-11 pl-11 text-base shadow-none placeholder:tracking-normal focus-visible:border-[#2f6f9f] focus-visible:ring-[#2f6f9f]'
                   />
                   <button
                     type='button'
-                    className='absolute top-1/2 right-2.5 grid size-8 -translate-y-1/2 place-items-center rounded-md text-[#74777d] transition hover:bg-slate-100 hover:text-[#2f6f9f] focus-visible:ring-3 focus-visible:ring-[#2f6f9f]/20 focus-visible:outline-none'
+                    className='absolute top-1/2 right-2.5 grid size-8 -translate-y-1/2 place-items-center rounded-md text-[#5c5f66] transition hover:bg-slate-100 hover:text-[#2f6f9f] focus-visible:ring-2 focus-visible:ring-[#2f6f9f] focus-visible:ring-offset-2 focus-visible:outline-none'
                     onClick={() => setShowClave((current) => !current)}
                     aria-label={showClave ? 'Ocultar clave' : 'Mostrar clave'}
                   >
@@ -211,6 +223,12 @@ export const BudLoginScreen = ({
             )}
           </CardContent>
         </Card>
+
+        {/* VOTAR-389: manual del votante. VOTAR-378: Ley 25.326 */}
+        <div className='mt-6 flex flex-col items-center gap-3 text-center'>
+          <ManualVotanteLink openInNewTab />
+          <CumplimientoLey25326Link />
+        </div>
       </section>
     </main>
   )

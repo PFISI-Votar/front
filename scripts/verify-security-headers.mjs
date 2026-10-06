@@ -35,6 +35,15 @@ const main = async () => {
   if (!csp?.includes("frame-ancestors 'none'")) {
     throw new Error('CSP must include frame-ancestors none')
   }
+  if (!csp.includes("script-src 'self'")) {
+    throw new Error('CSP must restrict script-src to self')
+  }
+  if (csp.includes('unsafe-eval') || csp.includes("script-src 'self' 'unsafe-inline'")) {
+    throw new Error('Production CSP must not allow unsafe-inline or unsafe-eval scripts')
+  }
+  if (!csp.includes("script-src-attr 'none'") || !csp.includes("frame-src 'none'")) {
+    throw new Error('CSP must block inline event handlers and frames')
+  }
 
   console.log(`Security headers verified for ${PREVIEW_URL}`)
 }

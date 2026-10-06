@@ -277,7 +277,40 @@ function SidebarTrigger({
 }
 
 function SidebarRail({ className, ...props }: React.ComponentProps<'button'>) {
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar, state } = useSidebar()
+  const dragStartX = React.useRef<number | null>(null)
+  const DRAG_THRESHOLD = 10
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    dragStartX.current = e.clientX
+  }
+
+  const handleClick = (e: React.MouseEvent) => {
+    // Si hubo un drag significativo, el mouseup ya lo manejó — no hacer nada
+    if (dragStartX.current !== null) {
+      const delta = Math.abs(e.clientX - dragStartX.current)
+      dragStartX.current = null
+      if (delta >= DRAG_THRESHOLD) return
+    }
+    toggleSidebar()
+  }
+
+  React.useEffect(() => {
+    const handleMouseUp = (e: MouseEvent) => {
+      if (dragStartX.current === null) return
+      const delta = e.clientX - dragStartX.current
+      dragStartX.current = null
+
+      const shouldToggle =
+        (state === 'expanded' && delta < -DRAG_THRESHOLD) ||
+        (state === 'collapsed' && delta > DRAG_THRESHOLD)
+
+      if (shouldToggle) toggleSidebar()
+    }
+
+    document.addEventListener('mouseup', handleMouseUp)
+    return () => document.removeEventListener('mouseup', handleMouseUp)
+  }, [state, toggleSidebar])
 
   return (
     <button
@@ -285,7 +318,8 @@ function SidebarRail({ className, ...props }: React.ComponentProps<'button'>) {
       data-slot='sidebar-rail'
       aria-label='Toggle Sidebar'
       tabIndex={-1}
-      onClick={toggleSidebar}
+      onMouseDown={handleMouseDown}
+      onClick={handleClick}
       title='Toggle Sidebar'
       className={cn(
         'absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-inset-e-4 group-data-[side=right]:inset-s-0 after:absolute after:inset-y-0 after:inset-s-1/2 after:w-0.5 hover:after:bg-sidebar-border sm:flex',
@@ -294,8 +328,6 @@ function SidebarRail({ className, ...props }: React.ComponentProps<'button'>) {
         'group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:start-full hover:group-data-[collapsible=offcanvas]:bg-sidebar',
         '[[data-side=left][data-collapsible=offcanvas]_&]:-inset-e-2',
         '[[data-side=right][data-collapsible=offcanvas]_&]:-inset-s-2',
-
-        // RTL support
         'rtl:translate-x-1/2',
         'rtl:in-data-[side=left]:cursor-e-resize rtl:in-data-[side=right]:cursor-w-resize',
         'rtl:[[data-side=left][data-state=collapsed]_&]:cursor-w-resize rtl:[[data-side=right][data-state=collapsed]_&]:cursor-e-resize',

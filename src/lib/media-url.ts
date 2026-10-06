@@ -34,9 +34,11 @@ export const resolveMediaUrl = (url?: string | null): string | undefined => {
   }
 
   const baseUrl =
-    apiClient.defaults.baseURL ??
-    import.meta.env.VITE_API_URL ??
-    window.location.origin
+    apiClient.defaults.baseURL ||
+    import.meta.env.VITE_API_URL ||
+    (typeof window !== 'undefined'
+      ? window.location.origin
+      : 'http://localhost')
 
   return toSafeImageSrc(new URL(url, baseUrl).toString())
 }

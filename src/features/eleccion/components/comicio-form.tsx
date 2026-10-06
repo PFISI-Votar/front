@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -44,9 +45,12 @@ const mapApiErrorsToForm = (
     if (
       error.field === 'fechaInicio' ||
       error.field === 'fechaFin' ||
-      error.field === 'metodosAutenticacion'
+      error.field === 'metodosAutenticacion' ||
+      error.field === 'observacionLogin'
     ) {
-      setError(error.field, { message: error.message })
+      setError(error.field as keyof CreateComicioInput, {
+        message: error.message,
+      })
     }
   }
 }
@@ -59,6 +63,7 @@ const buildFormDefaults = (
     return {
       nombre: eleccion.nombre,
       descripcion: eleccion.descripcion ?? '',
+      observacionLogin: eleccion.observacionLogin ?? '',
       fechaInicio: eleccion.fechaInicio,
       fechaFin: eleccion.fechaFin,
       tipoVotacion: eleccion.tipoVotacion,
@@ -68,6 +73,7 @@ const buildFormDefaults = (
   return {
     nombre: '',
     descripcion: '',
+    observacionLogin: '',
     fechaInicio: '',
     fechaFin: '',
     tipoVotacion: TIPOS_VOTACION.POR_LISTA,
@@ -224,6 +230,29 @@ export const ComicioForm = ({
               Acceso de votantes
             </h2>
             <MetodosAutenticacionField control={form.control} />
+            <FormField
+              control={form.control}
+              name='observacionLogin'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Mensaje en el login del BUD (opcional)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      rows={3}
+                      className='min-h-20 resize-y'
+                      placeholder='El acceso se realiza con tu cuenta institucional. Para poder emitir el voto, el correo electrónico cargado en la sección Datos Personales de Autogestión debe coincidir con el registrado en el padrón electoral.'
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Mensaje informativo que se muestra a los votantes en la
+                    pantalla de inicio de sesión de la Boleta Única Digital. Si
+                    se deja vacío, no se mostrará ningún recuadro informativo.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </section>
         </div>
 

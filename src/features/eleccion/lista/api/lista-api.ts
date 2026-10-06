@@ -1,9 +1,11 @@
 import { apiClient } from '@/lib/api-client'
 import type {
   CreateListaInput,
+  DespliegueOnChainResponse,
   Lista,
   ListaMapeoItem,
   OficializarResponse,
+  StackOnChainStatus,
 } from '@/features/eleccion/lista/data/schema'
 
 export const listarListas = async (idEleccion: number): Promise<Lista[]> => {
@@ -84,6 +86,24 @@ export const oficializarEleccion = async (
 ): Promise<OficializarResponse> => {
   const { data } = await apiClient.post<OficializarResponse>(
     `/elecciones/${idEleccion}/oficializar`
+  )
+  return data
+}
+
+export const obtenerEstadoStackOnChain = async (
+  idEleccion: number
+): Promise<StackOnChainStatus> => {
+  const { data } = await apiClient.get<StackOnChainStatus>(
+    `/elecciones/${idEleccion}/stack-on-chain`
+  )
+  return data
+}
+
+export const reintentarDespliegueOnChain = async (
+  idEleccion: number
+): Promise<DespliegueOnChainResponse> => {
+  const { data } = await apiClient.post<DespliegueOnChainResponse>(
+    `/elecciones/${idEleccion}/reintentar-despliegue-on-chain`
   )
   return data
 }

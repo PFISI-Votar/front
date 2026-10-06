@@ -1,6 +1,6 @@
 {
   "contractName": "ElectionFactory",
-  "abiHash": "0xd12374873034c50168b0b37cc8b9260792fd6ba56fb0af061b365df80f92f6b0",
+  "abiHash": "0xaa2b2737e919cef17c6491c1b1291aa93b6811ecb78b3ee27fcba7e22997229e",
   "abi": [
     {
       "inputs": [
@@ -12,6 +12,16 @@
         {
           "internalType": "address",
           "name": "merkleRootStoreAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "pauserOperator_",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "validatorSigner_",
           "type": "address"
         }
       ],
@@ -52,7 +62,29 @@
           "type": "uint256"
         }
       ],
+      "name": "ConfigLocked",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "electionId",
+          "type": "uint256"
+        }
+      ],
       "name": "ElectionAlreadyExists",
+      "type": "error"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "electionId",
+          "type": "uint256"
+        }
+      ],
+      "name": "ElectionDoesNotExist",
       "type": "error"
     },
     {
@@ -69,6 +101,29 @@
       "inputs": [],
       "name": "MerkleRootStoreIsZeroAddress",
       "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "PauserOperatorIsZeroAddress",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "ValidatorSignerIsZeroAddress",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "electionId",
+          "type": "uint256"
+        }
+      ],
+      "name": "ConfigurationLocked",
+      "type": "event"
     },
     {
       "anonymous": false,
@@ -137,6 +192,25 @@
           "internalType": "address",
           "name": "account",
           "type": "address"
+        }
+      ],
+      "name": "Paused",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "account",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "reason",
+          "type": "string"
         }
       ],
       "name": "Paused",
@@ -285,6 +359,19 @@
     {
       "inputs": [],
       "name": "PAUSER_ROLE",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "VALIDATOR_ROLE",
       "outputs": [
         {
           "internalType": "bytes32",
@@ -526,6 +613,38 @@
       "type": "function"
     },
     {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "electionId",
+          "type": "uint256"
+        }
+      ],
+      "name": "isConfigLocked",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "electionId",
+          "type": "uint256"
+        }
+      ],
+      "name": "lockConfig",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
       "inputs": [],
       "name": "merkleRootStore",
       "outputs": [
@@ -536,6 +655,19 @@
         }
       ],
       "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "reason",
+          "type": "string"
+        }
+      ],
+      "name": "pause",
+      "outputs": [],
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
@@ -553,6 +685,19 @@
           "internalType": "bool",
           "name": "",
           "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "pauserOperator",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
         }
       ],
       "stateMutability": "view",
@@ -619,8 +764,21 @@
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "validatorSigner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
     }
   ],
-  "exportedAt": "2026-08-08T17:44:12.964Z",
+  "exportedAt": "2026-09-27T02:46:26.374Z",
   "source": "blockchain/scripts/lib/export-abis.ts (VOTAR-385)"
 }

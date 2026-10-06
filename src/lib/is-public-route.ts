@@ -4,7 +4,9 @@
  *
  * Incluye `/verificar` porque el verificador de recibos también es público
  * (misma política de no redirigir a `/sign-in` ante 401).
+ * Incluye `/manual/auditores` (VOTAR-396): el manual técnico es anónimo.
  */
 export const isPublicRoute = (pathname: string): boolean =>
   /\/comicios\/\d+\/(votar|dashboard)(\/|$)/.test(pathname) ||
-  /\/verificar(\/|$)/.test(pathname)
+  /\/verificar(\/|$)/.test(pathname) ||
+  /\/manual\/auditores(\/|$)/.test(pathname)

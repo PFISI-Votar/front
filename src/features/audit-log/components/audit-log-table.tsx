@@ -74,9 +74,9 @@ export const AuditLogTable = ({
           <TableHeader>
             <TableRow>
               <TableHead className='w-[148px]'>Fecha y hora</TableHead>
-              <TableHead className='w-[148px]'>Tipo</TableHead>
-              <TableHead className='w-[132px]'>Operador</TableHead>
-              <TableHead className='w-[132px]'>Terminal</TableHead>
+              <TableHead className='w-[188px]'>Tipo</TableHead>
+              <TableHead className='w-[112px]'>Operador</TableHead>
+              <TableHead className='w-[112px]'>Terminal</TableHead>
               <TableHead className='min-w-[160px]'>Descripción</TableHead>
               <TableHead className='w-[88px]'>Comicio</TableHead>
               <TableHead className='w-[56px]'>

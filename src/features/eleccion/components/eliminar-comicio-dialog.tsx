@@ -23,11 +23,16 @@ export const EliminarComicioDialog = ({
   const [value, setValue] = useState('')
   const isConfirmed = value === nombreEleccion
 
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen) {
+  // Ante cualquier cierre del diálogo (interno o forzado por el padre, ej.
+  // tras una eliminación exitosa) se limpia el input para que no quede
+  // precargado al reabrirlo para otro comicio. Se ajusta en el render en
+  // lugar de un efecto para evitar un ciclo extra de render.
+  const [prevOpen, setPrevOpen] = useState(open)
+  if (open !== prevOpen) {
+    setPrevOpen(open)
+    if (!open) {
       setValue('')
     }
-    onOpenChange(nextOpen)
   }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -45,7 +50,7 @@ export const EliminarComicioDialog = ({
   return (
     <ConfirmDialog
       open={open}
-      onOpenChange={handleOpenChange}
+      onOpenChange={onOpenChange}
       form={FORM_ID}
       disabled={!isConfirmed}
       title='¿Eliminar el comicio?'

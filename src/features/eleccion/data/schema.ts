@@ -8,7 +8,7 @@ import {
 } from '@/features/eleccion/lista/data/schema'
 
 export type EleccionEstado =
-  'BORRADOR' | 'CONFIGURADA' | 'ABIERTA' | 'CERRADA' | 'ESCRUTADA'
+  'BORRADOR' | 'CONFIGURADA' | 'ABIERTA' | 'CERRADA' | 'ESCRUTADA' | 'ARCHIVADA'
 
 export type RolCandidato = {
   idCategoria: number
@@ -22,13 +22,30 @@ export type Eleccion = {
   idEleccion: number
   nombre: string
   descripcion?: string | null
+  observacionLogin?: string | null
   fechaInicio: string
   fechaFin: string
   estado: EleccionEstado
+  /** VOTAR-347: eje ortogonal a `estado` — puede estar ABIERTA y pausada a la vez. */
+  pausada: boolean
+  pausadaEn?: string | null
   tipoVotacion: TipoVotacion
   roles: RolCandidato[]
   metodosAutenticacion: MetodoAutenticacion[]
 }
+
+/** VOTAR-347 */
+export type SolicitudPausaTipo = 'PAUSAR' | 'REANUDAR'
+
+export type EstadoSolicitudPausa = {
+  tipo: SolicitudPausaTipo
+  confirmaciones: number
+  requeridas: number
+  ejecutada: boolean
+  razon?: string | null
+  txHashBallot?: string | null
+  txHashVoteRegistry?: string | null
+} | null
 
 const utcIsoDateTimeSchema = z
   .string()
@@ -41,6 +58,10 @@ export const createComicioSchema = z
   .object({
     nombre: z.string().min(1, 'El nombre es obligatorio'),
     descripcion: z.string().optional(),
+    observacionLogin: z
+      .string()
+      .max(1000, 'El mensaje de login no puede superar los 1000 caracteres')
+      .optional(),
     fechaInicio: utcIsoDateTimeSchema,
     fechaFin: utcIsoDateTimeSchema,
     tipoVotacion: tipoVotacionSchema,

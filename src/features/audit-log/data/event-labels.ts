@@ -33,6 +33,21 @@ export const AUDIT_EVENT_LABELS: AuditEventLabel[] = [
     variant: 'outline',
   },
   {
+    value: 'COMICIO_ARCHIVADO',
+    label: 'Archivado de comicio',
+    variant: 'outline',
+  },
+  {
+    value: 'COMICIO_PAUSADO',
+    label: 'Pausa de emergencia',
+    variant: 'destructive',
+  },
+  {
+    value: 'COMICIO_REANUDADO',
+    label: 'Reanudación de comicio',
+    variant: 'default',
+  },
+  {
     value: 'VOTO_EMITIDO',
     label: 'Voto emitido (anónimo)',
     variant: 'secondary',
@@ -42,12 +57,33 @@ export const AUDIT_EVENT_LABELS: AuditEventLabel[] = [
     label: 'Configuración modificada',
     variant: 'outline',
   },
+  {
+    value: 'ACTA_CIERRE_GENERADA',
+    label: 'Acta de cierre generada',
+    variant: 'secondary',
+  },
+  {
+    value: 'SESION_REVOCADA',
+    label: 'Sesiones revocadas',
+    variant: 'destructive',
+  },
+  {
+    value: 'BLOQUEO_AUTENTICACION',
+    label: 'Bloqueo de autenticación',
+    variant: 'destructive',
+  },
 ]
 
 export const CRITICAL_EVENT_TYPES: TipoEventoAudit[] = [
   'COMICIO_ABIERTO',
   'COMICIO_CERRADO',
+  'COMICIO_ARCHIVADO',
   'PADRON_CARGADO',
+  'COMICIO_PAUSADO',
+  'COMICIO_REANUDADO',
+  'ACTA_CIERRE_GENERADA',
+  'SESION_REVOCADA',
+  'BLOQUEO_AUTENTICACION',
 ]
 
 export const getAuditEventLabel = (

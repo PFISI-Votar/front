@@ -33,6 +33,8 @@ export const escrutinioSchema = z.object({
   actualizadoEn: z.string(),
   participacion: participacionEscrutinioSchema,
   candidatos: z.array(candidatoEscrutinioSchema),
+  /** VOTAR-447: omitido en payloads viejos → UI asume true. */
+  permitirVotoNulo: z.boolean().optional(),
 })
 
 export type CandidatoEscrutinio = z.infer<typeof candidatoEscrutinioSchema>

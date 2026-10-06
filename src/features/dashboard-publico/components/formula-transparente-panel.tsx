@@ -12,6 +12,8 @@ import type { FormulaParticipacion } from '@/features/dashboard-publico/api/part
 type FormulaTransparentePanelProps = {
   formula: FormulaParticipacion
   className?: string
+  /** VOTAR-447: blank votes always shown; null votes only when enabled. */
+  permitirVotoNulo?: boolean
 }
 
 const Operand = ({ label, value }: { label: string; value: number }) => (
@@ -28,6 +30,7 @@ const Operand = ({ label, value }: { label: string; value: number }) => (
 export const FormulaTransparentePanel = ({
   formula,
   className,
+  permitirVotoNulo = true,
 }: FormulaTransparentePanelProps) => (
   <Card
     className={cn(
@@ -56,7 +59,9 @@ export const FormulaTransparentePanel = ({
         <Operand label='Padrón habilitado' value={formula.totalPadron} />
         <Operand label='Votos afirmativos' value={formula.votosAfirmativos} />
         <Operand label='Votos en blanco' value={formula.votosEnBlanco} />
-        <Operand label='Votos nulos' value={formula.votosNulos} />
+        {permitirVotoNulo && (
+          <Operand label='Votos nulos' value={formula.votosNulos} />
+        )}
       </div>
       <div className='rounded-xl border border-[#2f6f9f]/20 bg-[#2f6f9f]/5 px-4 py-3'>
         <p className='text-xs font-medium tracking-wide text-[#2f6f9f] uppercase'>

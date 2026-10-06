@@ -28,6 +28,8 @@ export type CategoriaBoletaDigital = {
   nombre: string
   descripcion: string | null
   orden: number
+  /** Max candidates the voter may pick in this category (VOTAR-474). */
+  cantidadCargos: number
   estado: CategoriaBoletaEstado
   candidatos: CandidatoBoletaDigital[]
 }
@@ -45,6 +47,14 @@ export type BoletaDigital = {
   ballotContractAddress?: `0x${string}`
 }
 
+/** VOTAR-459: solapas del dashboard público visibles mientras el comicio está en curso. */
+export type VisibilidadDashboardPublico = {
+  resultados: boolean
+  participacion: boolean
+  revoto: boolean
+  transacciones: boolean
+}
+
 export type BudConfig = {
   idEleccion: number
   nombre: string
@@ -53,6 +63,14 @@ export type BudConfig = {
   metodosAutenticacion: string[]
   resultadosDefinitivos?: boolean
   snapshotCongelado?: boolean
+  /** VOTAR-447: si el comicio habilita voto nulo (y su recuento en el dashboard). */
+  permitirVotoNulo?: boolean
+  /** VOTAR-347 — true si la urna digital está pausada; bloquea el envío de votos. */
+  pausada?: boolean
+  /** VOTAR-454: observación configurable del login de la BUD. Null oculta el recuadro. */
+  observacionLogin?: string | null
+  /** VOTAR-459: todas en true cuando el comicio ya cerró. */
+  visibilidadDashboard?: VisibilidadDashboardPublico
 }
 
 /** VOTAR-328 — respuesta de revotePolicyService para feedback en BUD. */

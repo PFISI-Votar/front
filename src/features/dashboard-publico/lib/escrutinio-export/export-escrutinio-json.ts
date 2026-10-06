@@ -6,9 +6,18 @@ export const buildEscrutinioJsonPayload = (
   document: EscrutinioExportDocument
 ): Record<string, unknown> => ({
   metadata: document.metadata,
-  participacion: document.participacion,
+  participacion: document.permitirVotoNulo
+    ? document.participacion
+    : {
+        totalVotos: document.participacion.totalVotos,
+        votosBlanco: document.participacion.votosBlanco,
+        totalVotantesHabilitados:
+          document.participacion.totalVotantesHabilitados,
+        porcentajeParticipacion: document.participacion.porcentajeParticipacion,
+      },
   candidatos: document.candidatos,
   resultados: document.resultados,
+  permitirVotoNulo: document.permitirVotoNulo,
 })
 
 export const exportEscrutinioJson = (
