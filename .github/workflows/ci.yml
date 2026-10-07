@@ -142,7 +142,7 @@ jobs:
     permissions:
       contents: read
     container:
-      image: mcr.microsoft.com/playwright:v1.59.1-noble
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
 
     env:
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
