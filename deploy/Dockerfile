@@ -16,7 +16,7 @@ ENV VITE_RPC_FALLBACK_URLS=${VITE_RPC_FALLBACK_URLS}
 
 RUN npm run build
 
-FROM nginx:1.27-alpine
+FROM nginx:1.31-alpine
 
 RUN apk add --no-cache gettext
 
