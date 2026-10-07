@@ -95,7 +95,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@faker-js/faker": "^10.4.0",
+    "@faker-js/faker": "^10.6.0",
     "@tanstack/eslint-plugin-query": "^5.99.0",
     "@tanstack/router-plugin": "^1.167.22",
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
