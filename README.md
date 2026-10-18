@@ -54,6 +54,20 @@ Incremento post-MVP (Sprint 4). Alcance cubierto en esta versión:
 - **Verificabilidad:** registro de transacciones públicas tras el cast y verificador de recibo por contrato Ballot por elección
 - **Correcciones:** breadcrumbs, resultados en dashboard, comprobante de voto, pantallas BUD e integración Alchemy
 
+## Estado del proyecto — v3.0.0
+
+**Versión 3 — Manuales de usuario, accesibilidad WCAG 2.1 AA, hardening de seguridad y escrutinio multi-candidato** (octubre de 2026).
+
+Incremento post-v2 con foco en madurez operativa, cumplimiento normativo y seguridad ofensiva. Alcance cubierto en esta versión:
+
+- **Manuales de usuario:** manuales completos para autoridad electoral, votante y auditor
+- **Accesibilidad:** cumplimiento WCAG 2.1 AA en toda la interfaz
+- **Hardening de seguridad:** refactorización de secretos con vault y relayer backend, hardening de CSP/XSS, cifrado de seed de billetera efímera, hardening de uploads, hardening de sesiones con revocación masiva y timeout por inactividad, y hardening de CI (Dependabot, CodeQL y secret scanning)
+- **Compliance normativo:** firmas anónimas, cumplimiento Ley 25.326 y publicación completa del ecosistema open source
+- **Escrutinio:** soporte de escrutinio multi-candidato y exportación PNG de la curva de participación
+- **Funcionalidad electoral:** pausa de emergencia, acta de apertura, archivado de comicio finalizado, reintento de oficialización de apertura, voto nulo configurable, intervalo entre sufragios, failover de nodos RPC y optimización del almacenamiento de imágenes
+- **UX y correcciones:** 2FA anti-phishing, layout de boleta única, modales no bloqueantes, navegabilidad entre listas, prevención de re-emisión tras recarga, dashboard de administración, logo institucional y múltiples correcciones menores de UI
+
 ## Arquitectura del ecosistema
 
 | Contenedor                                | Repositorio                                             | Tecnología                                            |
