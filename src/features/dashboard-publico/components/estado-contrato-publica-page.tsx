@@ -54,7 +54,7 @@ export const EstadoContratoPublicaPage = ({
     )
   }
 
-  if (comicioQuery.isError || !comicioQuery.data) {
+  if (!comicioQuery.data) {
     return (
       <DashboardPublicoShell idEleccion={idEleccion} activeSection='estado'>
         <DashboardPublicoErrorPanel
@@ -67,7 +67,7 @@ export const EstadoContratoPublicaPage = ({
 
   const { nombre, estado, tipoVotacion } = comicioQuery.data
 
-  if (contratoQuery.isError || !contratoQuery.data) {
+  if (!contratoQuery.data) {
     const status = isAxiosError(contratoQuery.error)
       ? contratoQuery.error.response?.status
       : undefined

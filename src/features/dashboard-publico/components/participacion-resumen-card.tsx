@@ -42,7 +42,7 @@ export const ParticipacionResumenCard = ({
     )
   }
 
-  if (query.isError || !query.data) {
+  if (!query.data) {
     return (
       <Card
         className={cn(

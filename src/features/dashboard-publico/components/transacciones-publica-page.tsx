@@ -62,7 +62,7 @@ export const TransaccionesPublicaPage = ({
     )
   }
 
-  if (comicioQuery.isError || !comicioQuery.data) {
+  if (!comicioQuery.data) {
     return (
       <DashboardPublicoShell
         idEleccion={idEleccion}
@@ -98,7 +98,7 @@ export const TransaccionesPublicaPage = ({
     )
   }
 
-  if (transaccionesQuery.isError || !transaccionesQuery.data) {
+  if (!transaccionesQuery.data) {
     const status = isAxiosError(transaccionesQuery.error)
       ? transaccionesQuery.error.response?.status
       : undefined
