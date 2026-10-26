@@ -6,7 +6,7 @@
  *   Cambiar REGENERATE a true y ejecutar:
  *   npx vitest run --project browser src/features/manual-votante/capturar-pantallas-manual.test.tsx
  *
- * Las PNG se escriben en public/manual-votante/ (versionadas).
+ * Las imágenes WebP se escriben en public/manual-votante/ (versionadas).
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import '@/styles/index.css'
@@ -21,12 +21,12 @@ import { VerificadorRecibo } from '@/features/voto/components/verificador-recibo
 import { EphemeralWalletProvider } from '@/features/voto/crypto/ephemeral-wallet-context'
 import type { BoletaDigital } from '@/features/voto/data/schema'
 
-/** Poner en true solo para regenerar public/manual-votante/*.png */
+/** Poner en true solo para regenerar public/manual-votante/*.webp */
 const REGENERATE = false
 
 /**
  * Viewport móvil sin forzar un alto enorme: Vitest escala el iframe si no
- * entra en la ventana (viewport alto → PNG angostos). La captura completa se
+ * entra en la ventana (viewport alto → WebP angostos). La captura completa se
  * hace con html-to-image, que no depende del recorte del iframe.
  */
 const CAPTURE_VIEWPORT = { width: 390, height: 844 } as const
@@ -269,8 +269,8 @@ const captureMain = async (filename: string, settleMs = 800) => {
   ctx!.fillRect(0, 0, canvas.width, canvas.height)
   ctx!.drawImage(source, 0, 0)
 
-  const dataUrl = canvas.toDataURL('image/png')
-  const base64 = dataUrl.replace(/^data:image\/png;base64,/, '')
+  const dataUrl = canvas.toDataURL('image/webp', 0.82)
+  const base64 = dataUrl.replace(/^data:image\/webp;base64,/, '')
   expect(base64.length).toBeGreaterThan(1000)
   await commands.writeFile(
     `public/manual-votante/${filename}`,
@@ -296,7 +296,7 @@ describe.skipIf(!REGENERATE)(
       await expect
         .element(loginScreen.getByText('Bienvenido'))
         .toBeInTheDocument()
-      await captureMain('01-inicio-sesion.png')
+      await captureMain('01-inicio-sesion.webp')
       loginScreen.unmount()
 
       const queryClient = new QueryClient({
@@ -321,7 +321,7 @@ describe.skipIf(!REGENERATE)(
       await expect
         .element(identityScreen.getByText('Antes de votar'))
         .toBeInTheDocument()
-      await captureMain('02a-antes-de-votar.png', 1500)
+      await captureMain('02a-antes-de-votar.webp', 1500)
 
       await userEvent.click(
         identityScreen.getByRole('button', { name: /Comenzar a votar/i })
@@ -332,7 +332,7 @@ describe.skipIf(!REGENERATE)(
       await expect
         .element(identityScreen.getByText('Votar en blanco'))
         .toBeInTheDocument()
-      await captureMain('02b-seleccion.png', 1500)
+      await captureMain('02b-seleccion.webp', 1500)
 
       await userEvent.click(
         identityScreen.getByRole('button', { name: /Votar en blanco/i })
@@ -343,7 +343,7 @@ describe.skipIf(!REGENERATE)(
       await expect
         .element(identityScreen.getByText('Confirmar Voto'))
         .toBeInTheDocument()
-      await captureMain('03-confirmar-firma.png')
+      await captureMain('03-confirmar-firma.webp')
 
       await userEvent.click(
         identityScreen.getByRole('button', { name: /Firmar y confirmar/i })
@@ -361,7 +361,7 @@ describe.skipIf(!REGENERATE)(
           })
         )
         .toBeInTheDocument()
-      await captureMain('04-comprobante.png', 1500)
+      await captureMain('04-comprobante.webp', 1500)
       identityScreen.unmount()
     }, 120_000)
 
@@ -404,7 +404,7 @@ describe.skipIf(!REGENERATE)(
       await expect
         .element(verifierScreen.getByText(/inclusión confirmada/i))
         .toBeInTheDocument()
-      await captureMain('05-verificacion.png', 1500)
+      await captureMain('05-verificacion.webp', 1500)
     }, 60_000)
   }
 )
