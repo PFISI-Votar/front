@@ -3,7 +3,7 @@ import { AxiosError } from 'axios'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { AlertCircle, Eye } from 'lucide-react'
-import budFingerprint from '@/assets/bud-fingerprint.png'
+import budFingerprint from '@/assets/bud-fingerprint.webp'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
