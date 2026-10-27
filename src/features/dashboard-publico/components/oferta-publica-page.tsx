@@ -57,7 +57,7 @@ export const OfertaPublicaPage = ({ idEleccion }: OfertaPublicaPageProps) => {
     )
   }
 
-  if (comicioQuery.isError || !comicioQuery.data) {
+  if (!comicioQuery.data) {
     return (
       <DashboardPublicoShell idEleccion={idEleccion} activeSection='oferta'>
         <DashboardPublicoErrorPanel

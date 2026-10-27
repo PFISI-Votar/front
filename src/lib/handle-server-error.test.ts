@@ -21,6 +21,14 @@ describe('handleServerError', () => {
     expect(toastError).toHaveBeenCalledWith('Something went wrong!')
   })
 
+  it('shows the offline message on a network error without response', () => {
+    handleServerError(new AxiosError('Network Error', 'ERR_NETWORK'))
+
+    expect(toastError).toHaveBeenCalledWith(
+      'Sin conexión a internet. Verificá tu red e intentá de nuevo.'
+    )
+  })
+
   it('maps a plain object with status 204 to the no-content message', () => {
     handleServerError({ status: 204 })
 

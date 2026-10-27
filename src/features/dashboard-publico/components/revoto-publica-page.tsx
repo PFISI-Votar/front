@@ -61,7 +61,7 @@ export const RevotoPublicaPage = ({ idEleccion }: RevotoPublicaPageProps) => {
     )
   }
 
-  if (comicioQuery.isError || !comicioQuery.data) {
+  if (!comicioQuery.data) {
     return (
       <DashboardPublicoShell idEleccion={idEleccion} activeSection='revoto'>
         <DashboardPublicoErrorPanel
@@ -89,7 +89,7 @@ export const RevotoPublicaPage = ({ idEleccion }: RevotoPublicaPageProps) => {
     )
   }
 
-  if (revotoQuery.isError || !revotoQuery.data) {
+  if (!revotoQuery.data) {
     const status = isAxiosError(revotoQuery.error)
       ? revotoQuery.error.response?.status
       : undefined

@@ -99,7 +99,7 @@ export const ParticipacionPublicaPage = ({
     )
   }
 
-  if (comicioQuery.isError || !comicioQuery.data) {
+  if (!comicioQuery.data) {
     return (
       <DashboardPublicoShell
         idEleccion={idEleccion}
@@ -133,7 +133,7 @@ export const ParticipacionPublicaPage = ({
     )
   }
 
-  if (participacionQuery.isError || !participacionQuery.data) {
+  if (!participacionQuery.data) {
     const status = isAxiosError(participacionQuery.error)
       ? participacionQuery.error.response?.status
       : undefined
