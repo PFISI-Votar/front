@@ -471,7 +471,7 @@ export const OfertaElectoralPanel = ({
     )
   }
 
-  if (eleccionQuery.isError || !eleccionQuery.data) {
+  if (!eleccionQuery.data) {
     return <GeneralError />
   }
 

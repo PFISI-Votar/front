@@ -19,6 +19,13 @@ export function handleServerError(error: unknown) {
   }
 
   if (error instanceof AxiosError) {
+    // VOTAR-519: sin respuesta del servidor = problema de red, no del backend.
+    if (!error.response && error.code === 'ERR_NETWORK') {
+      toast.error(
+        'Sin conexión a internet. Verificá tu red e intentá de nuevo.'
+      )
+      return
+    }
     const title = error.response?.data?.title
     if (typeof title === 'string' && title.length > 0) {
       errMsg = title
