@@ -69,7 +69,10 @@ import {
   usePadronVotantes,
 } from '../hooks/use-padron'
 import { usePublicarMerkle } from '../hooks/use-publicar-merkle'
-import { claseAnchoModalPadron } from '../lib/campos-padron'
+import {
+  ETIQUETAS_CRITERIO_HASH,
+  claseAnchoModalPadron,
+} from '../lib/campos-padron'
 import { descargarReporteNovedades } from '../lib/descargar-reporte'
 import { PadronUploadForm } from './padron-upload-form'
 
@@ -305,6 +308,17 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
                 <p className='text-sm text-muted-foreground'>Estado</p>
                 <Badge variant='secondary'>{resumenQuery.data.estado}</Badge>
               </div>
+              {resumenQuery.data.criterioHash && (
+                <div className='sm:col-span-2'>
+                  <p className='text-sm text-muted-foreground'>
+                    Criterio de generación de hash
+                  </p>
+                  <Badge variant='outline' className='mt-0.5'>
+                    {ETIQUETAS_CRITERIO_HASH[resumenQuery.data.criterioHash] ??
+                      resumenQuery.data.criterioHash}
+                  </Badge>
+                </div>
+              )}
               <div className='sm:col-span-2'>
                 <p className='text-sm text-muted-foreground'>
                   Hash del padrón (Keccak-256)

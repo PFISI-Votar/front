@@ -112,6 +112,7 @@ function PadronPreviewRoute() {
         registrosIniciales={preview.registros}
         campos={preview.campos}
         definiciones={preview.definiciones}
+        criterioHash={preview.criterioHash}
         onConfirmado={onConfirmado}
         onCancelar={onCancelar}
       />

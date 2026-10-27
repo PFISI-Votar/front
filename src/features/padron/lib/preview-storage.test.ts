@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { CAMPOS_PADRON_PREDEFINIDOS } from './campos-padron'
+import { CAMPOS_PADRON_PREDEFINIDOS, CriterioHashPadron } from './campos-padron'
 import type { RegistroPreview } from './parse-csv-padron'
 import {
   clavePreview,
@@ -25,6 +25,23 @@ describe('preview-storage', () => {
       campos: ['dni', 'email', 'nombre'],
       definiciones: CAMPOS_PADRON_PREDEFINIDOS,
       registros: reg,
+      criterioHash: 'DNI',
+    })
+  })
+
+  it('guarda y lee con criterioHash personalizado', () => {
+    guardarPreview(
+      7,
+      reg,
+      ['email', 'nombre'],
+      CAMPOS_PADRON_PREDEFINIDOS,
+      CriterioHashPadron.EMAIL
+    )
+    expect(leerPreview(7)).toEqual({
+      campos: ['email', 'nombre'],
+      definiciones: CAMPOS_PADRON_PREDEFINIDOS,
+      registros: reg,
+      criterioHash: 'EMAIL',
     })
   })
 

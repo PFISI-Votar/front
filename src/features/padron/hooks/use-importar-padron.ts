@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
+import type { CriterioHashPadron } from '../lib/campos-padron'
 
 export interface NovedadPadron {
   linea: number
@@ -14,6 +15,7 @@ export interface ImportarPadronResponse {
   totalImportados: number
   totalOmitidos: number
   novedades: NovedadPadron[]
+  criterioHash?: CriterioHashPadron
   estado: string | null
   fechaGeneracion: string | null
 }
@@ -21,14 +23,22 @@ export interface ImportarPadronResponse {
 interface ImportarPadronVariables {
   idEleccion: number
   archivo: File
+  criterioHash?: CriterioHashPadron
 }
 
 /** Sube el CSV del padrón al backend, que hashea cada identidad con Keccak-256. */
 export function useImportarPadron() {
   return useMutation({
-    mutationFn: async ({ idEleccion, archivo }: ImportarPadronVariables) => {
+    mutationFn: async ({
+      idEleccion,
+      archivo,
+      criterioHash,
+    }: ImportarPadronVariables) => {
       const formData = new FormData()
       formData.append('file', archivo)
+      if (criterioHash) {
+        formData.append('criterioHash', criterioHash)
+      }
 
       // El cliente global fija Content-Type: application/json por defecto, lo
       // que serializaría el FormData a "{}". Lo anulamos para que axios detecte

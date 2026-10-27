@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   CANTIDAD_EJEMPLOS_PADRON,
   CAMPOS_PADRON_PREDEFINIDOS,
+  CriterioHashPadron,
   camposPreseleccionados,
   claseAnchoModalPadron,
   crearCampoPersonalizado,
@@ -10,12 +11,37 @@ import {
 } from './campos-padron'
 
 describe('campos-padron', () => {
-  it('camposPreseleccionados arranca con dni', () => {
+  it('camposPreseleccionados arranca con dni por defecto', () => {
     expect(camposPreseleccionados()).toEqual(['dni'])
   })
 
-  it('normalizarCamposSeleccionados siempre incluye dni', () => {
+  it('camposPreseleccionados respeta el criterio indicado', () => {
+    expect(camposPreseleccionados(CriterioHashPadron.EMAIL)).toEqual(['email'])
+    expect(camposPreseleccionados(CriterioHashPadron.DNI_Y_EMAIL)).toEqual([
+      'dni',
+      'email',
+    ])
+  })
+
+  it('normalizarCamposSeleccionados siempre incluye dni por defecto', () => {
     expect(normalizarCamposSeleccionados(['nombre'])).toEqual(['dni', 'nombre'])
+  })
+
+  it('normalizarCamposSeleccionados incluye campos obligatorios segun criterio', () => {
+    expect(
+      normalizarCamposSeleccionados(
+        ['nombre'],
+        CAMPOS_PADRON_PREDEFINIDOS,
+        CriterioHashPadron.EMAIL
+      )
+    ).toEqual(['email', 'nombre'])
+    expect(
+      normalizarCamposSeleccionados(
+        ['nombre'],
+        CAMPOS_PADRON_PREDEFINIDOS,
+        CriterioHashPadron.DNI_Y_EMAIL
+      )
+    ).toEqual(['dni', 'email', 'nombre'])
   })
 
   it('normalizarCamposSeleccionados preserva orden de definiciones', () => {

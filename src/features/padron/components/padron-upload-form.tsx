@@ -33,7 +33,11 @@ import {
 import { useElecciones } from '../hooks/use-elecciones'
 import {
   CAMPOS_PADRON_PREDEFINIDOS,
+  CriterioHashPadron,
+  OPCIONES_CRITERIO_HASH,
   camposPreseleccionados,
+  normalizarCamposSeleccionados,
+  obtenerCamposDefinicion,
   type CampoPadronDefinicion,
   type ClaveCampoPadron,
 } from '../lib/campos-padron'
@@ -81,11 +85,14 @@ export function PadronUploadForm({
 }: PadronUploadFormProps = {}) {
   const [isDragging, setIsDragging] = useState(false)
   const [procesando, setProcesando] = useState(false)
+  const [criterioHash, setCriterioHash] = useState<CriterioHashPadron>(
+    CriterioHashPadron.DNI
+  )
   const [definiciones, setDefiniciones] = useState<CampoPadronDefinicion[]>(
     CAMPOS_PADRON_PREDEFINIDOS
   )
   const [campos, setCampos] = useState<ClaveCampoPadron[]>(
-    camposPreseleccionados()
+    camposPreseleccionados(CriterioHashPadron.DNI)
   )
   const comicioFijo = idEleccionFijo !== undefined
   const { data: elecciones, isLoading: cargandoElecciones } = useElecciones({
@@ -96,6 +103,15 @@ export function PadronUploadForm({
   useEffect(() => {
     onCantidadCamposChange?.(campos.length)
   }, [campos.length, onCantidadCamposChange])
+
+  const handleCriterioChange = (nuevoCriterio: CriterioHashPadron) => {
+    setCriterioHash(nuevoCriterio)
+    const nuevasDefs = obtenerCamposDefinicion(nuevoCriterio, definiciones)
+    setDefiniciones(nuevasDefs)
+    setCampos((prev) =>
+      normalizarCamposSeleccionados(prev, nuevasDefs, nuevoCriterio)
+    )
+  }
 
   const form = useForm<PadronUploadValues>({
     resolver: zodResolver(formSchema),
@@ -110,7 +126,13 @@ export function PadronUploadForm({
         toast.error('El archivo no contiene registros.')
         return
       }
-      guardarPreview(values.idEleccion, registros, campos, definiciones)
+      guardarPreview(
+        values.idEleccion,
+        registros,
+        campos,
+        definiciones,
+        criterioHash
+      )
       await navigate({
         to: '/comicios/$idEleccion/padron/preview',
         params: { idEleccion: String(values.idEleccion) },
@@ -173,11 +195,44 @@ export function PadronUploadForm({
           />
         )}
 
+        <div className='space-y-2'>
+          <FormLabel>
+            Criterio para el hash de identidad (hoja Merkle)
+          </FormLabel>
+          <Select
+            value={criterioHash}
+            onValueChange={(val) =>
+              handleCriterioChange(val as CriterioHashPadron)
+            }
+          >
+            <SelectTrigger className='w-full'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {OPCIONES_CRITERIO_HASH.map((opcion) => (
+                <SelectItem key={opcion.valor} value={opcion.valor}>
+                  <div className='flex flex-col text-left'>
+                    <span className='font-medium'>{opcion.etiqueta}</span>
+                    <span className='text-xs text-muted-foreground'>
+                      {opcion.descripcion}
+                    </span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <FormDescription>
+            Seleccioná qué identificadores se utilizarán para construir el hash
+            anónimo de cada votante en el árbol de Merkle.
+          </FormDescription>
+        </div>
+
         <PadronCamposSelector
           value={campos}
           onChange={setCampos}
           definiciones={definiciones}
           onDefinicionesChange={setDefiniciones}
+          criterio={criterioHash}
         />
 
         <PadronEjemploTabla campos={campos} definiciones={definiciones} />

@@ -5,6 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
+  CriterioHashPadron,
   crearCampoPersonalizado,
   esCampoObligatorio,
   normalizarCamposSeleccionados,
@@ -17,6 +18,7 @@ interface PadronCamposSelectorProps {
   onChange: (campos: ClaveCampoPadron[]) => void
   definiciones: CampoPadronDefinicion[]
   onDefinicionesChange: (definiciones: CampoPadronDefinicion[]) => void
+  criterio?: CriterioHashPadron
 }
 
 export function PadronCamposSelector({
@@ -24,16 +26,17 @@ export function PadronCamposSelector({
   onChange,
   definiciones,
   onDefinicionesChange,
+  criterio = CriterioHashPadron.DNI,
 }: PadronCamposSelectorProps) {
   const [nuevaEtiqueta, setNuevaEtiqueta] = useState('')
   const seleccion = new Set(value)
 
   const toggle = (clave: ClaveCampoPadron) => {
-    if (esCampoObligatorio(clave)) return
+    if (esCampoObligatorio(clave, criterio)) return
     const next = new Set(seleccion)
     if (next.has(clave)) next.delete(clave)
     else next.add(clave)
-    onChange(normalizarCamposSeleccionados([...next], definiciones))
+    onChange(normalizarCamposSeleccionados([...next], definiciones, criterio))
   }
 
   const agregarPersonalizado = () => {
@@ -41,7 +44,9 @@ export function PadronCamposSelector({
     if (!campo) return
     const nextDefs = [...definiciones, campo]
     onDefinicionesChange(nextDefs)
-    onChange(normalizarCamposSeleccionados([...value, campo.clave], nextDefs))
+    onChange(
+      normalizarCamposSeleccionados([...value, campo.clave], nextDefs, criterio)
+    )
     setNuevaEtiqueta('')
   }
 
@@ -51,7 +56,8 @@ export function PadronCamposSelector({
     onChange(
       normalizarCamposSeleccionados(
         value.filter((c) => c !== clave),
-        nextDefs
+        nextDefs,
+        criterio
       )
     )
   }
@@ -59,15 +65,21 @@ export function PadronCamposSelector({
   const predefinidos = definiciones.filter((d) => !d.personalizado)
   const personalizados = definiciones.filter((d) => d.personalizado)
 
+  const explicacionRequeridos =
+    criterio === CriterioHashPadron.DNI
+      ? 'El DNI es el único campo obligatorio para el hash de identidad del padrón.'
+      : criterio === CriterioHashPadron.EMAIL
+        ? 'El Email es el único campo obligatorio para el hash de identidad del padrón.'
+        : 'El DNI y el Email son obligatorios para el hash de identidad del padrón.'
+
   return (
     <fieldset className='space-y-3'>
       <legend className='text-sm font-medium'>
         Campos del archivo CSV / Excel
       </legend>
       <p className='text-xs text-muted-foreground'>
-        El DNI es el único campo obligatorio para el hash de identidad del
-        padrón (mismo cálculo que el login vía Autogestión). El resto de
-        columnas es opcional y sólo se usa en la previsualización.
+        {explicacionRequeridos} El resto de columnas es opcional y sólo se usa
+        en la previsualización.
       </p>
       <div className='flex flex-wrap gap-x-6 gap-y-3'>
         {predefinidos.map((campo) => {

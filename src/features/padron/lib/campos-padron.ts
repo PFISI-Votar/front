@@ -73,30 +73,89 @@ export const CAMPOS_PADRON_PREDEFINIDOS: CampoPadronDefinicion[] = [
 /** @deprecated usar CAMPOS_PADRON_PREDEFINIDOS */
 export const CAMPOS_PADRON = CAMPOS_PADRON_PREDEFINIDOS
 
+export enum CriterioHashPadron {
+  DNI = 'DNI',
+  EMAIL = 'EMAIL',
+  DNI_Y_EMAIL = 'DNI_Y_EMAIL',
+}
+
+export const OPCIONES_CRITERIO_HASH: {
+  valor: CriterioHashPadron
+  etiqueta: string
+  descripcion: string
+}[] = [
+  {
+    valor: CriterioHashPadron.DNI,
+    etiqueta: 'Solo DNI',
+    descripcion: 'Genera el hash de la hoja únicamente con el DNI.',
+  },
+  {
+    valor: CriterioHashPadron.EMAIL,
+    etiqueta: 'Solo Email',
+    descripcion: 'Genera el hash de la hoja únicamente con el email.',
+  },
+  {
+    valor: CriterioHashPadron.DNI_Y_EMAIL,
+    etiqueta: 'DNI y Email combinados',
+    descripcion: 'Genera el hash combinando DNI y email (dni:email).',
+  },
+]
+
+export const ETIQUETAS_CRITERIO_HASH: Record<CriterioHashPadron, string> = {
+  [CriterioHashPadron.DNI]: 'Solo DNI',
+  [CriterioHashPadron.EMAIL]: 'Solo Email',
+  [CriterioHashPadron.DNI_Y_EMAIL]: 'DNI y Email',
+}
+
 export const CLAVES_IDENTIDAD = ['dni'] as const
 
-export function clavesObligatorias(): ClaveCampoPadron[] {
-  return CAMPOS_PADRON_PREDEFINIDOS.filter((c) => c.obligatorio).map(
-    (c) => c.clave
-  )
+export function clavesObligatorias(
+  criterio: CriterioHashPadron = CriterioHashPadron.DNI
+): ClaveCampoPadron[] {
+  switch (criterio) {
+    case CriterioHashPadron.EMAIL:
+      return ['email']
+    case CriterioHashPadron.DNI_Y_EMAIL:
+      return ['dni', 'email']
+    case CriterioHashPadron.DNI:
+    default:
+      return ['dni']
+  }
 }
 
-export function camposPreseleccionados(): ClaveCampoPadron[] {
-  return CAMPOS_PADRON_PREDEFINIDOS.filter((c) => c.preseleccionado).map(
-    (c) => c.clave
-  )
+export function camposPreseleccionados(
+  criterio: CriterioHashPadron = CriterioHashPadron.DNI
+): ClaveCampoPadron[] {
+  return clavesObligatorias(criterio)
 }
 
-export function esCampoObligatorio(clave: ClaveCampoPadron): boolean {
-  return (CLAVES_IDENTIDAD as readonly string[]).includes(clave)
+export function esCampoObligatorio(
+  clave: ClaveCampoPadron,
+  criterio: CriterioHashPadron = CriterioHashPadron.DNI
+): boolean {
+  return clavesObligatorias(criterio).includes(clave)
+}
+
+export function obtenerCamposDefinicion(
+  criterio: CriterioHashPadron = CriterioHashPadron.DNI,
+  definiciones: CampoPadronDefinicion[] = CAMPOS_PADRON_PREDEFINIDOS
+): CampoPadronDefinicion[] {
+  const obligatorias = clavesObligatorias(criterio)
+  return definiciones.map((campo) => ({
+    ...campo,
+    obligatorio: obligatorias.includes(campo.clave),
+    preseleccionado:
+      obligatorias.includes(campo.clave) || campo.preseleccionado,
+  }))
 }
 
 export function normalizarCamposSeleccionados(
   seleccion: ClaveCampoPadron[],
-  definiciones: CampoPadronDefinicion[] = CAMPOS_PADRON_PREDEFINIDOS
+  definiciones: CampoPadronDefinicion[] = CAMPOS_PADRON_PREDEFINIDOS,
+  criterio: CriterioHashPadron = CriterioHashPadron.DNI
 ): ClaveCampoPadron[] {
   const set = new Set<ClaveCampoPadron>([
-    ...clavesObligatorias(),
+    ...clavesObligatorias(criterio),
     ...seleccion.map((c) => c.trim().toLowerCase()).filter(Boolean),
   ])
   const ordenDefs = definiciones.map((d) => d.clave)
