@@ -1,5 +1,6 @@
 import {
   CAMPOS_PADRON_PREDEFINIDOS,
+  CriterioHashPadron,
   normalizarCamposSeleccionados,
   type CampoPadronDefinicion,
   type ClaveCampoPadron,
@@ -10,6 +11,7 @@ export interface PadronPreviewPayload {
   campos: ClaveCampoPadron[]
   definiciones: CampoPadronDefinicion[]
   registros: RegistroPreview[]
+  criterioHash?: CriterioHashPadron
 }
 
 export function clavePreview(idEleccion: number): string {
@@ -20,15 +22,17 @@ export function guardarPreview(
   idEleccion: number,
   registros: RegistroPreview[],
   campos: ClaveCampoPadron[] = ['dni', 'email'],
-  definiciones: CampoPadronDefinicion[] = CAMPOS_PADRON_PREDEFINIDOS
+  definiciones: CampoPadronDefinicion[] = CAMPOS_PADRON_PREDEFINIDOS,
+  criterioHash: CriterioHashPadron = CriterioHashPadron.DNI
 ): void {
   const payload: PadronPreviewPayload = {
-    campos: normalizarCamposSeleccionados(campos, definiciones),
+    campos: normalizarCamposSeleccionados(campos, definiciones, criterioHash),
     definiciones,
     registros: registros.map((r) => ({
       ...r,
       adicionales: r.adicionales ?? {},
     })),
+    criterioHash,
   }
   sessionStorage.setItem(clavePreview(idEleccion), JSON.stringify(payload))
 }
@@ -47,6 +51,7 @@ export function leerPreview(idEleccion: number): PadronPreviewPayload | null {
           ...r,
           adicionales: r.adicionales ?? {},
         })),
+        criterioHash: CriterioHashPadron.DNI,
       }
     }
     if (
@@ -55,6 +60,7 @@ export function leerPreview(idEleccion: number): PadronPreviewPayload | null {
       Array.isArray((parsed as PadronPreviewPayload).registros)
     ) {
       const payload = parsed as PadronPreviewPayload
+      const criterioHash = payload.criterioHash ?? CriterioHashPadron.DNI
       const definiciones =
         payload.definiciones?.length > 0
           ? payload.definiciones
@@ -62,13 +68,15 @@ export function leerPreview(idEleccion: number): PadronPreviewPayload | null {
       return {
         campos: normalizarCamposSeleccionados(
           payload.campos ?? ['dni', 'email'],
-          definiciones
+          definiciones,
+          criterioHash
         ),
         definiciones,
         registros: payload.registros.map((r) => ({
           ...r,
           adicionales: r.adicionales ?? {},
         })),
+        criterioHash,
       }
     }
     return null

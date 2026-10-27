@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/api-client'
 import { publicApiClient } from '@/lib/public-api-client'
+import type { CriterioHashPadron } from '../lib/campos-padron'
 
 export interface PadronResumen {
   idPadron: number
@@ -7,6 +8,7 @@ export interface PadronResumen {
   totalVotantesHabilitados: number
   hashPadron: string
   estado: string
+  criterioHash?: CriterioHashPadron
   fechaGeneracion: string
   totalProcesados: number
   totalOmitidos: number
