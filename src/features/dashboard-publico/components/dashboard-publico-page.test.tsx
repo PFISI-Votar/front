@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   obtenerConfiguracionBud: vi.fn(),
   useTotalVotantesPublico: vi.fn(),
   useEscrutinio: vi.fn(),
-  useDashboardResultadosWebSocket: vi.fn(),
+  useDashboardPublicoWebSocket: vi.fn(),
   obtenerParticipacionPublica: vi.fn(),
 }))
 
@@ -44,7 +44,7 @@ vi.mock('@/features/dashboard-publico/hooks/use-escrutinio', () => ({
 vi.mock(
   '@/features/dashboard-publico/hooks/use-dashboard-resultados-websocket',
   () => ({
-    useDashboardResultadosWebSocket: mocks.useDashboardResultadosWebSocket,
+    useDashboardPublicoWebSocket: mocks.useDashboardPublicoWebSocket,
   })
 )
 
@@ -111,7 +111,7 @@ describe('DashboardPublicoPage', () => {
       isLoading: false,
       isError: false,
     })
-    mocks.useDashboardResultadosWebSocket.mockReturnValue(undefined)
+    mocks.useDashboardPublicoWebSocket.mockReturnValue(undefined)
     mocks.obtenerParticipacionPublica.mockResolvedValue({
       idEleccion: 6,
       snapshotCongelado: false,
@@ -360,7 +360,7 @@ describe('DashboardPublicoPage', () => {
       .toBeInTheDocument()
   })
 
-  it('VOTAR-459: no dispara fetch/WS de resultados mientras la solapa está oculta', async () => {
+  it('VOTAR-518: mantiene el WebSocket del dashboard activo aunque resultados esté oculto', async () => {
     mocks.obtenerConfiguracionBud.mockResolvedValue({
       idEleccion: 6,
       nombre: 'Elección Centro de Estudiantes',
@@ -382,7 +382,7 @@ describe('DashboardPublicoPage', () => {
       .toBeInTheDocument()
 
     expect(mocks.useEscrutinio).not.toHaveBeenCalled()
-    expect(mocks.useDashboardResultadosWebSocket).not.toHaveBeenCalled()
+    expect(mocks.useDashboardPublicoWebSocket).toHaveBeenCalledWith(6)
   })
 
   it('VOTAR-459: muestra "Sección no disponible" al navegar directo a /resultados si está oculta', async () => {
