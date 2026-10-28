@@ -310,6 +310,10 @@ const writeScreenshot = async (
   const caption = formatScreenshotCaption(shot.alt)
   const dataUrl = await loadImageAsJpegDataUrl(shot.src)
   if (!dataUrl) {
+    // eslint-disable-next-line no-console -- VOTAR-514: sin logger propio; evita perder capturas en silencio.
+    console.warn(
+      `Manual del votante: no se pudo incluir la captura ${shot.src}`
+    )
     yPos = writeWrapped(doc, caption, yPos, {
       size: 9.5,
       color: COLOR.muted,

@@ -78,6 +78,8 @@ const captureMain = async (filename: string, settleMs = 800) => {
   ctx!.drawImage(source, 0, 0)
 
   const dataUrl = canvas.toDataURL('image/webp', 0.82)
+  // Si el navegador no codifica WebP, toDataURL devuelve PNG y se escribiría un .webp corrupto.
+  expect(dataUrl.startsWith('data:image/webp')).toBe(true)
   const base64 = dataUrl.replace(/^data:image\/webp;base64,/, '')
   expect(base64.length).toBeGreaterThan(1000)
   await commands.writeFile(
