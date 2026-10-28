@@ -335,6 +335,9 @@ const BoletaUnicaDigitalPageContent = ({
         <BudLoginScreen
           idEleccion={idEleccion}
           authMethod={authMethod}
+          googleEnabled={metodosAutenticacion.includes(
+            METODOS_AUTENTICACION.GOOGLE
+          )}
           observacionLogin={budConfigQuery.data?.observacionLogin}
           onAuthenticated={(user) => {
             void (async () => {
