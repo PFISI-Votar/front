@@ -19,7 +19,7 @@ export const TotalVotantesCard = ({
   idEleccion,
   className,
 }: TotalVotantesCardProps) => {
-  const { data, isLoading, isError } = useTotalVotantesPublico(idEleccion)
+  const { data, isLoading } = useTotalVotantesPublico(idEleccion)
 
   if (isLoading) {
     return (
@@ -44,7 +44,7 @@ export const TotalVotantesCard = ({
     )
   }
 
-  if (isError || !data) {
+  if (!data) {
     return (
       <Card
         className={cn(
