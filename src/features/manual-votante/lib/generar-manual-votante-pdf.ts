@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf'
+import { loadImageAsJpegDataUrl } from '@/features/eleccion/lib/load-image-as-jpeg-data-url'
 import {
   MANUAL_VOTANTE_PDF_FILENAME,
   MANUAL_VOTANTE_SECTIONS,
@@ -287,24 +288,6 @@ const writeScreenLabels = (
   return yPos + 6
 }
 
-const loadImageAsDataUrl = async (src: string): Promise<string | null> => {
-  try {
-    const response = await fetch(src)
-    if (!response.ok) {
-      return null
-    }
-    const blob = await response.blob()
-    return await new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(String(reader.result))
-      reader.onerror = () => reject(reader.error)
-      reader.readAsDataURL(blob)
-    })
-  } catch {
-    return null
-  }
-}
-
 const probeImageSize = (
   dataUrl: string
 ): Promise<{ width: number; height: number }> =>
@@ -325,8 +308,12 @@ const writeScreenshot = async (
   yPos: number
 ): Promise<number> => {
   const caption = formatScreenshotCaption(shot.alt)
-  const dataUrl = await loadImageAsDataUrl(shot.src)
+  const dataUrl = await loadImageAsJpegDataUrl(shot.src)
   if (!dataUrl) {
+    // eslint-disable-next-line no-console -- VOTAR-514: sin logger propio; evita perder capturas en silencio.
+    console.warn(
+      `Manual del votante: no se pudo incluir la captura ${shot.src}`
+    )
     yPos = writeWrapped(doc, caption, yPos, {
       size: 9.5,
       color: COLOR.muted,
@@ -359,7 +346,7 @@ const writeScreenshot = async (
   doc.roundedRect(frameX, yPos, frameW, frameH, 1.5, 1.5, 'FD')
   doc.addImage(
     dataUrl,
-    'PNG',
+    'JPEG',
     frameX + framePad,
     yPos + framePad,
     drawWidth,

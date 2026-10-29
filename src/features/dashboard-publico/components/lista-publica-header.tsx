@@ -18,6 +18,8 @@ export const ListaPublicaHeader = ({ lista }: ListaPublicaHeaderProps) => {
       {lista.logoUrl ? (
         <img
           src={resolveMediaUrl(lista.logoUrl)}
+          loading='lazy'
+          decoding='async'
           alt={`Logo de ${listaNombre}`}
           className='size-10 shrink-0 rounded-lg object-cover'
         />
