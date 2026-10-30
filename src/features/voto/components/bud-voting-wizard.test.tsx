@@ -288,6 +288,47 @@ async function renderWizard(
 }
 
 describe('BudVotingWizard', () => {
+  it('VOTAR-524: muestra el pop-up de alerta antes de comenzar y OK lo cierra', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const screen = await render(
+      <QueryClientProvider client={queryClient}>
+        <EphemeralWalletProvider>
+          <BudVotingWizard
+            boleta={boleta}
+            tipoVotacion={TIPOS_VOTACION.POR_CANDIDATO}
+            votanteScope={VOTANTE_SCOPE}
+            onLogout={vi.fn()}
+            popupAlerta={{
+              titulo: 'Aviso importante',
+              descripcion: 'Texto del aviso',
+            }}
+          />
+        </EphemeralWalletProvider>
+      </QueryClientProvider>
+    )
+
+    await expect.element(screen.getByRole('alertdialog')).toBeInTheDocument()
+    await expect
+      .element(screen.getByText('Aviso importante'))
+      .toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: /^OK$/ }))
+    await expect
+      .element(screen.getByRole('alertdialog'))
+      .not.toBeInTheDocument()
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /Comenzar a votar/i })
+    )
+    await expect
+      .element(screen.getByText('Opciones especiales'))
+      .toBeInTheDocument()
+  })
   beforeEach(() => {
     walletState.publicKeyHex = WALLET_PUBLIC_KEY
     localStorage.clear()
