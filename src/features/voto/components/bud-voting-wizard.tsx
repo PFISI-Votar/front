@@ -70,6 +70,7 @@ import {
   BUD_SHELL_SECTION_CLASS,
   BUD_STICKY_CTA_CLASS,
 } from '@/features/voto/components/bud-layout.constants'
+import { BudPopupAlertaDialog } from '@/features/voto/components/bud-popup-alerta-dialog'
 import { VoteTransmitErrorAlert } from '@/features/voto/components/vote-transmit-error-alert'
 import type { SignedVotePayload } from '@/features/voto/crypto'
 import { getExplorerTxUrl } from '@/features/voto/crypto/constants'
@@ -119,6 +120,7 @@ import type {
   CandidatoBoletaDigital,
   EstadoRevoto,
   VoterMerkleProof,
+  PopupAlertaBud,
 } from '@/features/voto/data/schema'
 import {
   estadoRevotoQueryKey,
@@ -187,6 +189,8 @@ type PartyList = {
 }
 
 type BudVotingWizardProps = {
+  /** VOTAR-524: pop-up de alerta que se muestra antes de comenzar. */
+  popupAlerta?: PopupAlertaBud | null
   boleta: BoletaDigital
   tipoVotacion: TipoVotacion
   /** JWT sub — scopes revote cache, cooldown anchor and ephemeral wallet per voter (VOTAR-452). */
@@ -415,6 +419,7 @@ export const BudVotingWizard = ({
   cryptoReady = false,
   pausada = false,
   onLogout,
+  popupAlerta = null,
 }: BudVotingWizardProps) => {
   const queryClient = useQueryClient()
   const isMobile = useIsMobile()
@@ -1155,6 +1160,7 @@ export const BudVotingWizard = ({
 
   return (
     <BudWizardShell estadoRevoto={estadoRevoto} onLogout={handleLogout}>
+      <BudPopupAlertaDialog popupAlerta={popupAlerta} />
       {pausada && (
         <Alert variant='destructive' className='mb-4'>
           <AlertCircle className='size-4' aria-hidden='true' />

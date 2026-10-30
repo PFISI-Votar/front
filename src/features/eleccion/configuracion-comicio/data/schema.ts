@@ -3,6 +3,8 @@ import {
   MAX_INTERVALO_SEGUNDOS,
   MAX_SUFRAGIOS_POR_VOTANTE,
   METODOS_AUTENTICACION,
+  POPUP_ALERTA_DESCRIPCION_MAX_LENGTH,
+  POPUP_ALERTA_TITULO_MAX_LENGTH,
 } from '@/features/eleccion/configuracion-comicio/data/constants'
 
 export const metodoAutenticacionSchema = z.enum([
@@ -99,6 +101,56 @@ export type VisibilidadDashboard = {
   mostrarRevoto: boolean
   mostrarTransacciones: boolean
   /** True cuando el comicio está en BORRADOR o CONFIGURADA y admite cambios. */
+  editable: boolean
+}
+
+/** VOTAR-524: pop-up de alerta que la BUD muestra antes de comenzar. */
+export const guardarPopupAlertaSchema = z
+  .object({
+    habilitado: z.boolean(),
+    titulo: z
+      .string()
+      .trim()
+      .max(
+        POPUP_ALERTA_TITULO_MAX_LENGTH,
+        `El título no puede superar los ${POPUP_ALERTA_TITULO_MAX_LENGTH} caracteres`
+      ),
+    descripcion: z
+      .string()
+      .trim()
+      .max(
+        POPUP_ALERTA_DESCRIPCION_MAX_LENGTH,
+        `La descripción no puede superar los ${POPUP_ALERTA_DESCRIPCION_MAX_LENGTH} caracteres`
+      ),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.habilitado) {
+      return
+    }
+    if (data.titulo.length === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'El título es obligatorio',
+        path: ['titulo'],
+      })
+    }
+    if (data.descripcion.length === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'La descripción es obligatoria',
+        path: ['descripcion'],
+      })
+    }
+  })
+
+export type GuardarPopupAlertaInput = z.infer<typeof guardarPopupAlertaSchema>
+
+export type PopupAlerta = {
+  idEleccion: number
+  habilitado: boolean
+  titulo: string | null
+  descripcion: string | null
+  /** True cuando el comicio no está ARCHIVADA y admite cambios. */
   editable: boolean
 }
 

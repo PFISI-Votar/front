@@ -55,6 +55,12 @@ export type VisibilidadDashboardPublico = {
   transacciones: boolean
 }
 
+/** VOTAR-524: pop-up de alerta que la BUD muestra antes de comenzar. */
+export type PopupAlertaBud = {
+  titulo: string
+  descripcion: string
+}
+
 export type BudConfig = {
   idEleccion: number
   nombre: string
@@ -71,6 +77,8 @@ export type BudConfig = {
   observacionLogin?: string | null
   /** VOTAR-459: todas en true cuando el comicio ya cerró. */
   visibilidadDashboard?: VisibilidadDashboardPublico
+  /** VOTAR-524: pop-up de alerta de la BUD. Null cuando esta deshabilitado. */
+  popupAlerta?: PopupAlertaBud | null
 }
 
 /** VOTAR-328 — respuesta de revotePolicyService para feedback en BUD. */
