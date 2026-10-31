@@ -2,6 +2,9 @@ import { isAxiosError } from 'axios'
 import { useQuery } from '@tanstack/react-query'
 import { obtenerContratoEstadoPublica } from '@/features/dashboard-publico/api/contrato-estado-publica-api'
 
+export const contratoEstadoPublicaQueryKey = (idEleccion: number) =>
+  ['contrato-estado-publica', idEleccion] as const
+
 type UseContratoEstadoPublicaOptions = {
   isFrozen?: boolean
 }
@@ -13,7 +16,7 @@ export const useContratoEstadoPublica = (
   const { isFrozen = false } = options
 
   return useQuery({
-    queryKey: ['contrato-estado-publica', idEleccion],
+    queryKey: contratoEstadoPublicaQueryKey(idEleccion),
     queryFn: () => obtenerContratoEstadoPublica(idEleccion),
     enabled: Number.isFinite(idEleccion) && idEleccion > 0,
     refetchInterval: isFrozen ? false : 30_000,

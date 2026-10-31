@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { VotarLoginBackground } from '@/features/auth/sign-in/components/login-screen-shared'
 import { CumplimientoLey25326Link } from '@/features/cumplimiento'
 import { useDashboardPublicoComicio } from '@/features/dashboard-publico/hooks/use-dashboard-publico-comicio'
-import { useDashboardPublicoWebSocket } from '@/features/dashboard-publico/hooks/use-dashboard-resultados-websocket'
+import { useDashboardPublicoWebSocket } from '@/features/dashboard-publico/hooks/use-dashboard-publico-websocket'
 import { ManualAuditoresLink } from '@/features/manual-auditores'
 import type { VisibilidadDashboardPublico } from '@/features/voto/data/schema'
 

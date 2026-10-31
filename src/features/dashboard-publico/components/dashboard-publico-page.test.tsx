@@ -42,7 +42,7 @@ vi.mock('@/features/dashboard-publico/hooks/use-escrutinio', () => ({
 }))
 
 vi.mock(
-  '@/features/dashboard-publico/hooks/use-dashboard-resultados-websocket',
+  '@/features/dashboard-publico/hooks/use-dashboard-publico-websocket',
   () => ({
     useDashboardPublicoWebSocket: mocks.useDashboardPublicoWebSocket,
   })
