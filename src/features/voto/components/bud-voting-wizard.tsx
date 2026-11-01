@@ -29,7 +29,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Hex } from 'viem'
-import budFingerprint from '@/assets/bud-fingerprint.png'
+import budFingerprint from '@/assets/bud-fingerprint.webp'
 import { resolveMediaUrl } from '@/lib/media-url'
 import { toSafeNavigationUrl } from '@/lib/safe-url'
 import { toUntrustedPlainText } from '@/lib/untrusted-html'

@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react'
-import budFingerprint from '@/assets/bud-fingerprint.png'
+import budFingerprint from '@/assets/bud-fingerprint.webp'
 import { cn } from '@/lib/utils'
 import { Label } from '@/components/ui/label'
 
