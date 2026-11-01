@@ -414,6 +414,7 @@ const BoletaUnicaDigitalPageContent = ({
       votanteScope={votanteSession.sub}
       cryptoReady={isReady}
       pausada={budConfigQuery.data.pausada ?? false}
+      popupAlerta={budConfigQuery.data.popupAlerta}
       onLogout={() => {
         clearVoterScopedCache(votanteSession.sub)
         destroyWallet()
