@@ -100,16 +100,16 @@ describe('Manual del votante — VOTAR-389', () => {
       const shots = section(id).screenshots
       expect(shots?.length).toBeGreaterThan(0)
       for (const shot of shots ?? []) {
-        expect(shot.src).toMatch(/^\/manual-votante\/.+\.png$/)
+        expect(shot.src).toMatch(/^\/manual-votante\/.+\.webp$/)
         expect(shot.alt.length).toBeGreaterThan(10)
         expect(shot.screen?.length).toBeGreaterThan(0)
       }
     }
     expect(section('inicio-sesion').screenshots?.[0]?.src).toBe(
-      '/manual-votante/01-inicio-sesion.png'
+      '/manual-votante/01-inicio-sesion.webp'
     )
     expect(section('verificacion').screenshots?.[0]?.src).toBe(
-      '/manual-votante/05-verificacion.png'
+      '/manual-votante/05-verificacion.webp'
     )
   })
 
