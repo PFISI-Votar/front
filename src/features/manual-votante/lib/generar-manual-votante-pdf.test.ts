@@ -1,5 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { loadImageAsJpegDataUrl } from '@/features/eleccion/lib/load-image-as-jpeg-data-url'
 import { generarManualVotantePdf } from '@/features/manual-votante/lib/generar-manual-votante-pdf'
+import { MANUAL_VOTANTE_SECTIONS } from '@/features/manual-votante/manual-votante-content'
 
 const mocks = vi.hoisted(() => {
   const mockSave = vi.fn()
@@ -78,6 +80,17 @@ vi.mock('jspdf', () => {
   }
 })
 
+vi.mock('@/features/eleccion/lib/load-image-as-jpeg-data-url', () => ({
+  loadImageAsJpegDataUrl: vi.fn(),
+}))
+
+const JPEG_DATA_URL = 'data:image/jpeg;base64,/9j/4AAQSkZJRg=='
+
+const totalScreenshots = MANUAL_VOTANTE_SECTIONS.reduce(
+  (total, section) => total + (section.screenshots?.length ?? 0),
+  0
+)
+
 describe('generarManualVotantePdf — VOTAR-389', () => {
   beforeEach(() => {
     mocks.mockSave.mockReset()
@@ -85,12 +98,25 @@ describe('generarManualVotantePdf — VOTAR-389', () => {
     mocks.mockSetProperties.mockReset()
     mocks.mockAddImage.mockReset()
     mocks.mockGetNumberOfPages.mockReturnValue(1)
+    vi.mocked(loadImageAsJpegDataUrl).mockReset()
+    vi.mocked(loadImageAsJpegDataUrl).mockResolvedValue(null)
     vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: false,
-      })
+      'Image',
+      class {
+        naturalWidth = 400
+        naturalHeight = 800
+        onload: (() => void) | null = null
+        onerror: (() => void) | null = null
+        set src(_value: string) {
+          queueMicrotask(() => this.onload?.())
+        }
+      }
     )
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
   })
 
   it('descarga un PDF de texto con el flujo y la verificación', async () => {
@@ -117,5 +143,29 @@ describe('generarManualVotantePdf — VOTAR-389', () => {
     expect(joined).toContain('Contenido')
     expect(joined).toContain('VOTAR - Manual del votante')
     expect(mocks.mockGetNumberOfPages).toHaveBeenCalled()
+  })
+
+  it('agrega cada captura como JPEG cuando la conversión funciona', async () => {
+    vi.mocked(loadImageAsJpegDataUrl).mockResolvedValue(JPEG_DATA_URL)
+
+    await generarManualVotantePdf()
+
+    expect(totalScreenshots).toBeGreaterThan(0)
+    expect(mocks.mockAddImage).toHaveBeenCalledTimes(totalScreenshots)
+    for (const call of mocks.mockAddImage.mock.calls) {
+      expect(call[0]).toBe(JPEG_DATA_URL)
+      expect(call[1]).toBe('JPEG')
+    }
+    expect(mocks.mockSave).toHaveBeenCalledWith('manual-votante-bud.pdf')
+  })
+
+  it('genera el PDF solo con el caption y avisa si la conversión falla', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    await expect(generarManualVotantePdf()).resolves.toBeUndefined()
+
+    expect(mocks.mockAddImage).not.toHaveBeenCalled()
+    expect(warn).toHaveBeenCalledTimes(totalScreenshots)
+    expect(mocks.mockSave).toHaveBeenCalledWith('manual-votante-bud.pdf')
   })
 })

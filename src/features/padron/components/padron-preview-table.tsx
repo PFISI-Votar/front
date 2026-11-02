@@ -24,6 +24,8 @@ import {
 } from '../hooks/use-importar-padron'
 import { PADRON_PAGE_SIZES } from '../hooks/use-padron'
 import {
+  CriterioHashPadron,
+  ETIQUETAS_CRITERIO_HASH,
   etiquetaCampo,
   type CampoPadronDefinicion,
   type ClaveCampoPadron,
@@ -40,6 +42,7 @@ interface PadronPreviewTableProps {
   registrosIniciales: RegistroPreview[]
   campos: ClaveCampoPadron[]
   definiciones: CampoPadronDefinicion[]
+  criterioHash?: CriterioHashPadron
   onConfirmado: (resultado: ImportarPadronResponse) => void
   onCancelar: () => void
 }
@@ -58,6 +61,7 @@ export function PadronPreviewTable({
   registrosIniciales,
   campos,
   definiciones,
+  criterioHash = CriterioHashPadron.DNI,
   onConfirmado,
   onCancelar,
 }: PadronPreviewTableProps) {
@@ -66,7 +70,10 @@ export function PadronPreviewTable({
   const [limit, setLimit] = useState(50)
   const importar = useImportarPadron()
 
-  const estados = useMemo(() => validarRegistros(registros), [registros])
+  const estados = useMemo(
+    () => validarRegistros(registros, criterioHash),
+    [registros, criterioHash]
+  )
   const problemas = contarProblemas(estados)
   const totalPaginas = Math.max(1, Math.ceil(registros.length / limit))
   const visibles = registros.slice((page - 1) * limit, page * limit)
@@ -84,7 +91,11 @@ export function PadronPreviewTable({
 
   const confirmar = () => {
     importar.mutate(
-      { idEleccion, archivo: construirArchivoCsv(registros) },
+      {
+        idEleccion,
+        archivo: construirArchivoCsv(registros),
+        criterioHash,
+      },
       { onSuccess: onConfirmado }
     )
   }
@@ -92,16 +103,21 @@ export function PadronPreviewTable({
   return (
     <div className='space-y-4'>
       <div className='flex flex-wrap items-center justify-between gap-3'>
-        <p className='text-sm'>
-          <span className='font-medium'>{registros.length} registros</span> ·{' '}
-          <span
-            className={
-              problemas > 0 ? 'text-amber-600' : 'text-muted-foreground'
-            }
-          >
-            {problemas} con problemas
-          </span>
-        </p>
+        <div className='flex flex-wrap items-center gap-2'>
+          <p className='text-sm'>
+            <span className='font-medium'>{registros.length} registros</span> ·{' '}
+            <span
+              className={
+                problemas > 0 ? 'text-amber-600' : 'text-muted-foreground'
+              }
+            >
+              {problemas} con problemas
+            </span>
+          </p>
+          <Badge variant='outline' className='text-xs'>
+            Criterio: {ETIQUETAS_CRITERIO_HASH[criterioHash] ?? criterioHash}
+          </Badge>
+        </div>
         <div className='flex gap-2'>
           <Button variant='outline' onClick={onCancelar}>
             <X className='size-4' />

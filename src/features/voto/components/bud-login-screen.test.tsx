@@ -8,10 +8,13 @@ import { BudLoginScreen } from '@/features/voto/components/bud-login-screen'
 import { VOTER_ROLE } from '@/features/voto/types/votante-auth.types'
 
 const loginVotanteMock = vi.fn()
+const startGoogleVoterLoginMock = vi.fn()
 const onAuthenticatedMock = vi.fn()
 
 vi.mock('@/features/voto/services/votante-auth-api', () => ({
   loginVotante: (...args: unknown[]) => loginVotanteMock(...args),
+  startGoogleVoterLogin: (...args: unknown[]) =>
+    startGoogleVoterLoginMock(...args),
 }))
 
 const GENERIC_LOGIN_ERROR =
@@ -20,6 +23,7 @@ const GENERIC_LOGIN_ERROR =
 describe('BudLoginScreen', () => {
   beforeEach(() => {
     loginVotanteMock.mockReset()
+    startGoogleVoterLoginMock.mockReset()
     onAuthenticatedMock.mockReset()
     document.documentElement.classList.add('dark')
   })
@@ -166,5 +170,42 @@ describe('BudLoginScreen', () => {
         screen.getByText(/El acceso se realiza con tu cuenta institucional/i)
       )
       .not.toBeInTheDocument()
+  })
+
+  it('VOTAR-523: inicia el redirect OAuth cuando el comicio usa Google', async () => {
+    const screen = await render(
+      <BudLoginScreen
+        idEleccion={23}
+        authMethod='GOOGLE'
+        onAuthenticated={onAuthenticatedMock}
+      />
+    )
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /Iniciar sesión con Google/i })
+    )
+
+    expect(startGoogleVoterLoginMock).toHaveBeenCalledWith(23)
+    expect(loginVotanteMock).not.toHaveBeenCalled()
+  })
+
+  it('VOTAR-523: ofrece Google y SSO institucional cuando ambos están habilitados', async () => {
+    const screen = await render(
+      <BudLoginScreen
+        idEleccion={23}
+        googleEnabled
+        authMethod='SSO_INSTITUCIONAL'
+        onAuthenticated={onAuthenticatedMock}
+      />
+    )
+
+    await expect
+      .element(
+        screen.getByRole('button', { name: /Iniciar sesión con Google/i })
+      )
+      .toBeInTheDocument()
+    await expect
+      .element(screen.getByLabelText(/^Número de Legajo$/i))
+      .toBeInTheDocument()
   })
 })

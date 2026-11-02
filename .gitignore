@@ -36,3 +36,4 @@ dist-ssr
 # Docker
 Dockerfile
 !deploy/Dockerfile
+.vercel
