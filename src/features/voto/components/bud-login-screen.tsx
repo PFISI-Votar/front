@@ -12,7 +12,6 @@ import {
   Mail,
   ShieldCheck,
 } from 'lucide-react'
-import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -36,7 +35,10 @@ import {
   type MetodoAutenticacion,
 } from '@/features/eleccion/configuracion-comicio/data/constants'
 import { ManualVotanteLink } from '@/features/manual-votante'
-import { loginVotante } from '@/features/voto/services/votante-auth-api'
+import {
+  loginVotante,
+  startGoogleVoterLogin,
+} from '@/features/voto/services/votante-auth-api'
 import type { VotanteAuthUser } from '@/features/voto/types/votante-auth.types'
 
 export const DEFAULT_BUD_LOGIN_OBSERVACION =
@@ -45,6 +47,7 @@ export const DEFAULT_BUD_LOGIN_OBSERVACION =
 type BudLoginScreenProps = {
   idEleccion: number
   authMethod?: MetodoAutenticacion
+  googleEnabled?: boolean
   observacionLogin?: string | null
   onAuthenticated: (user: VotanteAuthUser) => void
 }
@@ -55,6 +58,7 @@ const GENERIC_LOGIN_ERROR =
 export const BudLoginScreen = ({
   idEleccion,
   authMethod = METODOS_AUTENTICACION.SSO_INSTITUCIONAL,
+  googleEnabled,
   observacionLogin,
   onAuthenticated,
 }: BudLoginScreenProps) => {
@@ -62,16 +66,23 @@ export const BudLoginScreen = ({
   const [clave, setClave] = useState('')
   const [showClave, setShowClave] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(() =>
+    new URLSearchParams(window.location.search).get('googleAuth') === 'error'
+      ? 'No pudimos iniciar sesión con Google. Verificá que tu cuenta esté habilitada en el padrón e intentá nuevamente.'
+      : null
+  )
   const isGoogleLogin = authMethod === METODOS_AUTENTICACION.GOOGLE
+  const canLoginWithGoogle = googleEnabled ?? isGoogleLogin
 
   const mensajeObservacion =
     observacionLogin !== undefined
       ? observacionLogin
       : DEFAULT_BUD_LOGIN_OBSERVACION
 
-  const handleGoogleStub = () => {
-    toast.info('El inicio de sesión con Google estará disponible próximamente.')
+  const handleGoogleLogin = () => {
+    setIsLoading(true)
+    setErrorMessage(null)
+    startGoogleVoterLogin(idEleccion)
   }
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -139,18 +150,31 @@ export const BudLoginScreen = ({
               </Alert>
             ) : null}
 
-            {isGoogleLogin ? (
+            {canLoginWithGoogle ? (
               <Button
                 type='button'
                 variant='outline'
                 className='h-12 w-full rounded-lg border-[#cfd3d7] bg-white text-sm font-semibold text-[#2f3337] shadow-none hover:bg-slate-50'
-                onClick={handleGoogleStub}
-                aria-label='Iniciar sesión con Google - próximamente'
+                onClick={handleGoogleLogin}
+                disabled={isLoading}
+                aria-label='Iniciar sesión con Google'
               >
-                <GoogleIcon className='size-5' />
+                {isLoading ? (
+                  <Loader2 className='size-5 animate-spin' aria-hidden='true' />
+                ) : (
+                  <GoogleIcon className='size-5' />
+                )}
                 Iniciar sesión con Google
               </Button>
-            ) : (
+            ) : null}
+            {canLoginWithGoogle && !isGoogleLogin ? (
+              <div className='my-5 flex items-center gap-3' aria-hidden='true'>
+                <span className='h-px flex-1 bg-[#dbe0e5]' />
+                <span className='text-xs font-medium text-[#6b7280]'>o</span>
+                <span className='h-px flex-1 bg-[#dbe0e5]' />
+              </div>
+            ) : null}
+            {!isGoogleLogin ? (
               <form className='flex flex-col gap-5' onSubmit={handleSubmit}>
                 <LoginField label='Número de Legajo' htmlFor='legajo-votante'>
                   <IdCard
@@ -220,7 +244,7 @@ export const BudLoginScreen = ({
                   )}
                 </Button>
               </form>
-            )}
+            ) : null}
           </CardContent>
         </Card>
 
