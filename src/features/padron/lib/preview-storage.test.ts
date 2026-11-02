@@ -65,6 +65,7 @@ describe('preview-storage', () => {
       registros: [
         { id: 'a', linea: 2, dni: '1', email: 'a@a.com', adicionales: {} },
       ],
+      criterioHash: CriterioHashPadron.DNI,
     })
   })
 
