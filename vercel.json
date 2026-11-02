@@ -5,6 +5,10 @@
       "source": "/api/:path*",
       "destination": "https://votar-back.vercel.app/:path*"
     },
+    {
+      "source": "/auth/votante/google/:path*",
+      "destination": "https://votar-back.vercel.app/auth/votante/google/:path*"
+    },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
