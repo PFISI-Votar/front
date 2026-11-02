@@ -12,6 +12,9 @@ const PAGE_SIZE = 50
 /** Tamaños de página disponibles para la tabla de hashes (máx. 200 en backend). */
 export const PADRON_PAGE_SIZES = [25, 50, 100, 200] as const
 
+export const totalVotantesPublicoQueryKey = (idEleccion: number) =>
+  ['padron-total-votantes', idEleccion] as const
+
 /**
  * Resumen del padrón de un comicio. Un 404 (sin padrón cargado) no se
  * reintenta: la vista lo trata como estado vacío.
@@ -62,7 +65,7 @@ export function usePadronVotantes(
  */
 export function useTotalVotantesPublico(idEleccion: number) {
   return useQuery({
-    queryKey: ['padron-total-votantes', idEleccion],
+    queryKey: totalVotantesPublicoQueryKey(idEleccion),
     queryFn: () => obtenerTotalVotantesPublico(idEleccion),
     retry: (failureCount, error) => {
       if (isAxiosError(error) && error.response?.status === 404) return false

@@ -2,6 +2,9 @@ import { isAxiosError } from 'axios'
 import { useQuery } from '@tanstack/react-query'
 import { obtenerTransaccionesPublica } from '@/features/dashboard-publico/api/transacciones-publica-api'
 
+export const transaccionesPublicaQueryKey = (idEleccion: number) =>
+  ['transacciones-publica', idEleccion] as const
+
 type UseTransaccionesPublicaOptions = {
   isFrozen?: boolean
   /** VOTAR-459: false mientras no se sepa si la solapa está visible. */
@@ -15,7 +18,7 @@ export const useTransaccionesPublica = (
   const { isFrozen = false, enabled = true } = options
 
   return useQuery({
-    queryKey: ['transacciones-publica', idEleccion],
+    queryKey: transaccionesPublicaQueryKey(idEleccion),
     queryFn: () => obtenerTransaccionesPublica(idEleccion),
     enabled: enabled && Number.isFinite(idEleccion) && idEleccion > 0,
     refetchInterval: isFrozen ? false : 30_000,

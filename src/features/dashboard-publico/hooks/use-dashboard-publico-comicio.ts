@@ -2,9 +2,12 @@ import { isAxiosError } from 'axios'
 import { useQuery } from '@tanstack/react-query'
 import { obtenerConfiguracionBud } from '@/features/voto/api/voto-api'
 
+export const dashboardPublicoComicioQueryKey = (idEleccion: number) =>
+  ['dashboard-publico-comicio', idEleccion] as const
+
 export const useDashboardPublicoComicio = (idEleccion: number) =>
   useQuery({
-    queryKey: ['dashboard-publico-comicio', idEleccion],
+    queryKey: dashboardPublicoComicioQueryKey(idEleccion),
     queryFn: () => obtenerConfiguracionBud(idEleccion),
     enabled: Number.isFinite(idEleccion) && idEleccion > 0,
     refetchInterval: (query) => {

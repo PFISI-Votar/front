@@ -8,7 +8,6 @@ import { EscrutinioExportMenu } from '@/features/dashboard-publico/components/es
 import { EscrutinioFrozenBanner } from '@/features/dashboard-publico/components/escrutinio-frozen-banner'
 import { EscrutinioGanadoresDialog } from '@/features/dashboard-publico/components/escrutinio-ganadores-dialog'
 import { ParticipacionStatsCards } from '@/features/dashboard-publico/components/participacion-stats-cards'
-import { useDashboardResultadosWebSocket } from '@/features/dashboard-publico/hooks/use-dashboard-resultados-websocket'
 import { useEscrutinio } from '@/features/dashboard-publico/hooks/use-escrutinio'
 import {
   barChartTitleFor,
@@ -40,10 +39,6 @@ export const EscrutinioPanel = ({
     estadoComicio === 'BORRADOR' || estadoComicio === 'CONFIGURADA'
   const queryEnabled = enabled && !isPreOpen
   const escrutinioQuery = useEscrutinio(idEleccion, queryEnabled)
-  useDashboardResultadosWebSocket(
-    idEleccion,
-    queryEnabled && !escrutinioQuery.data?.congelado
-  )
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
