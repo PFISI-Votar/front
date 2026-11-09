@@ -99,6 +99,13 @@ export const useDashboardPublicoWebSocket = (
       }
     )
 
+    // Aviso sin datos: el backend lo envía también cuando la autoridad ocultó
+    // "Resultados" (en ese caso no llega `resultados:actualizados`).
+    socket.on('dashboard:actualizado', (data: EleccionEvent) => {
+      if (data.idEleccion !== idEleccion) return
+      scheduleInvalidation(liveStatsQueryKeys(idEleccion))
+    })
+
     const refreshElectionState = (data: EleccionEvent) => {
       if (data.idEleccion !== idEleccion) return
       scheduleInvalidation(allDashboardQueryKeys(idEleccion))

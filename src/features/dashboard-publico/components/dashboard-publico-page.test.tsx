@@ -360,7 +360,7 @@ describe('DashboardPublicoPage', () => {
       .toBeInTheDocument()
   })
 
-  it('VOTAR-518: mantiene el WebSocket del dashboard activo aunque resultados esté oculto', async () => {
+  it('VOTAR-518: mantiene montado el hook del WebSocket con resultados oculto (las estadísticas se refrescan por dashboard:actualizado)', async () => {
     mocks.obtenerConfiguracionBud.mockResolvedValue({
       idEleccion: 6,
       nombre: 'Elección Centro de Estudiantes',

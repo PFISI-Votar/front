@@ -88,6 +88,22 @@ describe('useDashboardPublicoWebSocket', () => {
     }
   })
 
+  it('refresca las estadísticas con dashboard:actualizado, sin recibir resultados:actualizados (Resultados oculto)', async () => {
+    const keys = seedDashboardQueries().filter(
+      (key) =>
+        key[0] !== 'dashboard-publico-comicio' &&
+        key[0] !== 'oferta-publica' &&
+        key[0] !== 'padron-total-votantes'
+    )
+    await renderHook(() => useDashboardPublicoWebSocket(6), { wrapper })
+
+    emit('dashboard:actualizado', 6)
+    await vi.advanceTimersByTimeAsync(1_000)
+    for (const key of keys) {
+      expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true)
+    }
+  })
+
   it('se suscribe al conectar y revalida las ocho páginas al reconectar', async () => {
     const keys = seedDashboardQueries()
     await renderHook(() => useDashboardPublicoWebSocket(6), { wrapper })
@@ -151,6 +167,7 @@ describe('useDashboardPublicoWebSocket', () => {
     await renderHook(() => useDashboardPublicoWebSocket(6), { wrapper })
 
     emit('resultados:actualizados', 7)
+    emit('dashboard:actualizado', 7)
     emit('eleccion:cerrada', 7)
     emit('eleccion:merkle-publicado', 7)
     await vi.advanceTimersByTimeAsync(1_000)
