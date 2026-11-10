@@ -9,6 +9,12 @@ type UseRevotoStatsPublicaOptions = {
   enabled?: boolean
 }
 
+export const revotoStatsPublicaQueryPrefix = (idEleccion: number) =>
+  ['revoto-stats-publica', idEleccion] as const
+
+export const revotoStatsPublicaQueryKey = (idEleccion: number, horas = 12) =>
+  [...revotoStatsPublicaQueryPrefix(idEleccion), horas] as const
+
 export const useRevotoStatsPublica = (
   idEleccion: number,
   options: UseRevotoStatsPublicaOptions = {}
@@ -16,7 +22,7 @@ export const useRevotoStatsPublica = (
   const { horas = 12, isFrozen = false, enabled = true } = options
 
   return useQuery({
-    queryKey: ['revoto-stats-publica', idEleccion, horas],
+    queryKey: revotoStatsPublicaQueryKey(idEleccion, horas),
     queryFn: () => obtenerRevotoStatsPublica(idEleccion, horas),
     enabled: enabled && Number.isFinite(idEleccion) && idEleccion > 0,
     refetchInterval: isFrozen ? false : 4_000,

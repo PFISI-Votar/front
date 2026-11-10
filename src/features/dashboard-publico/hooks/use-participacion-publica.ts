@@ -9,6 +9,12 @@ type UseParticipacionPublicaOptions = {
   enabled?: boolean
 }
 
+export const participacionPublicaQueryPrefix = (idEleccion: number) =>
+  ['participacion-publica', idEleccion] as const
+
+export const participacionPublicaQueryKey = (idEleccion: number, horas = 12) =>
+  [...participacionPublicaQueryPrefix(idEleccion), horas] as const
+
 export const useParticipacionPublica = (
   idEleccion: number,
   options: UseParticipacionPublicaOptions = {}
@@ -16,7 +22,7 @@ export const useParticipacionPublica = (
   const { horas = 12, isFrozen = false, enabled = true } = options
 
   return useQuery({
-    queryKey: ['participacion-publica', idEleccion, horas],
+    queryKey: participacionPublicaQueryKey(idEleccion, horas),
     queryFn: () => obtenerParticipacionPublica(idEleccion, horas),
     enabled: enabled && Number.isFinite(idEleccion) && idEleccion > 0,
     refetchInterval: isFrozen ? false : 30_000,
