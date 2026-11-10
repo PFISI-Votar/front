@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import budFingerprint from '@/assets/bud-fingerprint.png'
+import budFingerprint from '@/assets/bud-fingerprint.webp'
 import {
   SidebarMenu,
   SidebarMenuButton,

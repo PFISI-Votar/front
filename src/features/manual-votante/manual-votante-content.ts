@@ -56,7 +56,7 @@ export const MANUAL_VOTANTE_SECTIONS: ManualVotanteSection[] = [
     ],
     screenshots: [
       {
-        src: '/manual-votante/01-inicio-sesion.png',
+        src: '/manual-votante/01-inicio-sesion.webp',
         alt: 'Pantalla de inicio de sesión',
         screen: [
           'VOTAR',
@@ -89,7 +89,7 @@ export const MANUAL_VOTANTE_SECTIONS: ManualVotanteSection[] = [
     ],
     screenshots: [
       {
-        src: '/manual-votante/02a-antes-de-votar.png',
+        src: '/manual-votante/02a-antes-de-votar.webp',
         alt: 'Pantalla Antes de votar',
         screen: [
           'VOTAR',
@@ -108,7 +108,7 @@ export const MANUAL_VOTANTE_SECTIONS: ManualVotanteSection[] = [
         ],
       },
       {
-        src: '/manual-votante/02b-seleccion.png',
+        src: '/manual-votante/02b-seleccion.webp',
         alt: 'Boleta con listas completas',
         screen: [
           'VOTAR',
@@ -143,7 +143,7 @@ export const MANUAL_VOTANTE_SECTIONS: ManualVotanteSection[] = [
     ],
     screenshots: [
       {
-        src: '/manual-votante/03-confirmar-firma.png',
+        src: '/manual-votante/03-confirmar-firma.webp',
         alt: 'Pantalla Confirmar Voto',
         screen: [
           'VOTAR',
@@ -179,7 +179,7 @@ export const MANUAL_VOTANTE_SECTIONS: ManualVotanteSection[] = [
     ],
     screenshots: [
       {
-        src: '/manual-votante/04-comprobante.png',
+        src: '/manual-votante/04-comprobante.webp',
         alt: 'Pantalla Voto Exitoso con Hash de transacción y Descargar comprobante PDF',
         screen: [
           'VOTAR',
@@ -216,7 +216,7 @@ export const MANUAL_VOTANTE_SECTIONS: ManualVotanteSection[] = [
     ],
     screenshots: [
       {
-        src: '/manual-votante/05-verificacion.png',
+        src: '/manual-votante/05-verificacion.webp',
         alt: 'Verificador con Hash de transacción',
         screen: [
           'VOTAR',

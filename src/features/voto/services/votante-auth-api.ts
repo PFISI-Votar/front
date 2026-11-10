@@ -15,6 +15,13 @@ export const loginVotante = async (
   return data
 }
 
+export const startGoogleVoterLogin = (idEleccion: number): void => {
+  const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+  const url = new URL(`${apiBase}/auth/votante/google`, window.location.origin)
+  url.searchParams.set('idEleccion', String(idEleccion))
+  window.location.assign(url.toString())
+}
+
 export const getVotanteSession = async (): Promise<VotanteAuthUser> => {
   const { data } =
     await votanteApiClient.get<VotanteAuthUser>('/auth/votante/me')

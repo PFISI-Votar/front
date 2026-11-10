@@ -26,6 +26,8 @@ export const CandidatoPublicoCard = ({
       {candidato.fotoUrl ? (
         <img
           src={resolveMediaUrl(candidato.fotoUrl)}
+          loading='lazy'
+          decoding='async'
           alt={`Foto de ${nombreCompleto}`}
           className='size-14 shrink-0 rounded-full object-cover'
         />

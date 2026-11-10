@@ -3,7 +3,7 @@ import { AxiosError } from 'axios'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { AlertCircle, Eye } from 'lucide-react'
-import budFingerprint from '@/assets/bud-fingerprint.png'
+import budFingerprint from '@/assets/bud-fingerprint.webp'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -335,6 +335,9 @@ const BoletaUnicaDigitalPageContent = ({
         <BudLoginScreen
           idEleccion={idEleccion}
           authMethod={authMethod}
+          googleEnabled={metodosAutenticacion.includes(
+            METODOS_AUTENTICACION.GOOGLE
+          )}
           observacionLogin={budConfigQuery.data?.observacionLogin}
           onAuthenticated={(user) => {
             void (async () => {
@@ -414,6 +417,7 @@ const BoletaUnicaDigitalPageContent = ({
       votanteScope={votanteSession.sub}
       cryptoReady={isReady}
       pausada={budConfigQuery.data.pausada ?? false}
+      popupAlerta={budConfigQuery.data.popupAlerta}
       onLogout={() => {
         clearVoterScopedCache(votanteSession.sub)
         destroyWallet()

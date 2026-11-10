@@ -261,6 +261,8 @@ export const ListaDetailPanel = ({
           {lista.logoUrl && (
             <img
               src={resolveMediaUrl(lista.logoUrl)}
+              loading='lazy'
+              decoding='async'
               alt={`Logotipo de ${listaNombre}`}
               className='h-20 w-40 rounded-lg border bg-muted object-cover'
             />
@@ -446,6 +448,8 @@ export const ListaDetailPanel = ({
                     {candidato.fotoUrl ? (
                       <img
                         src={resolveMediaUrl(candidato.fotoUrl)}
+                        loading='lazy'
+                        decoding='async'
                         alt={`Foto de ${toUntrustedPlainText(candidato.nombre)} ${toUntrustedPlainText(candidato.apellido)}`}
                         className='size-14 rounded-xl border bg-muted object-cover'
                       />
