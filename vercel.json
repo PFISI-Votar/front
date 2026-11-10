@@ -1,4 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://votar-back.vercel.app/:path*"
+    },
+    {
+      "source": "/auth/votante/google/:path*",
+      "destination": "https://votar-back.vercel.app/auth/votante/google/:path*"
+    },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }

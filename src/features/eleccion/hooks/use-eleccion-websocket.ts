@@ -1,7 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { io, type Socket } from 'socket.io-client'
 
-const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+// Socket.IO va directo al backend: el proxy /api de Vercel no reenvía
+// websockets. Los eventos son públicos, no dependen de cookies de sesión.
+const BACKEND_URL =
+  import.meta.env.VITE_WS_URL ||
+  import.meta.env.VITE_API_URL ||
+  'http://localhost:3000'
 
 interface EleccionAbiertaEvent {
   idEleccion: number
