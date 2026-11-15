@@ -60,6 +60,7 @@ import {
 } from '@/components/ui/table'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { obtenerEleccion } from '@/features/eleccion/api/eleccion-api'
+import { METODOS_AUTENTICACION } from '@/features/eleccion/configuracion-comicio/data/constants'
 import { useEleccionWebSocket } from '@/features/eleccion/hooks/use-eleccion-websocket'
 import { eliminarPadron, obtenerReporteNovedades } from '../api/padron-api'
 import {
@@ -148,6 +149,10 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
     isRunning: publicandoMerkle,
   } = usePublicarMerkle(idEleccion)
   const puedeCargar = esBorrador && sinPadron
+  const usaLoginGoogle =
+    eleccionQuery.data?.metodosAutenticacion?.includes(
+      METODOS_AUTENTICACION.GOOGLE
+    ) ?? false
   const puedePublicarOnChain =
     merkleQuery.data?.estado === 'GENERADO' &&
     eleccionQuery.data?.estado !== 'ABIERTA' &&
@@ -215,6 +220,7 @@ export const PadronComicioPage = ({ idEleccion }: PadronComicioPageProps) => {
               </DialogHeader>
               <PadronUploadForm
                 idEleccionFijo={idEleccion}
+                soloCorreo={usaLoginGoogle}
                 onCantidadCamposChange={setCantidadCamposModal}
               />
             </DialogContent>

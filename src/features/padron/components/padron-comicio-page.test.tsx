@@ -1,6 +1,8 @@
+import { AxiosError } from 'axios'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
+import { userEvent } from 'vitest/browser'
 import { PadronComicioPage } from './padron-comicio-page'
 
 const { useQueryMock } = vi.hoisted(() => ({
@@ -52,7 +54,10 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
   }
 })
 
-const renderPage = async (estado: string = 'BORRADOR') => {
+const renderPage = async (
+  estado: string = 'BORRADOR',
+  metodosAutenticacion: string[] = []
+) => {
   const qc = new QueryClient()
 
   useQueryMock.mockReturnValue({
@@ -60,6 +65,7 @@ const renderPage = async (estado: string = 'BORRADOR') => {
       idEleccion: 42,
       nombre: 'Elección de prueba',
       estado,
+      metodosAutenticacion,
     },
     isLoading: false,
     isError: false,
@@ -69,7 +75,13 @@ const renderPage = async (estado: string = 'BORRADOR') => {
     data: undefined,
     isLoading: false,
     isError: true,
-    error: { response: { status: 404 } },
+    error: new AxiosError('Not Found', '404', undefined, undefined, {
+      status: 404,
+      data: undefined,
+      statusText: 'Not Found',
+      headers: {},
+      config: {} as never,
+    }),
   })
 
   usePadronMerkleMock.mockReturnValue({
@@ -92,6 +104,29 @@ const renderPage = async (estado: string = 'BORRADOR') => {
 }
 
 describe('PadronComicioPage — VOTAR-336', () => {
+  describe('carga de padrón para comicios con Google', () => {
+    it('fuerza el correo como criterio y oculta las otras opciones', async () => {
+      const screen = await renderPage('BORRADOR', ['GOOGLE'])
+
+      await userEvent.click(
+        screen.getByRole('button', { name: /Cargar padrón electoral/i })
+      )
+
+      await expect
+        .element(
+          screen.getByText(/usa Google.*padrón.*únicamente por su correo/i)
+        )
+        .toBeInTheDocument()
+      await expect.element(screen.getByText('Solo DNI')).not.toBeInTheDocument()
+      await expect
+        .element(screen.getByText('DNI y Email combinados'))
+        .not.toBeInTheDocument()
+      await expect
+        .element(screen.getByText('Email', { exact: true }))
+        .toBeInTheDocument()
+    })
+  })
+
   describe('UAT-02: Advertencia de padrón sellado', () => {
     it('muestra alerta de padrón sellado cuando el estado es ABIERTA', async () => {
       const screen = await renderPage('ABIERTA')
