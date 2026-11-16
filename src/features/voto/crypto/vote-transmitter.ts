@@ -41,6 +41,8 @@ export type RelayCastFn = (
 
 export type TransmitSignedVoteOptions = {
   publicClient?: VotePublicClient
+  /** Chain ID returned with the authenticated ballot; avoids build-time drift. */
+  chainId?: number
   /**
    * VOTAR-497 — el gas lo paga el relayer del backend. El override existe para
    * tests; el default pide una capacidad autenticada y hace POST sin cookies.
@@ -55,6 +57,7 @@ export type TransmitSignedVoteOptions = {
 
 export type WaitForVoteTxReceiptOptions = {
   publicClient?: VotePublicClient
+  chainId?: number
   confirmationTimeoutMs?: number
 }
 
@@ -114,7 +117,8 @@ export const transmitSignedVote = async (
   input: TransmitSignedVoteInput,
   options: TransmitSignedVoteOptions = {}
 ): Promise<TransmitSignedVoteResult> => {
-  const publicClient = options.publicClient ?? createVotePublicClient()
+  const publicClient =
+    options.publicClient ?? createVotePublicClient(undefined, options.chainId)
   const relayCast = options.relayCast ?? createDefaultRelayCast()
   const maxAttempts = options.maxAttempts ?? VOTE_TX_MAX_ATTEMPTS
   const confirmationTimeoutMs =
@@ -166,7 +170,8 @@ export const waitForVoteTxReceipt = async (
   txHash: Hex,
   options: WaitForVoteTxReceiptOptions = {}
 ): Promise<TransmitSignedVoteResult> => {
-  const publicClient = options.publicClient ?? createVotePublicClient()
+  const publicClient =
+    options.publicClient ?? createVotePublicClient(undefined, options.chainId)
   const confirmationTimeoutMs =
     options.confirmationTimeoutMs ?? VOTE_TX_CONFIRMATION_TIMEOUT_MS
 

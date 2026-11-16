@@ -45,6 +45,8 @@ export type BoletaDigital = {
   categorias: CategoriaBoletaDigital[]
   /** BallotContract address deployed by ElectionFactory for this comicio (only present on the authenticated voter's boleta). */
   ballotContractAddress?: `0x${string}`
+  /** Chain ID used by the per-election contract and its EIP-712 domain. */
+  blockchainChainId?: number
 }
 
 /** VOTAR-459: solapas del dashboard público visibles mientras el comicio está en curso. */

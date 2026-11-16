@@ -1,6 +1,13 @@
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { describe, expect, it } from 'vitest'
-import { computeSelectionHash } from '@/features/voto/crypto/selection-hash'
+import {
+  VOTO_BLANCO,
+  VOTO_NULO,
+} from '@/features/voto/crypto/audit-candidate-id'
+import {
+  computeSelectionHash,
+  type SelectionPayload,
+} from '@/features/voto/crypto/selection-hash'
 import {
   buildVoteTypedDataDomain,
   signVotePayload,
@@ -9,6 +16,10 @@ import {
 const TEST_CONTRACT = '0x0000000000000000000000000000000000000001' as const
 const TEST_NULLIFIER =
   '0x1111111111111111111111111111111111111111111111111111111111111111' as const
+const SPECIAL_VOTE_CASES: Array<[string, SelectionPayload, bigint]> = [
+  ['blanco', { votoEnBlanco: true, selecciones: [] }, VOTO_BLANCO],
+  ['nulo', { votoNulo: true, selecciones: [] }, VOTO_NULO],
+]
 
 describe('vote-signer', () => {
   it('signs an EIP-712 vote payload with electionId, nullifier, selectionHash, candidateIds and timestamp', async () => {
@@ -47,6 +58,23 @@ describe('vote-signer', () => {
       )
     ).rejects.toThrow(/nullifier must be a 32-byte hex value/)
   })
+
+  it.each(SPECIAL_VOTE_CASES)(
+    'signs a %s vote with the rpc11 chain domain and reserved id',
+    async (_label, selection, expectedCandidateId) => {
+      const account = privateKeyToAccount(generatePrivateKey())
+      const signed = await signVotePayload(account, 10, selection, {
+        nullifier: TEST_NULLIFIER,
+        timestamp: 1_700_000_000,
+        chainId: 31_337,
+        verifyingContract: TEST_CONTRACT,
+      })
+
+      expect(signed.candidateIds).toEqual([expectedCandidateId])
+      expect(signed.selectionHash).toBe(computeSelectionHash(selection))
+      expect(signed.signature).toMatch(/^0x[0-9a-f]+$/i)
+    }
+  )
 
   it('builds the typed-data domain with name, version, chainId and verifyingContract', () => {
     expect(buildVoteTypedDataDomain(TEST_CONTRACT, 31_337)).toEqual({
