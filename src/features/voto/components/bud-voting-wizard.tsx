@@ -617,7 +617,9 @@ export const BudVotingWizard = ({
       setTransmitPhase('confirming')
       setTxHash(pending.txHash)
       try {
-        const result = await waitForVoteTxReceipt(pending.txHash)
+        const result = await waitForVoteTxReceipt(pending.txHash, {
+          chainId: boleta.blockchainChainId,
+        })
         await finalizeSuccessfulCast({
           txHash: result.txHash,
           blockNumber: Number(result.blockNumber),
@@ -868,6 +870,7 @@ export const BudVotingWizard = ({
           validatorSignature: validatorSig,
         },
         {
+          chainId: boleta.blockchainChainId,
           onProgress: (phase) => {
             setTransmitPhase(phase)
           },
@@ -1024,7 +1027,8 @@ export const BudVotingWizard = ({
       const signed = await signVotePayload(
         selection,
         nullifier,
-        boleta.ballotContractAddress
+        boleta.ballotContractAddress,
+        boleta.blockchainChainId
       )
       setSignedVote(signed)
 
@@ -1084,7 +1088,9 @@ export const BudVotingWizard = ({
       setTransmitPhase('confirming')
       setTxHash(existingHash)
       try {
-        const result = await waitForVoteTxReceipt(existingHash)
+        const result = await waitForVoteTxReceipt(existingHash, {
+          chainId: boleta.blockchainChainId,
+        })
         await finalizeSuccessfulCast({
           txHash: result.txHash,
           blockNumber: Number(result.blockNumber),

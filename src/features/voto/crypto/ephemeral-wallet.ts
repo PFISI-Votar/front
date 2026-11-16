@@ -108,7 +108,8 @@ export const createEphemeralWalletManager = (): EphemeralWalletManager => {
   const signVotePayload = async (
     selection: SelectionPayload,
     nullifier: Hex,
-    ballotContractAddress: Hex
+    ballotContractAddress: Hex,
+    chainId?: number
   ): Promise<SignedVotePayload> => {
     if (!privateKey || !session) {
       throw new Error('Ephemeral wallet is not initialized')
@@ -125,6 +126,7 @@ export const createEphemeralWalletManager = (): EphemeralWalletManager => {
         expectedSigner,
         signDigest,
         verifyingContract: ballotContractAddress,
+        chainId,
       }
     )
 

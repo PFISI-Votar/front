@@ -16,7 +16,8 @@ export type EphemeralWalletContextValue = {
   signVotePayload: (
     selection: SelectionPayload,
     nullifier: Hex,
-    ballotContractAddress: Hex
+    ballotContractAddress: Hex,
+    chainId?: number
   ) => Promise<SignedVotePayload>
   destroy: () => void
 }

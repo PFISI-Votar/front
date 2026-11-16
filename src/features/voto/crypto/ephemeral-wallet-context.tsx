@@ -48,12 +48,14 @@ export const EphemeralWalletProvider = ({
     async (
       selection: SelectionPayload,
       nullifier: Hex,
-      ballotContractAddress: Hex
+      ballotContractAddress: Hex,
+      chainId?: number
     ) => {
       const signed = await managerRef.current.signVotePayload(
         selection,
         nullifier,
-        ballotContractAddress
+        ballotContractAddress,
+        chainId
       )
       // VOTAR-418: manager.destroy() cleared the key; sync React state.
       setSession(managerRef.current.getSession())
